@@ -1,0 +1,396 @@
+.card {
+  width: 358px;
+  height: 202px;
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  border-radius: 16px;
+    outline: 2px #0E0F28 solid;
+  box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    transition: height 0.25s ease;
+  }
+  
+  .contentArea {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    width: 326px;
+    height: 126px;
+    display: flex;
+    flex-direction: column;
+  justify-content: space-between;
+    align-items: flex-start;
+  z-index: 1;
+}
+
+.topRow {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+    align-items: flex-start;
+  }
+  
+  .strategyName {
+    width: 282px;
+    height: 28px;
+  font-size: 20px;
+  font-weight: 700;
+    color: #1E1E1E;
+  font-family: 'Space Grotesk', sans-serif;
+  white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .nameActive {
+    color: #2050F2;
+  }
+  
+  .menuWrapper {
+    position: relative;
+  }
+  
+  .menuButton {
+    padding: 4px;
+    background: #E4EAF2;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .menuButton:hover {
+    background: rgba(14, 15, 40, 0.08);
+  }
+  
+  /* Stats row */
+  .statsRow {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.statBlock {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.statLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E1E1E;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1E1E1E;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  
+  /* Health panel */
+  .healthPanel {
+    align-self: stretch;
+    padding: 4px;
+    background: rgba(228, 234, 242, 0.50);
+    border-radius: 4px;
+    outline: 1px #D7E1EE solid;
+    outline-offset: -1px;
+    backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+    overflow: hidden;
+  }
+  
+  .healthDotCol {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .healthDot {
+    width: 8px;
+    height: 8px;
+    background: #F2C120;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  
+  .healthDotDanger {
+    background: #F22085;
+}
+
+.healthText {
+  flex: 1;
+  text-align: justify;
+  font-size: 12px;
+  font-weight: 500;
+  color: black;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Main button row */
+.buttonRow {
+  position: absolute;
+    left: 16px;
+    top: 158px;
+    width: 326px;
+    height: 28px;
+    display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  z-index: 1;
+}
+
+/* Primary / Secondary 元件尺寸（對齊 Figma 546:10146–48） */
+.mainRowSecondary {
+  width: 85px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.mainRowPrimary {
+  flex: 1;
+  min-width: 0;
+}
+
+.expandedFooterBtn {
+  flex: 1;
+  min-width: 0;
+}
+  
+  /* ===== Expanded area (shared between Funds & Details) ===== */
+  .expandedArea {
+    position: absolute;
+    left: 16px;
+    top: 211px;
+    width: 326px;
+    display: flex;
+    flex-direction: column;
+  gap: 8px;
+  z-index: 1;
+  }
+  
+  .expandedButtonRow {
+    position: absolute;
+    left: 16px;
+    width: 326px;
+    height: 28px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+    z-index: 1;
+  }
+  
+  /* ===== Details panel ===== */
+  .detailGrid {
+    display: flex;
+    gap: 8px;
+    align-self: stretch;
+  }
+  
+  .detailCell {
+    flex: 1;
+    padding: 4px;
+    background: rgba(228, 234, 242, 0.50);
+    border-radius: 4px;
+    outline: 1px #D7E1EE solid;
+    outline-offset: -1px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .detailLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1E1E1E;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  
+  .detailValue {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1E1E1E;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  
+  .activityCard {
+    align-self: stretch;
+    padding: 4px;
+    background: rgba(228, 234, 242, 0.50);
+    border-radius: 4px;
+    outline: 1px #D7E1EE solid;
+    outline-offset: -1px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .activityTitle {
+    font-size: 14px;
+    font-weight: 500;
+    color: #0e0f28;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    letter-spacing: -0.28px;
+    text-align: justify;
+  }
+  
+  .activityList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .activityRow {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .activityTime {
+    width: 48px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0E0F28;
+    font-family: 'Space Grotesk', sans-serif;
+    text-align: justify;
+    flex-shrink: 0;
+  }
+  
+  .activityDesc {
+    font-size: 14px;
+    font-weight: 500;
+    color: #0E0F28;
+    font-family: 'Space Grotesk', sans-serif;
+    text-align: justify;
+  }
+  
+  /* ===== Funds panel — Figma 546:10187 ===== */
+  .fundsInputRow {
+    display: flex;
+    gap: 8px;
+    align-self: stretch;
+  }
+
+  /* 與 InviteCodeModal .inputWrapper：預設黑、focus 藍、錯誤紅 */
+  .fundsInput {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 16px;
+    background: #e4eaf2;
+    border-radius: 8px;
+    outline: 2px solid #0e0f28;
+    outline-offset: 0;
+    border: none;
+    box-sizing: border-box;
+    box-shadow: 0 4px 0 0 #000;
+    transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .fundsInput:focus-within:not(.fundsInputError) {
+    outline: 2px solid #2050f2;
+    box-shadow: 0 4px 0 0 #2050f2;
+  }
+
+  .fundsInput.fundsInputError {
+    outline: 2px solid #d6295d;
+    box-shadow: 0 4px 0 0 #d6295d;
+  }
+
+  .fundsInput.fundsInputError:focus-within {
+    outline: 2px solid #d6295d;
+    box-shadow: 0 4px 0 0 #d6295d;
+  }
+
+  .fundsInputLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+  }
+
+  .fundsSolIcon {
+    flex-shrink: 0;
+    display: block;
+    object-fit: contain;
+  }
+
+  .fundsInputField {
+    flex: 1;
+    min-width: 0;
+    height: 48px;
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.32px;
+    color: #0e0f28;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  }
+
+  .fundsInputField:focus,
+  .fundsInputField:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+
+  .fundsInput.fundsInputError .fundsInputField {
+    color: #d6295d;
+  }
+
+  /* 四格百分比橫排 */
+  .pctGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    align-self: stretch;
+  }
+
+  .pctButton {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 4px 16px;
+    background: #e4eaf2;
+    border: none;
+    border-radius: 8px;
+    outline: 2px solid #0e0f28;
+    color: #0e0f28;
+    font-size: 16px;
+    font-weight: 500;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    cursor: pointer;
+    text-align: center;
+    transform: translateY(0);
+    filter: drop-shadow(0 2px 0 #0e0f28);
+    transition:
+      transform 80ms ease-out,
+      filter 80ms ease-out;
+  }
+
+  .pctButton:hover {
+    transform: translateY(-2px);
+    filter: drop-shadow(0 4px 0 #0e0f28);
+  }
+
+  .pctButton:active {
+    transition-duration: 0ms;
+    transform: translateY(1px);
+    filter: drop-shadow(0 1px 0 #0e0f28);
+  }

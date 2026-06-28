@@ -1,0 +1,190 @@
+/* Deploy 風格遮罩 — 對齊 WorkflowBuilder .deployOverlay */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.panel {
+  width: 100%;
+  max-width: 344px;
+  box-sizing: border-box;
+  padding: 16px;
+  background: #e4eaf2;
+  border: 2px solid #0e0f28;
+  border-radius: 16px;
+  box-shadow: 0 2px 0 0 #000;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+}
+
+.headerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.title {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: default;
+  text-align: left;
+  color: #2050f2;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: normal;
+  font-family: inherit;
+}
+
+.closeBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: #e4eaf2;
+  cursor: pointer;
+  color: #0e0f28;
+  transition: opacity 0.15s ease;
+}
+
+.closeBtn:hover {
+  opacity: 0.75;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0e0f28;
+  letter-spacing: -0.28px;
+  line-height: normal;
+}
+
+.codeList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  align-items: stretch;
+}
+
+/* Figma 596:18364 — 可用碼預設 */
+.codeBtn {
+  width: 100%;
+  max-width: 312px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 4px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: normal;
+  cursor: pointer;
+  background: #e4eaf2;
+  border: 2px solid #0e0f28;
+  box-shadow: 0 2px 0 0 #0e0f28;
+  color: #0e0f28;
+  transition: box-shadow 0.12s ease, transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+/* Figma 596:18378 — hover */
+.codeBtn:hover:not(:disabled) {
+  box-shadow: 0 4px 0 0 #0e0f28;
+}
+
+.codeBtn:focus-visible {
+  outline: 2px solid #2050f2;
+  outline-offset: 2px;
+}
+
+.codeBtn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 0 #0e0f28;
+}
+
+/* Figma 596:18392 — 複製成功 */
+.codeBtnCopied {
+  cursor: default;
+  background: #2050f2;
+  border-color: #0e0f28;
+  box-shadow: 0 2px 0 0 #0e0f28;
+  color: #fff;
+}
+
+.codeBtnCopied:hover {
+  box-shadow: 0 2px 0 0 #0e0f28;
+}
+
+.codeBtnCopied:active {
+  transform: none;
+}
+
+.checkIcon {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Figma 596:18408 — 已使用 */
+.codeRowUsed {
+  width: 100%;
+  max-width: 312px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 4px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: normal;
+  background: #e4eaf2;
+  border: 2px solid #aab2bc;
+  box-shadow: 0 2px 0 0 #aab2bc;
+  color: rgba(14, 15, 40, 0.5);
+}
+
+.usedSuffix {
+  font-weight: 700;
+}
+
+.emptyNote {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(14, 15, 40, 0.55);
+  text-align: center;
+  padding: 8px 0;
+}

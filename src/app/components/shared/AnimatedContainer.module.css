@@ -1,0 +1,72 @@
+.container {
+  transition: all var(--duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fade In Animation */
+.fadeIn {
+  opacity: 0;
+}
+
+.fadeIn.visible {
+  opacity: 1;
+}
+
+/* Slide Up Animation */
+.slideUp {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.slideUp.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Slide Left Animation */
+.slideLeft {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.slideLeft.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Slide Right Animation */
+.slideRight {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.slideRight.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Scale Animation */
+.scale {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.scale.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .container {
+    transition: none;
+  }
+  
+  .fadeIn,
+  .slideUp,
+  .slideLeft,
+  .slideRight,
+  .scale {
+    opacity: 1;
+    transform: none;
+  }
+}

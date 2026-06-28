@@ -1,0 +1,151 @@
+/* PinToolCorePage.module.css - High-fidelity dark mode UI inspired by n8n */
+.pageWrapper {
+  display: flex;
+  height: 100vh;
+  background: #181A20;
+  color: #F3F3F3;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+.toolbox {
+  width: 220px;
+  background: linear-gradient(180deg, #23243A 80%, #181A20 100%);
+  border-right: 1px solid #23243A;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  gap: 16px;
+  overflow-y: auto;
+}
+.toolboxHeader {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+  color: #FFD166;
+}
+.toolboxCategory {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.categoryTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 12px 0 8px;
+  padding-left: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.toolboxNode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-left: 4px solid;
+  border-radius: 8px;
+  background: #23243A;
+  cursor: grab;
+  transition: all 0.2s ease;
+  user-select: none;
+  width: 100%;
+}
+.toolboxNode:hover {
+  background: #2C2E3E;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.nodeIcon {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.canvasArea {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+.canvasBg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(135deg, #23243A 0px, #23243A 2px, #181A20 2px, #181A20 40px);
+}
+.canvasNode {
+  position: absolute;
+  min-width: 160px;
+  min-height: 54px;
+  background: linear-gradient(90deg, #2A2B3F 0%, #23243A 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.3);
+  border: 2px solid #2A2B3F;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  user-select: none;
+}
+.selectedNode {
+  border: 2px solid #FFD166;
+  box-shadow: 0 0 0 3px #FFD16644;
+}
+.connectionLine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.configPanel {
+  width: 320px;
+  background: linear-gradient(180deg, #23243A 80%, #181A20 100%);
+  border-left: 1px solid #23243A;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 240px;
+}
+.configContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.configContent h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.2rem;
+  color: #FFD166;
+}
+.configContent label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+  color: #F3F3F3;
+}
+.configContent input {
+  margin-top: 4px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: none;
+  background: #23243A;
+  color: #FFD166;
+  font-size: 1rem;
+  outline: none;
+}
+.configPlaceholder {
+  color: #888;
+  font-size: 1.1rem;
+  margin-top: 40px;
+  text-align: center;
+}

@@ -1,0 +1,212 @@
+/* shared.module.css - Common styles and utilities for shared components */
+
+/* Color variables matching PinTool design system */
+:root {
+  --bg-primary: #181A20;
+  --bg-secondary: #23243A;
+  --bg-tertiary: #2C2E3E;
+  --accent-primary: #FFD166;
+  --accent-secondary: #FFD16644;
+  --text-primary: #F3F3F3;
+  --text-secondary: #888;
+  --border-primary: #23243A;
+  --shadow-primary: rgba(0, 0, 0, 0.2);
+  --shadow-secondary: rgba(0, 0, 0, 0.3);
+}
+
+/* Common utility classes */
+.flexCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flexBetween {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flexColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.fullHeight {
+  height: 100%;
+}
+
+/* Common button styles */
+.button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg) 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-family-primary);
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width var(--duration-slow) ease, height var(--duration-slow) ease;
+}
+
+.button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.button:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 16px var(--shadow-primary);
+}
+
+.button:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: var(--duration-fast);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.buttonPrimary {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 209, 102, 0.3);
+}
+
+.buttonPrimary:hover {
+  background: #E6BC5A;
+  color: var(--bg-primary);
+  box-shadow: 0 6px 20px rgba(255, 209, 102, 0.4);
+  transform: translateY(-3px) scale(1.03);
+}
+
+/* Common card styles */
+.card {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 4px 20px var(--shadow-secondary);
+  transition: all var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--accent-secondary) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity var(--duration-normal) ease;
+  pointer-events: none;
+}
+
+.card:hover::before {
+  opacity: 0.5;
+}
+
+.card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 40px var(--shadow-secondary);
+  border-color: var(--accent-primary);
+}
+
+.card:focus-within {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Typography utilities */
+.heading1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.heading2 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.heading3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.bodyText {
+  font-size: 1rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.smallText {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .heading1 {
+    font-size: 2rem;
+  }
+  
+  .heading2 {
+    font-size: 1.5rem;
+  }
+  
+  .heading3 {
+    font-size: 1.25rem;
+  }
+  
+  .button {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+}

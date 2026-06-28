@@ -1,0 +1,971 @@
+/* WorkflowBuilder.module.css - Orchestrator component styles */
+.workflowBuilder {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  color: #F3F3F3;
+  font-family: 'JetBrains Mono', monospace;
+    max-width: 375px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+  
+  @media (min-width: 1024px) {
+    .workflowBuilder {
+      max-width: none;
+    }
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 48px;
+  background: #E4EAF2;
+  border-bottom: none;
+  height: 64px;
+  position: relative;
+  /* Above InviteCodeModal overlay (9999) so logo + SignIn stay visible */
+    z-index: 10000;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logoImage {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Deploy Button on Canvas */
+.deployButtonCanvas {
+  position: absolute;
+  top: 11px;
+  left: 182px;
+    width: 130px;
+    height: 39px;
+  padding: 4px 16px;
+  background: #2050F2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  border-radius: 48px;
+  outline: 2px #0E0F28 solid;
+  outline-offset: -1px;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  color: #E4EAF2;
+  font-size: 24px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  z-index: 150;
+  display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+  }
+  
+  .deployButtonCanvas svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.deployButtonCanvas:disabled {
+  cursor: not-allowed;
+  background: #E4EAF2;
+  color: #AAB2BC;
+  box-shadow: 0px 4px 0px #AAB2BC inset;
+  outline: 2px #AAB2BC solid;
+}
+
+.deployButtonCanvas:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0px 3px 0px #0E0F28;
+}
+
+.deployButtonCanvas:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: 0px 1px 0px #0E0F28;
+}
+
+
+.workspace {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: #EAF4F8;
+  display: flex;
+    flex-direction: column;
+  }
+/* 未登入或未通過邀請碼：不顯示 Canvas；入口由全站 InviteCodeModal 負責 */
+.canvasGate {
+  flex: 1;
+  min-height: 0;
+  background: #E4EAF2;
+}
+  
+  /* Toggle Node Menu Button */
+  .toggleNodeMenuButton {
+    position: absolute;
+    top: 11px;
+    left: 68px;
+    width: 98px;
+      height: 39px;
+      padding: 4px 16px;
+    background: #2050F2;
+    color: #E4EAF2;
+    border: none;
+    border-radius: 48px;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0px 2px 0px black;
+    outline: 2px #0E0F28 solid;
+    font-family: var(--font-family-space-grotesk);
+    z-index: 150;
+    transition: all 0.2s ease;
+    display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .toggleNodeMenuButton svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+  }
+  
+  .toggleNodeMenuButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0px 3px 0px black;
+  }
+  
+  .toggleNodeMenuButton:active {
+    transform: translateY(1px);
+    box-shadow: 0px 1px 0px black;
+  }
+  
+  /* Horizontal Node Menu */
+  .nodeMenu {
+    position: absolute;
+    top: 2px;
+    left: 96px;
+      right: 96px;
+    padding: 24px;
+    background: #E4EAF2;
+    box-shadow: 0px 4px 0px #0E0F28;
+    border-radius: 16px;
+    outline: 2px #0E0F28 solid;
+    outline-offset: -1px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 42px;
+    z-index: 150;
+  }
+  
+  /* Close Menu Button (X) */
+  .closeMenuButton {
+    width: 56px;
+      height: 32px;
+    padding: 4px 16px;
+    background: #F22020;
+    color: #E4EAF2;
+    border: none;
+    border-radius: 48px;
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0px 2px 0px black;
+    outline: 2px #0E0F28 solid;
+    font-family: var(--font-family-space-grotesk);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+  
+  .closeMenuButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0px 3px 0px black;
+  }
+  
+  .closeMenuButton:active {
+    transform: translateY(1px);
+    box-shadow: 0px 1px 0px black;
+  }
+  
+  /* Category Tabs */
+  .categoryTabs {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .categoryTab {
+    text-align: center;
+    color: black;
+    font-size: 24px;
+    font-family: var(--font-family-space-grotesk);
+    font-weight: 700;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+  }
+  
+  .categoryTab:hover {
+    opacity: 0.7;
+  }
+  
+  .categoryTabActive {
+    color: #2050F2;
+  }
+  
+  /* Node Buttons */
+  .nodeButtons {
+    display: flex;
+    align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+    
+    .nodeButton {
+      padding: 4px 16px;
+      background: #2050F2;
+      color: #E4EAF2;
+      border: none;
+      border-radius: 48px;
+      font-size: 24px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0px 2px 0px black;
+      outline: 2px #0E0F28 solid;
+      font-family: var(--font-family-space-grotesk);
+      transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    }
+    
+    .nodeButton:hover {
+      transform: translateY(-1px);
+      box-shadow: 0px 3px 0px black;
+    }
+    
+    .nodeButton:active {
+      cursor: grabbing;
+      transform: translateY(1px);
+      box-shadow: 0px 1px 0px black;
+}
+
+/* Deploy overlay — 須高於 .toolbar (10000)，否則 header 會露在遮罩上；低於 Toast (10100) */
+.deployOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deployModal {
+  padding: 16px;
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px black;
+  border-radius: 16px;
+  outline: 2px #0E0F28 solid;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+    width: 344px;
+    min-width: 344px;
+    box-sizing: border-box;
+  }
+  
+  /* Deploy 結果／錯誤畫面（對齊 Figma 垂直置中感） */
+  .deployModalOutcome {
+    justify-content: center;
+  }
+  
+  /* Figma 589:15352 — 部署中（Confirming） */
+  .deployDeployingWrap {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+  }
+  
+  .deployDeployingHead {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .deployDeployingStatusRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+  }
+  
+  .deployDeployingSpinner {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: block;
+    animation: spin 1s linear infinite;
+  }
+  
+  .deployDeployingStatusText {
+    margin: 0;
+    color: #0e0f28;
+    font-size: 14px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+  }
+  
+  .deployDeployingNote {
+    box-sizing: border-box;
+    min-height: 24px;
+    width: 100%;
+    padding: 4px 0 4px 4px;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .deployDeployingNoteStar,
+  .deployDeployingNoteText {
+    color: rgba(14, 15, 40, 0.5);
+    font-size: 12px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+  
+  /* Figma 576:14299 — Deploy 入金成功後導向 /workflows */
+  .deployPortfolioRedirectWrap {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+  }
+  
+  .deployPortfolioRedirectHead {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .deployPortfolioRedirectTitle {
+    color: #2050f2;
+    font-size: 20px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    text-align: left;
+    line-height: 1.2;
+  }
+  
+  .deployPortfolioRedirectStatusRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+  }
+  
+  .deployPortfolioRedirectSpinner {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: block;
+    animation: spin 1s linear infinite;
+  }
+  
+  .deployPortfolioRedirectStatusText {
+    margin: 0;
+    color: #0e0f28;
+    font-size: 14px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+  }
+  
+  .deployPortfolioRedirectActions {
+    align-self: stretch;
+    display: flex;
+    width: 100%;
+    min-height: 28px;
+    box-sizing: border-box;
+  }
+  
+  .deployPortfolioRedirectActions .deployActionGrow {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  
+  .deployResultHeader {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .deployResultTitleOk {
+    color: #2050f2;
+    font-size: 20px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    text-align: left;
+  }
+  
+  .deployResultTitleFail {
+    color: #d6295d;
+    font-size: 20px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    text-align: left;
+  }
+  
+  .deployResultSub {
+    margin: 0;
+    align-self: stretch;
+    color: #0e0f28;
+    font-size: 14px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: justify;
+  }
+  
+  .deployOutcomeBalanceRow {
+    align-self: stretch;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 8px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  }
+  
+  .deployOutcomeBalanceLabel,
+  .deployOutcomeBalanceSol,
+  .deployOutcomeBalanceUnit {
+    color: #0e0f28;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  
+  .deployOutcomeApprox {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: rgba(14, 15, 40, 0.5);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  
+  .deploySuccessTopActions {
+    align-self: stretch;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    width: 100%;
+    min-height: 28px;
+    box-sizing: border-box;
+  }
+  
+  .deploySuccessTopActions .deployActionGrow {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  
+  .deployActivatePrimary169 {
+    flex: 0 0 169px;
+    width: 169px;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  
+  .deployErrorReasonBlock {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .deployErrorReasonLabel,
+  .deployErrorReasonText {
+    align-self: stretch;
+    color: #0e0f28;
+    font-size: 14px;
+    font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: justify;
+  }
+  
+  .deployPostSuccessFundBlock {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  /* Figma 576:14277：四格均分一列，gap 8 */
+  .deployPctRow {
+    align-self: stretch;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  
+  /* 未入金成功：% 鈕用 Secondary，與 Figma sButton 字重接近 */
+  .deployPctSecondary {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    justify-self: stretch;
+    font-weight: 500;
+  }
+  
+  .deployActivateOnlyRow {
+    align-self: stretch;
+    display: flex;
+    width: 100%;
+    min-height: 28px;
+    box-sizing: border-box;
+}
+
+.deployModalTitle {
+  text-align: left;
+    color: #2050F2;
+    font-size: 20px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+.deployModalTitleLeft {
+  text-align: left;
+  color: #1E1E1E;
+  font-size: 24px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+.deployModalSubtitle {
+  text-align: center;
+  color: #1E1E1E;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+.deployModalSubtitleLeft {
+  text-align: left;
+  color: #1E1E1E;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+.deployActions {
+  align-self: stretch;
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  width: 100%;
+    box-sizing: border-box;
+}
+
+/* Figma：Cancel / Next 等寬撐滿列 */
+.deployActionGrow {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.deployHelperSection {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deployWarningBox {
+  align-self: stretch;
+  padding: 4px;
+  background: #E4EAF2;
+  overflow: hidden;
+  border-radius: 4px;
+  outline: 1px #D7E1EE solid;
+  outline-offset: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deployWarningDot {
+  width: 8px;
+  height: 8px;
+  background: #F2C120;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.deployWarningText {
+  flex: 1 1 0;
+  color: #000000;
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 500;
+}
+
+.deployNoteRow {
+  align-self: stretch;
+  padding: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deployNoteAsteriskCol {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.deployNoteAsterisk {
+  color: rgba(14, 15, 40, 0.5);
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.deployNoteAsteriskInvisible {
+  color: rgba(14, 15, 40, 0);
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.deployNoteText {
+  flex: 1 1 0;
+  text-align: justify;
+  color: rgba(14, 15, 40, 0.5);
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 500;
+}
+
+/* Step 1: name input 唯讀顯示 */
+.deployNameReadonly {
+  flex: 1;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  color: #0E0F28;
+  font-size: 20px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+/* Step 2: strategy name display (soft border, no shadow) */
+.deployNameField {
+  align-self: stretch;
+  padding: 4px;
+  background: rgba(228, 234, 242, 0.50);
+  border-radius: 4px;
+  outline: 1px #D7E1EE solid;
+  outline-offset: -1px;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+}
+
+/* Step 2 區塊 */
+.deployStep2Section {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Figma 620:31892 / 620:32237 — SOL 輸入與下方 rent 紅字 */
+.deployFundFieldStack {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.deployRentHint {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0 4px;
+  min-height: 0;
+}
+
+.deployRentHintStar {
+  flex-shrink: 0;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #d6295d;
+  letter-spacing: -0.48px;
+}
+
+.deployRentHintText {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #d6295d;
+  letter-spacing: -0.24px;
+  text-align: left;
+}
+
+.deployAddFundsBtn {
+  width: 100%;
+  padding: 4px 16px;
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  border-radius: 8px;
+  outline: 2px #0E0F28 solid;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.deployAddFundsBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0px 3px 0px #0E0F28;
+}
+
+.deployAddFundsBtn:active {
+  transform: translateY(1px);
+  box-shadow: 0px 1px 0px #0E0F28;
+}
+
+.deployBalanceRow {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.deployBalanceLabel {
+  color: #0E0F28;
+  font-size: 14px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+.deployBalanceValue {
+  color: #0E0F28;
+  font-size: 14px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+.deployBalanceUsd {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: rgba(14, 15, 40, 0.5);
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+.deployFeeRow {
+  display: inline-flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.deployFeeLabel {
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+.deployFeeValues {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.deployFeeStrike {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: #0E0F28;
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  text-decoration: line-through;
+}
+
+.deployFeeActual {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Loading overlay - blocks canvas interactions while workflows load */
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(228, 234, 242, 0.8);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+.loadingText {
+  color: #0E0F28;
+  font-size: 14px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+}
+
+/* SOL icon（FormInput prefix） */
+.deploySolIcon {
+  width: 33px;
+  height: 33px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+/* Figma 596:16129 / 596:16348 — Close canvas confirmation（與 deploy 同 overlay） */
+.closeCanvasIntro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.closeCanvasBody {
+  margin: 0;
+  align-self: stretch;
+  color: #0e0f28;
+  font-size: 14px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: justify;
+}
+
+.closeCanvasConfirmBlock {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.closeCanvasConfirmLine {
+  margin: 0;
+  align-self: stretch;
+  color: #0e0f28;
+  font-size: 14px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.closeCanvasHighlightName {
+  color: #d6295d;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .toolbar {
+    padding: 12px 16px;
+    }
+}

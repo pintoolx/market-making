@@ -1,0 +1,531 @@
+/* Professional DeFi WorkflowCanvas Styles */
+.canvasArea {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: transparent;
+    z-index: 10;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.canvasBg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+  
+  .canvasBg.panning {
+    cursor: grabbing !important;
+  }
+  
+  .canvasBg.dragging {
+    cursor: grabbing;
+  }
+  
+.viewport {
+  position: relative;
+  width: 5000px;
+  height: 5000px;
+  z-index: 101;
+}
+
+/* 與舊版 grid 視覺對齊：手機 15px 步進、桌面 60px（80px logo、25% overlap → 60px 間距） */
+.backgroundGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5000px;
+  height: 5000px;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background-image: url('/BG.svg');
+  background-repeat: repeat;
+  background-size: 15px 15px;
+}
+
+@media (min-width: 1024px) {
+  .backgroundGrid {
+    background-size: 60px 60px;
+  }
+}
+
+/* Gradient overlay - fixed to viewport edges */
+.gradientOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(228, 234, 242, 0.2) 60%, rgba(228, 234, 242, 0.8) 80%, rgba(228, 234, 242, 1) 100%);
+  z-index: 100;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .gradientOverlay {
+    height: 100%;
+  }
+}
+.canvasNode {
+  position: absolute !important;
+  width: 80px;
+  height: 66px;
+  cursor: pointer;
+  z-index: 10;
+  user-select: none;
+  box-sizing: border-box;
+  filter: none;
+  margin-left: -3px;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+  
+  .canvasNode:hover {
+    transform: translateY(-4px);
+      filter: drop-shadow(0px 4px 0px var(--shadow-color, #BF79F0));
+  }
+  
+  .canvasNode:active {
+    transform: translateY(0px);
+      filter: none;
+}
+
+.nodeImage {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Node Content Overlay */
+.nodeContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nodeIcon {
+  position: absolute;
+  top: 50%;
+  left: 20%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+  object-fit: contain;
+}
+
+.nodeOperator {
+  position: absolute;
+  top: 38%;
+  right: 8%;
+  color: #BF79F0;
+  font-size: 10px;
+  font-family: var(--font-family-space-grotesk);
+  transform-origin: center;
+}
+  
+  /* Price feed icon - purple color to match outline #BF79F0 */
+  .priceFeedIcon {
+    background-color: #BF79F0;
+  }
+.jupiterIcon {
+  background-color: #79F0BE;
+}
+
+.jupiterOperatorIcon {
+  background-color: #79F0BE;
+}
+  
+  /* Price feed expanded view (at 2x zoom) */
+  .priceFeedHeader {
+    position: absolute;
+    top: 10%;
+    left: 28%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  
+  .barChartIcon {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 8px;
+  }
+  
+  .bar1,
+  .bar2,
+  .bar3 {
+    width: 2px;
+    background-color: #BF79F0;
+    border-radius: 1px;
+  }
+  
+  .bar1 {
+    height: 3px;
+  }
+  
+  .bar2 {
+    height: 5px;
+  }
+  
+  .bar3 {
+    height: 8px;
+  }
+  
+  .priceFeedLabel {
+    color: #a86ad4;
+    font-size: 6px;
+    font-family: var(--font-family-space-grotesk);
+    font-weight: 700;
+  }
+  
+  .priceFeedValue {
+    position: absolute;
+    bottom: 12%;
+    left: 20%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    color: #BF79F0;
+    font-size: 8px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+/* Jupiter Swap expanded view */
+/* 21px from edge in 2x zoom = ~16% of node height */
+.swapInputValue {
+  position: absolute;
+  top: 15%;
+  left: 43%;
+  transform: translateX(-50%);
+  color: #68CFA4;
+  font-size: 7px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  opacity: 0.5;
+  text-align: center;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.swapOutputValue {
+  position: absolute;
+  bottom: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #79F0BE;
+  font-size: 7px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* Kamino Lending expanded view */
+.kaminoPoolLabel {
+  position: absolute;
+  top: 16%;
+  left: 43%;
+  transform: translateX(-50%);
+  color: #D46B6B;
+  font-size: 6px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.kaminoAmountValue {
+  position: absolute;
+  bottom: 16%;
+  left: 43%;
+  transform: translateX(-50%);
+  color: #F07979;
+  font-size: 7px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.kaminoIconsContainer {
+  position: absolute;
+  top: 50%;
+  left: 45%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kaminoIconExpanded {
+  width: 36px;
+  height: 36px;
+  background-color: #F07979;
+  flex-shrink: 0;
+}
+
+.kaminoAssetIcon {
+  width: 36px;
+  height: 36px;
+  background-color: #F07979;
+  flex-shrink: 0;
+}
+
+.kaminoIconDefault {
+  background-color: #F07979;
+}
+
+/* Marinade icon — matches the Staking.svg outline colour */
+.marinadeIcon {
+  background-color: #79D0F0;
+}
+
+.notificationIcon {
+  background-color: #F079E0;
+}
+/* Icon positioned like operator (for jupiter swap) */
+.nodeOperatorIcon {
+  position: absolute;
+  top: 38%;
+  left: 7%;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.nodeValue {
+  position: absolute;
+  left: 58%;
+  top: 43px;
+  transform: translateX(-50%);
+  text-align: center;
+  color: white;
+  font-size: 14px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+/* Canvas Controls */
+.canvasControls {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+  background: rgba(26, 27, 35, 0.95);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.controlButton {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.1) 0%, rgba(0, 180, 216, 0.1) 100%);
+  border: 1px solid rgba(0, 212, 170, 0.3);
+  border-radius: 8px;
+  color: #00D4AA;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.controlButton:hover {
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.2) 0%, rgba(0, 180, 216, 0.2) 100%);
+  border-color: rgba(0, 212, 170, 0.5);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+}
+
+.controlButton:active {
+  transform: scale(0.95);
+}
+
+.zoomLevel {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94A3B8;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 4px;
+}
+
+/* Canvas Instructions */
+.canvasInstructions {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  z-index: 200;
+  background: rgba(26, 27, 35, 0.95);
+  border-radius: 12px;
+  padding: 12px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.instruction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #94A3B8;
+  font-weight: 500;
+}
+
+.instruction kbd {
+  background: rgba(0, 212, 170, 0.1);
+  border: 1px solid rgba(0, 212, 170, 0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-family: 'Courier New', monospace;
+  color: #00D4AA;
+  font-weight: 600;
+}
+
+/* Dragging state */
+.canvasNode.dragging {
+  z-index: 1000;
+  transform: translateY(-1px);
+  transition: none !important;
+  pointer-events: none;
+}
+/* chatPanelWrapper removed — chat panel now positioned inline above toolbar */
+/* Stats Display - Top Right */
+.statsDisplay {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 8px;
+  background: #E4EAF2;
+  border-radius: 4px;
+  outline: 1px #D7E1EE solid;
+  outline-offset: -1px;
+  padding: 4px;
+  overflow: hidden;
+  z-index: 150;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #E4EAF2;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.statText {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0E0F28;
+  white-space: nowrap;
+}
+
+/* Zoom Controls - Bottom Right */
+.zoomControls {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  background: #E4EAF2;
+  border-radius: 8px;
+  outline: 1px #D7E1EE solid;
+  outline-offset: -1px;
+  padding: 4px;
+  overflow: hidden;
+  z-index: 150;
+}
+
+.zoomButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #E4EAF2;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0E0F28;
+  padding: 0;
+  overflow: hidden;
+  transition: background-color 0.2s ease;
+}
+
+.zoomButton:hover {
+  background-color: #d8e0eb;
+}
+
+.zoomLevel {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0E0F28;
+  padding: 0 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .canvasControls {
+    bottom: 16px;
+    right: 16px;
+  }
+
+  .statsDisplay {
+    top: 8px;
+    right: 8px;
+  }
+
+  .zoomControls {
+    bottom: 16px;
+    right: 16px;
+  }
+}

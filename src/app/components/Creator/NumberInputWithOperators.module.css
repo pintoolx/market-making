@@ -1,0 +1,74 @@
+/* Number Input with Operators Styles */
+.numberInputWrapper {
+  width: 100%;
+  height: 56px;
+  padding: 4px 16px;
+  background: #E4EAF2;
+  /* 與 FormInput 一致：粗底線 4px */
+  box-shadow: 0 4px 0 0 #000;
+  border-radius: 8px;
+  outline: 2px solid #0e0f28;
+  outline-offset: 0;
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px;
+}
+
+.numberInputWrapper:focus-within {
+  outline-color: #2050f2;
+  box-shadow: 0 4px 0 0 #2050f2;
+}
+
+.operatorButton {
+  width: 24px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #737373;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.operatorButton:hover {
+  color: #2050F2;
+}
+
+.operatorButton.active {
+  color: #2050F2;
+}
+
+.numberInput {
+  flex: 1;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  text-align: center;
+  min-width: 0;
+}
+
+.numberInput::placeholder {
+  color: #737373;
+}
+
+.spacer {
+  width: 24px;
+  height: 48px;
+  flex-shrink: 0;
+}

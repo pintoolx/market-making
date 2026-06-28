@@ -1,0 +1,103 @@
+/* Primary（藍色主按鈕）— default / hover / active / disabled */
+/* 用 filter: drop-shadow 取代 box-shadow，陰影沿圓角輪廓一體，較不像「第二塊矩形」 */
+/* Hover 位移與 Secondary 一致：translateY(-2px)，陰影深度 4→6px */
+
+.primary {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  margin: 0;
+  background: #2050f2;
+  border-radius: 8px;
+  outline: 2px solid #0e0f28;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  transform: translateY(0);
+  filter: drop-shadow(0 2px 0 #0e0f28);
+  /* 只過渡位移與陰影；放開滑鼠後若仍偏慢，多半是這段在從 :active 插回 :hover */
+  transition:
+    transform 80ms ease-out,
+    filter 80ms ease-out;
+}
+
+.primary:focus-visible {
+  outline: 2px solid #2050f2;
+  outline-offset: 2px;
+}
+
+/* 與 .primary 相同行為，主色 #f22085（關閉 canvas 等） */
+.primaryAccentPink {
+  background: #f22085;
+}
+
+.primaryAccentPink:focus-visible {
+  outline-color: #f22085;
+}
+
+.label {
+  display: block;
+  text-align: center;
+  font-weight: inherit;
+  color: inherit;
+  word-wrap: break-word;
+}
+
+/* Hover — 與 Secondary 相同移動／陰影幅度 */
+.primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 4px 0 #0e0f28);
+  font-weight: 700;
+}
+
+.primary:hover:not(:disabled) .label {
+  text-align: center;
+}
+
+/* Active — 按下瞬間到位（不與 hover 過渡搶時間） */
+.primary:active:not(:disabled) {
+  transition-duration: 0ms;
+  transform: translateY(1px);
+  filter: drop-shadow(0 1px 0 #0e0f28);
+  font-weight: 600;
+}
+
+.primary:active:not(:disabled) .label {
+  text-align: center;
+}
+
+/* Disabled */
+.primary:disabled {
+  transform: translateY(0);
+  background: #e4eaf2;
+  filter: drop-shadow(0 2px 0 #aab2bc);
+  outline: 2px solid #aab2bc;
+  outline-offset: -1px;
+  gap: 4px;
+  color: #aab2bc;
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+.primary:disabled .label {
+  text-align: center;
+  color: #aab2bc;
+}
+
+.primary:disabled:focus-visible {
+  outline: 2px solid #aab2bc;
+  outline-offset: -1px;
+}
+
+.fullWidth {
+  width: 100%;
+}
