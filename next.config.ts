@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Deployed on Vercel (moved off Zeabur). Vercel handles the build output
-  // natively, so `output: "standalone"` (which was for the Zeabur Docker image)
-  // is no longer needed. Re-add it only if self-hosting via the Dockerfile again.
+  // Deployed to Cloudflare Pages as a fully static site. The app has no API
+  // routes / server actions, so it exports to plain HTML in `out/`.
+  output: "export",
+  // Static export can't use Next's image optimization server, so serve images
+  // as-is. Fine for now; revisit if we need optimized/responsive images.
+  images: { unoptimized: true },
 };
 
 export default nextConfig;
