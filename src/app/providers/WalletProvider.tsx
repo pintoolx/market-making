@@ -3,15 +3,15 @@
 import React, { useMemo, useCallback } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { clusterApiUrl } from '@solana/web3.js';
 import '@solana/wallet-adapter-react-ui/styles.css';
+import { SOLANA_RPC_URL } from '../lib/solana';
 
 interface SolanaWalletProviderProps {
   children: React.ReactNode;
 }
 
 export default function SolanaWalletProvider({ children }: SolanaWalletProviderProps) {
-  const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
+  const endpoint = useMemo(() => SOLANA_RPC_URL, []);
 
   // Empty array = auto-detect browser-installed wallets (Phantom, Solflare, MetaMask, etc.)
   const wallets = useMemo(() => [], []);

@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/shared/Toast';
 import { getInvitedByCode } from '../lib/referralStorage';
+import { SOLANA_RPC_URL } from '../lib/solana';
 import { fetchMyReferralCodes, withdrawWallet } from '../lib/pintoolApi';
 import YourInviteCodesModal from '../components/shared/YourInviteCodesModal';
 import type { InviteCodeItem } from '../components/shared/YourInviteCodesModal';
@@ -55,10 +56,7 @@ export default function WorkflowsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [toggleAccountWorkflowId, setToggleAccountWorkflowId] = useState<string | null>(null);
 
-  const connection = useMemo(
-    () => new Connection('https://api.devnet.solana.com'),
-    []
-  );
+  const connection = useMemo(() => new Connection(SOLANA_RPC_URL), []);
 
   const strategies = useMemo((): Strategy[] => {
     return deployedWorkflows.map(w => {

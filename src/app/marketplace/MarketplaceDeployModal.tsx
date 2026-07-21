@@ -54,12 +54,12 @@ function formatSolTransferError(err: unknown): string {
       if (inner?.message && inner.message !== 'Unexpected error') return inner.message;
     }
     if (!err.message || err.message === 'Unexpected error') {
-      return 'Wallet blocked send (often: app RPC is Devnet but wallet account only lists Mainnet). Switch wallet to Devnet or use the same cluster as this app.';
+      return 'Wallet blocked send (often: wallet is on a different cluster than this app). Switch your wallet to Mainnet, the same cluster as this app.';
     }
   }
   const m = (err as Error)?.message;
   if (m && m !== 'Unexpected error') return m;
-  return 'Transaction failed. Use Devnet in your wallet and ensure enough SOL on Devnet for amount + fees.';
+  return 'Transaction failed. Make sure your wallet is on Mainnet with enough SOL for amount + fees.';
 }
 
 async function assertTransferSimulationOk(

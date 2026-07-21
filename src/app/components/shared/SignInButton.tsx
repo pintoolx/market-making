@@ -7,6 +7,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Connection, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { User, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { SOLANA_RPC_URL } from '../../lib/solana';
 import Image from 'next/image';
 import Primary from './Primary';
 
@@ -82,7 +83,7 @@ export default function SignInButton({ authenticatedWalletLabel }: SignInButtonP
     const fetchBalance = async () => {
       if (wallet.publicKey && isAuthenticated) {
         try {
-          const connection = new Connection('https://api.devnet.solana.com');
+          const connection = new Connection(SOLANA_RPC_URL);
           const balance = await connection.getBalance(wallet.publicKey);
           setSolBalance(balance / LAMPORTS_PER_SOL);
         } catch (error) {
