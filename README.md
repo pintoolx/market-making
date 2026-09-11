@@ -1,34 +1,59 @@
 # PinTool Market Making
 
-Built for ETHOnline 2026 on 1inch Aqua and Chainlink Confidential Compute.
+Private market-making strategies on 1inch Aqua, powered by Chainlink Confidential Compute.
 
-Strategy Providers publish market-making strategies; Makers run them on 1inch Aqua with their own funds and private limits. A Chainlink confidential workflow (TEE) combines both sides' private inputs, so neither has to reveal them. Makers keep custody of their funds and pay the Provider a fee only when they make a profit.
+Strategy Providers publish market-making strategies without revealing their logic. Makers run them with their own funds and their own private limits, and pay the Provider a share of the profit, only when there is one.
 
-## Repository
+## How it works
 
-| Folder | What it is | Status |
+1. **A Provider publishes a strategy.** They start from an Aqua template, write the logic only they know, and set a performance fee. Makers only see the name, a description and the fee.
+2. **A Maker sets private limits.** They pick a strategy and set a budget and a maximum exposure. The Provider never sees these.
+3. **A confidential workflow combines both.** A Chainlink workflow running in a TEE checks the Provider's logic against the Maker's limits and only produces a plan that fits both.
+4. **The Maker signs, and the strategy runs on Aqua.** Funds stay in the Maker's wallet the whole time. Limits are enforced on every swap, and the Provider's fee applies only to profit.
+
+## What stays private
+
+| Private | Public |
+|---|---|
+| Provider's pricing and adjustment logic | Strategy name, description and fee |
+| Maker's budget and exposure limits | Parameters of an activated strategy and every trade onchain |
+
+Limits reduce exposure; they do not guarantee a maximum loss.
+
+## Status
+
+| Part | Folder | Status |
 |---|---|---|
-| `frontend/` | Next.js app: `/` role choice, `/studio` Provider Studio, `/maker` Maker Marketplace, `/profile` | Working prototype, data kept in the browser |
-| TEE workflow | Chainlink confidential workflow that evaluates Provider logic against Maker limits | Planned |
-| Aqua execution | Guard contract and SwapVM strategy that enforce the approved limits on every swap | Planned |
+| Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
+| Confidential workflow (Chainlink TEE) | | In progress |
+| Aqua execution (Guard contract and SwapVM strategy) | | In progress |
 
-The frontend started from the PinTool app (`pintoolx/app`); its git history is kept under `frontend/`.
-
-## Develop
-
-Uses pnpm with a hoisted `node_modules` (see `.npmrc`); `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
+## Getting started
 
 ```bash
 pnpm install
-cp frontend/.env.example frontend/.env.local   # then set NEXT_PUBLIC_PRIVY_APP_ID
+cp frontend/.env.example frontend/.env.local   # set NEXT_PUBLIC_PRIVY_APP_ID
 pnpm dev                                        # http://localhost:3000
 ```
 
+Uses pnpm with a hoisted `node_modules` (see `.npmrc`). `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
+
 ## Deploy (Cloudflare Pages)
 
-The frontend is exported as a static site (`output: "export"`).
+The web app is exported as a static site (`output: "export"`).
 
 - Build command: `pnpm install --frozen-lockfile && pnpm build`
 - Build output directory: `frontend/out`
 - Environment variables: `NEXT_PUBLIC_PRIVY_APP_ID` (inlined at build time) and `NODE_VERSION=22`
 - Add the Pages domain to the Privy app's allowed origins.
+
+## Docs
+
+- [Product spec and interfaces](docs/PRODUCT-HANDOFF.md)
+- [Aqua maker strategy research](docs/AQUA-MAKER-RESEARCH.md)
+- [What Aqua can enforce per swap, and the Guard design](docs/AQUA-STRATEGY-DEEP-DIVE.md)
+- [User stories and UX walkthrough](docs/UX-USER-STORIES.md)
+
+## Background
+
+The web app grew out of the [PinTool](https://github.com/pintoolx) app; its earlier git history is kept under `frontend/`. Everything from commit `33ff065` onward is new to this project; earlier commits are the existing PinTool app. How AI tools were used is described in [AI_USAGE.md](AI_USAGE.md).

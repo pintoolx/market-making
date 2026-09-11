@@ -1,0 +1,44 @@
+# AI usage
+
+This project was built with AI coding assistants, directed and reviewed by the team. This page lists where they were used.
+
+## Tools
+
+- **OpenAI Codex (CLI)**: first version of the strategy templates, the template marketplace screen, the Privy login and the first profile page; first drafts of the product spec and strategy research.
+- **Claude Code (Anthropic)**: the rest of the web app and most of its final code, the per-swap enforcement research, the UX walkthrough and the repository setup. Commits it helped write carry a `Co-Authored-By: Claude` trailer. Codex's work is included in commit `33ff065`, which does not carry a separate trailer.
+
+Development was conversational rather than driven by a formal spec. The decisions and plans that came out of those conversations are written up in [`docs/`](docs/).
+
+## Files written with AI assistance
+
+Everything below was generated or substantially edited with the tools above, then reviewed and tested by the team.
+
+**New in this project** (`frontend/src/app/`)
+
+- `marketplace/`: `AquaApp.tsx`, `ProviderFlow.tsx`, `MakerFlow.tsx`, `ui.tsx`, `aquaTemplates.ts`, `publishedStore.ts`, `proposalStore.ts`, `aqua.module.css`, `README.md`
+- `studio/page.tsx`, `maker/page.tsx`
+- `profile/`: `page.tsx`, `AccountDetails.tsx`, `ConfirmButton.tsx`, `CopyAddress.tsx`, `profileStore.ts`
+- `components/shared/`: `SiteHeader`, `SiteFooter`, `PrivyAccountButton`, `Avatar`, and `legal/` (privacy policy and terms dialogs)
+- `providers/`: `PrivyProvider.tsx`, `useAccount.ts`
+
+**Changed from the existing PinTool app**
+
+- `layout.tsx`, `page.tsx`, `marketplace/page.tsx`, `marketplace/page.module.css`
+- `components/Creator/WorkflowBuilder.tsx` and `marketplace/MarketplaceDeployModal.tsx` (removed the invite-code gate)
+
+**Repository and docs**
+
+- Root `README.md`, `package.json`, `pnpm-workspace.yaml` (`.npmrc` is copied from the PinTool app)
+- All documents in [`docs/`](docs/)
+- The privacy policy and terms of service texts were drafted with AI and still need review before public launch.
+
+## What the team did
+
+- Defined the product: the Provider and Maker roles, combining both sides' private inputs in a TEE, and the fee paid only on profit.
+- Made the product and design decisions at each step: which strategies to support, the flows, page structure, layout and wording, based on the existing PinTool design.
+- Reviewed every iteration in the browser. Automated checks of the Provider and Maker flows were run by Claude Code.
+- Is building the confidential workflow (Chainlink TEE) and the Aqua execution side.
+
+## Existing code
+
+Everything in `frontend/` before commit `33ff065` comes from the existing PinTool app: the Solana workflow canvas, the earlier marketplace components, Supabase sign-in and the shared UI components.
