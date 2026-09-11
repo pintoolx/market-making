@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // A Maker's proposal waiting for execution. Kept in this browser only; nothing is sent anywhere yet.
-export type Proposal = { id: string; strategyName: string; mechanism: string; budget: string; maxExposure: string; feePct?: number; createdAt: number };
+export type Proposal = { id: string; strategyName: string; mechanism: string; budget: string; maxExposure: string; maxWeakAsset: string; maxTrade: string; validityMinutes: string; feePct?: number; createdAt: number };
 
 const KEY = 'pintool.aqua.proposals';
 const CHANGED = 'pintool:proposals-changed';

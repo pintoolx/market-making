@@ -55,7 +55,7 @@ export const AQUA_TEMPLATES: AquaTemplate[] = [
     summary: 'Adapt quoting decisions to move inventory toward a target allocation.',
     privateInputs: 'Target inventory, tolerance bands and adjustment logic.',
     execution: 'A compatible program updated by an inventory-aware controller.',
-    risk: 'Targets may not be reached. The controller and runtime limits still need implementation.',
+    risk: 'Targets may not be reached, and adverse order flow can move inventory away from its intended allocation.',
     prompt: 'Describe the base strategy, target inventory and response to imbalance.',
   },
   {
