@@ -1,0 +1,73 @@
+/* Layout.module.css - Layout wrapper component styling matching PinTool design system */
+
+.layoutWrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family-primary);
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mainContent.fullHeight {
+  height: 100vh;
+}
+
+.contentWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Responsive design */
+@media (max-width: 1440px) {
+  .contentWrapper {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .layoutWrapper {
+    min-height: 100vh;
+  }
+  
+  .contentWrapper {
+    padding: 0;
+  }
+}
+
+/* Page-specific layout adjustments */
+.layoutWrapper[data-page-type="entry"] .contentWrapper {
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.layoutWrapper[data-page-type="creator"] .contentWrapper {
+  padding: 0;
+}
+
+.layoutWrapper[data-page-type="workflows"] .contentWrapper {
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .layoutWrapper[data-page-type="entry"] .contentWrapper {
+    padding: var(--spacing-md);
+  }
+  
+    .layoutWrapper[data-page-type="workflows"] .contentWrapper {
+    padding: 0;
+  }
+}

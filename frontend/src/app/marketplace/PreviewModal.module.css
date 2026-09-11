@@ -1,0 +1,437 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 15, 40, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 1027px;
+  height: 546px;
+  background: #e4eaf2;
+  border-radius: 16px;
+  outline: 2px solid #0e0f28;
+  box-shadow: 0 2px 0 #0e0f28;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  color: #0e0f28;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 10;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* LEFT panel */
+.left {
+  padding: 40px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e1e1e;
+  line-height: 1.2;
+}
+
+.byLine {
+  margin: 0;
+  display: inline-flex;
+  gap: 4px;
+  font-size: 16px;
+}
+
+.byLabel {
+  color: #1e1e1e;
+  font-weight: 700;
+}
+
+.byCreator {
+  color: #2050f2;
+  font-weight: 700;
+}
+
+.detailsHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.detailsTitle {
+  margin: 0;
+  align-self: stretch;
+  font-size: 20px;
+  font-weight: 700;
+  color: #000;
+  line-height: 1.2;
+}
+
+.detailsDesc {
+  margin: 0;
+  align-self: stretch;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e1e1e;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.detailsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: stretch;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  align-items: stretch;
+}
+
+.stepCard,
+.stepSeparator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(228, 234, 242, 0.5);
+  border: 1px solid #d7e1ee;
+  border-radius: 4px;
+  min-height: 56px;
+  box-sizing: border-box;
+  align-self: stretch;
+}
+
+.stepIcon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: contain;
+  display: block;
+  /* 一律渲染成黑色，無視 svg 原色 */
+  filter: brightness(0) saturate(100%);
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stepLine {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.stepLabel {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #0e0f28;
+}
+
+.stepBold {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #0e0f28;
+}
+
+.stepSub {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #0e0f28;
+  margin-top: 2px;
+}
+
+/* RIGHT panel */
+.right {
+  background: #edf4f8;
+  padding: 64px 52px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.optionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.optionCard {
+  position: relative;
+  height: 78px;
+  padding: 16px 12px 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #d7e1ee;
+  background: rgba(228, 234, 242, 0.5);
+  box-shadow: 0 4px 0 #d7e1ee;
+  text-align: left;
+  cursor: pointer;
+  color: #0e0f28;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  font-family: inherit;
+  min-width: 0;
+  box-sizing: border-box;
+  transition:
+    background-color 80ms ease-out,
+    color 80ms ease-out,
+    box-shadow 80ms ease-out,
+    border-color 80ms ease-out;
+}
+
+.optionSelected {
+  background: #2050f2;
+  color: white;
+  border-color: #0e0f28;
+  box-shadow: 0 4px 0 #0e0f28;
+}
+
+.optionLine {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.optionLabel {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.optionBold {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.optionSub {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.recommendBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0 8px;
+  height: 16px;
+  background: #2050f2;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.optionSelected .recommendBadge {
+  background: white;
+  color: #2050f2;
+}
+
+/* Stats */
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.statKey {
+  color: #000;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.statValue {
+  color: #000;
+  font-weight: 700;
+  width: 75%;
+  line-height: 1;
+}
+
+.statValueGroup {
+  width: 75%;
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.statApyPlus {
+  color: #2050f2;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.statApyValue {
+  color: #2050f2;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.statApyUnit {
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Checklist — outdented relative to stats / price column */
+.checklist {
+  list-style: none;
+  margin: 26px -28px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tighter spacing when the creator option is selected (extra check row) */
+.checklistCreator {
+  margin-top: 2px;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0e0f28;
+  line-height: 1.4;
+}
+
+/* Price + CTA */
+.priceCta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.priceRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 24px;
+}
+
+.priceLabel {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0e0f28;
+}
+
+.priceValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0e0f28;
+}
+
+.pricePeriod {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cta {
+  width: 218px;
+  height: 28px;
+  padding: 4px 16px;
+}
+
+/* Warning — extends past the stats column to fit on one line */
+.warning {
+  display: block;
+  padding: 4px 8px;
+  margin: 0 -28px;
+  background: rgba(242, 193, 32, 0.2);
+  border: 1px solid #f2c120;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #000;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.warningDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  background: #f2c120;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+@media (max-width: 900px) {
+  .card {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+
+  .left {
+    padding: 32px 24px;
+  }
+
+  .right {
+    padding: 32px 24px 24px;
+  }
+}

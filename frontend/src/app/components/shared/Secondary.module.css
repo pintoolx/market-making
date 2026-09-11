@@ -1,0 +1,110 @@
+/* Secondary — 淺底主按鈕；Click 時變為藍底白字（設計稿） */
+/* 與 Primary 相同：filter: drop-shadow 取代 box-shadow；Hover 陰影 2→4px、translateY(-2px) */
+
+.secondary {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  margin: 0;
+  background: #e4eaf2;
+  border-radius: 8px;
+  outline: 2px solid #0e0f28;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0e0f28;
+  -webkit-text-fill-color: currentColor;
+  text-decoration: none;
+  transform: translateY(0);
+  filter: drop-shadow(0 2px 0 #0e0f28);
+  /* 僅過渡位移／陰影；color/background 不過渡（見先前註解） */
+  transition:
+    transform 80ms ease-out,
+    filter 80ms ease-out,
+    outline-color 80ms ease-out,
+    gap 80ms ease-out;
+}
+
+.secondary:focus-visible {
+  outline: 2px solid #2050f2;
+  outline-offset: 2px;
+}
+
+.label {
+  display: block;
+  text-align: center;
+  font-weight: inherit;
+  color: currentColor;
+  word-wrap: break-word;
+}
+
+/* Hover */
+.secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 4px 0 #0e0f28);
+}
+
+/* Active（Click）— 藍底白字（button 提高權重，並涵蓋 hover+active 同時成立） */
+button.secondary:active:not(:disabled),
+button.secondary:hover:active:not(:disabled) {
+  transition-duration: 0ms;
+  transform: translateY(0);
+  background: #2050f2;
+  filter: drop-shadow(0 2px 0 #0e0f28);
+  outline-color: #0e0f28;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+button.secondary:active:not(:disabled) .label,
+button.secondary:hover:active:not(:disabled) .label {
+  text-align: center;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+/* Disabled */
+.secondary:disabled {
+  justify-content: center;
+  transform: translateY(0);
+  background: #e4eaf2;
+  filter: drop-shadow(0 2px 0 #aab2bc);
+  outline: 2px solid #aab2bc;
+  outline-offset: -1px;
+  gap: 4px;
+  color: #aab2bc;
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+.secondary:disabled .label {
+  text-align: center;
+  color: #aab2bc;
+}
+
+.secondary:disabled:focus-visible {
+  outline: 2px solid #aab2bc;
+  outline-offset: -1px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/*
+ * 與 .secondary 同外觀，非按鈕、不參與點擊。
+ * 子元素一併關閉 pointer-events，否則滑過內嵌圖片仍會觸發外層 :hover。
+ */
+.secondaryPresentational,
+.secondaryPresentational * {
+  pointer-events: none;
+  cursor: default;
+  user-select: text;
+}

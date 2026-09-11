@@ -1,0 +1,38 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #E4EAF2;
+}
+
+.loadingIcon {
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+}
+
+/* No title or message on loading screen */
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 32px 24px;
+  }
+  
+  .title {
+    font-size: 1.25rem;
+  }
+  
+  .message {
+    font-size: 0.9rem;
+  }
+}

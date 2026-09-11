@@ -1,0 +1,11 @@
+/* Lines up with the header and content column (1184px wide); the divider only spans that column. */
+.footer { position: relative; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding: 20px max(48px, calc((100% - 1184px) / 2)); font: 500 13px/1.4 var(--font-family-space-grotesk), sans-serif; color: #0e0f28; }
+.footer::before { content: ''; position: absolute; top: 0; left: max(48px, calc((100% - 1184px) / 2)); right: max(48px, calc((100% - 1184px) / 2)); border-top: 1px solid #abb8ce; }
+.copyright { margin: 0; }
+.links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; }
+.links button, .links a { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; cursor: pointer; }
+.links button:hover, .links a:hover { color: #2050f2; }
+.links button:focus-visible, .links a:focus-visible { outline: 2px solid #2050f2; outline-offset: 3px; }
+.social { display: inline-flex; }
+.social svg { width: 16px; height: 16px; fill: currentColor; }
+@media (max-width: 900px) { .footer { padding-inline: 16px; } .footer::before { left: 16px; right: 16px; } }

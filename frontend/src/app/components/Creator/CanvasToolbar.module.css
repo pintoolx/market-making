@@ -1,0 +1,428 @@
+/* CanvasToolbar - Bottom toolbar for canvas tools */
+
+/* 寬度只含 toolbarTools：置中時不會因 ChatPanel 變寬而把整條 toolbar 往右推 */
+.toolbarContainer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  z-index: 200;
+  overflow: visible;
+}
+
+.toolbarTools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Chat 脫離排版流，貼在 toolbar 左側、底緣對齊（視覺並排但不撐開置中錨點） */
+.chatPanelAside {
+  position: absolute;
+  right: 100%;
+  bottom: 0;
+  margin-right: 10px;
+  z-index: 300;
+  pointer-events: auto;
+}
+
+.toolGroup {
+  display: flex;
+  align-items: center;
+  background-color: #e4eaf2;
+  border: 2px solid #0e0f28;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0px 4px 0px 0px #0e0f28;
+}
+
+.toolGroupMulti {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #e4eaf2;
+  border: 2px solid #0e0f28;
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0px 4px 0px 0px #0e0f28;
+}
+
+.toolButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background-color: #e4eaf2;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.toolButton:hover {
+  background-color: #e4eaf2;
+  border-color: #0e0f28;
+}
+
+.toolButton.active {
+  background-color: #2050f2;
+  border-color: #0e0f28;
+}
+
+.toolButton.active svg path,
+.toolButton.active svg polyline,
+.toolButton.active svg polygon,
+.toolButton.active svg rect {
+  stroke: #ffffff;
+}
+
+/* Agent button specific styles */
+.agentGroup {
+  position: relative;
+  overflow: visible;
+}
+
+.agentButton:hover {
+  border-color: #0e0f28;
+  background-color: #e4eaf2;
+}
+
+.agentButton.active {
+  background: linear-gradient(135deg, #799BF0 0%, #2050F2 50%, #799BF0 100%);
+  border: none;
+}
+
+.agentTooltip {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: linear-gradient(135deg, #799BF0 0%, #2050F2 50%, #799BF0 100%);
+  box-shadow: 0px 0px 2px #0E0F28;
+  border-radius: 4px;
+  color: #E4EAF2;
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+
+.agentGroup:hover .agentTooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.agentGroup:has(.agentButton.active) .agentTooltip {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Generic tooltip wrapper and tooltip */
+.toolButtonWrapper {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: #E4EAF2;
+  box-shadow: 0px 0px 2px #0E0F28;
+  border-radius: 4px;
+  color: #0E0F28;
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+
+.toolButtonWrapper:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Node tool buttons active state */
+.nodeToolButton {
+  color: #0E0F28;
+}
+
+.nodeToolButton.nodeToolActive {
+  background: #013BFE;
+  border-radius: 8px;
+  border-color: transparent;
+  color: #E4EAF2;
+}
+
+.nodeToolButton.nodeToolActive .toolIconSmall {
+  filter: brightness(0) invert(1);
+}
+
+/* Tool Menu */
+.toolMenu {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  transform: translateY(-100%);
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  border-radius: 8px;
+  outline: 2px #0E0F28 solid;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  z-index: 300;
+  overflow: hidden;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.menuItem:hover {
+  background: #2050F2;
+}
+
+.menuItem:hover .menuItemName,
+.menuItem:hover .menuItemDesc {
+  color: #E4EAF2;
+}
+
+.menuItem:hover .menuItemIcon {
+  filter: brightness(0) invert(1);
+}
+
+.menuItemIcon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: brightness(0);
+}
+
+
+.menuItemText {
+  display: flex;
+  flex-direction: column;
+}
+
+.menuItemName {
+  color: #1E1E1E;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.menuItemDesc {
+  color: #737373;
+  font-size: 10px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Play button tooltip */
+.playGroup {
+  position: relative;
+}
+
+.playTooltip {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: #013BFE;
+  box-shadow: 0px 0px 2px #0E0F28;
+  border-radius: 4px;
+  color: #E4EAF2;
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+
+.playGroup:hover .playTooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.toolIconCat {
+  width: 28px;
+  height: 28px;
+}
+
+.catBody {
+  fill: #2050F2;
+  transition: fill 0.15s ease;
+}
+
+.catFace {
+  fill: #E4EAF2;
+  stroke: #E4EAF2;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.agentButton.active .catBody {
+  fill: #E4EAF2;
+}
+
+.agentButton.active .catFace {
+  fill: #013BFE;
+  stroke: #013BFE;
+}
+
+.toolIconSmall {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: brightness(0);
+}
+
+.playButton {
+  background-color: #e4eaf2;
+}
+
+.playButton:hover {
+  background-color: #d8e0eb;
+}
+
+/* Search Group */
+.searchGroup {
+  padding: 4px 12px 4px 4px;
+}
+
+.searchGroup .toolButton {
+  border-color: transparent;
+}
+
+.searchGroup .toolButton:hover {
+  border-color: transparent;
+  background-color: #e4eaf2;
+}
+
+.searchForm {
+  display: flex;
+  align-items: center;
+  width: 130px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.searchInput {
+  width: 120px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0e0f28;
+  padding: 0 8px;
+}
+
+.searchInput:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.searchInput:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.searchInput::placeholder {
+  color: rgba(14, 15, 40, 0.4);
+}
+
+/* Search Results Dropdown */
+.searchResults {
+  position: absolute;
+  top: -10px;
+  left: 65px;
+  transform: translateY(-100%);
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  border-radius: 8px;
+  outline: 2px #0E0F28 solid;
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 300;
+}
+
+.noResults {
+  padding: 12px 16px;
+  color: rgba(14, 15, 40, 0.5);
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .toolbarContainer {
+    bottom: 16px;
+    gap: 4px;
+  }
+
+  .toolGroup,
+  .toolGroupMulti {
+    padding: 2px;
+  }
+
+  .toolGroupMulti {
+    gap: 4px;
+    padding: 2px 4px;
+  }
+
+  .toolButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .toolIconCat {
+    width: 22px;
+    height: 22px;
+  }
+
+  .toolIconSmall {
+    width: 20px;
+    height: 20px;
+  }
+
+  .searchInput {
+    width: 80px;
+  }
+}

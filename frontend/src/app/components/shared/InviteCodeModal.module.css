@@ -1,0 +1,154 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #E4EAF2;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: 344px;
+  padding: 16px;
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px black;
+  border-radius: 16px;
+  outline: 2px #0E0F28 solid;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.title {
+  color: #2050F2;
+  font-size: 20px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  word-wrap: break-word;
+}
+
+.fieldFooter {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.errorBanner {
+  align-self: stretch;
+  padding: 4px;
+  background: #E4EAF2;
+  border-radius: 4px;
+  outline: 1px solid #D7E1EE;
+  outline-offset: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.errorDot {
+  width: 8px;
+  height: 8px;
+  background: #D6295D;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.errorBannerText {
+  flex: 1 1 0;
+  color: #000;
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  line-height: 1.35;
+  word-wrap: break-word;
+}
+
+.helperRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.helperText {
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(14, 15, 40, 0.50);
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+}
+
+.helperText .asterisk {
+  color: rgba(14, 15, 40, 0.50);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.claimLink {
+  padding: 4px;
+  border-radius: 4px;
+  color: rgba(14, 15, 40, 0.50);
+  font-size: 12px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  transition: color 0.15s ease;
+}
+
+.claimLink:hover {
+  color: #2050F2;
+}
+
+.startButton {
+  width: 100%;
+  padding: 4px 16px;
+  border-radius: 8px;
+  outline: 2px #4A4A4A solid;
+  outline-offset: -2px;
+  background: transparent;
+  border: none;
+  text-align: center;
+  color: #4A4A4A;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  cursor: not-allowed;
+  transition: all 0.15s ease;
+}
+
+.startButton.active {
+  background: #2050F2;
+  color: #E4EAF2;
+  outline: 2px solid #0E0F28;
+  outline-offset: 0;
+  box-shadow: 0 4px 0 #0E0F28;
+  cursor: pointer;
+  transform: translateY(0);
+}
+
+.startButton.active:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #0E0F28;
+}
+
+.startButton:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.startButton.active:disabled {
+  background: transparent;
+  color: #4A4A4A;
+  outline-color: #4A4A4A;
+  box-shadow: none;
+}

@@ -1,0 +1,256 @@
+/* PT Agent 寬度：視窗 1280px → 339px（min）、1920px → 400px（max），其間線性 */
+.chatPanel {
+  width: clamp(
+    339px,
+    calc(339px + (100vw - 1280px) * 61 / 640),
+    400px
+  );
+  height: 500px;
+  max-height: calc(100vh - 200px);
+  padding: 16px;
+  background: #E4EAF2;
+  box-shadow: 0px 4px 0px #2050F2;
+  border-radius: 16px;
+  outline: 2px #2050F2 solid;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 16px;
+  animation: slideUp 0.3s ease;
+  box-sizing: border-box;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chatContent {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 16px;
+  overflow-y: auto;
+  width: 100%;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.chatContent::-webkit-scrollbar {
+  display: none;
+}
+
+.agentHeader {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.agentIndicator {
+  display: inline-flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px;
+}
+
+.agentDot {
+  width: 16px;
+  height: 16px;
+  background: #2050F2;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.agentName {
+  text-align: center;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+.messageBubble {
+  align-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 8px;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* User dot (dark) */
+.userDot {
+  width: 16px;
+  height: 16px;
+  background: #0E0F28;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.inputContainer {
+  align-self: stretch;
+  padding: 4px 16px;
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px black;
+  border-radius: 8px;
+  outline: 2px #0E0F28 solid;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.inputWrapper {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  min-height: 48px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.chatInput {
+  align-self: stretch;
+  min-height: 24px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  padding: 0;
+  resize: none;
+  overflow-y: auto;
+  word-wrap: break-word;
+  line-height: 1.5;
+  max-height: 200px;
+}
+
+.chatInput::placeholder {
+  color: #0E0F28;
+  opacity: 0.5;
+}
+
+.sendButton {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0E0F28;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sendButton:hover {
+  opacity: 0.8;
+}
+
+.sendButton:active {
+  transform: scale(0.95);
+}
+
+/* Loading spinner for thinking state */
+.loadingSpinner {
+  width: 29.01px;
+  height: 16px;
+  position: relative;
+  transform: rotate(-90deg);
+  transform-origin: top left;
+  flex-shrink: 0;
+}
+
+.loadingSpinnerCircle {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: rgba(255, 255, 255, 0);
+  border-radius: 9999px;
+}
+
+.loadingSpinnerBorder {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 9999px;
+  border: 9.34px #2050F2 solid;
+  /* Base ring stays static */
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Rotating transparent mask above the blue base ring */
+.loadingSpinnerMask {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 9999px;
+  border: 9.34px #E4EAF2 solid; /* match panel bg to mask */
+  border-top-color: transparent; /* reveal a wedge of blue */
+  border-right-color: transparent; /* optional: larger wedge */
+  transform-origin: 50% 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Loading container */
+.loadingContainer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Loading SVG icon */
+.loadingIcon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  flex-shrink: 0;
+  animation: spin 1s linear infinite;
+}

@@ -1,0 +1,17 @@
+/* Same look as the jup-event policy modals: light panel, ink outline, drop shadow. */
+/* globals.css zeroes margins, so restore the dialog's centring. */
+.dialog { inset: 0; margin: auto; width: min(760px, calc(100% - 32px)); max-height: 90dvh; padding: 0; border: 0; border-radius: 16px; background: transparent; overflow: visible; }
+.dialog::backdrop { background: rgb(14 15 40 / .7); backdrop-filter: blur(4px); }
+.panel { position: relative; max-height: 90dvh; overflow-y: auto; padding: 32px; box-sizing: border-box; border-radius: 16px; background: #e4eaf2; color: #0e0f28; outline: 2px solid #0e0f28; outline-offset: -2px; box-shadow: 0 4px 0 #0e0f28; font-family: var(--font-family-space-grotesk); }
+.panel h2 { margin: 0; padding-right: 40px; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+.close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border: 2px solid #0e0f28; border-radius: 8px; background: #e4eaf2; color: #0e0f28; font-size: 22px; line-height: 1; cursor: pointer; }
+.close:hover { color: #2050f2; }
+.close:focus-visible { outline: 2px solid #2050f2; outline-offset: 2px; }
+.updated { margin: 8px 0 24px; font-size: 13px; color: #4c5870; }
+.body { font-size: 14px; line-height: 1.7; }
+.body h2 { margin: 28px 0 10px; padding: 0; font-size: 17px; font-weight: 700; letter-spacing: 0; }
+.body p { margin: 0 0 12px; }
+.body ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 8px; list-style: disc; }
+.body strong { font-weight: 700; }
+.body a { color: #2050f2; font-weight: 600; text-underline-offset: 3px; }
+@media (max-width: 560px) { .panel { padding: 24px 20px; } .panel h2 { font-size: 22px; } }

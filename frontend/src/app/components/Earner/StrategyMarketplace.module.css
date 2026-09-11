@@ -1,0 +1,100 @@
+.marketplace {
+  width: 100%;
+  font-family: var(--font-family-space-grotesk);
+  position: relative;
+  z-index: 1;
+}
+
+.content {
+  width: 100%;
+  padding: 24px 48px 48px 48px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Figma APP/Dashboard card grid: 358×3 + 8px gutters ≈ 1090px */
+.strategiesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 358px);
+  column-gap: 8px;
+  row-gap: 16px;
+  max-width: 1090px;
+}
+
+/* Loading State */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  width: 100%;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #C8D4E2;
+  border-top: 3px solid #2050F2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loadingText {
+  color: #1E1E1E;
+  font-size: 16px;
+  margin: 0;
+  font-family: var(--font-family-space-grotesk);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  width: 100%;
+}
+
+.emptyTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1E1E1E;
+  margin: 0 0 8px 0;
+  font-family: var(--font-family-space-grotesk);
+}
+
+.emptyDescription {
+  font-size: 16px;
+  color: #6B7A8D;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 400px;
+  font-family: var(--font-family-space-grotesk);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .strategiesGrid {
+    grid-template-columns: repeat(2, 358px);
+  }
+}
+
+@media (max-width: 800px) {
+  .strategiesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .content {
+    padding: 24px 16px 32px 16px;
+  }
+}

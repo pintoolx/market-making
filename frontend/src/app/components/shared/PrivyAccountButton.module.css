@@ -1,0 +1,29 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 8px;
+  outline: 2px solid #0e0f28;
+  background: #2050f2;
+  color: #eef3fb;
+  font: 600 16px/1.2 var(--font-family-space-grotesk), sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 0 #0e0f28);
+  transition: transform 80ms ease-out, filter 80ms ease-out;
+}
+
+.button:hover:not(:disabled) { transform: translateY(-2px); filter: drop-shadow(0 4px 0 #0e0f28); }
+.button:focus-visible { outline-color: #2050f2; outline-offset: 3px; }
+.button:disabled { background: #d7e1ee; color: #6c7890; outline-color: #aab2bc; filter: none; cursor: not-allowed; }
+.icon { width: 16px; height: 16px; flex: none; }
+/* Account menu, same look as the original marketplace dropdowns. */
+.anchor { position: relative; }
+.menu { position: absolute; top: 100%; right: 0; z-index: 300; margin-top: 8px; min-width: 160px; display: flex; flex-direction: column; background: #e4eaf2; border: 2px solid #0e0f28; border-radius: 8px; box-shadow: 0 2px 0 #0e0f28; overflow: hidden; }
+.menuItem { height: 40px; padding: 8px 16px; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: #0e0f28; font: 600 15px/1.2 var(--font-family-space-grotesk), sans-serif; text-align: left; text-decoration: none; cursor: pointer; }
+.menuItem + .menuItem { border-top: 1px solid #abb8ce; }
+.menuItem:hover, .menuItem:focus-visible { background: #d8e4f4; color: #2050f2; outline: none; }

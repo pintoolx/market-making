@@ -1,0 +1,18 @@
+/* Logo and account button line up with the content column (1184px wide); transparent so the contour background shows. */
+.header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px max(48px, calc((100% - 1184px) / 2)); background: transparent; font-family: var(--font-family-space-grotesk), sans-serif; }
+.logo { display: inline-flex; align-items: center; }
+.actions { display: flex; align-items: center; gap: 16px; }
+.roleTabs { display: flex; border: 2px solid #0e0f28; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 0 #0e0f28; }
+.roleTabs a { padding: 6px 14px; background: #e4eaf2; color: #0e0f28; font: 600 14px/1.2 var(--font-family-space-grotesk), sans-serif; white-space: nowrap; text-decoration: none; }
+.roleTabs a + a { border-left: 2px solid #0e0f28; }
+.roleTabs a:hover { background: #edf1f7; }
+.roleTabs a[aria-current="page"] { background: #2050f2; color: #eef3fb; }
+.roleTabs a:focus-visible { outline: 2px solid #2050f2; outline-offset: -4px; }
+@media (max-height: 760px) and (min-width: 901px) { .header { padding-block: 14px; } }
+@media (max-width: 900px) { .header { padding-inline: 16px; } }
+@media (max-width: 560px) {
+  .header { padding-block: 16px; flex-wrap: wrap; gap: 12px; }
+  .logo img { width: 135px; height: auto; }
+  .actions { width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+  .roleTabs a { padding-inline: 12px; }
+}

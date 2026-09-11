@@ -1,0 +1,228 @@
+/* WorkflowTabs - Tab bar for switching between workflows */
+
+.tabsContainer {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #E4EAF2;
+  z-index: 150;
+}
+
+.tabsContent {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #edf4f8;
+  border: 2px solid #0e0f28;
+  border-radius: 16px;
+  padding: 8px 16px;
+  height: 48px;
+  flex: 1;
+  box-sizing: border-box;
+  box-shadow: 0px 4px 0px 0px #0e0f28;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 120px;
+  max-width: 178px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+  flex-shrink: 0;
+  overflow: hidden;
+    box-sizing: border-box;
+}
+
+.tabActive {
+  background-color: #2050f2;
+  border: 1px solid #0e0f28;
+}
+
+.tabActive .tabLabel {
+  color: #edf4f8;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+    min-width: 0;
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+
+.tabInactive {
+  background-color: #e4eaf2;
+}
+
+.tabInactive:hover {
+  background-color: #d8e0eb;
+}
+
+.tabInactive .tabLabel {
+  color: #0e0f28;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+    min-width: 0;
+    padding: 0 4px;
+    box-sizing: border-box;
+  }
+  
+  /* Hover 顯示關閉：僅 X 按鈕，無漸層遮罩 */
+  .tabCloseOverlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  
+  .tab:hover .tabCloseOverlay,
+  .tab:focus-within .tabCloseOverlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  @media (hover: none),
+  (pointer: coarse) {
+    .tabCloseOverlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+  
+  .tabCloseButton {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    color: rgba(14, 15, 40, 0.65);
+    transition: color 0.15s ease;
+  }
+  
+  .tabInactive .tabCloseButton:hover {
+    color: #0e0f28;
+  }
+  
+  .tabActive .tabCloseButton {
+    color: #edf4f8;
+  }
+  
+  .tabActive .tabCloseButton:hover {
+    color: #ffffff;
+  }
+  
+  .tabCloseIcon {
+    flex-shrink: 0;
+    display: block;
+}
+
+.tabInput {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  width: 100%;
+}
+
+.tabActive .tabInput {
+  color: #edf4f8;
+  font-weight: 700;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background-color: #0e0f28;
+  opacity: 0.3;
+  flex-shrink: 0;
+}
+
+.addTabButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  background-color: #e4eaf2;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.addTabButton:hover {
+  background-color: #d8e0eb;
+}
+
+.addIcon {
+  color: rgba(14, 15, 40, 0.7);
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tabsContainer {
+    padding: 0 8px;
+  }
+
+  .tabsContent {
+    padding: 6px 8px;
+    gap: 2px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    min-width: 80px;
+    padding: 4px 8px;
+  }
+
+  .tabActive .tabLabel,
+  .tabInactive .tabLabel {
+    font-size: 12px;
+  }
+}

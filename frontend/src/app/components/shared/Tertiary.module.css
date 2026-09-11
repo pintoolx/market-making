@@ -1,0 +1,93 @@
+/* Tertiary（第三種通用按鈕）— Figma 544:8506 / 8528 / 8517 / 8539 */
+/* 預設：僅淺底無邊線無陰影；Hover：2px 深色框 + 4px 硬陰影；Click：陰影收為 2px */
+/* 與 Primary／Secondary 相同以 filter: drop-shadow 沿圓角輪廓 */
+
+.tertiary {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  margin: 0;
+  background: #e4eaf2;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0e0f28;
+  -webkit-text-fill-color: currentColor;
+  text-decoration: none;
+  transform: translateY(0);
+  filter: none;
+  transition:
+    transform 80ms ease-out,
+    filter 80ms ease-out,
+    outline-color 80ms ease-out,
+    gap 80ms ease-out;
+}
+
+.tertiary:focus-visible:not(:hover) {
+  outline: 2px solid #2050f2;
+  outline-offset: 2px;
+}
+
+.label {
+  display: block;
+  text-align: center;
+  font-weight: inherit;
+  color: inherit;
+  word-wrap: break-word;
+}
+
+.tertiary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  outline: 2px solid #0e0f28;
+  outline-offset: 0;
+  filter: drop-shadow(0 4px 0 #0e0f28);
+}
+
+button.tertiary:active:not(:disabled),
+button.tertiary:hover:active:not(:disabled) {
+  transition-duration: 0ms;
+  transform: translateY(1px);
+  outline: 2px solid #0e0f28;
+  outline-offset: 0;
+  filter: drop-shadow(0 2px 0 #0e0f28);
+}
+
+button.tertiary:active:not(:disabled) .label,
+button.tertiary:hover:active:not(:disabled) .label {
+  text-align: center;
+}
+
+.tertiary:disabled {
+  transform: translateY(0);
+  outline: none;
+  filter: none;
+  gap: 4px;
+  color: #aab2bc;
+  -webkit-text-fill-color: #aab2bc;
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+.tertiary:disabled .label {
+  text-align: center;
+  color: #aab2bc;
+  -webkit-text-fill-color: #aab2bc;
+}
+
+.tertiary:disabled:focus-visible {
+  outline: 2px solid #aab2bc;
+  outline-offset: -1px;
+}
+
+.fullWidth {
+  width: 100%;
+}

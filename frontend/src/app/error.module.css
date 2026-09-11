@@ -1,0 +1,124 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--background, #181A20);
+}
+
+.content {
+  max-width: 600px;
+  text-align: center;
+  background: var(--panel-background, #23243A);
+  border-radius: 12px;
+  padding: 48px 32px;
+  border: 1px solid var(--border, #3A3A4A);
+}
+
+.icon {
+  font-size: 3rem;
+  margin-bottom: 24px;
+}
+
+.title {
+  color: var(--text, #F3F3F3);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.message {
+  color: var(--text-secondary, #A0A0A0);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 32px 0;
+}
+
+.errorDetails {
+  text-align: left;
+  margin: 24px 0;
+  background: var(--background, #181A20);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border, #3A3A4A);
+}
+
+.errorDetails summary {
+  color: var(--text, #F3F3F3);
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.errorStack {
+  color: var(--error, #FF6B6B);
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.button.primary {
+  background: var(--accent, #FFD166);
+  color: var(--background, #181A20);
+  border-color: var(--accent, #FFD166);
+}
+
+.button.primary:hover {
+  background: #E6BC5A;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 209, 102, 0.3);
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--text, #F3F3F3);
+  border-color: var(--border, #3A3A4A);
+}
+
+.button.secondary:hover {
+  background: var(--border, #3A3A4A);
+  color: var(--accent, #FFD166);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 32px 24px;
+  }
+  
+  .title {
+    font-size: 1.25rem;
+  }
+  
+  .message {
+    font-size: 0.9rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .button {
+    width: 100%;
+  }
+}

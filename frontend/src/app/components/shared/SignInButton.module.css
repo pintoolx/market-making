@@ -1,0 +1,348 @@
+.signInContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  position: relative;
+}
+
+.connectedState {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+/* 已登入錢包觸發鈕：沿用 Primary，內層排 icon + 文字 */
+.walletAddressPrimary {
+  white-space: nowrap;
+}
+
+.walletAddressRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.walletAddressText {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 僅錢包鈕＋下拉為 hover 區，避免滑過 SOL 餘額也打開選單 */
+.walletMenuAnchor {
+  position: relative;
+  display: inline-block;
+}
+
+/* 填補鈕與選單間隙，避免移入選單時誤觸 anchor 的 mouseleave */
+.walletMenuAnchor::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 10px;
+  z-index: 1;
+}
+
+/* Figma 617:31768 — 錢包下拉：#e4eaf2、2px #0e0f28、硬陰影；列 48px、圖示 28、分隔線 */
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  margin-top: 4px;
+  right: 0;
+  z-index: 300;
+  box-sizing: border-box;
+  width: 198px;
+  padding: 0;
+  background: #e4eaf2;
+  border: 2px solid #0e0f28;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 0 #000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  pointer-events: all;
+}
+
+.menuItem {
+  box-sizing: border-box;
+  height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: #0e0f28;
+  transition:
+    background-color 80ms ease-out,
+    color 80ms ease-out;
+}
+
+.menuItemIcon {
+  flex-shrink: 0;
+  color: #0e0f28;
+  transition: color 80ms ease-out;
+}
+
+/* logo.svg 填色為 #e4eaf2：淺底列用濾鏡轉成 #0e0f28 感；藍底列還原為稿面淺色 */
+.menuItemLogo {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+  filter: brightness(0) saturate(100%);
+  transition: filter 80ms ease-out;
+}
+
+.menuItem:hover .menuItemLogo,
+.menuItem:focus-visible .menuItemLogo,
+.menuItemActive .menuItemLogo {
+  filter: none;
+}
+
+/* Canvas 列：2×2 logo，與舊版相同語意，尺寸對齊 28px 圖示欄 */
+.menuCanvasIcon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 14px);
+  grid-template-rows: repeat(2, 14px);
+  place-items: center;
+}
+
+.menuCanvasIcon img {
+  width: 12px;
+  height: 12px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%);
+  transition: filter 80ms ease-out;
+}
+
+.menuItem:hover .menuCanvasIcon img,
+.menuItem:focus-visible .menuCanvasIcon img,
+.menuItemActive .menuCanvasIcon img {
+  filter: none;
+}
+
+.menuLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.32px;
+  color: inherit;
+}
+
+.menuDivider {
+  flex-shrink: 0;
+  height: 1px;
+  margin: 0 8px;
+  background: #d7e1ee;
+}
+
+/* Hover／focus：617:31809 Sign out；鍵盤焦點同視覺 */
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: #2050f2;
+  color: #e4eaf2;
+}
+
+.menuItem:hover .menuItemIcon,
+.menuItem:focus-visible .menuItemIcon {
+  color: #e4eaf2;
+}
+
+/* 617:31850 — 已在 /workflows */
+.menuItemActive {
+  background: #2050f2;
+  color: #e4eaf2;
+}
+
+.menuItemActive .menuItemIcon {
+  color: #e4eaf2;
+}
+
+/* 焦點在藍底上，用淺色內縮框 */
+.menuItem:focus-visible {
+  outline: 2px solid #e4eaf2;
+  outline-offset: -2px;
+}
+/* SOL 餘額：下拉選單內的資訊列（非互動） */
+.menuBalanceRow {
+  box-sizing: border-box;
+  height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.32px;
+  color: #0e0f28;
+  cursor: default;
+  user-select: text;
+}
+
+/* 下拉選單統一圖示框：28×28，與 logo / X icon 對齊 */
+.menuIconBox {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+  
+  /* Header-only icon alignment box: keep both buttons visually equal */
+  .headerIconBox {
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .headerIconBox :global(svg),
+  .headerIconBox img {
+    display: block;
+}
+
+.signInButton {
+  padding: 4px 16px;
+  background: #2050F2;
+  color: #E4EAF2;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-normal);
+  white-space: nowrap;
+  box-shadow: 0px 2px 0px #0E0F28;
+  outline: 2px #0E0F28 solid;
+  font-family: var(--font-family-space-grotesk);
+  text-align: center;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.signInButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0px 3px 0px #0E0F28;
+}
+
+.signInButton:active {
+  transform: translateY(1px);
+  box-shadow: 0px 1px 0px #0E0F28;
+}
+
+
+.signInMessage {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px var(--shadow-primary);
+  animation: slideIn 0.2s ease-out;
+  z-index: 9999;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.walletButton {
+  padding: 4px 16px !important;
+  background: #2050F2 !important;
+  color: #E4EAF2 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0px 2px 0px #0E0F28 !important;
+  outline: 2px #0E0F28 solid !important;
+  font-family: var(--font-family-space-grotesk) !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  min-height: auto !important;
+  height: auto !important;
+  line-height: normal !important;
+  transition: all 0.2s ease !important;
+  z-index: 150 !important;
+  display: inline-flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.walletButton:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0px 3px 0px #0E0F28 !important;
+}
+
+.walletButton:active {
+  transform: translateY(1px) !important;
+  box-shadow: 0px 1px 0px #0E0F28 !important;
+}
+
+/* 只針對 Select Wallet 觸發按鈕，不影響彈窗內的錢包選項 */
+.signInContainer :global(.wallet-adapter-button-trigger) {
+  padding: 4px 16px !important;
+  background: #2050F2 !important;
+  color: #E4EAF2 !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0px 2px 0px #0E0F28 !important;
+  outline: 2px #0E0F28 solid !important;
+  font-family: var(--font-family-space-grotesk) !important;
+  text-align: center !important;
+  transition: all 0.2s ease !important;
+  display: inline-flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.signInContainer :global(.wallet-adapter-button-trigger:hover) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0px 3px 0px #0E0F28 !important;
+}
+
+.signInContainer :global(.wallet-adapter-button-trigger:active) {
+  transform: translateY(1px) !important;
+  box-shadow: 0px 1px 0px #0E0F28 !important;
+}

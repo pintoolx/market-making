@@ -1,0 +1,110 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: #f4f7fb;
+}
+
+.content {
+  max-width: 500px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 48px 32px;
+  border: 1px solid #dfe7f2;
+  box-shadow: 0 12px 32px rgba(23, 39, 68, 0.08);
+}
+
+.icon {
+  font-size: 3.5rem;
+  margin-bottom: 24px;
+}
+
+.title {
+  color: #1b2b44;
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.message {
+  color: #5f6f86;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.redirect {
+  color: #7b8ba2;
+  font-size: 0.9rem;
+  margin: 0 0 32px 0;
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.button.primary {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.button.primary:hover {
+  background: #111f3a;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
+}
+
+.button.secondary {
+  background: #ffffff;
+  color: #1b2b44;
+  border-color: #d0daea;
+}
+
+.button.secondary:hover {
+  background: #f5f8fd;
+  color: #0f172a;
+  border-color: #bcc9de;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 32px 24px;
+  }
+  
+  .title {
+    font-size: 1.5rem;
+  }
+  
+  .message {
+    font-size: 1rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .button {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,251 @@
+/* WalletPanel - Crossmint wallet management, above WorkflowTabs */
+
+.walletPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background-color: #E4EAF2;
+  border-bottom: 1px solid #D7E1EE;
+  position: relative;
+}
+
+.walletInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.walletIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2050F2;
+}
+
+.walletAddress {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0E0F28;
+}
+
+.accountBadge {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6B7280;
+  background: #D7E1EE;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.walletActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #D7E1EE;
+  border-radius: 6px;
+  background: #EDF4F8;
+  color: #0E0F28;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.actionButton:hover {
+  background: #D7E1EE;
+  border-color: #B0BFCF;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.createButton {
+  color: #2050F2;
+  border-color: #93B4F2;
+}
+
+.createButton:hover {
+  background: #E8EFFE;
+  border-color: #2050F2;
+}
+
+.createForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nameInput {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #D7E1EE;
+  border-radius: 6px;
+  background: #fff;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0E0F28;
+  outline: none;
+  width: 160px;
+}
+
+.nameInput:focus {
+  border-color: #2050F2;
+}
+
+.nameInput::placeholder {
+  color: rgba(14, 15, 40, 0.4);
+}
+
+.deleteButton {
+  color: #DC2626;
+  border-color: #FECACA;
+}
+
+.deleteButton:hover {
+  background: #FEE2E2;
+  border-color: #FCA5A5;
+}
+
+.confirmGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.confirmText {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #DC2626;
+}
+
+.confirmYes {
+  color: #DC2626;
+  border-color: #DC2626;
+}
+
+.confirmYes:hover {
+  background: #DC2626;
+  color: #fff;
+}
+
+/* Export Key Modal */
+.exportOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(14, 15, 40, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.exportModal {
+  background: #EDF4F8;
+  border-radius: 12px;
+  outline: 2px solid #0E0F28;
+  box-shadow: 0 4px 0 #0E0F28;
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+}
+
+.exportTitle {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0E0F28;
+  margin-bottom: 8px;
+}
+
+.exportWarning {
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #DC2626;
+  margin-bottom: 16px;
+}
+
+.exportKey {
+  background: #0E0F28;
+  color: #79F0BE;
+  font-family: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  word-break: break-all;
+  margin-bottom: 16px;
+  user-select: all;
+}
+
+.exportActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.copyButton {
+  padding: 8px 16px;
+  background: #2050F2;
+  color: #E4EAF2;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: 2px solid #0E0F28;
+  box-shadow: 0 2px 0 #0E0F28;
+}
+
+.copyButton:hover {
+  background: #1A40C0;
+}
+
+.closeButton {
+  padding: 8px 16px;
+  background: #E4EAF2;
+  color: #0E0F28;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-family-space-grotesk), 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: 2px solid #0E0F28;
+  box-shadow: 0 2px 0 #0E0F28;
+}
+
+.closeButton:hover {
+  background: #D7E1EE;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .walletPanel {
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+
+  .accountBadge {
+    display: none;
+  }
+}

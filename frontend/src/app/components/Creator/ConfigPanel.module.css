@@ -1,0 +1,339 @@
+/* Professional DeFi ConfigPanel Styles */
+.configPanel {
+  position: fixed;
+  width: 346px;
+    padding: 16px;
+    background: #E4EAF2;
+  box-shadow: 0px 2px 0px black;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 24px;
+    outline: 2px #0E0F28 solid;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-family-space-grotesk);
+  z-index: 200;
+  animation: slideIn 0.3s ease;
+    max-height: calc(100vh - 32px);
+      /* keep within viewport with small margins */
+  pointer-events: all;
+  -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .configPanel::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.configContent {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.configContent h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #2050F2;
+  font-weight: 700;
+  font-family: var(--font-family-space-grotesk);
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldGroupNoGap {
+  display: flex;
+  flex-direction: column;
+    gap: 0;
+  }
+  
+  .jupiterSwapTokensContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    /* prevent visual overlap between the two selects */
+  }
+  
+  .summaryGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .summaryRow {
+    width: 100%;
+    display: inline-flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.summaryLabel,
+.summaryValue {
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 700;
+}
+
+.sectionDivider {
+  width: 100%;
+  height: 0;
+  border: 0;
+  border-top: 1px solid #0E0F28;
+  margin: 0px 0 20px 0;
+}
+
+/* Overlay number input on top of select */
+.selectOverlayRow {
+  position: relative;
+}
+
+.overlayInput {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 203px;
+  height: 48px;
+  padding: 8px 12px 8px 2px;
+  border-radius: 8px;
+  border: none;
+  background: #E4EAF2;
+  color: #0E0F28;
+  font-size: 16px;
+  outline: none;
+  box-shadow: none;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+.inlineSelectRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inlineNumberInput {
+  width: 160px;
+  height: 48px;
+  padding: 8px 12px;
+  border-radius: 8px;
+    border: none;
+    background: #E4EAF2;
+    color: #0E0F28;
+    font-size: 16px;
+    outline: 2px #0E0F28 solid;
+    box-shadow: 0px 2px 0px black;
+    font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+}
+
+.configLabel {
+  display: block;
+    font-size: 16px;
+  color: #0E0F28;
+  font-weight: 700;
+    font-family: var(--font-family-space-grotesk);
+    margin: 0;
+}
+
+.configInput {
+  padding: 16px;
+  border-radius: 8px;
+  border: none;
+  background: #E4EAF2;
+  color: #0E0F28;
+  font-size: 16px;
+  outline: 2px solid #0e0f28;
+  outline-offset: 0;
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  box-shadow: 0 4px 0 0 #000;
+  height: 56px;
+}
+
+.configInput:focus,
+.configInput:focus-visible {
+  outline-color: #2050f2;
+  box-shadow: 0 4px 0 0 #2050f2;
+}
+
+/* 原生下拉：與 FormInput 一致（黑框＋粗底線，focus／開啟時藍框＋藍底線） */
+.configSelect {
+  padding: 16px;
+  border-radius: 8px;
+  border: none;
+  background: #E4EAF2;
+  color: #0E0F28;
+  font-size: 16px;
+  outline: 2px solid #0e0f28;
+  outline-offset: 0;
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  box-shadow: 0 4px 0 0 #000;
+  height: 56px;
+  cursor: pointer;
+}
+
+.configSelect:focus,
+.configSelect:focus-visible {
+  outline-color: #2050f2;
+  box-shadow: 0 4px 0 0 #2050f2;
+}
+
+/* Neutral input (no blue focus effect) */
+.configInputNeutral {
+  padding: 16px;
+  border-radius: 8px;
+  border: none;
+  background: #E4EAF2;
+  color: #0E0F28;
+  font-size: 16px;
+  outline: 2px #0E0F28 solid;
+  outline-offset: 0;
+  transition: all 0.2s ease;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  box-shadow: 0px 2px 0px black;
+  height: 56px;
+}
+
+.configInputNeutral:focus {
+  outline: 2px #0E0F28 solid;
+  outline-offset: 0;
+  box-shadow: 0px 2px 0px black;
+  transform: none;
+}
+
+/* Kamino amount quick select buttons */
+.kaminoAmountContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quickSelectButtons {
+  display: inline-flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.quickSelectButton {
+  padding: 4px 16px;
+  background: #E4EAF2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  border-radius: 48px;
+  outline: 2px #0E0F28 solid;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  color: #0E0F28;
+  font-size: 16px;
+  font-family: var(--font-family-space-grotesk);
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.quickSelectButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0px 3px 0px #0E0F28;
+}
+
+.quickSelectButton:active {
+  transform: translateY(1px);
+  box-shadow: 0px 1px 0px #0E0F28;
+}
+
+.quickSelectButtonActive {
+  background: #2050F2;
+  box-shadow: 0px 2px 0px #0E0F28;
+  outline: 2px #0E0F28 solid;
+  color: #FFFFFF;
+}
+
+/* Kamino 50% / 100%：Secondary 選中態（與設計稿主色一致） */
+.kaminoQuickSecondaryOn {
+  background: #2050f2 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  filter: drop-shadow(0 2px 0 #0e0f28) !important;
+}
+
+.kaminoQuickSecondaryOn:hover:not(:disabled) {
+  background: #2050f2 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.configInput::placeholder {
+  color: #64748B;
+}
+
+.configSelect {
+  cursor: pointer;
+}
+
+.configSelect option {
+  background: white;
+  color: #0E0F28;
+}
+
+.buttonGroup {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.configPlaceholder {
+  color: #64748B;
+  font-size: 1.1rem;
+  margin-top: 40px;
+  text-align: center;
+  font-style: italic;
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  border: 2px dashed rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .configPanel {
+    left: 24px;
+      right: 24px;
+      top: 80px;
+      padding: 16px;
+  }
+  
+  .configInput,
+  .configSelect {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+}
