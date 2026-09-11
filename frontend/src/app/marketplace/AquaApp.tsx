@@ -37,7 +37,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
         <article className={`${styles.card} ${aqua.roleCard}`}>
           <div className={styles.cardBg} aria-hidden="true" />
           <div className={aqua.roleBody}>
-            <span className={aqua.roleNumber}>01 · Strategy Provider</span>
+            <span className={aqua.roleNumber}>Strategy Provider</span>
             <h2>I provide strategy</h2>
             <ul><li>Start from six Aqua templates</li><li>Your logic stays private in the TEE</li><li>Earn a fee when Makers profit</li></ul>
           </div>
@@ -46,7 +46,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
         <article className={`${styles.card} ${aqua.roleCard}`}>
           <div className={styles.cardBg} aria-hidden="true" />
           <div className={aqua.roleBody}>
-            <span className={aqua.roleNumber}>02 · Maker</span>
+            <span className={aqua.roleNumber}>Maker</span>
             <h2>I provide liquidity</h2>
             <ul><li>Earn with a Provider&apos;s strategy</li><li>Funds stay in your own wallet</li><li>Pay a fee only on profit</li></ul>
           </div>
@@ -62,25 +62,25 @@ export default function AquaApp({ screen }: { screen: Screen }) {
       </div>
       <div className={aqua.architectureDiagram}>
         <div className={`${aqua.archNode} ${aqua.providerNode}`}>
-          <span className={aqua.archStep}>01 · Strategy Provider</span>
+          <span className={aqua.archStep}>Strategy Provider</span>
           <strong>Private maker logic</strong>
           <small>Signals · pricing rules · adjustment thresholds</small>
         </div>
         <div className={`${aqua.archConnector} ${aqua.providerConnector}`} aria-hidden="true"><span>encrypted</span></div>
         <div className={`${aqua.archNode} ${aqua.makerNode}`}>
-          <span className={aqua.archStep}>02 · Maker</span>
+          <span className={aqua.archStep}>Maker</span>
           <strong>Private risk boundaries</strong>
           <small>Capital limit · inventory exposure · allowed assets</small>
         </div>
         <div className={`${aqua.archConnector} ${aqua.makerConnector}`} aria-hidden="true"><span>encrypted</span></div>
         <div className={`${aqua.archNode} ${aqua.teeNode}`}>
-          <span className={aqua.archStep}>03 · Chainlink TEE</span>
+          <span className={aqua.archStep}>Chainlink TEE</span>
           <strong>Evaluate compatibility</strong>
           <small>Combine constraints · reject conflicts · produce intent</small>
         </div>
         <div className={`${aqua.archConnector} ${aqua.outputConnector}`} aria-hidden="true"><span>approved intent</span></div>
         <div className={`${aqua.archNode} ${aqua.aquaNode}`}>
-          <span className={aqua.archStep}>04 · 1inch Aqua / SwapVM</span>
+          <span className={aqua.archStep}>1inch Aqua / SwapVM</span>
           <strong>Execute maker strategy</strong>
           <small>Uses authorized virtual balances from the Maker wallet</small>
         </div>
