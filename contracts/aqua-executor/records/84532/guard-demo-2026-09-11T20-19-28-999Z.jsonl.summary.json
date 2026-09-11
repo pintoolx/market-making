@@ -1,0 +1,33 @@
+{
+  "mode": "synthetic reports via project test harness; no CRE delivery or TEE attestation",
+  "chainId": 84532,
+  "aqua": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+  "router": "0x072590f226e6cd53422c140f514978eae6b823a8",
+  "forwarder": "0xf79ffa7f200220f564b91f20db39d357aa50a8c4",
+  "guard": "0x41fde9f1f257fc65a40eb519d22ca9bfb1d2dbeb",
+  "strategyHash": "0xceb3ec6dcae1eef15b7697f064ad036e80caeab25ce08bc8c73b62769aa31abe",
+  "reportHashes": [
+    "0x38abe46d8b557aab7a67368fbee2ddec2a6ad9ce1af26eabcdf8ed0e17ed6e44",
+    "0x1dd51b7b0604fc5b8646b237bb225eb3f150502cef9646f3b8ab4d7b0148eb76",
+    "0xff514516f7ad0a851e8621d78de0c7305a89fd895f72acb7ec14c2462ca61a5b"
+  ],
+  "swaps": [
+    "0x7eb7adcb8baaf78c7b8b143f720f3deafcee544ca756a508405d96908ff93171",
+    "0x1e91c15f566447fcd57eadfe35ec8ad23b1bc55874e40c328540bab31703aaf9",
+    "0x96ba3c48b123028737d7415e0b8fb6130135fdbc8886fa242013af76328f198b"
+  ],
+  "rejectedSwap": "0xc24d1e5533f56f72134814cc98630522dabf1fd8067b8c88f3a6e9578bc94804",
+  "finalState": [
+    {
+      "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "balance": "0",
+      "tokensCount": 255
+    },
+    {
+      "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+      "balance": "0",
+      "tokensCount": 255
+    }
+  ],
+  "file": "/home/kuoba123/eth-glo/market-making-guard/contracts/aqua-executor/records/84532/guard-demo-2026-09-11T20-19-28-999Z.jsonl"
+}

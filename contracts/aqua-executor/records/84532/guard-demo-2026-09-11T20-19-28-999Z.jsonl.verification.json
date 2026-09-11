@@ -1,0 +1,195 @@
+{
+  "rpc": "https://base-sepolia-rpc.publicnode.com",
+  "verifiedAt": "2026-09-11T20:22:15.999Z",
+  "receipts": [
+    {
+      "action": "deploy:GuardTestForwarder",
+      "hash": "0x7f3611a3c98b149dd51ae455726858d9c5fca5738fc29b92d0ccccefe9d8295a",
+      "status": "success",
+      "blockNumber": "46694843",
+      "gasUsed": "174930"
+    },
+    {
+      "action": "deploy:AquaGuard",
+      "hash": "0xa15557b85ddc08265a4c6ec199abb4266f79f79532653b8a33f5dbd809ccaa5d",
+      "status": "success",
+      "blockNumber": "46694845",
+      "gasUsed": "1145395"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0x45e938b9c5bb3024f30675491f126305473b4dd952e2cb0020b5fbae8bb5a63e",
+      "status": "success",
+      "blockNumber": "46694847",
+      "gasUsed": "46366"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0xd61560494eae5c428bd253da192ed40d40cd17a19cc4b2bec53e05ca6d976ce4",
+      "status": "success",
+      "blockNumber": "46694849",
+      "gasUsed": "46342"
+    },
+    {
+      "action": "ship",
+      "hash": "0x49f7fe98689b085a8415f3bb2561d0e25265e5de7454f9ecfcca087043214c80",
+      "status": "success",
+      "blockNumber": "46694851",
+      "gasUsed": "82694"
+    },
+    {
+      "action": "guard-report",
+      "hash": "0x38abe46d8b557aab7a67368fbee2ddec2a6ad9ce1af26eabcdf8ed0e17ed6e44",
+      "status": "success",
+      "blockNumber": "46694853",
+      "gasUsed": "303283"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0x7de73433f64725520c2a0476e0b94111e05e441b3f4b07e2a646a5960e454c29",
+      "status": "success",
+      "blockNumber": "46694855",
+      "gasUsed": "46330"
+    },
+    {
+      "action": "swap",
+      "hash": "0x7eb7adcb8baaf78c7b8b143f720f3deafcee544ca756a508405d96908ff93171",
+      "status": "success",
+      "blockNumber": "46694857",
+      "gasUsed": "145644"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0x5ada675233e0302fee5f3b1c141e649b8df3938b0e542903ff734233c8921e3d",
+      "status": "success",
+      "blockNumber": "46694859",
+      "gasUsed": "46354"
+    },
+    {
+      "action": "swap",
+      "hash": "0x1e91c15f566447fcd57eadfe35ec8ad23b1bc55874e40c328540bab31703aaf9",
+      "status": "success",
+      "blockNumber": "46694861",
+      "gasUsed": "145471"
+    },
+    {
+      "action": "guard-report",
+      "hash": "0x1dd51b7b0604fc5b8646b237bb225eb3f150502cef9646f3b8ab4d7b0148eb76",
+      "status": "success",
+      "blockNumber": "46694863",
+      "gasUsed": "72883"
+    },
+    {
+      "action": "taker-approve-for-rejection",
+      "hash": "0xdc3151df50287dbda3a83a865a07f65c71e9234d1747adfe2d61f916d2944501",
+      "status": "success",
+      "blockNumber": "46694865",
+      "gasUsed": "46330"
+    },
+    {
+      "action": "swap-guard-rejected",
+      "hash": "0xc24d1e5533f56f72134814cc98630522dabf1fd8067b8c88f3a6e9578bc94804",
+      "status": "reverted",
+      "blockNumber": "46694867",
+      "gasUsed": "58268"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0x163e5462c76702573f28b0ef647e3c0dc8762706b4825e7c7691f1941d4465b1",
+      "status": "success",
+      "blockNumber": "46694869",
+      "gasUsed": "46354"
+    },
+    {
+      "action": "swap",
+      "hash": "0x96ba3c48b123028737d7415e0b8fb6130135fdbc8886fa242013af76328f198b",
+      "status": "success",
+      "blockNumber": "46694871",
+      "gasUsed": "145471"
+    },
+    {
+      "action": "guard-report",
+      "hash": "0xff514516f7ad0a851e8621d78de0c7305a89fd895f72acb7ec14c2462ca61a5b",
+      "status": "success",
+      "blockNumber": "46694873",
+      "gasUsed": "72639"
+    },
+    {
+      "action": "dock",
+      "hash": "0x9d45f36430e184f8a34a22f92136ba7733e771efa68f7cd6b1b85d183f428bff",
+      "status": "success",
+      "blockNumber": "46694875",
+      "gasUsed": "35860"
+    },
+    {
+      "action": "maker-revoke",
+      "hash": "0x33d2dc96655400183cecd11c8f89c1aaa4ef81675a8b348ef63daee3e2b9f0e9",
+      "status": "success",
+      "blockNumber": "46694877",
+      "gasUsed": "24394"
+    },
+    {
+      "action": "taker-revoke",
+      "hash": "0xf579c98a8791706b1b1f8458b2245e0cdaa816bdc0a5dad316a40afdbca46388",
+      "status": "success",
+      "blockNumber": "46694879",
+      "gasUsed": "26394"
+    },
+    {
+      "action": "maker-revoke",
+      "hash": "0x54576cb32b9164b016bbc377819204e424c319b27e386bea326b3e35cfbe3f97",
+      "status": "success",
+      "blockNumber": "46694881",
+      "gasUsed": "24394"
+    },
+    {
+      "action": "taker-revoke",
+      "hash": "0x083617e9f2e676e53dbe48bed4c338812ae9469f7a98fc1f57cb6cd8873a71ca",
+      "status": "success",
+      "blockNumber": "46694883",
+      "gasUsed": "24394"
+    }
+  ],
+  "balances": [
+    {
+      "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "balance": "0",
+      "tokensCount": 255
+    },
+    {
+      "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+      "balance": "0",
+      "tokensCount": 255
+    }
+  ],
+  "allowances": [
+    {
+      "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "account": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+      "spender": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+      "amount": "0"
+    },
+    {
+      "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "account": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "spender": "0x072590f226e6cd53422c140f514978eae6b823a8",
+      "amount": "0"
+    },
+    {
+      "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+      "account": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+      "spender": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+      "amount": "0"
+    },
+    {
+      "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+      "account": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "spender": "0x072590f226e6cd53422c140f514978eae6b823a8",
+      "amount": "0"
+    }
+  ],
+  "finalReportNonce": "3",
+  "finalAllowedDirections": 0,
+  "rejectionError": "DirectionDisabled",
+  "creationCalldataMatchesArtifacts": true
+}
