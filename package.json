@@ -3,8 +3,13 @@
   "private": true,
   "packageManager": "pnpm@10.6.2",
   "scripts": {
-    "dev": "pnpm --filter frontend dev",
-    "build": "pnpm --filter frontend build",
-    "lint": "pnpm --filter frontend lint"
+    "dev": "pnpm --filter ./frontend dev",
+    "build": "pnpm --filter ./frontend build",
+    "lint": "pnpm --filter ./frontend lint"
+  },
+  "pnpm": {
+    "overrides": {
+      "@solana-program/token": "0.6.0"
+    }
   }
 }

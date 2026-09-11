@@ -14,6 +14,8 @@ The frontend started from the PinTool app (`pintoolx/app`); its git history is k
 
 ## Develop
 
+Uses pnpm with a hoisted `node_modules` (see `.npmrc`); `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
+
 ```bash
 pnpm install
 cp frontend/.env.example frontend/.env.local   # then set NEXT_PUBLIC_PRIVY_APP_ID
@@ -26,5 +28,5 @@ The frontend is exported as a static site (`output: "export"`).
 
 - Build command: `pnpm install --frozen-lockfile && pnpm build`
 - Build output directory: `frontend/out`
-- Environment variable: `NEXT_PUBLIC_PRIVY_APP_ID` (build time)
+- Environment variables: `NEXT_PUBLIC_PRIVY_APP_ID` (inlined at build time) and `NODE_VERSION=22`
 - Add the Pages domain to the Privy app's allowed origins.
