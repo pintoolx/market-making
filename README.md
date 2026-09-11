@@ -25,7 +25,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 | Part | Folder | Status |
 |---|---|---|
 | Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
-| Confidential workflow (Chainlink TEE) | `tee/` | In progress |
+| Confidential workflow (Chainlink TEE) | `workflow/` | In progress |
 | Aqua execution (Guard contract and SwapVM strategy) | `contracts/` | In progress |
 
 ## Getting started

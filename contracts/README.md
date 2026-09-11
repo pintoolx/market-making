@@ -13,7 +13,7 @@ Everything onchain: the Guard contract, the SwapVM strategy that calls it, and d
 
 ## Agree first
 
-The report format with the confidential workflow in [`tee/`](../tee/). Keep the agreed schema in [`docs/`](../docs/).
+The report format with the confidential workflow in [`workflow/`](../workflow/). Keep the agreed schema in [`docs/`](../docs/).
 
 ## Background
 
