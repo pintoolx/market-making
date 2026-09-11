@@ -1,0 +1,3 @@
+packages:
+  - frontend
+  # Coming next: the Chainlink confidential workflow (TEE) and the Aqua execution service.
