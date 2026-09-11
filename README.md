@@ -1,4 +1,6 @@
-# PinTool · ETHOnline
+# PinTool Market Making
+
+Built for ETHOnline 2026 on 1inch Aqua and Chainlink Confidential Compute.
 
 Strategy Providers publish market-making strategies; Makers run them on 1inch Aqua with their own funds and private limits. A Chainlink confidential workflow (TEE) combines both sides' private inputs, so neither has to reveal them. Makers keep custody of their funds and pay the Provider a fee only when they make a profit.
 
