@@ -58,7 +58,7 @@ The source was the existing `aqua-executor` working directory at migration time,
 
 Runtime source, tests, contract artifacts and public deployment / transaction evidence are copied unchanged. Workspace integration changes package placement, dependency installation and documentation. Existing frontend dependency snapshots are retained in the pnpm lock; the executor adds its own pinned viem 2.56.3 and SwapVM SDK 0.4.4.
 
-The [historical risk source manifest](../contracts/aqua-executor/docs/risk-monitor-source.sha256) remains unchanged. When verifying it, map `package.json` to `docs/source-snapshots/risk-monitor-package.json` and `package-lock.json` to `docs/source-snapshots/risk-monitor-package-lock.json`, relative to the executor package. Other manifest entries keep their relative paths. The archived npm lock describes the historical testnet run, not current workspace installation.
+The [historical risk source manifest](../contracts/aqua-executor/docs/risk-monitor-source.sha256) remains unchanged. When verifying it, map `package.json` to `docs/source-snapshots/risk-monitor-package.json` and `package-lock.json` to `docs/source-snapshots/risk-monitor-package-lock.json`, relative to the executor package. Guard work subsequently added a compiler check rejecting guarded parameters in the legacy path; map `src/compile.ts` to `docs/source-snapshots/pre-guard-compile.ts` for those historical runs. Other manifest entries keep their relative paths. The archived npm lock describes the historical testnet run, not current workspace installation.
 
 ## Validation scope
 

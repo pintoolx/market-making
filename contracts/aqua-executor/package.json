@@ -9,11 +9,13 @@
   },
   "scripts": {
     "build:contracts": "bash scripts/build-artifacts.sh",
+    "build:guard": "node scripts/build-guard.ts",
     "deploy": "node --env-file-if-exists=.env src/deploy.ts",
     "lifecycle": "node --env-file-if-exists=.env src/lifecycle.ts",
     "execute": "node --env-file-if-exists=.env src/execute-cli.ts",
     "monitor": "node --env-file-if-exists=.env src/monitor-cli.ts",
     "demo:risk": "node --env-file-if-exists=.env src/risk-demo.ts",
+    "demo:guard": "node --env-file-if-exists=.env src/guard-demo.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc"
   },

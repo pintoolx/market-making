@@ -27,7 +27,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 | Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
 | Confidential workflow (Chainlink TEE) | `workflow/` | In progress |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
-| Guard contract, workflow reports and per-swap enforcement | `contracts/` | Pending report agreement and implementation |
+| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Prototype with synthetic report / swap tests; interface agreement and CRE delivery pending |
 
 ## Getting started
 

@@ -1,0 +1,61 @@
+{
+  "contractName": "GuardTestForwarder",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "OnlyTestOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "receiver",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "metadata",
+          "type": "bytes"
+        },
+        {
+          "internalType": "bytes",
+          "name": "report",
+          "type": "bytes"
+        }
+      ],
+      "name": "forward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a0806040523460285733608052610234908161002d8239608051818181609f01526101810152f35b5f80fdfe6080806040526004361015610012575f80fd5b5f905f3560e01c9081638da5cb5b1461016f575063b13ba5de14610034575f80fd5b3461015c57606036600319011261015c576004356001600160a01b0381169081900361015c5760243567ffffffffffffffff811161015c5761007a9036906004016101b0565b60443567ffffffffffffffff811161015c5761009a9036906004016101b0565b9390927f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316330361016057813b1561015c575f6101039361011582966040519889978896879563402f909960e11b87526040600488015260448701916101de565b848103600319016024860152916101de565b03925af1801561015157610127575080f35b905067ffffffffffffffff811161013d57604052005b634e487b7160e01b5f52604160045260245ffd5b6040513d5f823e3d90fd5b5f80fd5b63b496ca1760e01b5f5260045ffd5b3461015c575f36600319011261015c577f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b9181601f8401121561015c5782359167ffffffffffffffff831161015c576020838186019501011161015c57565b908060209392818452848401375f828201840152601f01601f191601019056fea2646970667358221220fa84d3cb3b797d894dc1508d332a2a3d1c1e9046c4994f2c2cc158c5750d853b64736f6c634300081e0033",
+  "compiler": {
+    "solc": "0.8.30+commit.73712a01",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true,
+    "evmVersion": "prague"
+  },
+  "sourceHashes": {
+    "contracts/AquaGuard.sol": "ebeec8f1b009fb62a9a52dfd37cefb99617de6e7c9fd1becea6fc21626b8dffe",
+    "contracts/vendor/SwapVMInterfaces.sol": "46bb79531cddc5866937cd78c70fad1e6a5f7559fe64573e780b6e2d5711a426",
+    "contracts/test/GuardTestForwarder.sol": "bd8d9a8a46ca1fe9c2af32e740796ab242d8b0fdd5a179a2e44940164d47f76b"
+  }
+}

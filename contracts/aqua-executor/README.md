@@ -88,6 +88,12 @@ npm run execute -- --network base-sepolia --session session-123 --watch
 
 Requests support ship, swap, rebalance, monitor and dock. The controller stores its journal in `.state/executor/<chainId>/`, binds each request ID to its content, and resumes confirmed or pending transactions using their original hash and nonce. It keeps the HODL benchmark through rebalance and process restarts. A local SQLite lock coordinates processes sharing that directory. Do not run the legacy demos or another signing controller concurrently with these accounts. See [request fields, failure handling and recovery tests](docs/execution-recovery.md).
 
+## Per-swap Guard prototype
+
+The [Guard prototype](docs/guard.md) adds an `onReport` receiver and a fixed zero-fee XYC program that calls the Guard on each quote / swap. It checks report freshness, direction, per-token trade amounts and resulting inventory against the Maker-approved envelope. This is separate from the off-chain loss monitor. The included demo uses synthetic reports through a project-owned test harness; CRE delivery and workflow agreement remain pending.
+
+Run `pnpm demo:guard --network local` after local deployment, or use the existing Base Sepolia deployment with isolated demo accounts. See [build instructions, supported APIs and limitations](docs/guard.md) and [completed Base Sepolia evidence](docs/guard-sepolia-demo.md).
+
 ## Risk monitor
 
 For persistent TEE-controlled execution, use [the JSON controller and its watcher](docs/execution-recovery.md). It saves signed transactions before broadcasting, resumes the same request without duplicate operations, and retains the original risk benchmark. The commands below describe the earlier standalone monitor/demo path.

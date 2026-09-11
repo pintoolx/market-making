@@ -19,7 +19,6 @@ export interface Compiled {
 }
 
 export function compile(p: AquaStrategyParams): Compiled {
-  if ('executionTemplate' in p) throw new Error('specialized strategy: retain its compiled order; legacy compile cannot reconstruct its guard')
   if (p.schema !== 'aqua-swapvm-v1.0.2') throw new Error(`unsupported schema: ${p.schema}`)
   if (p.program.kind !== 'xyc') throw new Error(`unsupported program: ${p.program.kind}`)
   if (p.tokens.length !== 2 || p.amounts.length !== 2) throw new Error('xyc needs exactly 2 tokens and 2 amounts')
