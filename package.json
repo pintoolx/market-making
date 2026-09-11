@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "pnpm --filter ./frontend dev",
     "build": "pnpm --filter ./frontend build",
-    "lint": "pnpm --filter ./frontend lint"
+    "lint": "pnpm --filter ./frontend lint",
+    "test:contracts": "pnpm --filter aqua-executor test",
+    "typecheck:contracts": "pnpm --filter aqua-executor typecheck"
   },
   "pnpm": {
     "overrides": {

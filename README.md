@@ -26,7 +26,8 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 |---|---|---|
 | Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
 | Confidential workflow (Chainlink TEE) | `workflow/` | In progress |
-| Aqua execution (Guard contract and SwapVM strategy) | `contracts/` | In progress |
+| Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
+| Guard contract, workflow reports and per-swap enforcement | `contracts/` | Pending report agreement and implementation |
 
 ## Getting started
 
@@ -37,6 +38,8 @@ pnpm dev                                        # http://localhost:3000
 ```
 
 Uses pnpm with a hoisted `node_modules` (see `.npmrc`). `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
+
+The executor requires **Node 24 or newer** for its SQLite journal. With Node 24 and Anvil installed, run `pnpm typecheck:contracts` and `pnpm test:contracts` (`ANVIL=/path/to/anvil` if needed). The web app's scripts and Node 22 Pages deployment remain separate. See [executor setup and migration](docs/AQUA-EXECUTOR-MIGRATION.md).
 
 ## Deploy (Cloudflare Pages)
 

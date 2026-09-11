@@ -4,6 +4,14 @@ Owner: pengu
 
 Everything onchain: the Guard contract, the SwapVM strategy that calls it, and deploy and demo scripts.
 
+## Available executor
+
+[`aqua-executor/`](aqua-executor/) contains the imported Aqua / SwapVM v1.0.2 executor: approve, ship, quote, swap, atomic rebalance, dock, off-chain loss monitoring and resumable JSON execution. Its Base Sepolia deployment and historical transaction records are included. Node 24 is required; tests use Anvil.
+
+From the repository root, run `pnpm install --frozen-lockfile`, `pnpm typecheck:contracts` and `ANVIL=/path/to/anvil pnpm test:contracts`. See the [migration notes](../docs/AQUA-EXECUTOR-MIGRATION.md) for provenance, package commands and validation.
+
+The imported XYC program has no Guard instruction. Its JSON execution requests are local controller commands, not authenticated CRE reports. The Guard, workflow delivery and per-swap rejection demo described below remain to be implemented after agreeing the report format.
+
 ## Scope
 
 - Deploy official Aqua and `AquaSwapVMRouter` contracts on a testnet (redeploying the official contracts is fine; `1inch/swap-vm` has `script/DeployAquaSwapVMRouter.s.sol`).
