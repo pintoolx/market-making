@@ -1,0 +1,8 @@
+node_modules/
+.env
+.cache/
+# Durable execution journal (includes signed transactions; keep locally, outside git).
+.state/
+# local anvil chain: throwaway
+deployments/31337.json
+records/31337/

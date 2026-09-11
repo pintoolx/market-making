@@ -1,0 +1,68 @@
+{
+  "strategy": {
+    "schema": "aqua-swapvm-v1.0.2",
+    "chainId": 84532,
+    "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+    "tokens": [
+      "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "0xa66378d3f585fd34e875cccea69061c46bce5ecc"
+    ],
+    "amounts": [
+      "2000000000000000000",
+      "5000000000"
+    ],
+    "program": {
+      "kind": "xyc",
+      "feeBps": 30,
+      "deadline": 1789155690,
+      "salt": "140171471329956371"
+    },
+    "meta": {
+      "producer": "fixed-params",
+      "strategyVersion": 1,
+      "paramsRevision": 1
+    }
+  },
+  "policy": {
+    "tokens": [
+      "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "0xa66378d3f585fd34e875cccea69061c46bce5ecc"
+    ],
+    "baselineAmounts": [
+      "2000000000000000000",
+      "5000000000"
+    ],
+    "maxDrawdownBps": 100,
+    "maxPriceAgeSec": 60
+  },
+  "rebalances": [
+    {
+      "strategy": {
+        "schema": "aqua-swapvm-v1.0.2",
+        "chainId": 84532,
+        "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+        "tokens": [
+          "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+          "0xa66378d3f585fd34e875cccea69061c46bce5ecc"
+        ],
+        "amounts": [
+          "1960899660764358688",
+          "5100000000"
+        ],
+        "program": {
+          "kind": "xyc",
+          "feeBps": 50,
+          "deadline": 1789155714,
+          "salt": "140171471329956372"
+        },
+        "meta": {
+          "producer": "fixed-params",
+          "strategyVersion": 1,
+          "paramsRevision": 2
+        }
+      },
+      "txHash": "0xe45b503b08a682868f0fc8218be87dc57891febf88b5f380feb9574637552a6a"
+    }
+  ],
+  "finished": true
+}

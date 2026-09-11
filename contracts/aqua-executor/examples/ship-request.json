@@ -1,0 +1,27 @@
+{
+  "schema": "aqua-execution-v1",
+  "requestId": "example-ship-001",
+  "sessionId": "example-maker-session",
+  "action": "ship",
+  "strategy": {
+    "schema": "aqua-swapvm-v1.0.2",
+    "chainId": 84532,
+    "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+    "tokens": [
+      "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "0xa66378d3f585fd34e875cccea69061c46bce5ecc"
+    ],
+    "amounts": ["2000000000000000000", "5000000000"],
+    "program": { "kind": "xyc", "feeBps": 30, "deadline": 1800000000, "salt": "424242" },
+    "meta": { "producer": "tee", "strategyVersion": 1, "paramsRevision": 1 }
+  },
+  "policy": {
+    "tokens": [
+      "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "0xa66378d3f585fd34e875cccea69061c46bce5ecc"
+    ],
+    "baselineAmounts": ["2000000000000000000", "5000000000"],
+    "maxDrawdownBps": 100,
+    "maxPriceAgeSec": 86520
+  }
+}

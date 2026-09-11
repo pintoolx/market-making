@@ -1,0 +1,9 @@
+{
+  "tokens": ["mWETH", "mUSDC"],
+  "amounts": ["2", "5000"],
+  "feeBps": 30,
+  "ttlSec": 3600,
+  "strategyVersion": 1,
+  "rebalanceFeeBps": 50,
+  "demoSwap": { "tokenIn": "mUSDC", "amountIn": "100", "slippageBps": 50 }
+}

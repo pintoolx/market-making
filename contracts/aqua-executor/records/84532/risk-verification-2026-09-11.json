@@ -1,0 +1,252 @@
+{
+  "checked_at": "2026-09-11T18:43:32.575Z",
+  "chain_id": 84532,
+  "runs": [
+    {
+      "file": "records/84532/risk-live-2026-09-11T18-39-23-812Z.jsonl",
+      "receipts": [
+        {
+          "action": "maker-approve",
+          "tx_hash": "0x6d73b86c964c645cd5c26da7ce6250460b5e4d13317ec5ba9bd0195bc6dcf100",
+          "status": "success",
+          "block_number": "46691841"
+        },
+        {
+          "action": "maker-approve",
+          "tx_hash": "0x64df3b5e6a6a66351114ac193c77e621842798a8576768a90106ad19f9efbcd7",
+          "status": "success",
+          "block_number": "46691843"
+        },
+        {
+          "action": "ship",
+          "tx_hash": "0x310516d884db36c768ee27c5e4039174e0addfce8f35243ef7afae7dad3d48f4",
+          "status": "success",
+          "block_number": "46691845"
+        },
+        {
+          "action": "taker-approve",
+          "tx_hash": "0xecc9e1ede54f9a40ddc06ab7f47e82f386819194a6894c23dd5a51d83b898504",
+          "status": "success",
+          "block_number": "46691848"
+        },
+        {
+          "action": "swap",
+          "tx_hash": "0x7f8dfc2339d94bb479ff73c0dcd8633b0877dc09a2c52fd5e500d799a2643761",
+          "status": "success",
+          "block_number": "46691850"
+        },
+        {
+          "action": "maker-approve",
+          "tx_hash": "0x47f29512661d435c62d0a4957dbe9bc56616e440cad325ca4953cc715dc18298",
+          "status": "success",
+          "block_number": "46691853"
+        },
+        {
+          "action": "maker-approve",
+          "tx_hash": "0x4db1c94642dd976d8377f13e056e6958eab40904a77167c586434fae7243af97",
+          "status": "success",
+          "block_number": "46691855"
+        },
+        {
+          "action": "rebalance",
+          "tx_hash": "0x40ce2ae9f2cc06e33e9ab90b2cd4dab79efc50e42216690fcc46b5b22793fe5f",
+          "status": "success",
+          "block_number": "46691857"
+        },
+        {
+          "action": "taker-approve",
+          "tx_hash": "0x6a76cb02453bd807f86220da920396c264d9769d32c9c14428760c00a8a1a589",
+          "status": "success",
+          "block_number": "46691860"
+        },
+        {
+          "action": "swap",
+          "tx_hash": "0x5054ddfe1c5ccaedd8b07159b22da09680f024e8a6210023f691a40117175ced",
+          "status": "success",
+          "block_number": "46691862"
+        },
+        {
+          "action": "risk-dock",
+          "tx_hash": "0xe348003275c88c807a9a80a5186caf35ad4bf6f8834ba0669235ae8f79467cb7",
+          "status": "success",
+          "block_number": "46691865"
+        },
+        {
+          "action": "maker-revoke",
+          "tx_hash": "0x94dbabb6ea81fc17de4746d2de7aa4f6c041269a32e2b8cf2e4b82ca3e99250d",
+          "status": "success",
+          "block_number": "46691867"
+        },
+        {
+          "action": "maker-revoke",
+          "tx_hash": "0x038d33b815d781dad412a79c9496054bb7a8810692b98ed2a0056d1fc4303563",
+          "status": "success",
+          "block_number": "46691869"
+        }
+      ],
+      "strategies": [
+        {
+          "strategy_hash": "0x29eb1c8b131b828b6bdf74b8073c6d8cdfee11b0f9b2463e039202f99e9a10d2",
+          "raw_balances": [
+            {
+              "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+              "balance": "0",
+              "tokensCount": 255
+            },
+            {
+              "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+              "balance": "0",
+              "tokensCount": 255
+            }
+          ]
+        },
+        {
+          "strategy_hash": "0x8934f99f296f851651443ea9a38a1ea81e86de56c9da5cc0a379d7928c5a3473",
+          "raw_balances": [
+            {
+              "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+              "balance": "0",
+              "tokensCount": 255
+            },
+            {
+              "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+              "balance": "0",
+              "tokensCount": 255
+            }
+          ]
+        }
+      ],
+      "loss_bps": "546"
+    },
+    {
+      "file": "records/84532/risk-simulated-2026-09-11T18-41-29-896Z.jsonl",
+      "receipts": [
+        {
+          "action": "maker-approve",
+          "tx_hash": "0x9f3c05f181be2eab21889fb781d69ac90d12ead60b176c19985da965ee4115b4",
+          "status": "success",
+          "block_number": "46691904"
+        },
+        {
+          "action": "maker-approve",
+          "tx_hash": "0xf9bef11afa6b066e31996ea00d3e2c6d5c69ec68912ea6c88396157a72db893b",
+          "status": "success",
+          "block_number": "46691906"
+        },
+        {
+          "action": "ship",
+          "tx_hash": "0x031b638a4babe426a2d2e37b2fafdb96d5e31ad261ab9847e4b4be7dbda1b3c2",
+          "status": "success",
+          "block_number": "46691908"
+        },
+        {
+          "action": "taker-approve",
+          "tx_hash": "0x0e83f83311fb37e73c21bfadedaabcbe1c4ce7e899e6f2b469421726fe9d8b4a",
+          "status": "success",
+          "block_number": "46691911"
+        },
+        {
+          "action": "swap",
+          "tx_hash": "0xdaa99047d78ad788f808d15df30f5c5787ac8c94421288bf3d0defba48b9eb77",
+          "status": "success",
+          "block_number": "46691913"
+        },
+        {
+          "action": "maker-approve",
+          "tx_hash": "0x2391c5a46c2e6ab751ba8cab02246507d1ac5e8669e986886a573de2b04e7ab3",
+          "status": "success",
+          "block_number": "46691915"
+        },
+        {
+          "action": "maker-approve",
+          "tx_hash": "0xe6a2065356fb29b284cd1177172f370e37dc94ed207354cef56d0cbd3f7e43fc",
+          "status": "success",
+          "block_number": "46691917"
+        },
+        {
+          "action": "rebalance",
+          "tx_hash": "0xe45b503b08a682868f0fc8218be87dc57891febf88b5f380feb9574637552a6a",
+          "status": "success",
+          "block_number": "46691919"
+        },
+        {
+          "action": "taker-approve",
+          "tx_hash": "0x4314e21a3026581b4e21919f72a6dfe69efdb226ffa478db00c294a95d9847a1",
+          "status": "success",
+          "block_number": "46691922"
+        },
+        {
+          "action": "swap",
+          "tx_hash": "0x6bac80c3d1b73d951f878266ce0cfe93b210086c1e34d9fe956c2f2698ff61ed",
+          "status": "success",
+          "block_number": "46691924"
+        },
+        {
+          "action": "risk-dock",
+          "tx_hash": "0xe0cac0f3a07a691f08da9cd0d1fec7c6475aeedc3017842e69fbac222f5dcc3c",
+          "status": "success",
+          "block_number": "46691927"
+        },
+        {
+          "action": "maker-revoke",
+          "tx_hash": "0x351da1adb59ecd88402d3c45422212300290d2d23122322b9daf4701bb209881",
+          "status": "success",
+          "block_number": "46691929"
+        },
+        {
+          "action": "maker-revoke",
+          "tx_hash": "0xfcb561bc8fe3a85efc754416b80bda39f4a37eb29a8153592636d405d9c55ad7",
+          "status": "success",
+          "block_number": "46691931"
+        }
+      ],
+      "strategies": [
+        {
+          "strategy_hash": "0xdbc7876dac750b376bb25717935751d149dde7975444cb88e195b02d3c76f1e9",
+          "raw_balances": [
+            {
+              "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+              "balance": "0",
+              "tokensCount": 255
+            },
+            {
+              "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+              "balance": "0",
+              "tokensCount": 255
+            }
+          ]
+        },
+        {
+          "strategy_hash": "0x5ce6d56d65d6e09321fb786a0ab7b99bbe1e95f30eae023498c268e5c40d7060",
+          "raw_balances": [
+            {
+              "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+              "balance": "0",
+              "tokensCount": 255
+            },
+            {
+              "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+              "balance": "0",
+              "tokensCount": 255
+            }
+          ]
+        }
+      ],
+      "loss_bps": "226"
+    }
+  ],
+  "allowances": [
+    {
+      "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+      "amount": "0"
+    },
+    {
+      "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+      "amount": "0"
+    }
+  ],
+  "gas_balances_eth": {
+    "maker": "0.000348472054279614",
+    "taker": "0.000093574255336324"
+  }
+}
