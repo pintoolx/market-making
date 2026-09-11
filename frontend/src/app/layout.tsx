@@ -26,7 +26,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "PinTool Market Making",
+  title: "PinTool MM",
   description: "Private strategy intelligence for self-custodial market makers.",
   keywords: ["market making", "private strategies", "Chainlink", "1inch Aqua", "SwapVM"],
   authors: [{ name: "PinTool Team" }],

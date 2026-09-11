@@ -5,7 +5,7 @@
 .page > main { flex: 1 0 auto; overflow: visible; }
 .page h1:focus, .page h2:focus { outline: none; }
 .page h1:focus-visible, .page h2:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 6px; }
-.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--aqua-accent); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--aqua-muted); }
 .muted { margin: 0; font-size: 13px; color: var(--aqua-muted); line-height: 1.6; }
 .preserveLines { white-space: pre-wrap; overflow-wrap: anywhere; }
 
@@ -19,7 +19,7 @@
 .page::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: url("/hero.svg") center / cover no-repeat; -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 48%, rgb(0 0 0 / .5) 30%, #000 100%), linear-gradient(to bottom, #000 calc(100% - 160px), transparent); -webkit-mask-composite: source-in; mask-image: radial-gradient(ellipse 60% 55% at 50% 48%, rgb(0 0 0 / .5) 30%, #000 100%), linear-gradient(to bottom, #000 calc(100% - 160px), transparent); mask-composite: intersect; }
 .homeIntro { display: flex; flex-direction: column; gap: 16px; }
 .homeIntro h1 { margin: 0; font-size: clamp(32px, 3vw, 42px); font-weight: 700; line-height: 1.04; letter-spacing: -.035em; color: var(--aqua-ink); }
-.homeIntro h1 span { display: block; color: var(--aqua-accent); }
+.homeIntro h1 span { display: block; color: var(--aqua-ink); }
 .homeIntro p { margin: 0; max-width: 44ch; font-size: 15px; line-height: 1.6; color: #344057; }
 .sectionTitle { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
 .roleChoices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -43,7 +43,7 @@
 .archNode { min-height: 72px; padding: 12px 16px; border: 2px solid var(--aqua-ink); border-radius: 12px; display: flex; flex-direction: column; justify-content: center; gap: 4px; background: #e4eaf2; }
 .archNode strong { font-size: 16px; line-height: 1.2; }
 .archNode small { font-size: 12px; line-height: 1.5; color: var(--aqua-muted); }
-.archStep { color: var(--aqua-accent); font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.archStep { color: var(--aqua-muted); font-size: 11px; font-weight: 700; letter-spacing: .03em; }
 .providerNode { grid-area: provider; }
 .makerNode { grid-area: maker; }
 /* The TEE is where both private inputs meet, so it carries the one accent colour. */
@@ -66,7 +66,7 @@
 .backLink:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 4px; }
 .pageHead { display: flex; flex-direction: column; gap: 12px; }
 .pageHead h1 { margin: 0; font-size: clamp(32px, 4vw, 44px); font-weight: 700; line-height: 1.08; letter-spacing: -.03em; overflow-wrap: anywhere; }
-.pageHead h1 span { display: block; color: var(--aqua-accent); }
+.pageHead h1 span { display: block; color: var(--aqua-ink); }
 .pageHead p { margin: 4px 0 0; max-width: 62ch; font-size: 16px; line-height: 1.6; color: var(--aqua-muted); }
 
 .steps { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -88,7 +88,7 @@
 .card > [aria-hidden] { width: 100%; }
 .card h3 { margin: 14px 0 10px; font-size: 22px; line-height: 1.2; }
 .byline { margin: -4px 0 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
-.byline span { color: var(--aqua-accent); }
+.byline span { color: var(--aqua-ink); }
 .feeLine { margin: -6px 0 10px; font-size: 13px; font-weight: 700; color: var(--aqua-ink); }
 /* Original PinTool tags used a near-invisible #d7e1ee border; give them a readable edge. */
 .chip { border-color: #8997ad; background: #e4eaf2; padding: 4px 6px; }
@@ -170,7 +170,7 @@
 .privacyRoute { padding: 24px 0; border-top: 2px solid var(--aqua-ink); display: flex; flex-direction: column; gap: 14px; }
 .privacyRoute h2 { margin: 0 0 8px; max-width: 18ch; font-size: 24px; line-height: 1.12; letter-spacing: -.025em; }
 .privacyRoute > div { padding: 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--aqua-line); font-size: 13px; }
-.privacyRoute > div strong { color: var(--aqua-accent); text-align: right; }
+.privacyRoute > div strong { color: var(--aqua-ink); text-align: right; }
 .runtimePanel { min-height: 360px; padding: clamp(28px, 5vw, 56px); border: 2px solid var(--aqua-ink); border-radius: 18px; background: var(--aqua-accent); color: #eef3fb; display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(260px, .75fr); gap: 28px; align-items: center; box-shadow: 0 3px 0 var(--aqua-ink); }
 .runtimePanel .eyebrow { color: #dce5ff; }
 .runtimePanel h2 { margin: 8px 0 12px; font-size: clamp(28px, 4vw, 42px); line-height: 1.06; letter-spacing: -.03em; }
@@ -185,7 +185,9 @@
 .statusHeader { display: flex; align-items: center; gap: 16px; }
 .statusHeader h2 { margin: 4px 0 0; font-size: 24px; line-height: 1.15; letter-spacing: -.02em; }
 .statusMark { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 2px solid var(--aqua-ink); border-radius: 50%; background: var(--aqua-accent); color: #eef3fb; font-size: 24px; font-weight: 800; }
+.approvedPanel .eyebrow { color: var(--aqua-accent); }
 .rejectedPanel .statusMark { background: #e0545d; }
+.rejectedPanel .eyebrow { color: #b82f38; }
 .intentRows { display: grid; border-top: 1px solid var(--aqua-line); }
 .intentRows > div { padding: 13px 0; display: flex; justify-content: space-between; align-items: baseline; gap: 20px; border-bottom: 1px solid var(--aqua-line); }
 .intentRows strong { text-align: right; }
