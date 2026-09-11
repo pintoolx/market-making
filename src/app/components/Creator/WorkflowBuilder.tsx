@@ -290,7 +290,6 @@ export default function WorkflowBuilder({
   const { connection: solanaConnection } = useConnection();
   const {
     isAuthenticated,
-    hasRedeemedReferral,
     accessToken,
     walletAddress,
     accounts,
@@ -301,7 +300,7 @@ export default function WorkflowBuilder({
     refreshCanvases,
   } = useAuth();
 
-  const canAccessCanvas = isAuthenticated && hasRedeemedReferral;
+  const canAccessCanvas = isAuthenticated;
   const [nodes, setNodes] = useState<CanvasNode[]>(initialNodes);
   const [connections, setConnections] = useState<Connection[]>(initialConnections);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -388,7 +387,7 @@ export default function WorkflowBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  // 通過邀請碼後，若 DB 中沒有任何 canvas，才自動建立第一個草稿
+  // 登入後，若 DB 中沒有任何 canvas，才自動建立第一個草稿
   useEffect(() => {
     if (!canAccessCanvas || !walletAddress || !canvasesLoaded || canvases.length > 0 || hasAutoCreatedRef.current) return;
     hasAutoCreatedRef.current = true;
@@ -408,7 +407,7 @@ export default function WorkflowBuilder({
     })();
   }, [canAccessCanvas, walletAddress, canvasesLoaded, canvases.length, refreshCanvases]);
 
-  // 從 canvases 同步 tabs + 載入 definition + 處理 ?tab= query param（僅在通過邀請碼後）
+  // 從 canvases 同步 tabs + 載入 definition + 處理 ?tab= query param（僅在登入後）
   useEffect(() => {
     if (!canAccessCanvas) return;
     if (canvases.length === 0) return;
@@ -1547,7 +1546,7 @@ export default function WorkflowBuilder({
         </div>
       </div>
 
-      {/* Workflow Tabs：僅通過邀請碼後顯示 */}
+      {/* Workflow Tabs：僅登入後顯示 */}
       {canAccessCanvas && (
         <WorkflowTabs
           tabs={workflowTabs}
@@ -1559,7 +1558,7 @@ export default function WorkflowBuilder({
         />
       )}
 
-      {/* Main workspace：未登入或未通過邀請碼時不掛載 Canvas */}
+      {/* Main workspace：未登入時不掛載 Canvas */}
       <div className={styles.workspace}>
         {canAccessCanvas && (isLoadingWorkflows || !canvasesLoaded) && (
           <div className={styles.loadingOverlay}>

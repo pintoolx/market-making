@@ -135,7 +135,6 @@ export default function MarketplaceDeployModal({
   const { connection: solanaConnection } = useConnection();
   const {
     isAuthenticated,
-    hasRedeemedReferral,
     accessToken,
     walletAddress,
     getBusinessSignature,
@@ -143,7 +142,7 @@ export default function MarketplaceDeployModal({
     refreshCanvases,
   } = useAuth();
 
-  const canActivate = isAuthenticated && hasRedeemedReferral;
+  const canActivate = isAuthenticated;
 
   // ── State ──────────────────────────────────────────────────────────
   const [deployFundAmount, setDeployFundAmount] = useState('');

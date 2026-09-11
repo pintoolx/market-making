@@ -4,7 +4,7 @@ import { NavigationProvider } from "./contexts/NavigationContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import SolanaWalletProvider from "./providers/WalletProvider";
 import ToastProviderWrapper from "./providers/ToastProvider";
-import InviteCodeModal from "./components/shared/InviteCodeModal";
+import EthereumPrivyProvider from "./providers/PrivyProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -45,16 +45,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
-        <SolanaWalletProvider>
+        <EthereumPrivyProvider>
+          <SolanaWalletProvider>
           <AuthProvider>
-            <InviteCodeModal />
             <NavigationProvider>
               <ToastProviderWrapper>
                 {children}
               </ToastProviderWrapper>
             </NavigationProvider>
           </AuthProvider>
-        </SolanaWalletProvider>
+          </SolanaWalletProvider>
+        </EthereumPrivyProvider>
       </body>
     </html>
   );

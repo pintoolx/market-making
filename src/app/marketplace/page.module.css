@@ -1,6 +1,9 @@
 .page {
   height: 100vh;
   min-height: 100vh;
+  /* Mobile browser toolbars cover part of 100vh; dvh tracks the visible area. */
+  height: 100dvh;
+  min-height: 100dvh;
   background: #e4eaf2;
   color: #0e0f28;
   display: flex;
