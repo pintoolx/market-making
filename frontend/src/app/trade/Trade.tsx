@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useConnectWallet, useWallets } from '@privy-io/react-auth';
 import { createPublicClient, createWalletClient, custom, decodeEventLog, erc20Abi, formatUnits, http, parseUnits, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
-import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
+import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletErrorMessage, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
 import deployment from '../../../../contracts/aqua-executor/deployments/11155111.json';
 import { PRIVY_APP_ID } from '../providers/PrivyProvider';
 import { request, type ExecutableStrategyCatalog, type ExecutableStrategy } from '../marketplace/mandateClient';
@@ -78,9 +78,9 @@ function TradeForm() {
   }, []);
   const act = async (label: string, action: () => Promise<void>) => {
     setError(''); setInactiveStrategy(''); setBusy(label);
-    try { await action(); } catch (e) { const message = e instanceof Error ? e.message : 'Unable to complete this request.';
+    try { await action(); } catch (e) {
       if (isInactiveStrategyError(e)) setInactiveStrategy(selected);
-      setError(/StrategyNotActive|DirectionDisabled/.test(message) ? 'This strategy is not currently authorized to trade in this direction. Its Maker needs to review the execution conditions.' : /AmountLimitExceeded|InventoryLimitExceeded/.test(message) ? 'This trade exceeds the strategy’s current trade or inventory limits. Try a smaller amount.' : /rejected|denied/i.test(message) ? 'Wallet request cancelled. No new transaction was submitted.' : message); }
+      setError(walletErrorMessage(e)); }
     finally { setBusy(''); }
   };
   const review = () => act('Checking liquidity and price…', async () => {

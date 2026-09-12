@@ -48,3 +48,14 @@ test('Guard verification recognizes decoded inactive-strategy errors, not incide
   const cycle: { cause?: unknown } = {}; cycle.cause = cycle;
   assert.equal(isInactiveStrategyError(cycle), false);
 });
+
+test('wallet errors distinguish cancellation from ambiguous RPC sends without displaying calldata', async () => {
+  const { walletErrorMessage } = await import('../../../shared/wallet-trade.mjs');
+  assert.equal(walletErrorMessage({ cause: { code: 4001 } }), 'Wallet request cancelled.');
+  const message = walletErrorMessage({ shortMessage: 'An unknown RPC error occurred.', message: 'Request Arguments: 0x095ea7b3 raw calldata', cause: { code: -32000 } });
+  assert.match(message, /may already have been submitted/);
+  assert.doesNotMatch(message, /095ea7b3|calldata|cancelled/);
+  assert.match(walletErrorMessage({ name: 'WaitForTransactionReceiptTimeoutError' }), /existing transaction receipt/);
+  assert.match(walletErrorMessage({ cause: { data: { errorName: 'StrategyNotActive' } } }), /not currently authorized/);
+  assert.equal(walletErrorMessage(new Error('Request rejected by the service.')), 'Request rejected by the service.');
+});
