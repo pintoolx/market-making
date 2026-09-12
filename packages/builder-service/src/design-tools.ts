@@ -1,5 +1,6 @@
 import { tool } from 'ai'
 import { z } from 'zod'
+import type { ScenarioInput } from 'aqua-executor/builder-preview'
 import { DraftConflict, draftSchema, digestJson, getCapabilities, patchSchema, scaledDecimal, validateStrategy,
   assessRequirements, type StrategyDraft, type DeploymentProfile, type DraftPatch } from '@pintool/strategy-builder'
 
@@ -12,6 +13,8 @@ export interface DesignRepository {
   compilations?(): Promise<unknown>
   simulate?(requestId: string, expectedRevision: number, artifactId: string): Promise<unknown>
   simulations?(): Promise<unknown>
+  preview?(requestId: string, expectedRevision: number, options: ScenarioInput): Promise<unknown>
+  previews?(): Promise<unknown>
 }
 const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
   'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
@@ -155,9 +158,25 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         if (!repository.simulate) throw new Error('simulation-unavailable')
         return repository.simulate('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision, artifactId)
       }) }),
-    inspectStrategy: tool({ description: 'Read authoritative current state, revision history, compilations or background simulation status. Use at the beginning of a turn and after conflicts. Old or mock simulation results cannot establish current fork verification or wallet readiness.',
-      strict: true, inputSchema: z.object({ view: z.enum(['current','history','compilations','simulations']) }).strict(), execute: ({ view }) => safe(async () => {
+    previewScenarios: tool({ description: 'Calculate and save integer trade scenarios for the current draft. Use short ASCII scenario names (letters, numbers, hyphens). Amounts use HUMAN token units. tokenIn is what the TAKER supplies; base input means the Maker receives base and pays quote. Each named scenario resets to the allocation; its trades are sequential. Maker allocations come only from the draft (hypotheticalAllocations must be null). A Provider template requires explicit hypothetical base/quote amounts for comparison, never a Maker wallet. This assumes an active bidirectional report equal to the public caps; it is mathematical preview, not live quote, settlement, forecast or wallet readiness.',
+      strict: true, inputSchema: z.object({ expectedRevision: z.number().int().positive(),
+        hypotheticalAllocations: z.object({ base: z.string().max(80), quote: z.string().max(80) }).strict().nullable(),
+        scenarios: z.array(z.object({ name: z.string().max(96), trades: z.array(z.object({ tokenIn: z.enum(['base','quote']), amount: z.string().max(80) }).strict()).min(1).max(6) }).strict()).min(1).max(4),
+      }).strict(), execute: (input, options) => safe(async () => {
         const draft = await read()
+        if (draft.revision !== input.expectedRevision) throw new Error('draft-changed')
+        if (!draft.spec.baseToken || !draft.spec.quoteToken) throw new Error('resolve-pair-before-amounts')
+        if (!repository.preview) throw new Error('preview-unavailable')
+        const atom = (value: string, token: 'base' | 'quote') => scaledDecimal(value, (token === 'base' ? draft.spec.baseToken! : draft.spec.quoteToken!).decimals).toString()
+        return repository.preview('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), input.expectedRevision, {
+          hypotheticalAllocations: input.hypotheticalAllocations ? { baseAtomic: atom(input.hypotheticalAllocations.base, 'base'), quoteAtomic: atom(input.hypotheticalAllocations.quote, 'quote') } : null,
+          scenarios: input.scenarios.map(s => ({ name: s.name, trades: s.trades.map(t => ({ tokenIn: t.tokenIn, amountInAtomic: atom(t.amount, t.tokenIn) })) })),
+        })
+      }) }),
+    inspectStrategy: tool({ description: 'Read authoritative current state, revision history, compilations, previews or background simulation status. Use at the beginning of a turn and after conflicts. Old or mock simulation results cannot establish current fork verification or wallet readiness.',
+      strict: true, inputSchema: z.object({ view: z.enum(['current','history','compilations','simulations','previews']) }).strict(), execute: ({ view }) => safe(async () => {
+        const draft = await read()
+        if (view === 'previews') return { draft: visibleDraft(draft), previews: await repository.previews?.() ?? [] }
         if (view === 'compilations') return { draft: visibleDraft(draft), compilations: await repository.compilations?.() ?? [] }
         if (view === 'simulations') return { draft: visibleDraft(draft), simulations: await repository.simulations?.() ?? [] }
         return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : visibleDraft(draft)

@@ -1,0 +1,988 @@
+{
+  "sourceHashes": {
+    "contracts/aqua-executor/src/builder-preview.ts": "b4c8529d18ac3b37f25842d91f6d0b3eb1d6fa40c28537ab8dbaffe1071e6c92",
+    "contracts/aqua-executor/src/builder-compile.ts": "7b512e8fbc36befe7f0bc4c31680c4e520824b0c012e77dbebc9bfa9dc74b2cf",
+    "contracts/aqua-executor/src/builder-fork.ts": "3ca8d5b6571a2fcfd922d733b04e35283f89d015ed3523cd72877588af161392",
+    "contracts/aqua-executor/scripts/eval-builder-preview.ts": "ef06e4e77b6cc00bb3e4c0707e70212ff0c491b5ec1ddff0e1e418cf2c644d99"
+  },
+  "mode": "fork-with-overrides",
+  "chainId": 11155111,
+  "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+  "blockNumber": "11691844",
+  "blockHash": "0x5abc4b9381e132768ee9c54105ef447a009217dbd33171ee9f7960418562b932",
+  "sourceTimestamp": "1789252320",
+  "contracts": [
+    {
+      "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+    },
+    {
+      "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+    },
+    {
+      "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+      "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+    },
+    {
+      "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+    },
+    {
+      "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+    },
+    {
+      "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+    }
+  ],
+  "tokenImplementation": {
+    "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+    "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+    "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+    "runtimeBytes": 23464
+  },
+  "sourceRuntimeRebuilt": false,
+  "authorization": "synthetic-forwarder-impersonation",
+  "frozenBlockTime": true,
+  "limitations": [
+    "Local fork balances and report authority are synthetic.",
+    "No live wallet funding, DON/TEE delivery or source-to-runtime rebuild is proven."
+  ],
+  "passed": true,
+  "publicChainWrites": 0,
+  "results": [
+    {
+      "kind": "xyc",
+      "variant": "balanced",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-xyc",
+        "owner": "wallet:0x8453fedd791033720732bc88d18b5ef9a9f36edf",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x8453fedd791033720732bc88d18b5ef9a9f36edf",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "25000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "xyc"
+          },
+          "feeBps": 0,
+          "deadline": 1789339702,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:48:22.000Z",
+        "updatedAt": "2026-09-12T22:48:22.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "247524",
+          "before": [
+            "10000000000000000",
+            "25000000"
+          ],
+          "after": [
+            "10100000000000000",
+            "24752476"
+          ],
+          "quoteBlockHash": "0xaff8f2188ad4cbaff5928429d2e1ed0a882a192b095eac0f87b9255d9a8ddeb2",
+          "transactionHash": "0xe88fd8342365ded11f14c8315f7c8002112c60df895432c159473f877c2c1bbe",
+          "blockHash": "0xc1a9be248d2c81da33bd8d86c00731e515b3080068f4e4513f1018c8d58fb125",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "100989997950602",
+          "before": [
+            "10100000000000000",
+            "24752476"
+          ],
+          "after": [
+            "9999010002049398",
+            "25002476"
+          ],
+          "quoteBlockHash": "0xc1a9be248d2c81da33bd8d86c00731e515b3080068f4e4513f1018c8d58fb125",
+          "transactionHash": "0x0c5ac951594fd719c9a3286bbf566794a5568a100f711e1e193876e7625efff3",
+          "blockHash": "0x703a85b483061c2f5d3fa0f31e3ab779b16f6af3407709d7a034a90a1ac0b572",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "247573",
+          "before": [
+            "9999010002049398",
+            "25002476"
+          ],
+          "after": [
+            "10099010002049398",
+            "24754903"
+          ],
+          "quoteBlockHash": "0x703a85b483061c2f5d3fa0f31e3ab779b16f6af3407709d7a034a90a1ac0b572",
+          "transactionHash": "0xef04cd1f4b182514062f3628df5e946ed45069a70c3e95df8560f8539f223486",
+          "blockHash": "0xdf882ae6ec1e63d4c979a7c1e89a88535ca18d7a8c4053d01792bee55f2366e2",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "xyc",
+      "variant": "unequal",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-xyc",
+        "owner": "wallet:0xa6f1b1f02ccefa0630a886b665f81fde2d317a3e",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0xa6f1b1f02ccefa0630a886b665f81fde2d317a3e",
+        "allocations": {
+          "baseAtomic": "7000000000000000",
+          "quoteAtomic": "30000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "xyc"
+          },
+          "feeBps": 0,
+          "deadline": 1789339724,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:48:44.000Z",
+        "updatedAt": "2026-09-12T22:48:44.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "70000000000000",
+          "amountOutAtomic": "297029",
+          "before": [
+            "7000000000000000",
+            "30000000"
+          ],
+          "after": [
+            "7070000000000000",
+            "29702971"
+          ],
+          "quoteBlockHash": "0x92f8de5b30ae9e0e0897b1db8444a5b8120e566ede3ba871cdf8d483ec9d326d",
+          "transactionHash": "0x2530ff5f6bc391340af3a2e461cf45acb622bd93ba19357c3db77ad9e12cebb4",
+          "blockHash": "0xcfec10707e598a1335bebe78cae6587bde5f6ab8feb6eb57190dfd4085f64d1e",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "300000",
+          "amountOutAtomic": "70692999036662",
+          "before": [
+            "7070000000000000",
+            "29702971"
+          ],
+          "after": [
+            "6999307000963338",
+            "30002971"
+          ],
+          "quoteBlockHash": "0xcfec10707e598a1335bebe78cae6587bde5f6ab8feb6eb57190dfd4085f64d1e",
+          "transactionHash": "0x6db36208375c880bfa67b31aebf6053e3d70c17b76ebf482fdaa1e89275ec25a",
+          "blockHash": "0x1880f87e7ed007f466a92c635138846680bc39b3da2b8fc3f598961951fb3095",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "70000000000000",
+          "amountOutAtomic": "297088",
+          "before": [
+            "6999307000963338",
+            "30002971"
+          ],
+          "after": [
+            "7069307000963338",
+            "29705883"
+          ],
+          "quoteBlockHash": "0x1880f87e7ed007f466a92c635138846680bc39b3da2b8fc3f598961951fb3095",
+          "transactionHash": "0x5bc8ed30b073e8973e72e2dbb23bcca98e80c468c2484e0a6f0c71496956150b",
+          "blockHash": "0x18b0b444078b38d20bab74555a2cb2c520c3ca6f63674e52f4582fb3b238adfe",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "xyc",
+      "variant": "reversed",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-xyc",
+        "owner": "wallet:0x535a744b71276a548b704350f5895e757b33be1b",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x535a744b71276a548b704350f5895e757b33be1b",
+        "allocations": {
+          "baseAtomic": "25000000",
+          "quoteAtomic": "10000000000000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "quoteToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "model": {
+            "kind": "xyc"
+          },
+          "feeBps": 0,
+          "deadline": 1789339737,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "12500000",
+            "maxAmountQuotePerSwap": "5000000000000000",
+            "maxPostBalanceBase": "50000000",
+            "maxPostBalanceQuote": "20000000000000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:48:57.000Z",
+        "updatedAt": "2026-09-12T22:48:57.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "99009900990099",
+          "before": [
+            "25000000",
+            "10000000000000000"
+          ],
+          "after": [
+            "25250000",
+            "9900990099009901"
+          ],
+          "quoteBlockHash": "0xb9773b461e83d32e293b78e07827bdb2c1a8cf55e4221ec70e5d3cdbeca9cc3b",
+          "transactionHash": "0x5298de7a353f7bc9ce7d5d7f46d7bc6f55ceb2a76ccd1889b7d88ab9635ab63a",
+          "blockHash": "0xc8abe8587c36d4109c593349cc8bc40f8e106affe1fe1346f51aeebf44bcd4da",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "252475",
+          "before": [
+            "25250000",
+            "9900990099009901"
+          ],
+          "after": [
+            "24997525",
+            "10000990099009901"
+          ],
+          "quoteBlockHash": "0xc8abe8587c36d4109c593349cc8bc40f8e106affe1fe1346f51aeebf44bcd4da",
+          "transactionHash": "0x9ee1df3b6dfe0fe4c9c2416774484135f7e15c6aefe2f2ed1eeb1993a25fe20f",
+          "blockHash": "0x0b3dea8ae0e411e2a9b495b8c2c2bb825b07d40c18786a7fbd74e9b611fd3608",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "99029410793829",
+          "before": [
+            "24997525",
+            "10000990099009901"
+          ],
+          "after": [
+            "25247525",
+            "9901960688216072"
+          ],
+          "quoteBlockHash": "0x0b3dea8ae0e411e2a9b495b8c2c2bb825b07d40c18786a7fbd74e9b611fd3608",
+          "transactionHash": "0x64827f22852b3778f98528ba0e265049cceae3e83f50b565919c91b2beb8cd1f",
+          "blockHash": "0x9cda8f12e25e25cfaf388863368cb51cbaf17540c8707034992363b366e6d7ae",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "concentrated",
+      "variant": "balanced",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-concentrated",
+        "owner": "wallet:0xfa76324cfce109585a51cf391e835ffd4a7aceb3",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0xfa76324cfce109585a51cf391e835ffd4a7aceb3",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "25000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789339749,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:49:09.000Z",
+        "updatedAt": "2026-09-12T22:49:09.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "248154",
+          "before": [
+            "10000000000000000",
+            "25000000"
+          ],
+          "after": [
+            "10100000000000000",
+            "24751846"
+          ],
+          "quoteBlockHash": "0x61b0fd4aa06638b1358f02e0c4c645d275022e53e6f8da65227401f7f73fa599",
+          "transactionHash": "0x29e1edf2fa45117f8440b89f47491e5d4096998dddccd9bf72322b4fd49d4f9d",
+          "blockHash": "0xc5cd0d0a575095ad570d64ba91c3fceb09df1c7d0f1a85ab9e69ffb9045247b9",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "100743410102051",
+          "before": [
+            "10100000000000000",
+            "24751846"
+          ],
+          "after": [
+            "9999256589897949",
+            "25001846"
+          ],
+          "quoteBlockHash": "0xc5cd0d0a575095ad570d64ba91c3fceb09df1c7d0f1a85ab9e69ffb9045247b9",
+          "transactionHash": "0xc33a8ee74166080606e3a40539e35a8a9d7e911b24ea78e4f2a5200de3461a70",
+          "blockHash": "0x3c9a44cbd3fead6bf8a2633062ab1a6d1a09d96bc13f49be6ebe98f6e8ee3d4f",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "248156",
+          "before": [
+            "9999256589897949",
+            "25001846"
+          ],
+          "after": [
+            "10099256589897949",
+            "24753690"
+          ],
+          "quoteBlockHash": "0x3c9a44cbd3fead6bf8a2633062ab1a6d1a09d96bc13f49be6ebe98f6e8ee3d4f",
+          "transactionHash": "0xf7a233e6f7535e62431286380003220b8eb9a51bacc3fda86da35ffd35c24007",
+          "blockHash": "0x47cba6a1a263cc85b7d355b3ddbd58fdd44591e2968fa16722dd56936a4ac984",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "concentrated",
+      "variant": "unequal",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-concentrated",
+        "owner": "wallet:0xf28a23218e2d7235b26124d5a4f00c934a5d1ee3",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0xf28a23218e2d7235b26124d5a4f00c934a5d1ee3",
+        "allocations": {
+          "baseAtomic": "7000000000000000",
+          "quoteAtomic": "30000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789339762,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:49:22.000Z",
+        "updatedAt": "2026-09-12T22:49:22.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "70000000000000",
+          "amountOutAtomic": "179172",
+          "before": [
+            "7000000000000000",
+            "30000000"
+          ],
+          "after": [
+            "7070000000000000",
+            "29820828"
+          ],
+          "quoteBlockHash": "0xa26fd2982e260d2d5e016ea9d01b1ddebe220569e7a342ea42f90e9db7baab9e",
+          "transactionHash": "0xd6f0c85118f1fc393d24dac07203dac1a9bb3f70602ba3ada1164645952eff00",
+          "blockHash": "0x03a447264a9e816edc7755495fd5aebb1f5ef734d9149f7cf6d75a152375d0af",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "300000",
+          "amountOutAtomic": "117170929531738",
+          "before": [
+            "7070000000000000",
+            "29820828"
+          ],
+          "after": [
+            "6952829070468262",
+            "30120828"
+          ],
+          "quoteBlockHash": "0x03a447264a9e816edc7755495fd5aebb1f5ef734d9149f7cf6d75a152375d0af",
+          "transactionHash": "0xc4e4b6ceee53d4e6bacdeb82adf974141a4f7d473d647fea0e37aeb772a997c5",
+          "blockHash": "0x91d26adfe930e7b92f9f0aed1407da9f05a00e374af3b151d5cf07712c04d93c",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "70000000000000",
+          "amountOutAtomic": "179278",
+          "before": [
+            "6952829070468262",
+            "30120828"
+          ],
+          "after": [
+            "7022829070468262",
+            "29941550"
+          ],
+          "quoteBlockHash": "0x91d26adfe930e7b92f9f0aed1407da9f05a00e374af3b151d5cf07712c04d93c",
+          "transactionHash": "0x2288cd5f10f48f53758d39dd4857fe1468fb20b1bab9e71783c3936f15cdf865",
+          "blockHash": "0xe4fdf4b45bf6aca41d46a89ae111bfc69d7815cd16fa4de6635da97b40703afc",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "concentrated",
+      "variant": "reversed",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-concentrated",
+        "owner": "wallet:0x39de7b4033ea4f0f3d07ed8dfea782cd1278483f",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x39de7b4033ea4f0f3d07ed8dfea782cd1278483f",
+        "allocations": {
+          "baseAtomic": "25000000",
+          "quoteAtomic": "10000000000000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "quoteToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "0.000357142857142858",
+            "maxPrice": "0.000454545454545454"
+          },
+          "feeBps": 0,
+          "deadline": 1789339774,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "12500000",
+            "maxAmountQuotePerSwap": "5000000000000000",
+            "maxPostBalanceBase": "50000000",
+            "maxPostBalanceQuote": "20000000000000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:49:34.000Z",
+        "updatedAt": "2026-09-12T22:49:34.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "100626061798965",
+          "before": [
+            "25000000",
+            "10000000000000000"
+          ],
+          "after": [
+            "25250000",
+            "9899373938201035"
+          ],
+          "quoteBlockHash": "0x52e4d140d1428a4088f8fc4de954c83008d061266fdf70b87fa542b7227a68db",
+          "transactionHash": "0x029105d589c580c3581248c9d370a4fe6c23fe2bd8d0615119dfbcc61b3d5495",
+          "blockHash": "0x9e5b852b5025be7de9da64a0f0e27cd846fb0da9c6a54f45f1a9962abb6bd9a3",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "248445",
+          "before": [
+            "25250000",
+            "9899373938201035"
+          ],
+          "after": [
+            "25001555",
+            "9999373938201035"
+          ],
+          "quoteBlockHash": "0x9e5b852b5025be7de9da64a0f0e27cd846fb0da9c6a54f45f1a9962abb6bd9a3",
+          "transactionHash": "0xf795ab5a21a3bdc069c2a601da21286736c4f94daa93ca13cdc0d7d550ed499e",
+          "blockHash": "0x0e0fc0780be79b2ab7e4422d86310f93837ebc5093affd202b89b32b5c5f0e4d",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "100625327084434",
+          "before": [
+            "25001555",
+            "9999373938201035"
+          ],
+          "after": [
+            "25251555",
+            "9898748611116601"
+          ],
+          "quoteBlockHash": "0x0e0fc0780be79b2ab7e4422d86310f93837ebc5093affd202b89b32b5c5f0e4d",
+          "transactionHash": "0x5fdff82a2bff414aa8edaacf5b69a8f25fec2fdac30599d165059e570e0137e7",
+          "blockHash": "0x9fa45eb0f2cca797e31f3494d430dce936df04e5c7e958dacceaa09d56f620e4",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "pegged",
+      "variant": "balanced",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-pegged",
+        "owner": "wallet:0x657a3e2bb5b394a9581b1cf5344b202a68f4aa83",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x657a3e2bb5b394a9581b1cf5344b202a68f4aa83",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "25000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "pegged",
+            "referencePrice": "2500",
+            "amplification": "1"
+          },
+          "feeBps": 0,
+          "deadline": 1789339786,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:49:46.000Z",
+        "updatedAt": "2026-09-12T22:49:46.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "249584",
+          "before": [
+            "10000000000000000",
+            "25000000"
+          ],
+          "after": [
+            "10100000000000000",
+            "24750416"
+          ],
+          "quoteBlockHash": "0xe5fe3071c15f5abc7f2707544574b0e0bf2da08de17a7f637a2c292f1055ec68",
+          "transactionHash": "0x694d8969f1631c9973c08168f8af6fe0a6676e0935f739d6ea0922b4262813f4",
+          "blockHash": "0x31e1fd6b972f2e6b8f587d13c3e7806c3d0f35a5ed495b566245da4cb7ffcacb",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "100166392217236",
+          "before": [
+            "10100000000000000",
+            "24750416"
+          ],
+          "after": [
+            "9999833607782764",
+            "25000416"
+          ],
+          "quoteBlockHash": "0x31e1fd6b972f2e6b8f587d13c3e7806c3d0f35a5ed495b566245da4cb7ffcacb",
+          "transactionHash": "0xe37f0025298feaca8dc62ef3c965a3543fcd645b3f264d0b251cf7940e7d33af",
+          "blockHash": "0xc41f2d2444f207083e1cadff00361683c9aa981a1152dccaad1de236ba50a381",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "249585",
+          "before": [
+            "9999833607782764",
+            "25000416"
+          ],
+          "after": [
+            "10099833607782764",
+            "24750831"
+          ],
+          "quoteBlockHash": "0xc41f2d2444f207083e1cadff00361683c9aa981a1152dccaad1de236ba50a381",
+          "transactionHash": "0x6541bb81c53ca68fe6f6e38dd98fda094345a75f5123a49b3f730cf42b2627a4",
+          "blockHash": "0x27b98a83cfebdb7629cefed79c620cec76906322d6d30ba3d6b2b3936617526a",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "pegged",
+      "variant": "unequal",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-pegged",
+        "owner": "wallet:0x1d198cf85b2a4f3c95562a9d79097fb76f396cec",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x1d198cf85b2a4f3c95562a9d79097fb76f396cec",
+        "allocations": {
+          "baseAtomic": "7000000000000000",
+          "quoteAtomic": "30000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "pegged",
+            "referencePrice": "2500",
+            "amplification": "1"
+          },
+          "feeBps": 0,
+          "deadline": 1789339798,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:49:58.000Z",
+        "updatedAt": "2026-09-12T22:49:58.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "70000000000000",
+          "amountOutAtomic": "299500",
+          "before": [
+            "7000000000000000",
+            "30000000"
+          ],
+          "after": [
+            "7070000000000000",
+            "29700500"
+          ],
+          "quoteBlockHash": "0xe0db85e8b0f1728e83a8eabda2c21a9b7eda378e7a99e61299994e99d9229edb",
+          "transactionHash": "0x36b242e7c2df44c34405e111634f6e8066fc15c2cb9279e884be17d186997b9a",
+          "blockHash": "0x02a1ae22a332fe4f86120a5c5bc2c248d238d464c681092cc4a35c5576149db5",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "300000",
+          "amountOutAtomic": "70116474238610",
+          "before": [
+            "7070000000000000",
+            "29700500"
+          ],
+          "after": [
+            "6999883525761390",
+            "30000500"
+          ],
+          "quoteBlockHash": "0x02a1ae22a332fe4f86120a5c5bc2c248d238d464c681092cc4a35c5576149db5",
+          "transactionHash": "0x5405770cea2e32244141aa85bbd14922d39d176189087ea9ac0c28477dc354cf",
+          "blockHash": "0xd75f778d96358a0f22ff2079136a7aa295bd02367089022a1943096a5de2062e",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "70000000000000",
+          "amountOutAtomic": "299502",
+          "before": [
+            "6999883525761390",
+            "30000500"
+          ],
+          "after": [
+            "7069883525761390",
+            "29700998"
+          ],
+          "quoteBlockHash": "0xd75f778d96358a0f22ff2079136a7aa295bd02367089022a1943096a5de2062e",
+          "transactionHash": "0xf835dd5917632f292174c895b6d6f51e9972f3c637ec748cbcd0b74c0e52c846",
+          "blockHash": "0xd34e736316470c73bf18f287f6db1ad2346d84efcc9509f29ce0225727508b1a",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    },
+    {
+      "kind": "pegged",
+      "variant": "reversed",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "fork-pegged",
+        "owner": "wallet:0x945dacdb270f1bf878f27df679f98dce09ba69ec",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x945dacdb270f1bf878f27df679f98dce09ba69ec",
+        "allocations": {
+          "baseAtomic": "25000000",
+          "quoteAtomic": "10000000000000000"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "quoteToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "model": {
+            "kind": "pegged",
+            "referencePrice": "0.0004",
+            "amplification": "1"
+          },
+          "feeBps": 0,
+          "deadline": 1789339810,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "12500000",
+            "maxAmountQuotePerSwap": "5000000000000000",
+            "maxPostBalanceBase": "50000000",
+            "maxPostBalanceQuote": "20000000000000000"
+          }
+        },
+        "requirements": [],
+        "salt": "100",
+        "createdAt": "2026-09-12T22:50:10.000Z",
+        "updatedAt": "2026-09-12T22:50:10.000Z"
+      },
+      "trades": [
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "99833607309048",
+          "before": [
+            "25000000",
+            "10000000000000000"
+          ],
+          "after": [
+            "25250000",
+            "9900166392690952"
+          ],
+          "quoteBlockHash": "0x2f14a477fa8acd383cb03f3e4118d805acd73699444c1d28dbb4583371800bb5",
+          "transactionHash": "0x4f31ab38609f1d3702be1ca15ceec82624d6c14a6b5a8ddffc3aebbbd0d29b43",
+          "blockHash": "0x21a3a962e6b89263fe046372a4b3d2b461052cff0ebc86809a4bff60738cb70d",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "quote",
+          "amountInAtomic": "100000000000000",
+          "amountOutAtomic": "250415",
+          "before": [
+            "25250000",
+            "9900166392690952"
+          ],
+          "after": [
+            "24999585",
+            "10000166392690952"
+          ],
+          "quoteBlockHash": "0x21a3a962e6b89263fe046372a4b3d2b461052cff0ebc86809a4bff60738cb70d",
+          "transactionHash": "0xf15f08da4ae010d51519ceb0734aad77134e1a2b8d6e5841cf4e9a84690035b0",
+          "blockHash": "0x32fd3e3b386a92b31ae2fe76d432849da39e39cf7f02db05eb26ab7aac08b1da",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        },
+        {
+          "tokenIn": "base",
+          "amountInAtomic": "250000",
+          "amountOutAtomic": "99834159942947",
+          "before": [
+            "24999585",
+            "10000166392690952"
+          ],
+          "after": [
+            "25249585",
+            "9900332232748005"
+          ],
+          "quoteBlockHash": "0x32fd3e3b386a92b31ae2fe76d432849da39e39cf7f02db05eb26ab7aac08b1da",
+          "transactionHash": "0x9133be2533c8ff93e0a39dd6166af5e8220ca8127b4f3157efee0feabbf0fc6c",
+          "blockHash": "0x905987f2739f3bb910e92e69ddd711693142fe68344e594c06c02ddd3a2b375c",
+          "mathematicalPreviewMatchesQuote": true,
+          "quoteMatchesSettlement": true
+        }
+      ]
+    }
+  ]
+}

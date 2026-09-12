@@ -28,7 +28,8 @@
   "dependencies": {
     "@pintool/strategy-builder": "workspace:*",
     "@1inch/swap-vm-sdk": "0.4.4",
-    "viem": "2.56.3"
+    "viem": "2.56.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.13.4",
@@ -36,6 +37,7 @@
   },
   "exports": {
     "./builder": "./src/builder-compile.ts",
-    "./builder-simulation": "./src/builder-simulation.ts"
+    "./builder-simulation": "./src/builder-simulation.ts",
+    "./builder-preview": "./src/builder-preview.ts"
   }
 }
