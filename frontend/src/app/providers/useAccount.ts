@@ -12,6 +12,8 @@ export type Account = {
   userId?: string;
   email?: string;
   address?: string;
+  /** Every Ethereum wallet linked to this Privy user, including external wallets. */
+  addresses: string[];
   /** Wallet was created by Privy for an email login, so it starts empty. */
   embedded: boolean;
   /** e.g. "Email" or "Wallet · MetaMask". */
@@ -24,14 +26,20 @@ const walletName = (type: string) => WALLET_NAMES[type] ?? type.replace(/_/g, ' 
 function usePrivyAccount(): Account {
   const { ready, authenticated, login, user } = usePrivy();
   const email = user?.email?.address;
+  const addresses = [...new Set([
+    user?.wallet?.address,
+    ...(user?.linkedAccounts.flatMap(account => account.type === 'wallet' && account.chainType === 'ethereum'
+      ? [account.address]
+      : []) ?? []),
+  ].filter((address): address is string => Boolean(address)))];
   // Privy marks its embedded wallet as "privy"; any other client type means the user connected their own wallet.
   const embedded = user?.wallet?.walletClientType === 'privy';
   const method = user?.wallet && !embedded ? `Wallet · ${walletName(user.wallet.walletClientType ?? 'wallet')}` : email ? 'Email' : 'Unknown';
-  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, embedded, method };
+  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method };
 }
 
 function useNoAccount(): Account {
-  return { enabled: false, ready: true, authenticated: false, login: () => {}, embedded: false, method: 'Unknown' };
+  return { enabled: false, ready: true, authenticated: false, login: () => {}, addresses: [], embedded: false, method: 'Unknown' };
 }
 
 // PRIVY_APP_ID is fixed at build time, so the same hook runs on every render.

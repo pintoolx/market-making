@@ -113,6 +113,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
+  const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
   useEffect(() => {
@@ -131,16 +132,16 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     window.history.replaceState(null, '', '/maker');
   }, []);
   useEffect(() => {
-    if (!account.address || restoredMaker.current === account.address.toLowerCase()
+    if (!makerAddress || restoredMaker.current === makerAddress.toLowerCase()
       || openingLinkedStrategy.current) return;
-    restoredMaker.current = account.address.toLowerCase();
-    const reference = readMandateReference(account.address);
+    restoredMaker.current = makerAddress.toLowerCase();
+    const reference = readMandateReference(makerAddress);
     if (!reference) return;
     let current = true;
     setRefreshing(true);
     getMandate(reference.mandateId)
       .then(state => {
-        if (!current || state.maker.toLowerCase() !== account.address?.toLowerCase()) return;
+        if (!current || state.maker.toLowerCase() !== makerAddress.toLowerCase()) return;
         setMandate(state);
         setSelected([]);
         setPhase('monitor');
@@ -148,9 +149,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       .catch(() => { /* Keep the marketplace usable while the service is unavailable. */ })
       .finally(() => { if (current) setRefreshing(false); });
     return () => { current = false; };
-  }, [account.address]);
+  }, [makerAddress]);
 
-  const catalogMatchesWallet = !!account.address && executableCatalog?.maker === account.address.toLowerCase();
+  const catalogMatchesWallet = !!makerAddress;
   const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))]
     .map(item => ({ ...item, executionReady: catalogMatchesWallet && executableCatalog?.ids.has(item.id) }));
   const go = (next: Phase) => {
@@ -173,7 +174,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   };
 
   const submit = async () => {
-    if (!account.address || selected.length === 0) {
+    if (!makerAddress || selected.length === 0) {
       setError('Log in with the Maker wallet before creating the mandate.');
       return;
     }
@@ -188,9 +189,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         maxToken0Value1: decimalToAtomic(maxWethInventory, 6),
         maxSwapValue1: decimalToAtomic(maxTrade, 6),
         maxTtlSec: Number(validityMinutes) * 60,
-      }, publicKey, account.address);
+      }, publicKey, makerAddress);
       const state = await createMandate({
-        maker: account.address,
+        maker: makerAddress,
         providerStrategyIds: selected.map(item => item.id),
         makerLimitsEnvelope,
       });
