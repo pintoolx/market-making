@@ -42,12 +42,22 @@ pnpm sepolia status --maker 0x... --taker 0x...
 pnpm sepolia deploy --execute
 pnpm sepolia deploy-guard --execute
 pnpm sepolia fund --execute
+pnpm prepare:product-strategies
+pnpm execute -- --network ethereum-sepolia --request releases/sepolia-maker-v1/featured-tight-market.ship.json
+pnpm execute -- --network ethereum-sepolia --request releases/sepolia-maker-v1/featured-defensive-market.ship.json
 pnpm lifecycle --network ethereum-sepolia --rebalance
 pnpm demo:guard --network ethereum-sepolia
 ```
 
 Without `--execute`, Sepolia commands are read-only preflights. `sepolia deploy`
 initializes the complete environment and writes `deployments/11155111.json`.
+
+The two release requests compile against the current Guard and the same Maker wallet.
+They create independent Aqua virtual allocations of 0.004 WETH / 10 USDC backed by
+that shared wallet balance. `releases/sepolia-maker-v1/catalog.json` pins the exact
+order bytes and hashes used by the workflow and mandate service. Its adjacent swap
+requests cover Tight Market before the switch, Defensive Market after the switch,
+and the expected Guard rejection of Tight Market after Defensive Market becomes active.
 
 After Guard source changes, use `sepolia deploy-guard --execute` to reuse the verified
 Aqua and router while deploying only the current Guard artifact. The command derives a
@@ -126,18 +136,17 @@ There are two separately identified receivers:
 
 `workflow/guard-report` now reads the Sepolia deployment bundle when preparing
 unsigned deployments or paused probes. It uses the same 16-field report ABI and
-checks receiver identity/receipt/digest. `workflow/market-maker-auth` takes its
-Guard and Router from public workflow config, rather than embedding old Base
-addresses. Its examples are dry-run fixtures; fill them from the confirmed
-deployment and current guarded strategy hash before broadcasting. The
-orchestrator defaults to Sepolia RPC/explorer/chain ID. The UI shows WETH / USDC
-with Ethereum Sepolia identification and small suggested limits.
+checks receiver identity/receipt/digest. `workflow/market-maker-auth` takes its Guard
+and Router from public workflow config. Its staging target is pinned to the current
+Maker, the two release hashes and `don-report` delivery for
+`cre workflow simulate --broadcast`. The mandate service's local runner invokes the
+confidential HTTP handler and returns state only after independently observing the
+matching Sepolia `ReportAccepted` receipt.
 
-Real CRE account access, confidential execution, public A/B mandate-switch
-verification and frontend evidence integration remain separate acceptance items
-in the [architecture](../../../docs/ARCHITECTURE.md). Local contract tests cover
-atomic A/B switching. A successful asset migration
-does not establish those milestones. Existing `demo:risk` intentionally remains
+Shipping the current A/B release, broadcasting its reports, recording the public
+strategy switch and surfacing the final swap receipts remain acceptance items in the
+[architecture](../../../docs/ARCHITECTURE.md). Local contract tests cover atomic A/B
+switching. Existing `demo:risk` intentionally remains
 
 restricted to the old mock fixture; the generic monitor/controller can use the
 new assets and deployment with an explicit price source.

@@ -19,8 +19,8 @@ export const SEPOLIA = {
   simulationForwarder: '0x15fc6ae953e024d975e77382eeec56a9101f9f88',
 } as const
 export const DEMO_ACCOUNTS = {
-  maker: '0x32f79282124eafc681601cdca2883c672c72d340',
-  taker: '0x9c69f55b9e6836b8e096c0f61202665c869922cc',
+  maker: '0x24f93609de41a839f411d18f3ee242c5089caad7',
+  taker: '0xdaf50f814af7a1baf555cc3a3ce3d0ffe303073c',
 } as const
 export const FUNDING_TARGET = {
   makerWeth: parseEther('0.005'), makerUsdc: parseUnits('10', 6),

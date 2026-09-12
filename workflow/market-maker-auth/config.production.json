@@ -9,6 +9,7 @@
     }
   ],
   "makerSecretId": "MAKER_LIMITS",
+  "envelopePrivateKeySecretId": "ENVELOPE_PRIVATE_KEY",
   "publishMode": "dry-run",
   "maker": "0x3333333333333333333333333333333333333333",
   "strategyHash": "0x4444444444444444444444444444444444444444444444444444444444444444",

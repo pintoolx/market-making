@@ -10,10 +10,16 @@ ENV_FILE="${1:-.env}"
 if [ ! -f "$ENV_FILE" ]; then ENV_FILE=".env.example"; fi
 
 OUT="$(mktemp -t simulate-output.XXXXXX)"
-trap 'rm -f "$OUT"' EXIT
+CONFIG="$(mktemp -t pintool-leak-config.XXXXXX.json)"
+trap 'rm -f "$OUT" "$CONFIG"' EXIT
+
+# Leak checks inspect simulator output and must never depend on, or attempt, an
+# onchain write. Preserve the checked-in config and override only publishMode.
+bun -e 'const p=process.argv[1],o=process.argv[2];const c=await Bun.file(p).json();c.publishMode="dry-run";await Bun.write(o,JSON.stringify(c))' \
+  market-maker-auth/config.staging.json "$CONFIG"
 
 echo "simulating with env=$ENV_FILE ..."
-cre workflow simulate market-maker-auth --non-interactive --trigger-index 0 --env "$ENV_FILE" > "$OUT" 2>&1 || {
+cre workflow simulate market-maker-auth --non-interactive --trigger-index 0 --env "$ENV_FILE" --config "$CONFIG" > "$OUT" 2>&1 || {
   echo "simulate failed:"; cat "$OUT"; exit 1
 }
 

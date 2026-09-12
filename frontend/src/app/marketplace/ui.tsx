@@ -28,6 +28,7 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
       <div className={styles.tagRow}>
         <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.label}</span>
         {listing.mine && <span className={`${styles.tag} ${aqua.chip} ${aqua.mineTag}`}>Your strategy</span>}
+        {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Accepting liquidity</span>}
       </div>
       <h3 className={styles.cardTitle}>{listing.name}</h3>
       {listing.provider && <p className={aqua.byline}><Avatar name={listing.provider} src={listing.providerAvatar} size={28} brand={listing.provider === 'PinTool Strategies'} />by <span>{listing.provider}</span></p>}

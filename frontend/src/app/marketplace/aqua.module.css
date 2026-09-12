@@ -99,6 +99,7 @@
 .feeLine { margin: -6px 0 10px; font-size: 13px; font-weight: 700; color: var(--aqua-ink); }
 /* Original PinTool tags used a near-invisible #d7e1ee border; give them a readable edge. */
 .chip { border-color: #8997ad; background: #e4eaf2; padding: 4px 6px; }
+.liveTag { border-color: #89a79a; background: #e2eee8; color: #183d2d; }
 .mineTag { background: var(--aqua-accent); border-color: var(--aqua-ink); color: #eef3fb; }
 .summary { margin: 0 0 16px; font-size: 14px; line-height: 1.6; }
 .cardRule { padding-top: 14px; border-top: 1px solid var(--aqua-line); }

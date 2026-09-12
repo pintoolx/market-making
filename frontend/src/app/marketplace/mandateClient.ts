@@ -1,3 +1,5 @@
+import type { ConfidentialEnvelope } from './confidentialEnvelope';
+
 export type MarketRegime = 'normal' | 'high-volatility' | 'unknown';
 export type StrategyStatus = 'active' | 'standby' | 'paused';
 
@@ -42,13 +44,19 @@ export type MandateState = {
 export type EvaluateMandateInput = {
   maker: string;
   providerStrategyIds: string[];
-  policy: {
-    capitalBudgetUsdc: string;
-    maxWethExposurePct: string;
-    maxWethInventoryUsdc: string;
-    maxSwapUsdc: string;
-    validityMinutes: string;
-  };
+  makerLimitsEnvelope: ConfidentialEnvelope;
+};
+
+export type ExecutableStrategy = {
+  id: string;
+  name: string;
+  provider: string;
+  strategyHash: `0x${string}`;
+};
+
+export type ExecutableStrategyCatalog = {
+  maker: string;
+  strategies: ExecutableStrategy[];
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_MANDATE_API_URL?.replace(/\/$/, '');
@@ -90,6 +98,15 @@ function validateState(value: MandateState): MandateState {
 export async function createMandate(input: EvaluateMandateInput): Promise<MandateState> {
   const state = await request<MandateState>('/v1/mandates', { method: 'POST', body: JSON.stringify(input) });
   return validateState(state);
+}
+
+export async function getExecutableStrategies(): Promise<ExecutableStrategyCatalog> {
+  const value = await request<Partial<ExecutableStrategyCatalog>>('/v1/strategies');
+  if (!/^0x[0-9a-f]{40}$/i.test(value.maker ?? '') || !Array.isArray(value.strategies)
+    || !value.strategies.every(item => item?.id && item?.name && item?.provider && isHex(item.strategyHash))) {
+    throw new Error('The mandate service returned an invalid strategy catalog.');
+  }
+  return value as ExecutableStrategyCatalog;
 }
 
 export async function getMandate(mandateId: string): Promise<MandateState> {

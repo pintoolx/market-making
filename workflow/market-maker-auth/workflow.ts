@@ -1,6 +1,7 @@
 import { cre, decodeJson, type HTTPPayload, type TeeRuntime } from '@chainlink/cre-sdk'
 import { z } from 'zod'
 import { GUARD_CONFIG } from '../src/config/guard'
+import { confidentialEnvelopeSchema, openConfidentialEnvelope, type ConfidentialEnvelope } from '../src/confidential-envelope'
 import { computeAuthorization } from '../src/intersect'
 import { publishAuthorization } from '../src/publish'
 import {
@@ -26,6 +27,8 @@ export const configSchema = z.object({
 		.max(12)
 		.default([]),
 	makerSecretId: z.string(),
+	/** X25519 private key stored in Vault DON; its public half is embedded in the web app. */
+	envelopePrivateKeySecretId: z.string(),
 	/** See src/publish.ts. Defaults to dry-run until pengu confirms the Guard. */
 	publishMode: z.enum(['dry-run', 'don-report', 'http-rpc']).default('dry-run'),
 	/** Maker wallet the report authorises (funds never leave it). */
@@ -45,8 +48,9 @@ export type Config = z.infer<typeof configSchema>
 
 /**
  * HTTP trigger data is visible to the Workflow DON. It therefore carries only
- * public execution identity and market observations; private rules and limits
- * remain Vault DON secrets fetched after the callback enters the TEE.
+ * public execution identity, market observations and an encrypted Maker
+ * envelope. Plaintext Provider rules remain Vault DON secrets; plaintext Maker
+ * limits exist only in the browser and the attested enclave.
  */
 export const httpRequestSchema = z
 	.object({
@@ -54,11 +58,29 @@ export const httpRequestSchema = z
 		maker: hexAddress,
 		strategyHash: hexBytes32,
 		marketSnapshot: marketSnapshotSchema,
+		makerLimitsEnvelope: confidentialEnvelopeSchema,
+		/** Optional browser-sealed policy for a Provider-published listing. */
+		provider: hexAddress.optional(),
+		providerStrategyEnvelope: confidentialEnvelopeSchema.optional(),
 	})
 	.strict()
+	.superRefine((value, context) => {
+		if (!!value.provider !== !!value.providerStrategyEnvelope) context.addIssue({
+			code: 'custom',
+			path: ['providerStrategyEnvelope'],
+			message: 'provider and providerStrategyEnvelope must be supplied together',
+		})
+	})
 export type HTTPRequest = z.infer<typeof httpRequestSchema>
 
-type ExecutionInput = Pick<Config, 'providerSecretId' | 'makerSecretId' | 'maker' | 'strategyHash' | 'marketSnapshot'>
+type ExecutionInput = Pick<Config, 'maker' | 'strategyHash' | 'marketSnapshot'> & {
+	providerSecretId?: string
+	provider?: string
+	providerStrategyEnvelope?: ConfidentialEnvelope
+	makerSecretId?: string
+	envelopePrivateKeySecretId?: string
+	makerLimitsEnvelope?: ConfidentialEnvelope
+}
 
 const providerSecretFor = (config: Config, strategyHash: string): string => {
 	const normalized = strategyHash.toLowerCase()
@@ -91,12 +113,24 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 	// ── 1. Both confidential inputs, one Vault DON round-trip ──
 	// Secrets are released only into the attested enclave; one getSecrets()
 	// call counts once against PerWorkflow.Secrets.CallLimit (5).
+	const makerSecretId = input.makerLimitsEnvelope ? input.envelopePrivateKeySecretId : input.makerSecretId
+	if (!makerSecretId) throw new Error('Maker confidential input is not configured')
+	if (!input.providerSecretId && (!input.provider || !input.providerStrategyEnvelope)) throw new Error('Provider confidential input is not configured')
+	const secretRequests = input.providerStrategyEnvelope
+		? [{ id: makerSecretId }]
+		: [{ id: input.providerSecretId! }, { id: makerSecretId }]
 	const secrets = runtime
-		.getSecrets([{ id: input.providerSecretId }, { id: input.makerSecretId }])
+		.getSecrets(secretRequests)
 		.result()
 
-	const strategy = parseSecretJson(providerStrategySchema, secrets[input.providerSecretId].value, 'PROVIDER_STRATEGY')
-	const limits = parseSecretJson(makerLimitsSchema, secrets[input.makerSecretId].value, 'MAKER_LIMITS')
+	const rawStrategy = input.providerStrategyEnvelope
+		? openConfidentialEnvelope(input.providerStrategyEnvelope, secrets[makerSecretId].value, input.provider!, 'provider')
+		: secrets[input.providerSecretId!].value
+	const strategy = parseSecretJson(providerStrategySchema, rawStrategy, 'PROVIDER_STRATEGY')
+	const rawLimits = input.makerLimitsEnvelope
+		? openConfidentialEnvelope(input.makerLimitsEnvelope, secrets[makerSecretId].value, input.maker)
+		: secrets[makerSecretId].value
+	const limits = parseSecretJson(makerLimitsSchema, rawLimits, 'MAKER_LIMITS')
 
 	// ── 2. Public observation ──
 	const market = input.marketSnapshot
@@ -151,8 +185,11 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		throw new Error(`HTTP trigger payload failed schema validation (${issues})`)
 	}
 	const result = executeAuthorization(runtime, {
-		providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash),
-		makerSecretId: runtime.config.makerSecretId,
+		...(parsed.data.providerStrategyEnvelope
+			? { provider: parsed.data.provider, providerStrategyEnvelope: parsed.data.providerStrategyEnvelope }
+			: { providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash) }),
+		envelopePrivateKeySecretId: runtime.config.envelopePrivateKeySecretId,
+		makerLimitsEnvelope: parsed.data.makerLimitsEnvelope,
 		maker: parsed.data.maker,
 		strategyHash: parsed.data.strategyHash,
 		marketSnapshot: parsed.data.marketSnapshot,

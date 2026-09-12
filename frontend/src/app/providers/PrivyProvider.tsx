@@ -1,6 +1,7 @@
 'use client';
 
 import { PrivyProvider } from '@privy-io/react-auth';
+import { sepolia } from 'viem/chains';
 
 export const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID?.trim() ?? '';
 
@@ -11,6 +12,8 @@ export default function EthereumPrivyProvider({ children }: { children: React.Re
     <PrivyProvider
       appId={PRIVY_APP_ID}
       config={{
+        defaultChain: sepolia,
+        supportedChains: [sepolia],
         loginMethods: ['email', 'wallet'],
         appearance: {
           theme: 'light',

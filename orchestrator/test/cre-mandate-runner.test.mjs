@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
-import { policyDigest, runDirectMandate } from '../src/cre-mandate-runner.mjs';
+import { runDirectMandate } from '../src/cre-mandate-runner.mjs';
 
 const maker = '0x1111111111111111111111111111111111111111';
 const strategyHash = `0x${'22'.repeat(32)}`;
 const defensiveHash = `0x${'55'.repeat(32)}`;
 const txHash = `0x${'33'.repeat(32)}`;
 const digest = `0x${'44'.repeat(32)}`;
-const policy = {
-  capitalBudgetUsdc: '1000', maxWethExposurePct: '60', maxWethInventoryUsdc: '350',
-  maxSwapUsdc: '100', validityMinutes: '10',
-};
+const makerLimitsEnvelope = { version: 1, ephemeralPublicKey: '11'.repeat(32), nonce: '22'.repeat(24), ciphertext: '33'.repeat(48) };
 const config = {
   gatewayUrl: 'https://gateway.example', workflowId: 'aa'.repeat(32), privateKey: `0x${'11'.repeat(32)}`,
   rpcUrl: 'https://rpc.example', explorerUrl: 'https://explorer.example', networkName: 'Ethereum Sepolia',
@@ -20,12 +20,12 @@ const config = {
     'featured-defensive-market': { name: 'Defensive Market', provider: 'PinTool Strategies', strategyHash: defensiveHash },
   },
   marketSnapshot: { midPrice: '2500', volatilityBps: 200, balance0: '1', balance1: '1000', decimals0: 18, decimals1: 6 },
-  expectedPolicyDigest: policyDigest(policy), timeoutMs: 1000,
+  timeoutMs: 1000,
 };
 
 test('direct CRE runner turns an accepted trigger and matching Guard event into public mandate state', async () => {
   let triggerInput;
-  const state = await runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], policy } }, config, {
+  const state = await runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope } }, config, {
     currentBlock: async () => 42n,
     trigger: async (_config, input) => { triggerInput = input; return { workflowExecutionId: 'execution-1', status: 'ACCEPTED' }; },
     observe: async observed => {
@@ -39,6 +39,7 @@ test('direct CRE runner turns an accepted trigger and matching Guard event into 
   });
   assert.equal(triggerInput.maker, maker);
   assert.equal(triggerInput.strategyHash, strategyHash);
+  assert.deepEqual(triggerInput.makerLimitsEnvelope, makerLimitsEnvelope);
   assert.equal(state.strategies[0].status, 'active');
   assert.equal(state.strategies[0].maxAmountPerSwapAtomic, '100000000');
   assert.equal(state.evidence.reportTransactionHash, txHash);
@@ -49,6 +50,7 @@ test('direct CRE runner turns an accepted trigger and matching Guard event into 
     action: 'add-strategy',
     mandateId: state.mandateId,
     providerStrategyId: 'featured-defensive-market',
+    makerLimitsEnvelope,
     current: state,
   }, config, {
     currentBlock: async () => 43n,
@@ -70,9 +72,9 @@ test('direct CRE runner turns an accepted trigger and matching Guard event into 
   assert.equal(expanded.events.length, 4);
 });
 
-test('direct CRE runner rejects unprovisioned strategies and policy values', async () => {
-  await assert.rejects(runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['missing'], policy } }, config), /not provisioned/);
-  await assert.rejects(runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], policy: { ...policy, maxSwapUsdc: '101' } } }, config), /do not match/);
+test('direct CRE runner rejects unprovisioned strategies and missing sealed limits', async () => {
+  await assert.rejects(runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['missing'], makerLimitsEnvelope } }, config), /not provisioned/);
+  await assert.rejects(runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'] } }, config), /sealed limits/);
   await assert.rejects(runDirectMandate({ action: 'add-strategy' }, config), /Current mandate state/);
 });
 
@@ -88,7 +90,7 @@ test('a paused candidate does not replace the currently active strategy in publi
   const state = await runDirectMandate({
     action: 'add-strategy',
     mandateId: current.mandateId,
-    providerStrategyId: 'featured-defensive-market',
+    providerStrategyId: 'featured-defensive-market', makerLimitsEnvelope,
     current,
   }, config, {
     currentBlock: async () => 50n,
@@ -103,4 +105,27 @@ test('a paused candidate does not replace the currently active strategy in publi
     ['featured-tight-market', 'active'],
     ['featured-defensive-market', 'paused'],
   ]);
+});
+
+test('each execution rereads the configured public market observation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pintool-market-'));
+  const marketSnapshotFile = join(directory, 'current.json');
+  const snapshots = [];
+  const local = { ...config, marketSnapshotFile };
+  const run = volatilityBps => {
+    const transactionHash = `0x${String(volatilityBps).padStart(64, '0')}`;
+    return runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope } }, local, {
+      currentBlock: async () => 1n,
+      trigger: async (_config, input) => { snapshots.push(input.marketSnapshot); return { workflowExecutionId: 'local' }; },
+      observe: async () => ({ transactionHash, digest, report: { maker, strategyHash, nonce: 1n,
+        validUntil: 1_900_000_000, allowedDirections: 3, maxAmount1PerSwap: 1n } }),
+    });
+  };
+  await writeFile(marketSnapshotFile, JSON.stringify({ ...config.marketSnapshot, volatilityBps: 120 }));
+  const normal = await run(120);
+  await writeFile(marketSnapshotFile, JSON.stringify({ ...config.marketSnapshot, volatilityBps: 650 }));
+  const volatile = await run(650);
+  assert.equal(normal.regime, 'normal');
+  assert.equal(volatile.regime, 'high-volatility');
+  assert.deepEqual(snapshots.map(item => item.volatilityBps), [120, 650]);
 });

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { currentBlock, waitForAcceptedReport } from './guard-observer.mjs';
-import { stableStringify, triggerCREWorkflow } from './cre-gateway.mjs';
+import { triggerCREWorkflow } from './cre-gateway.mjs';
 
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
 const HEX32 = /^0x[0-9a-f]{64}$/i;
@@ -13,11 +14,7 @@ function required(env, name) {
   return value;
 }
 
-export function policyDigest(policy) {
-  return createHash('sha256').update(stableStringify(policy)).digest('hex');
-}
-
-export function directRunnerConfig(env = process.env) {
+export function mandateRunnerConfig(env = process.env) {
   const catalog = JSON.parse(required(env, 'MANDATE_STRATEGY_CATALOG'));
   const marketSnapshot = JSON.parse(required(env, 'MANDATE_MARKET_SNAPSHOT'));
   if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw new Error('MANDATE_STRATEGY_CATALOG must be an object');
@@ -28,12 +25,7 @@ export function directRunnerConfig(env = process.env) {
   if (!ADDRESS.test(guard)) throw new Error('MANDATE_GUARD_ADDRESS is invalid');
   const chainId = Number(required(env, 'MANDATE_CHAIN_ID'));
   if (!Number.isSafeInteger(chainId) || chainId < 1) throw new Error('MANDATE_CHAIN_ID is invalid');
-  const expectedPolicyDigest = required(env, 'MANDATE_POLICY_SHA256').toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(expectedPolicyDigest)) throw new Error('MANDATE_POLICY_SHA256 is invalid');
   return {
-    gatewayUrl: required(env, 'CRE_GATEWAY_URL'),
-    workflowId: required(env, 'CRE_WORKFLOW_ID'),
-    privateKey: required(env, 'CRE_HTTP_TRIGGER_PRIVATE_KEY'),
     rpcUrl: required(env, 'MANDATE_RPC_URL'),
     explorerUrl: required(env, 'MANDATE_EXPLORER_URL').replace(/\/$/, ''),
     networkName: required(env, 'MANDATE_NETWORK_NAME'),
@@ -41,8 +33,17 @@ export function directRunnerConfig(env = process.env) {
     guard,
     catalog,
     marketSnapshot,
-    expectedPolicyDigest,
+    marketSnapshotFile: env.MANDATE_MARKET_SNAPSHOT_FILE?.trim() || null,
     timeoutMs: Number(env.MANDATE_RUNNER_TIMEOUT_MS ?? 120_000),
+  };
+}
+
+export function directRunnerConfig(env = process.env) {
+  return {
+    ...mandateRunnerConfig(env),
+    gatewayUrl: required(env, 'CRE_GATEWAY_URL'),
+    workflowId: required(env, 'CRE_WORKFLOW_ID'),
+    privateKey: required(env, 'CRE_HTTP_TRIGGER_PRIVATE_KEY'),
   };
 }
 
@@ -56,12 +57,9 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   const current = creating ? null : request.current;
   const input = request.input;
   if (creating && (!input || !ADDRESS.test(input.maker ?? '') || !Array.isArray(input.providerStrategyIds)
-    || input.providerStrategyIds.length !== 1)) throw new Error('Direct CRE runner requires one valid Maker strategy');
-  if (creating && policyDigest(input.policy) !== config.expectedPolicyDigest) {
-    throw new Error('Maker limits do not match the confidential policy provisioned for this workflow');
-  }
+    || input.providerStrategyIds.length !== 1 || !input.makerLimitsEnvelope)) throw new Error('Direct CRE runner requires one valid Maker strategy and sealed limits');
   if (!creating && (!current || current.mandateId !== request.mandateId || !ADDRESS.test(current.maker ?? '')
-    || !Array.isArray(current.strategies) || current.strategies.length === 0)) throw new Error('Current mandate state is required');
+    || !Array.isArray(current.strategies) || current.strategies.length === 0 || !request.makerLimitsEnvelope)) throw new Error('Current mandate state and sealed limits are required');
   const listingId = creating ? input.providerStrategyIds[0]
     : request.action === 'add-strategy' ? request.providerStrategyId
       : (current.strategies.find(item => item.status === 'active') ?? current.strategies[0]).listingId;
@@ -70,9 +68,12 @@ export async function runDirectMandate(request, config, dependencies = {}) {
 
   const maker = creating ? input.maker : current.maker;
   const mandateId = creating ? `mandate-${randomUUID()}` : request.mandateId;
+  const marketSnapshot = config.marketSnapshotFile
+    ? JSON.parse(await readFile(config.marketSnapshotFile, 'utf8'))
+    : config.marketSnapshot;
   const fromBlock = await (dependencies.currentBlock ?? currentBlock)(config.rpcUrl, dependencies.fetchImpl);
   const trigger = dependencies.trigger ?? triggerCREWorkflow;
-  const accepted = await trigger({
+  const accepted = await trigger(dependencies.triggerConfig ?? {
     gatewayUrl: config.gatewayUrl,
     workflowId: config.workflowId,
     privateKey: config.privateKey,
@@ -80,7 +81,8 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     requestId: mandateId,
     maker,
     strategyHash: listing.strategyHash,
-    marketSnapshot: config.marketSnapshot,
+    marketSnapshot,
+    makerLimitsEnvelope: creating ? input.makerLimitsEnvelope : request.makerLimitsEnvelope,
   }, { fetchImpl: dependencies.fetchImpl });
 
   const observe = dependencies.observe ?? waitForAcceptedReport;
@@ -126,7 +128,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   return {
     mandateId,
     maker,
-    regime: Number(config.marketSnapshot.volatilityBps) >= 1000 ? 'high-volatility' : 'normal',
+    regime: Number(marketSnapshot.volatilityBps) >= 301 ? 'high-volatility' : 'normal',
     strategies,
     evidence: {
       chainId: config.chainId,
