@@ -9,6 +9,8 @@ import { createTurns } from './turns.ts'
 import { createPrivyVerifier } from './privy.ts'
 import { createArtifacts } from './artifacts.ts'
 import { createSimulations } from './simulations.ts'
+import { createPreviews } from './previews.ts'
+import { scenarioInputSchema } from 'aqua-executor/builder-preview'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -32,6 +34,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
   const simulations = artifacts ? createSimulations(pool, sepoliaStandingProfile) : undefined
+  const previews = artifacts ? createPreviews(pool, sepoliaStandingProfile) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -112,9 +115,20 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         const owned = await artifacts.get(actor.owner, artifact[1]!)
         return send(await simulations.start(actor.owner, requestId as string, { artifactId: artifact[1], draftId: owned.payload.draftId, ...body }), 202)
       }
-      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations))?$/)
+      const preview = route.match(/^\/previews\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})$/)
+      if (preview && !post) {
+        if (!previews) throw new ServiceError('profile-unavailable', 503)
+        return send(await previews.get(actor.owner, preview[1]!))
+      }
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations|previews))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if (draft[3] === 'previews') {
+          if (!previews) throw new ServiceError('profile-unavailable', 503)
+          if (!post) return send({ previews: await previews.list(actor.owner, draft[1]!) })
+          const input = scenarioInputSchema.extend({ expectedRevision: z.number().int().positive() }).strict().parse(await readJson(request))
+          return send(await previews.preview(actor.owner, requestId as string, { draftId: draft[1], ...input }))
+        }
         if (!post && draft[3] === 'simulations') {
           if (!simulations) throw new ServiceError('profile-unavailable', 503)
           return send({ simulations: await simulations.list(actor.owner, draft[1]!) })

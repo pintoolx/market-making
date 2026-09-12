@@ -23,7 +23,7 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 
 ## Offline regression checks
 
-`pnpm typecheck:builder-service` passed. The expanded `pnpm test:builder-service` suite passed 38 tests (one optional network test skipped) using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
+`pnpm typecheck:builder-service` passed. The expanded `pnpm test:builder-service` suite passed 44 tests (one optional network test skipped) using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
 
 - Atomic/idempotent acceptance, owner isolation, strict client input and one active turn per draft.
 - Multiple workers, expired-lease recovery after a new pool, three-attempt limit, cancellation, and late worker rejection even when it supplies the latest draft revision.
@@ -75,3 +75,7 @@ Python Playwright/Chromium drove the actual Builder component against a real loc
 These checks prove public design conversations, the service data/API path, an initial workspace against fixture identity/model, and a real-model simulation/repair loop backed by actual isolated settlement. They do not prove live Privy browser sign-in, Provider publication, private policy handling, the full twelve-tool workflow, Maker signing, real Guard delivery, public-chain settlement or deployment. XYC/CLMM/Pegged selection under live model evaluation still needs broader scenarios; these evaluations are not complete coverage of the approved goal. No public-chain transaction, CRE upload/activation or Builder production rollout was performed.
 
 The API supports app-pinned Privy verification plus EOA wallet proof; production mounting must enable the Privy configuration. Responses `store: false` disables Responses storage; it is not a zero-data-retention guarantee.
+
+## Provider numerical comparisons
+
+`eval-preview-agent.ts` passed five real OpenAI turns against signed local HTTP and PostgreSQL. The agent compared hypothetical XYC allocations, tightened only the USDC output cap and observed two WETH-input refusals, restored the cap and compared CLMM, then evaluated unequal Pegged allocations and explained why a 2500 reference parameter did not produce a 2500 execution price. The final turn read current/history without generating work or changing the draft. Every turn preserved non-requested parameters and retained the Provider template without a Maker identity/allocation. Full public [evidence](builder-previews/agent-evaluation.json) and [calculation semantics](BUILDER-SCENARIO-PREVIEWS.md) are committed. These are mathematical previews with explicit report assumptions; the separate nine-strategy fork check compares the underlying algorithm to actual quotes and transfers.
