@@ -5,6 +5,7 @@ import { DraftConflict, DraftAccessDenied, getCapabilities } from '@pintool/stra
 import { createAuth } from './auth.ts'
 import { createStore } from './store.ts'
 import { ServiceError } from './errors.ts'
+import { createTurns } from './turns.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -22,8 +23,8 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 })
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
-export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string }) {
-  const auth = createAuth(pool, config), store = createStore(pool, config.profileId)
+export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean }) {
+  const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -66,6 +67,21 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
       const requestId = request.headers['idempotency-key']
       if (post && (typeof requestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(requestId))) throw new ServiceError('idempotency-key-required')
       if (route === '/conversations') return send(post ? await store.create(actor.owner, requestId as string, await readJson(request)) : { conversations: await store.list(actor.owner) })
+      const newTurn = route.match(/^\/conversations\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/turns$/)
+      if (newTurn && post) {
+        if (!config.designEnabled) throw new ServiceError('design-unavailable', 503)
+        const body = z.object({ content: z.string(), expectedRevision: z.number() }).strict().parse(await readJson(request))
+        return send(await turns.accept(actor.owner, requestId as string, { ...body, conversationId: newTurn[1] }), 202)
+      }
+      const turn = route.match(/^\/turns\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(events|cancel))?$/)
+      if (turn) {
+        if (!post && !turn[2]) return send({ turn: await turns.get(actor.owner, turn[1]!) })
+        if (!post && turn[3] === 'events') return send({ events: await turns.events(actor.owner, turn[1]!, url.searchParams.get('after') ?? '0') })
+        if (post && turn[3] === 'cancel') {
+          z.object({}).strict().parse(await readJson(request))
+          return send(await turns.cancel(actor.owner, turn[1]!))
+        }
+      }
       const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })

@@ -1,0 +1,147 @@
+import { tool } from 'ai'
+import { z } from 'zod'
+import { DraftConflict, draftSchema, digestJson, getCapabilities, patchSchema, scaledDecimal, validateStrategy,
+  assessRequirements, type StrategyDraft, type DeploymentProfile, type DraftPatch } from '@pintool/strategy-builder'
+
+export interface DesignRepository {
+  read(): Promise<StrategyDraft>
+  patch(requestId: string, expectedRevision: number, patch: DraftPatch): Promise<{ draft: StrategyDraft; diff: unknown; changed: boolean }>
+  restore(requestId: string, expectedRevision: number, revision: number): Promise<{ draft: StrategyDraft; diff: unknown; changed: boolean }>
+  history(): Promise<unknown>
+}
+const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
+  'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
+
+/** Simple strict model schema: no arbitrary JSON, addresses, owner, revision writes, approvals or private rules. */
+export const designEditSchema = z.object({
+  expectedRevision: z.number().int(), operation: z.enum(['patch', 'restore']), restoreRevision: z.number().int().nullable(),
+  edits: z.array(z.object({ field: z.enum(paths), value: z.string().max(120) }).strict()).max(24),
+  requirements: z.array(z.object({ id: z.string().nullable(), text: z.string().max(1200), priority: z.enum(['must','prefer']), capabilityIds: z.array(z.string()).max(12) }).strict()).max(20),
+}).strict()
+export const visibleDraft = (input: StrategyDraft) => {
+  const draft = draftSchema.parse(input)
+  return { id: draft.id, revision: draft.revision, kind: draft.kind, maker: draft.maker, allocations: draft.allocations,
+    spec: draft.spec, requirements: draft.requirements, templatePin: draft.templatePin }
+}
+
+/** Exact allowlisted identities, with explicit aliases only for the profile's own chain. */
+export function resolveProfileToken(query: string, profile: DeploymentProfile) {
+  let identity = query.trim().toLowerCase()
+  if (profile.chainId === 11155111) {
+    identity = identity.replace(/^(?:ethereum )?sepolia\s+/, '').replace(/\s+(?:on )?(?:ethereum )?sepolia$/, '')
+  }
+  return profile.tokens.find(t => t.symbol.toLowerCase() === identity || t.address.toLowerCase() === identity) ?? null
+}
+
+export function editToPatch(input: z.infer<typeof designEditSchema>, draft: StrategyDraft, profile: DeploymentProfile, sourceMessageId: string): DraftPatch {
+  const spec: Record<string, unknown> = {}, model: Record<string, unknown> = { ...draft.spec.model }, caps: Record<string, unknown> = { ...draft.spec.guardEnvelope }
+  const allocations: Record<string, unknown> = { ...draft.allocations }, seen = new Set<string>()
+  let modelChanged = false, capsChanged = false, allocationsChanged = false
+  const integer = (v: string) => { if (!/^(0|[1-9]\d{0,14})$/.test(v)) throw new Error('use-integer-units'); return Number(v) }
+  const pair = { baseToken: draft.spec.baseToken, quoteToken: draft.spec.quoteToken }
+  // Resolve pair edits before any human-to-atomic amount conversion, independent of edit ordering.
+  for (const e of input.edits) if (e.field === 'baseToken' || e.field === 'quoteToken') {
+    const token = resolveProfileToken(e.value, profile)
+    if (!token) throw new Error('unsupported-token')
+    if (pair[e.field] && pair[e.field]!.address !== token.address && (draft.allocations || draft.spec.guardEnvelope)) throw new Error('pair-change-requires-new-draft')
+    pair[e.field] = token; spec[e.field] = token
+  }
+  for (const { field, value } of input.edits) {
+    if (seen.has(field)) throw new Error('duplicate-edit-field')
+    seen.add(field)
+    if (field === 'title') spec.title = value
+    else if (field === 'baseToken' || field === 'quoteToken') continue
+    else if (field === 'curve') {
+      if (!['xyc','concentrated','pegged'].includes(value)) throw new Error('unsupported-curve')
+      if (model.kind !== value) for (const key of Object.keys(model)) delete model[key]
+      model.kind = value; modelChanged = true
+    } else if (['minPrice','maxPrice','relativeWidthBps','referencePrice','amplification'].includes(field)) {
+      if (!model.kind) throw new Error('choose-curve-before-parameters')
+      model[field] = field === 'relativeWidthBps' ? integer(value) : value; modelChanged = true
+      if (field === 'relativeWidthBps') { delete model.minPrice; delete model.maxPrice; delete model.snapshot }
+      else if (field === 'minPrice' || field === 'maxPrice') delete model.relativeWidthBps
+    } else if (field === 'feeBps' || field === 'deadline') spec[field] = integer(value)
+    else {
+      const base = ['allocationBase','maxAmountBasePerSwap','maxPostBalanceBase'].includes(field), token = base ? pair.baseToken : pair.quoteToken
+      if (!token) throw new Error('resolve-pair-before-amounts')
+      const atomic = scaledDecimal(value, token.decimals).toString()
+      if (field === 'allocationBase' || field === 'allocationQuote') { allocations[base ? 'baseAtomic' : 'quoteAtomic'] = atomic; allocationsChanged = true }
+      else { caps[field] = atomic; capsChanged = true }
+    }
+  }
+  if (modelChanged) spec.model = model
+  if (capsChanged) spec.guardEnvelope = caps
+  if (allocationsChanged && draft.kind === 'template') throw new Error('maker-allocation-not-template')
+  const knownRequirements = new Set(draft.requirements.map(r => r.id))
+  const upsertRequirements = input.requirements.map((r, i) => {
+    if (r.id && !knownRequirements.has(r.id)) throw new Error('unknown-requirement-id')
+    if (r.capabilityIds.some(id => !getCapabilities({ ids: [id] }).length)) throw new Error('unknown-capability-id')
+    return { ...r, id: r.id ?? `req-${sourceMessageId}-${i}`, sourceMessageId }
+  })
+  return patchSchema.parse({ ...(Object.keys(spec).length ? { spec } : {}), ...(allocationsChanged ? { allocations } : {}),
+    ...(upsertRequirements.length ? { upsertRequirements } : {}) })
+}
+
+/** All closures receive an already-scoped repository, never a Pool, session token, signer or environment. */
+export function createDesignTools(context: { repository: DesignRepository; profile: DeploymentProfile; turnId: string; sourceMessageId: string; nowSec: number }) {
+  const { repository, profile } = context
+  const read = async () => {
+    const draft = draftSchema.parse(await repository.read())
+    if (draft.spec.profileId !== profile.id) throw new Error('profile-mismatch')
+    return draft
+  }
+  const safe = async (work: () => Promise<unknown>) => {
+    try { return { ok: true as const, result: JSON.parse(JSON.stringify(await work())) as unknown } }
+    catch (error) {
+      const code = error instanceof z.ZodError ? 'invalid-edit-fields-or-units' : error instanceof DraftConflict ? 'revision-or-template-conflict'
+        : error instanceof Error && /^[a-z]+(?:-[a-z]+)+$/.test(error.message) ? error.message : 'tool-unavailable'
+      return { ok: false as const, error: code, next: 'Inspect the current draft. Preserve other requirements; correct the request or ask a focused question.' }
+    }
+  }
+  return {
+    getCapabilities: tool({ description: 'Discover SwapVM, Guard, CRE and Aqua mechanisms, limitations and separate evidence layers. Use short mechanism keywords or null for the full inventory, not a paragraph. A zero fee does not require the nonzero fee.lp-input capability.',
+      strict: true, inputSchema: z.object({ query: z.string().nullable() }).strict(), execute: ({ query }) => safe(async () => {
+        await read()
+        return getCapabilities(query ? { text: query } : {}).map(c => ({ id: c.id, label: c.label, layer: c.layer, description: c.description,
+          parameters: c.parameters, prerequisites: c.prerequisites, sideEffects: c.sideEffects, recipes: c.recipes,
+          readiness: { source: c.sourceImplemented, encoding: c.sdkEncodable, runtime: c.runtimeVerified, composition: c.compositionTested,
+            product: c.productEnabled, routing: c.routingCompatible } }))
+      }) }),
+    resolveTokens: tool({ description: 'Resolve tokens in the current deployment profile by bare symbol (e.g. WETH, USDC) or exact address. Returns the available verified identities when a query is not matched. Never invent token addresses or silently substitute a different chain.',
+      strict: true, inputSchema: z.object({ queries: z.array(z.string()).max(4) }).strict(), execute: ({ queries }) => safe(async () => {
+        await read()
+        return { chainId: profile.chainId, availableTokens: profile.tokens,
+          tokens: queries.map(query => ({ query, token: resolveProfileToken(query, profile) })) }
+      }) }),
+    createOrPatchDraft: tool({ description: 'Edit this existing owned draft or restore a previous revision. Values are decimal strings; allocations and Guard caps use HUMAN token units, prices use quote/base, fees use bps, deadline uses Unix seconds. Unmentioned fields persist. Set curve before its parameters. Requirement IDs are null for new requirements or an existing ID when refining. This does not publish, approve, register or broadcast anything.',
+      strict: true, inputSchema: designEditSchema, execute: (input, options) => safe(async () => {
+        const draft = await read()
+        const requestId = 'agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2)
+        let result: Awaited<ReturnType<DesignRepository['patch']>>
+        if (input.operation === 'restore') {
+          if (input.restoreRevision === null || input.edits.length || input.requirements.length) throw new Error('invalid-restore-request')
+          result = await repository.restore(requestId, input.expectedRevision, input.restoreRevision)
+        } else {
+          if (input.restoreRevision !== null) throw new Error('invalid-patch-request')
+          result = await repository.patch(requestId, input.expectedRevision, editToPatch(input, draft, profile, context.sourceMessageId))
+        }
+        return { draft: visibleDraft(result.draft), diff: result.diff, changed: result.changed }
+      }) }),
+    validateStrategy: tool({ description: 'Run deterministic validation on the current draft. Reports missing fields and errors; passing draft validation is not publication, simulation, wallet approval or chain authorization.',
+      strict: true, inputSchema: z.object({}).strict(), execute: () => safe(async () => {
+        const draft = await read(), result = validateStrategy(draft, profile, context.nowSec)
+        return { revision: draft.revision, readyForCompilation: draft.kind === 'maker' && result.ready, templateFieldsComplete: draft.kind === 'template' && result.ready,
+          errors: result.errors, missingFields: result.missingFields, requirements: assessRequirements(draft) }
+      }) }),
+    inspectStrategy: tool({ description: 'Read authoritative current strategy state or its revision history. Use at the beginning of a turn and after conflicts; model text cannot establish completion.',
+      strict: true, inputSchema: z.object({ view: z.enum(['current','history']) }).strict(), execute: ({ view }) => safe(async () => {
+        const draft = await read()
+        return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : visibleDraft(draft)
+      }) }),
+    exportStrategy: tool({ description: 'Export the current public draft as a portable non-executable specification. No private policy, signature or transaction is included. Executable artifact export requires the later compiler/simulation stage.',
+      strict: true, inputSchema: z.object({}).strict(), execute: () => safe(async () => {
+        const draft = await read()
+        return { format: 'pintool-public-strategy-draft-v1', executable: false, draft: visibleDraft(draft) }
+      }) }),
+  }
+}

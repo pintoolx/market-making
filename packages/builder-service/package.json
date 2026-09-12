@@ -3,9 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "node --test test/*.test.ts", "typecheck": "tsc --noEmit", "migrate": "node src/migrate.ts" },
-  "dependencies": { "@pintool/strategy-builder": "workspace:*", "pg": "8.23.0", "viem": "2.56.3", "zod": "4.4.3" },
-  "devDependencies": { "@types/node": "24.13.4", "@types/pg": "8.23.1", "typescript": "5.9.3" }
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate": "node src/migrate.ts"
+  },
+  "dependencies": {
+    "@pintool/strategy-builder": "workspace:*",
+    "pg": "8.23.0",
+    "viem": "2.56.3",
+    "zod": "4.4.3",
+    "ai": "7.0.99",
+    "@ai-sdk/openai": "4.0.66"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.4",
+    "@types/pg": "8.23.1",
+    "typescript": "5.9.3"
+  }
 }

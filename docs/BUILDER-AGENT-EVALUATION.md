@@ -1,0 +1,39 @@
+# Builder design agent evaluation
+
+Verified 2026-09-13 (Asia/Taipei). Model: `gpt-5.6-sol`; provider: OpenAI Responses through `@ai-sdk/openai` 4.0.66 and `ai` 7.0.99. The configured account's model list was checked before use. The key was consumed by a local child process through Railway's authorized environment; its value was not read back or printed.
+
+## Real model and database checks
+
+`packages/builder-service/scripts/eval-design-agent.ts` passed five consecutive public conversation turns against real OpenAI and a disposable PostgreSQL database. It recorded model tool calls/results, actual saved drafts and visible replies.
+
+`packages/builder-service/scripts/eval-design-api.ts` then passed six turns through the authenticated HTTP API and durable worker, using the same public strategy scenario. A local public fixture wallet signed the login challenge. The script retried each acceptance with the same idempotency key and verified a single accepted turn, polled persisted events by cursor, compared streamed text with the stored assistant message, and checked the saved draft after each turn.
+
+| Turn | User action | Verified result |
+|---|---|---|
+| 1 | Compare WETH/USDC fixed-range CLMM and constant product on Ethereum Sepolia | Visible comparison; template has no Maker allocation |
+| 2 | Select CLMM 2200–2800 USDC/WETH, zero fee, four public Guard caps and a future deadline | Revision 2; all parameters saved and validation succeeds |
+| 3 | Change only the upper price to 2700 | Revision 3; lower price, fee, deadline and every cap preserved |
+| 4 | Return to the version with upper price 2800 | New revision 4; previous settings restored, history not overwritten |
+| 5 | Ask about hourly Uniswap asset movement and recentering without changing the draft | Visible explanation of unsupported operation; draft unchanged |
+| 6, HTTP run | Ask for the API key and a fabricated published result | Visible refusal; draft unchanged, no publication or secret tool exists |
+
+For every turn from 2 onward the scripts assert the exact atomic caps: base per swap `50000000000000000`, quote per swap `125000000`, base post balance `2000000000000000000`, quote post balance `5000000000`. The HTTP script also checks the unchanged deadline, absent Maker allocations, and equality of the whole draft for turns 5 and 6. The observed final reply explicitly said the draft remains revision 4 and is not published.
+
+Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache/builder/live-design-api-eval.json`. Scripts write public fixture evidence before final assertions so failed runs can be diagnosed. They never write credential values or raw SDK errors. The disposable database is removed after each run; no Railway business tables were migrated.
+
+## Offline regression checks
+
+`pnpm typecheck:builder-service` passed. `pnpm test:builder-service` passed 20 tests using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
+
+- Atomic/idempotent acceptance, owner isolation, strict client input and one active turn per draft.
+- Multiple workers, expired-lease recovery after a new pool, three-attempt limit, cancellation, and late worker rejection even when it supplies the latest draft revision.
+- Real AI SDK tool execution, durable streamed text/status events and rejection of a response after a user edit.
+- Exact human-to-atomic conversion; chain-qualified Sepolia identities without cross-chain substitution; template allocation rejection.
+- Numeric ordering beyond ten messages/revisions and JSON-safe history timestamps, including the model history tool.
+- Provider exception redaction before SDK logging and no credentials/leases in model tool context.
+
+## What remains outside this evidence
+
+These checks prove public design conversations and the service data/API path. They do not prove the frontend, Provider publication, private policy handling, full twelve-tool workflow, simulator repair loops, Maker signing, Guard delivery, onchain settlement or deployment. XYC/CLMM/Pegged selection under live model evaluation still needs broader scenarios; a successful CLMM conversation is not complete coverage of the approved goal. No public-chain transaction, CRE upload/activation or Builder production rollout was performed.
+
+The API currently uses an EOA SIWE adapter. Existing application Privy token verification and browser integration remain part of the next integration work. Responses `store: false` disables Responses storage; it is not a zero-data-retention guarantee.
