@@ -1,4 +1,4 @@
-import { encodeFunctionData, parseAbi, keccak256, toBytes, toHex, zeroAddress, zeroHash } from 'viem';
+import { encodeDeployData, encodeFunctionData, parseAbi, keccak256, toBytes, toHex, zeroAddress, zeroHash } from 'viem';
 import { namehash, packetToBytes } from 'viem/ens';
 import ethRegistrarAbi from './ETHRegistrar.json' with { type: 'json' };
 import { deployments, registryAbi, factoryAbi, resolverAbi, registrarArtifact, sameAddress, matchingRegistrarCode, createEnsReader } from './chain.mjs';
@@ -103,9 +103,19 @@ export function ensTransactions(client, wallet, onProgress = () => {}) {
       return { ...result, registrar: platform.registrar };
     }
     if (!result.registrar) {
+      if (await client.getChainId() !== 11155111 || await wallet.getChainId() !== 11155111) throw new Error('Switch your wallet to Ethereum Sepolia.');
+      onProgress({ title: 'Estimating Provider registrar deployment fees' });
+      const deployment = { abi: registrarArtifact.abi, bytecode: registrarArtifact.bytecode,
+        args: [target('ETHRegistry'), result.registry, target('VerifiableFactory'), target('UserRegistryImpl'), target('PermissionedResolverImpl'), label] };
+      // Some wallets cannot estimate contract creation through their own RPC.
+      // Estimate the exact constructor through our Sepolia client before requesting confirmation.
+      const [estimate, fees] = await Promise.all([
+        client.estimateGas({ account, data: encodeDeployData(deployment), value: 0n }),
+        client.estimateFeesPerGas({ type: 'eip1559' }),
+      ]);
       onProgress({ title: 'Review in wallet: deploy Provider name registrar' });
-      const hash = await wallet.deployContract({ abi: registrarArtifact.abi, bytecode: registrarArtifact.bytecode,
-        args: [target('ETHRegistry'), result.registry, target('VerifiableFactory'), target('UserRegistryImpl'), target('PermissionedResolverImpl'), label] });
+      const hash = await wallet.deployContract({ ...deployment, account: wallet.account, value: 0n,
+        gas: (estimate * 120n + 99n) / 100n, maxFeePerGas: fees.maxFeePerGas, maxPriorityFeePerGas: fees.maxPriorityFeePerGas });
       onProgress({ title: 'Confirming Provider name registrar', hash });
       const receipt = await confirmedReceipt(hash);
       if (receipt.status !== 'success' || !receipt.contractAddress) throw new Error('Registrar deployment failed.');

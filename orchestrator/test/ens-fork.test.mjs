@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createPublicClient, createWalletClient, http, keccak256, toBytes, zeroAddress } from 'viem';
+import { createPublicClient, createWalletClient, custom, http, keccak256, toBytes, zeroAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { sepolia } from 'viem/chains';
 import { namehash } from 'viem/ens';
@@ -39,7 +39,31 @@ test('official ENSv2 Sepolia fork: registration, signed version discovery, deleg
   await client.request({ method: 'evm_setNextBlockTimestamp', params: [Math.max(plan.readyAt + 1, Math.floor(Date.now() / 1000))] });
   await client.request({ method: 'evm_mine' });
   await adminTx.registerRoot(root, plan);
-  const platform = await adminTx.enablePlatform(root, plan);
+  // Model a browser wallet whose own fee estimation is unavailable. It can still
+  // confirm and send a fully estimated creation request supplied by the app.
+  await client.request({ method: 'anvil_impersonateAccount', params: [owner.address] });
+  t.after(() => client.request({ method: 'anvil_stopImpersonatingAccount', params: [owner.address] }));
+  let deploymentsSent = 0;
+  const browserWallet = createWalletClient({ account: owner.address, chain: sepolia, transport: custom({
+    request: async ({ method, params }) => {
+      if (['eth_estimateGas', 'eth_gasPrice', 'eth_maxPriorityFeePerGas', 'eth_feeHistory'].includes(method)) throw new Error('Wallet network fee estimation failed.');
+      if (method === 'eth_sendTransaction' && !params[0].to) {
+        for (const field of ['gas', 'maxFeePerGas', 'maxPriorityFeePerGas']) assert.ok(BigInt(params[0][field]) > 0n, `Deployment must include ${field}.`);
+        assert.equal(BigInt(params[0].value), 0n);
+        assert.equal(params[0].from.toLowerCase(), owner.address.toLowerCase());
+        deploymentsSent++;
+      }
+      return client.request({ method, params });
+    },
+  }) });
+  const browserTx = ensTransactions(client, browserWallet, progress);
+  const estimationFailure = ensTransactions({ ...client, estimateGas: async () => { throw new Error('Deployment estimate unavailable.'); } }, browserWallet);
+  await assert.rejects(estimationFailure.enablePlatform(root, plan), /Deployment estimate unavailable/);
+  assert.equal(deploymentsSent, 0, 'A failed preflight must not ask the wallet to deploy.');
+  const platform = await browserTx.enablePlatform(root, plan);
+  assert.equal(deploymentsSent, 1);
+  assert.equal((await browserTx.enablePlatform(root, platform)).registrar, platform.registrar);
+  assert.equal(deploymentsSent, 1, 'Retrying completed setup must not redeploy the registrar.');
   assert.ok(matchingRegistrarCode(await client.getCode({ address: platform.registrar })));
   const claimed = await providerTx.claimProvider(root, 'alice');
   assert.equal(claimed.provider.name, `alice.${root}`);
