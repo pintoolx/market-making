@@ -128,7 +128,7 @@ export default function EnsWorkspace({ account, release }: { account: Account; r
           <div className={aqua.actionRow}><Primary type="submit">Authorize publisher</Primary><Secondary type="button" onClick={() => void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, false); setSuccess('Publisher access revoked and checked onchain.'); })}>Revoke publisher</Secondary></div>
         </fieldset>
       </form>
-      <p><Link href={`/maker?ens=${encodeURIComponent(name)}`}>Open this strategy as a Maker →</Link></p>
+      <p><Link href={`/strategy?ens=${encodeURIComponent(name)}`}>Open this strategy as a Maker →</Link></p>
       <p className={aqua.hint}>PinTool manages the parent namespace. Your resolver permissions control its records; parent administrators retain control of the name hierarchy.</p>
     </>}
     <ActionFeedback progress={progress} error={error} success={success} />

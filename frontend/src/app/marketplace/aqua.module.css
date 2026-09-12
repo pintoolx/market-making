@@ -96,6 +96,8 @@
 .card h3 { margin: 14px 0 10px; font-size: 22px; line-height: 1.2; }
 .byline { margin: -4px 0 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
 .byline span { color: var(--aqua-ink); }
+.providerIdentity { flex-wrap: wrap; overflow-wrap: anywhere; }
+.strategyName { overflow-wrap: anywhere; display: block; }
 .feeLine { margin: -6px 0 10px; font-size: 13px; font-weight: 700; color: var(--aqua-ink); }
 /* Original PinTool tags used a near-invisible #d7e1ee border; give them a readable edge. */
 .chip { border-color: #8997ad; background: #e4eaf2; padding: 4px 6px; }
