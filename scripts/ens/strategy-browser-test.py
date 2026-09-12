@@ -81,6 +81,7 @@ async def main():
         assert page.url == base + '/maker'
         await page.go_forward()
         await details()
+        assert await page.evaluate("JSON.parse(sessionStorage.getItem('pintool:strategy-return')).restore")
         await page.get_by_role('link', name='← Strategy marketplace', exact=True).click()
         await expect(page.get_by_role('heading', name='Available strategies', exact=True)).to_be_visible()
         await page.get_by_label('Strategy name', exact=True).fill(ens)
@@ -125,6 +126,7 @@ async def main():
         await direct.goto(copied)
         await expect(direct.get_by_role('heading', name=args.title, level=1, exact=True)).to_be_visible(timeout=60000)
         await expect(direct.get_by_text(ens, exact=True)).to_be_visible(timeout=90000)
+        assert await direct.evaluate("JSON.parse(sessionStorage.getItem('pintool:strategy-return')).restore")
         print('PASS: copied strategy URL opens in a fresh browser session without login or local state', flush=True)
         await fresh.close()
         await browser.close()

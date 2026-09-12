@@ -10,7 +10,7 @@ import Secondary from '../components/shared/Secondary';
 import { useAccount } from '../providers/useAccount';
 import { getExecutableStrategies } from '../marketplace/mandateClient';
 import { loadStrategyListing } from '../marketplace/strategyCatalog';
-import { marketplaceReturn, strategyHref } from '../marketplace/strategyLinks';
+import { prepareMarketplaceReturn, strategyHref } from '../marketplace/strategyLinks';
 import type { Listing } from '../marketplace/publishedStore';
 import StrategyDetails from '../marketplace/StrategyDetails';
 import { PageHead } from '../marketplace/ui';
@@ -36,7 +36,9 @@ export default function StrategyPage() {
   const [back, setBack] = useState('/maker');
   const [copied, setCopied] = useState('');
 
-  useEffect(() => { setBack(marketplaceReturn().url); }, []);
+  // Rearm on forward navigation and direct visits, so Back always opens the
+  // marketplace instead of restoring a previously saved Maker mandate.
+  useEffect(() => { setBack(prepareMarketplaceReturn().url); }, [routeKey]);
   useEffect(() => {
     let alive = true;
     getExecutableStrategies().then(value => { if (alive) setCatalog({ maker: value.maker.toLowerCase(), ids: value.strategies.map(s => s.id) }); })

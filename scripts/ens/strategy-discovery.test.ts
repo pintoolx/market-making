@@ -3,7 +3,7 @@ import { namehash } from 'viem/ens';
 import { createStrategyNameDiscovery, type NameSource } from '../../frontend/src/app/ens/strategyNames';
 import type { EnsResolution, PublicManifest } from '../../frontend/src/app/ens/ensClient';
 import { listingFromRelease } from '../../frontend/src/app/marketplace/publicationListing';
-import { strategyHref, rememberMarketplace, consumeMarketplaceReturn, marketplaceReturn, restoreMarketplaceScroll } from '../../frontend/src/app/marketplace/strategyLinks';
+import { strategyHref, rememberMarketplace, consumeMarketplaceReturn, marketplaceReturn, prepareMarketplaceReturn, restoreMarketplaceScroll } from '../../frontend/src/app/marketplace/strategyLinks';
 import { loadStrategyListing } from '../../frontend/src/app/marketplace/strategyCatalog';
 import type { PublicRelease } from '../../frontend/src/app/marketplace/ClmmPublisher';
 import { releasePointer } from '../../shared/ens/schema.mjs';
@@ -134,10 +134,18 @@ test('returning restores the search/scroll once without changing future Maker la
     expect(marketplaceReturn().url).toBe(`/maker?ens=${name}`);
     expect(consumeMarketplaceReturn()).toBe(true);
     expect(consumeMarketplaceReturn()).toBe(false);
+    // Forward into details must allow a second Back to show the marketplace.
+    expect(prepareMarketplaceReturn().url).toBe(`/maker?ens=${name}`);
+    expect(consumeMarketplaceReturn()).toBe(true);
+    expect(consumeMarketplaceReturn()).toBe(false);
     restoreMarketplaceScroll();
     expect(restored).toBe(420);
     storage.set('pintool:strategy-return', JSON.stringify({ url: '//example.invalid', scroll: 1 }));
     expect(marketplaceReturn().url).toBe('/maker');
+    storage.clear();
+    values.window.location.search = '';
+    expect(prepareMarketplaceReturn()).toEqual({ url: '/maker', scroll: 0 });
+    expect(consumeMarketplaceReturn()).toBe(true);
   } finally {
     for (const [key, descriptor] of originals) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);

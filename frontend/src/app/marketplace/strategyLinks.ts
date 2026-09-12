@@ -36,6 +36,13 @@ export function marketplaceReturn() {
   return { url: '/maker', scroll: 0 };
 }
 
+export function prepareMarketplaceReturn() {
+  const saved = marketplaceReturn();
+  try { sessionStorage.setItem(RETURN_KEY, JSON.stringify({ ...saved, restore: true })); }
+  catch { /* The public return link still works without session storage. */ }
+  return saved;
+}
+
 export function restoreMarketplaceScroll() {
   const saved = marketplaceReturn();
   if (saved.url !== window.location.pathname + window.location.search) return;
