@@ -1,6 +1,7 @@
 .page { --aqua-ink: #0e0f28; --aqua-accent: #2050f2; --aqua-line: #abb8ce; --aqua-muted: #4c5870; --aqua-panel: #edf1f7; }
 /* globals.css locks html/body scrolling for the canvas app, so the page itself scrolls; the header is inside it and scrolls away with the content. */
-.page { height: 100dvh; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+/* Outrank the base page class regardless of CSS chunk/import order. */
+.page.page { height: 100dvh; min-height: 0; overflow-x: hidden; overflow-y: auto; }
 /* main fills the leftover height so the footer stays at the bottom on short pages. */
 .page > main { flex: 1 0 auto; overflow: visible; }
 .page h1:focus, .page h2:focus { outline: none; }
