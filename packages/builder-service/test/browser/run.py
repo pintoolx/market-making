@@ -105,6 +105,13 @@ with sync_playwright() as p:
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Horizontal overflow on mobile'
     composer.scroll_into_view_if_needed()
     page.screenshot(path=str(artifacts / 'browser-mobile.png'), full_page=True)
+    bottom = page.get_by_role('button', name=re.compile('版本與變更'))
+    bottom.scroll_into_view_if_needed()
+    expect(bottom).to_be_in_viewport()
+    page.screenshot(path=str(artifacts / 'browser-mobile-summary.png'), full_page=True)
+    heading = page.get_by_role('heading', name='把你的想法，變成策略。')
+    heading.scroll_into_view_if_needed()
+    expect(heading).to_be_in_viewport()
     assert not errors, errors
     print('PASS: wallet proof, streaming, CLMM edits/caps, restore, cancel, lost-response recovery, reload, session expiry, mobile; no page errors')
     browser.close()

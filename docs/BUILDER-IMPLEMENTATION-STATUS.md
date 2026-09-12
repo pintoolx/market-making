@@ -1,6 +1,6 @@
 # Builder implementation status
 
-Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md). Initial main: `167b630`. Worktree: `/home/kuoba123/eth-glo/market-making-builder-impl`; current branch: `feat/builder-workspace`, based on main `89aceed`.
+Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md). Initial main: `167b630`. Worktree: `/home/kuoba123/eth-glo/market-making-builder-impl`; current branch: `feat/builder-workspace`, integrated main `160b842` (PRs #50 and #51).
 
 | Area | Current state |
 |---|---|
@@ -28,3 +28,5 @@ The latest main also contains ENS/monitor/standing-documentation updates and a p
 Design follow-up: [service package](../packages/builder-service/README.md) and [live evaluation evidence](BUILDER-AGENT-EVALUATION.md). Local service verification: 23 tests passed on PostgreSQL 16.15, TypeScript passed; CI targets 18.6. Lease/cancellation/restart, public event replay, numeric history ordering beyond ten messages, Date-to-JSON conversion and provider error redaction are covered. The model workflow still prepares public drafts only; template publication, private-policy editing, compile/simulation/wallet tools, trusted dynamic binding and event-driven Guard delivery remain required.
 
 Workspace follow-up: `/builder` now provides public strategy chat, streamed replies, current parameters/validation, version diffs/restoration, cancellation and recovery. Python Playwright passed real API/PostgreSQL tests using fixture Privy identity and a deterministic model, including lost responses, expired sessions and mobile layout. Production Next build and scoped lint passed. The Provider link remains off unless `NEXT_PUBLIC_BUILDER_ENABLED=true`; live Privy/browser acceptance and service rollout remain pending.
+
+Latest-main integration retains wallet-backed taker trading, ENS strategy discovery and the shared page scroll fix from PRs #50/#51. The browser fixture also checks that the mobile user can scroll to version controls and return to the heading.
