@@ -23,16 +23,17 @@ RUN tar -xzf /tmp/cre.tar.gz -C /usr/local/bin \
 COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=bun-runtime /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-RUN corepack enable && corepack prepare pnpm@10.6.2 --activate
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY orchestrator/package.json orchestrator/package.json
-RUN pnpm install --frozen-lockfile --prod --filter @pintool/mandate-service...
+RUN cd /workspace/orchestrator \
+    && npm install --omit=dev --ignore-scripts --no-audit --no-fund
 
 COPY orchestrator orchestrator
 COPY workflow workflow
 RUN cd /workspace/workflow && bun install --frozen-lockfile
 RUN mkdir -p /data/mandates /home/node/.cre \
-    && chown -R node:node /data /home/node/.cre /workspace
+    && touch /workspace/workflow/.env \
+    && chown -R node:node /data /home/node/.cre \
+    && chown node:node /workspace/workflow/.env
 WORKDIR /workspace/orchestrator
 USER node
 ENTRYPOINT ["./docker-entrypoint.sh"]
