@@ -1,8 +1,8 @@
 # PinTool Market Making
 
-Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
+Private market-making strategies on 1inch Aqua, evaluated with Chainlink Confidential Workflows and enforced by PinTool Guard.
 
-The product lets a Maker discover a strategy, inspect its public execution envelope, apply private capital limits and monitor its authorization around one self-custodial balance. A Maker may later add more strategies to that mandate. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. The recorded ETHOnline scenario uses two strategies to make the authorization reversal easy to verify. Confidential execution and profit sharing are not implemented end to end yet.
+The product lets a Maker discover a strategy, inspect its public execution envelope, apply private capital limits and monitor its authorization around one self-custodial balance. A Maker may later add compatible strategies to that mandate. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. Production confidential deployment and profit sharing are not complete yet.
 
 ## Intended flow
 
@@ -28,7 +28,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 |---|---|---|
 | Web app: role choice, structured Provider Studio, strategy discovery and detail, Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
 | Mandate orchestration and evidence gate | `orchestrator/` | HTTP API implemented; waits for a confidential runner and verifies every claimed Base Sepolia receipt before returning public state |
-| CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
+| CRE report delivery / confidential workflow | `workflow/` | Confidential evaluator, cron and authorized HTTP entry points implemented and tested locally; production access and delivery remain pending |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
 | LP templates and automatic controller | `contracts/aqua-executor/` | XYC, PeggedSwap, concentrated LP; bounded range/fee rollover and guarded JSON recovery tested locally |
 | Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Guard v1/v2 tested locally; v1 has synthetic-report testnet evidence. Atomic A/B switching and actual CRE delivery remain pending |
@@ -61,15 +61,11 @@ The web app is exported as a static site (`output: "export"`).
 
 ## Docs
 
-- [Product website model and lifecycle](docs/PRODUCT-WEBSITE.md)
-- [Product spec and interfaces](docs/PRODUCT-HANDOFF.md)
-- [Winning integration and video flow](docs/WINNING-FLOW.md)
+- [System architecture and privacy boundary](docs/ARCHITECTURE.md)
 - [Frontend mandate service contract](docs/STRATEGY-MANDATE-API.md)
-- [ETHOnline topic diligence and prior-art analysis](docs/TOPIC-DILIGENCE.md)
-- [Aqua maker strategy research](docs/AQUA-MAKER-RESEARCH.md)
-- [What Aqua can enforce per swap, and the Guard design](docs/AQUA-STRATEGY-DEEP-DIVE.md)
-- [CRE delivery decision, pinned VM version and privacy limits](docs/CRE-GUARD-INTEGRATION.md)
-- [User stories and UX walkthrough](docs/UX-USER-STORIES.md)
+- [Guard report ABI](docs/GUARD-REPORT-V1.md)
+- [CRE delivery, pinned VM version and verification boundary](docs/CRE-GUARD-INTEGRATION.md)
+- [Aqua executor setup and migration](docs/AQUA-EXECUTOR-MIGRATION.md)
 
 ## Background
 

@@ -34,7 +34,7 @@ These choices do not define a percentage exposure rule or a guaranteed maximum l
 | Local executor `aqua-execution-v1` JSON | Commands a signer to approve, ship, swap, rebalance, monitor or dock; local idempotency and recovery |
 | `onReport(bytes metadata, bytes report)` | Receives authenticated workflow output and updates public Guard bounds; does not sign, ship, transfer funds or reset the HODL benchmark |
 
-The application envelope in [PRODUCT-HANDOFF.md](PRODUCT-HANDOFF.md) may retain request IDs and commitments offchain. It is not the Solidity ABI below. The workflow / application must record the association between its request, the exact Guard report bytes and the confirmed delivery receipt. A `producer: "tee"` label or a local JSON schema check provides no report authentication.
+The application envelope described by the [current architecture](ARCHITECTURE.md) may retain request IDs and commitments offchain. It is not the Solidity ABI below. The workflow and application must record the association between a request, the exact Guard report bytes and the confirmed delivery receipt. A `producer: "tee"` label or a local JSON schema check provides no report authentication.
 
 ## ABI payload
 

@@ -2,7 +2,7 @@
 
 Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested Base Sepolia router and Guard ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
 
-**Mainline update, 2026-09-12:** the final product flow now targets two Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is the intended filmed deployment; the Base Sepolia setup below remains the tested transport fallback. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement the Maker-scoped activeStrategyHash required by [WINNING-FLOW.md](WINNING-FLOW.md).
+The product flow targets multiple Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is the target deployment; the Base Sepolia setup below remains the tested transport fallback. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement a Maker-scoped active strategy hash.
 
 ## What is implemented
 
@@ -64,6 +64,6 @@ The current browser stores drafts locally, and the delivery smoke test processes
 
 ## Relationship to the product mandate
 
-[`PRODUCT-HANDOFF.md`](PRODUCT-HANDOFF.md), [`TOPIC-DILIGENCE.md`](TOPIC-DILIGENCE.md) and the Defensive Strategy B fixture in [`WINNING-FLOW.md`](WINNING-FLOW.md) describe the next product integration. The current transport test retains zero-fee XYC and mWETH / mUSDC. It does not implement `activeStrategyHash`, taker `expectedSequence`, two-strategy selection, cumulative quotas, combined wallet exposure, percentage valuation or Provider profit sharing.
+The [current architecture](ARCHITECTURE.md) and [mandate API](STRATEGY-MANDATE-API.md) define the product integration. The current transport test retains zero-fee XYC and mWETH / mUSDC. It does not implement `activeStrategyHash`, taker `expectedSequence`, multi-strategy selection, cumulative quotas, combined wallet exposure, percentage valuation or Provider profit sharing.
 
 The v1 nonce rejects stale report writes; it does **not** bind a taker to a quoted report revision. The Guard uses whichever valid report is current during the swap. Product JSON and Maker-facing direction labels require an explicit conversion into the existing taker-oriented ABI. Those changes need a new agreed contract / compiler interface and tests before the full mandate demo; adding them to JSON alone would not enforce them.

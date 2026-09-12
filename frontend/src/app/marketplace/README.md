@@ -18,7 +18,7 @@ Browser storage until a backend or the TEE takes over:
 - Provider drafts (`sessionStorage`, this tab only): dropped once published.
 - `../profile/profileStore.ts` (`localStorage`): photo, name, bio and X handle per Privy user.
 
-Publishing needs a Privy login when `NEXT_PUBLIC_PRIVY_APP_ID` is set. Nothing is encrypted, submitted to a TEE, signed or executed yet. User stories and the UX walkthrough: `ethonline-2026/UX-USER-STORIES.md` in the pintool workspace.
+Publishing needs a Privy login when `NEXT_PUBLIC_PRIVY_APP_ID` is set. Browser storage is not the confidential boundary. The Maker flow reaches the mandate service only when `NEXT_PUBLIC_MANDATE_API_URL` is configured; confirmed workflow and transaction state comes back through that service.
 
 ## Integration boundary
 
