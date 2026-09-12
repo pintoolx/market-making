@@ -8,12 +8,14 @@ import { executeRequest, executionStatus, watchExecution } from './execution-con
 import { parseExecutionRequest } from './execution-request.ts'
 import { json } from './execution-store.ts'
 import { createChainlinkPrices } from './prices.ts'
+import { syncMandateExecution } from './mandate-sync.ts'
 import type { PriceSnapshot } from './risk.ts'
 import type { Deployment } from './types.ts'
 
 const { values } = parseArgs({ options: {
   network: { type: 'string', default: 'local' }, request: { type: 'string' }, session: { type: 'string' },
   'state-dir': { type: 'string' }, deployment: { type: 'string' }, prices: { type: 'string' },
+  'mandate-api': { type: 'string' }, 'mandate-id': { type: 'string' }, 'provider-strategy-id': { type: 'string' },
   watch: { type: 'boolean', default: false }, status: { type: 'boolean', default: false },
   validate: { type: 'boolean', default: false }, 'interval-ms': { type: 'string', default: '5000' },
 } })
@@ -41,6 +43,12 @@ try {
       : values.watch
         ? await watchExecution(ctx, d, values.session!, { ...options, intervalMs: Number(values['interval-ms']), onCheck: r => console.log(json(r)) })
         : await executionStatus(ctx, d, stateDir, values.session!)
+    const syncValues = [values['mandate-api'], values['mandate-id'], values['provider-strategy-id']]
+    if (syncValues.some(Boolean) && !syncValues.every(Boolean)) throw new Error('mandate sync requires --mandate-api, --mandate-id and --provider-strategy-id')
+    if (syncValues.every(Boolean)) {
+      if (!values.request || !('action' in result)) throw new Error('mandate sync requires an execution request result')
+      await syncMandateExecution(result, { apiUrl: values['mandate-api']!, mandateId: values['mandate-id']!, providerStrategyId: values['provider-strategy-id']! })
+    }
     if (!values.watch) console.log(json(result))
     if ('status' in result && result.status === 'failed') process.exitCode = 1
   }
