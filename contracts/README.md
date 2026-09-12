@@ -12,6 +12,8 @@ From the repository root, run `pnpm install --frozen-lockfile`, `pnpm typecheck:
 
 The original XYC program remains available. A separate [Guard prototype](aqua-executor/docs/guard.md) adds report validation and a zero-fee XYC program with per-swap enforcement. Its tests and demo use a project-owned report harness. Workflow agreement and actual CRE delivery remain pending; the legacy JSON controller does not yet compile guarded orders.
 
+The project selected **DON → forwarder → Guard** delivery. A [public CRE adapter and runbook](../workflow/guard-report/README.md) are ready for the first transport check, pending account access. The CLI simulation needs a new Guard bound to Chainlink's simulation forwarder; the existing harness-bound Guard cannot be reused. The [integration decision](../docs/CRE-GUARD-INTEGRATION.md) records the pinned Aqua opcode `0x20` / five-register ABI and the separate production identity profile. Do not substitute upstream main's `0x04` / four-register interface into the existing router deployment.
+
 ## Scope
 
 - Deploy official Aqua and `AquaSwapVMRouter` contracts on a testnet (redeploying the official contracts is fine; `1inch/swap-vm` has `script/DeployAquaSwapVMRouter.s.sol`).
