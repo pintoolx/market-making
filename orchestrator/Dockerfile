@@ -34,7 +34,7 @@ RUN cd /workspace/workflow && bun install --frozen-lockfile
 RUN mkdir -p /data/mandates /home/node/.cre \
     && touch /workspace/workflow/.env \
     && chown -R node:node /data /home/node/.cre \
-    && chown node:node /workspace/workflow/.env
+    && chown -R node:node /workspace/workflow
 WORKDIR /workspace/orchestrator
 USER node
 ENTRYPOINT ["./docker-entrypoint.sh"]
