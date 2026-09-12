@@ -85,6 +85,7 @@ maker)` — those are listed explicitly so reviewers see exactly what is reveale
 ## Production configuration
 
 - Replace `authorizedEVMAddress` with the EVM address used to sign CRE HTTP trigger requests. An empty or placeholder authorization is not valid production configuration.
+- Deploy a production Guard with the official forwarder and assigned workflow identity, then replace the zero Guard placeholder in `config.production.json`. Never point the production target at the simulation receiver.
 - Upload `PROVIDER_STRATEGY` and `MAKER_LIMITS` through Vault DON and remove simulation-only secret values.
 - Use `publishMode: don-report` with a Guard deployed for the official forwarder and assigned workflow identity.
 - Supply live market observations and Maker balances through a verified data path. The checked-in HTTP fixture and cron defaults are deterministic local inputs.
