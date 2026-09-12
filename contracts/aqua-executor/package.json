@@ -20,7 +20,8 @@
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc",
     "build:guard:v2": "node scripts/build-guard-v2.ts",
-    "autopilot": "node --env-file-if-exists=.env src/autopilot-cli.ts"
+    "autopilot": "node --env-file-if-exists=.env src/autopilot-cli.ts",
+    "prepare:product-strategies": "node scripts/prepare-product-strategies.ts"
   },
   "dependencies": {
     "@1inch/swap-vm-sdk": "0.4.4",
