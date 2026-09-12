@@ -118,7 +118,7 @@ export async function getMandate(mandateId: string): Promise<MandateState> {
   return validateState(state);
 }
 
-export async function addMandateStrategy(mandateId: string, providerStrategyId: string): Promise<MandateState> {
+export async function reevaluateExecutionProfile(mandateId: string, providerStrategyId: string): Promise<MandateState> {
   const state = await request<MandateState>('/v1/mandates/' + encodeURIComponent(mandateId) + '/strategies', {
     method: 'POST', body: JSON.stringify({ providerStrategyId }),
   });

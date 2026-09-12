@@ -17,7 +17,8 @@ The application exposes the two sides of the PinTool market:
 - Provider drafts remain in session storage until publication.
 - Maker limits are sealed in the browser for the confidential workflow. Provider policies are provisioned through Vault DON; plaintext private inputs never enter the mandate service.
 - Confirmed mandate state comes from `NEXT_PUBLIC_MANDATE_API_URL`. The UI never generates transaction receipts or treats requested actions as confirmed.
-- Executable strategy availability comes from `GET /v1/strategies`; a visible listing cannot create a mandate unless the service confirms its Provider policy and Aqua strategy are provisioned.
+- Executable profile availability comes from `GET /v1/strategies`. The marketplace can present several immutable Aqua profiles as one adaptive strategy product, but every required profile must be provisioned before that product accepts liquidity.
+- `Refresh status` is a read-only evidence and readiness check. `Re-evaluate strategy` is the explicit product action that may run the confidential workflow and publish a new Guard authorization.
 
 ## Integration points
 

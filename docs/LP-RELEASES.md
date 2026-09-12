@@ -52,7 +52,7 @@ Set `MANDATE_GUARD_ADDRESS`, `MANDATE_AQUA_ADDRESS`, the existing router/network
 
 The [reader](../orchestrator/src/lp-readiness.mjs) checks chain ID and block freshness, then reads Guard report/active hash, both Aqua raw balances, Maker wallet balances and Maker→Aqua allowances at **one block**. The conservative funding check requires wallet/allowance coverage of both current raw balances. Both token balances must be positive. Only all conditions together yield `ready-for-quote`; each actual trade still needs a fresh quote, slippage checks, taker funding and Guard execution.
 
-The public readiness snapshot expires after at most 30 seconds, earlier at report/program expiry. The frontend stops displaying a cached ready state when it expires. Historical report acceptance, ship status and current funding appear separately. The new reader itself sends no transactions; the existing mandate `GET` path still invokes its runner to re-evaluate policy before refreshing the readiness snapshot.
+The public readiness snapshot expires after at most 30 seconds, earlier at report/program expiry. The frontend stops displaying a cached ready state when it expires. Historical report acceptance, ship status and current funding appear separately. The reader and mandate `GET` path send no transactions; reevaluation is an explicit write path.
 
 Report evidence now reads Guard state at the accepted event's block and matches nonce/digest, preventing a later report from being attached to an older transaction. This does not add a durable concurrent CRE nonce allocator or correlate simultaneous requests to separate report IDs; serialize executions for a Maker.
 

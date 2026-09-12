@@ -75,4 +75,4 @@ The [public plan](plan.json) records the executed strategy and requests' context
 
 ## Still outside this evidence
 
-The six frontend templates are not all operational. This run does not prove Provider publication/versioning, confidential input onboarding, the direct HTTP runner, frontend readiness state, range rollover with a replacement hash, multi-strategy A/B switching, guarded fees, Pegged/Decay/Inventory/Shared-capital completion, revenue sharing, or real DON/TEE execution. See [the frontend completion handoff](../../../docs/FRONTEND-LP-COMPLETION.md).
+The six frontend templates are not all operational. This run does not prove Provider publication/versioning, confidential input onboarding, the direct HTTP runner, frontend readiness state, range rollover with a replacement hash, guarded fees, Pegged/Decay/Inventory/Shared-capital completion, revenue sharing, or real DON/TEE execution.
