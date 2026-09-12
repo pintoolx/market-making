@@ -86,7 +86,7 @@ Ethereum Sepolia is the target network for the integrated WETH/USDC flow. The re
 
 ## Integration status
 
-The web product, mandate API, Aqua executor, Guard contracts and confidential evaluation workflow are implemented and tested independently. End-to-end deployment requires the Ethereum Sepolia contract addresses, a deployed Confidential Workflow endpoint and the corresponding authorized signer. Until those values are configured, the product does not present planned actions as confirmed transactions.
+The web product, mandate API, Aqua executor, Guard contracts and confidential evaluation workflow are implemented and tested independently. The mandate service includes the complete signed CRE HTTP trigger and Guard-event verification path. End-to-end deployment requires the Ethereum Sepolia contract addresses, a deployed Confidential Workflow ID and the corresponding authorized signer. Until those values are configured, the product does not present planned actions as confirmed transactions.
 
 Provider policies and Maker limits are intended to remain confidential. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
 

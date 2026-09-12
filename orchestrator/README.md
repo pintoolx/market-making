@@ -14,7 +14,27 @@ Supported runner requests:
 { "action": "add-strategy", "mandateId": "mandate-01", "providerStrategyId": "..." }
 ```
 
-The current defaults target the checked-in Base Sepolia contracts. The runner owns the mapping from listing IDs to Provider secrets and Aqua strategy hashes. It must return only after the Guard report is accepted. The service validates the response, verifies the report transaction receipt through an independent RPC and persists only the public state. It never invents hashes or treats a planned transaction as evidence.
+Ethereum Sepolia is the target network. The runner owns the mapping from listing IDs to provisioned Provider secrets and Aqua strategy hashes. It must return only after the Guard report is accepted. The service validates the response, verifies the report transaction receipt through an independent RPC and persists only the public state. It never invents hashes or treats a planned transaction as evidence.
+
+### Direct CRE runner
+
+`bin/cre-mandate-runner` implements the production HTTP trigger protocol:
+
+1. It builds the official `workflows.execute` JSON-RPC request.
+2. It recursively sorts the request before hashing and signs an `alg: ETH` JWT with the configured authorized key.
+3. It treats the gateway's `ACCEPTED` response as acknowledgement only.
+4. It waits for a matching `ReportAccepted` event from the configured Guard.
+5. It reads the stored report and returns public mandate state. The service independently verifies the transaction receipt again.
+
+Configure `CRE_GATEWAY_URL`, `CRE_WORKFLOW_ID`, `CRE_HTTP_TRIGGER_PRIVATE_KEY`,
+`MANDATE_GUARD_ADDRESS`, `MANDATE_STRATEGY_CATALOG` and the Ethereum Sepolia
+RPC settings from `.env.example`.
+
+The current Confidential Workflow uses Vault DON secrets provisioned before execution.
+The runner therefore accepts only a Maker policy whose canonical SHA-256 matches
+`MANDATE_POLICY_SHA256`; it refuses to imply that arbitrary browser input reached the
+TEE. This restriction can be removed when the workflow has an approved dynamic encrypted
+input path.
 
 ```bash
 cp .env.example .env
