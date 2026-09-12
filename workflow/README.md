@@ -28,7 +28,7 @@ workflow/
 │   ├── intersect.test.ts        15 cases: incompatible sides, exhausted inventory, expiry, rule order
 │   ├── encode.ts                ABI encoder, golden-tested against docs/guard-report-v1/example.json
 │   ├── publish.ts               THE seam to the Guard: publishAuthorization(runtime, result)
-│   └── config/guard.ts          Guard / router / token / forwarder constants (TODO(pengu) marks)
+│   └── config/guard.ts          Guard / router / token / forwarder constants
 └── scripts/check-no-leak.sh     simulate, then assert no private value appears in the output
 ```
 

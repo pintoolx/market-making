@@ -1,6 +1,5 @@
 # Aqua execution (contracts)
 
-Owner: pengu
 
 Everything onchain: the Guard contract, the SwapVM strategy that calls it, and deploy and demo scripts.
 
