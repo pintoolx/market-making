@@ -217,6 +217,14 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   };
   const startAdding = () => { setExpanding(true); setSelected([]); go('choose'); };
 
+  const previousStep = phase === 'detail'
+    ? { phase: 'choose' as const, label: 'Strategy marketplace' }
+    : phase === 'limits'
+      ? { phase: 'detail' as const, label: 'Strategy details' }
+      : phase === 'review'
+        ? { phase: 'limits' as const, label: 'Private limits' }
+        : null;
+
   const currentStep = ['choose', 'detail'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
   const title = phase === 'choose' ? expanding ? 'Add a strategy to your mandate.' : 'Find a strategy for your liquidity.'
     : phase === 'detail' ? selected[0]?.name ?? 'Strategy details.'
@@ -227,7 +235,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
   return <section className={aqua.flow}>
     {phase === 'choose' && expanding && <button type="button" className={aqua.backLink} onClick={() => { setExpanding(false); go('monitor'); }}>← Your mandate</button>}
-    {phase !== 'choose' && phase !== 'monitor' && <button type="button" className={aqua.backLink} onClick={() => go(phase === 'limits' ? 'detail' : 'choose')}>← {phase === 'limits' ? 'Strategy details' : 'Strategy marketplace'}</button>}
+    {previousStep && <button type="button" className={aqua.backLink} onClick={() => go(previousStep.phase)}>← {previousStep.label}</button>}
     <PageHead eyebrow="Maker Marketplace" title={title} accent={phase === 'monitor' ? 'One balance, guarded continuously.' : undefined} headingRef={heading}>
       {phase === 'choose' && (expanding ? 'Choose another compatible WETH / USDC strategy. Your existing private limits continue to apply.' : 'Explore strategies built for self-custodial liquidity on Aqua.')}
       {phase === 'detail' && 'Review what the strategy does, how it executes and what can go wrong before using it.'}
@@ -289,13 +297,13 @@ function StrategyDetail({ listing, actionLabel, onUse }: { listing: Listing; act
       <Primary onClick={onUse}>{actionLabel}</Primary>
     </div>
     <aside className={aqua.explanation}>
-      <span className={aqua.eyebrow}>Execution overview</span>
-      <h2>How your liquidity is used</h2>
+      <span className={aqua.eyebrow}>Strategy specifications</span>
+      <h2>Liquidity configuration</h2>
       <div className={aqua.intentRows}>
         <div><span>Pair</span><strong>WETH / USDC</strong></div>
         <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
         <div><span>Custody</span><strong>Maker wallet</strong></div>
-        <div><span>Proprietary model</span><strong>{listing.template.privateInputs}</strong></div>
+        <div><span>Provider policy</span><strong>{listing.template.privateInputs}</strong></div>
       </div>
       <h3>Risk to understand</h3>
       <p>{listing.template.risk}</p>
