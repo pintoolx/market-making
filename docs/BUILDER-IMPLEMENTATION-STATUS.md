@@ -1,6 +1,6 @@
 # Builder implementation status
 
-Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md). Initial main: `167b630`. Worktree: `/home/kuoba123/eth-glo/market-making-builder-impl`; current branch: `feat/builder-preparation`, based on main `9b4253b` (PR #53).
+Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md). Initial main: `167b630`. Worktree: `/home/kuoba123/eth-glo/market-making-builder-impl`; current branch: `feat/builder-preparation`, integrated main `aa8579c` (PR #54).
 
 | Area | Current state |
 |---|---|
@@ -36,3 +36,5 @@ Workspace PR #53 merged at `9b4253b` after final-head PostgreSQL and Guard CI pa
 Compilation follow-up: migration 004 persists immutable decoded Maker artifacts, deduplicated by revision/manifest and protected by ownership and agent leases. API compile/list/get and the seventh `compileStrategy` agent tool are wired. Reads mark old revisions/restores/manifests stale and always keep registration readiness false pending simulation and wallet gates. Local service suite 28 passed; domain 8 passed; executor 81 passed / 1 optional fork skipped. Provider template preparation and remaining tools are still required.
 
 Actual model compiler acceptance: `eval-design-api.ts --maker-compile` passed five turns through signed HTTP/API/durable worker and real compiler artifacts. It verifies XYC → cap edit → Pegged → CLMM, exact decoded caps, one current artifact and stale predecessors. Allocations are public local fixture inputs; no wallet inventory, public-chain write or lifecycle simulation is claimed. Browser acceptance also passed an initial single-cap draft with missing limits visibly retained.
+
+Latest main includes PR #54’s explicit CRE market-scenario runner and fixture-source guards. These changes are retained; Builder lifecycle simulation has not yet been wired to that runner.

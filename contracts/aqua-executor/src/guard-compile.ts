@@ -53,4 +53,3 @@ function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 
   // The legacy JSON parser rejects this marker instead of silently recompiling an unguarded XYC order.
   return { ...base, params: { ...p, executionTemplate: version === 2 ? `guarded-${p.program.kind}-v2` : p.program.kind === 'xyc' ? 'guarded-xyc-v1' : 'guarded-pegged-v1' }, order: order.build(), strategy, strategyHash: keccak256(strategy), guard, envelope }
 }
-
