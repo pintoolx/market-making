@@ -41,5 +41,6 @@ RUN mkdir -p /data/mandates /home/node/.cre \
     && chown -R node:node /data /home/node/.cre \
     && chown -R node:node /workspace/workflow
 WORKDIR /workspace/orchestrator
-USER node
+# Initialize the mounted data directory, then drop privileges in the entrypoint.
+USER root
 ENTRYPOINT ["./docker-entrypoint.sh"]
