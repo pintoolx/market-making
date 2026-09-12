@@ -4,11 +4,11 @@
   "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
   "mode": "live-read",
   "rpcHost": "ethereum-sepolia-rpc.publicnode.com",
-  "checkedAt": "2026-09-12T18:50:29.523Z",
+  "checkedAt": "2026-09-12T21:43:18.183Z",
   "chainId": 11155111,
-  "blockNumber": "11690690",
-  "blockHash": "0xb7927cda27f1f71b2998ac9b4d55cef4f45d78ed6b04f14ac8355a1fb07b9a12",
-  "blockTimestamp": "1789238112",
+  "blockNumber": "11691533",
+  "blockHash": "0x3eea1e5f1c0f8304f8160bbdd8e811f0ee9afba3f0f8095414a6d3182833d1fc",
+  "blockTimestamp": "1789248480",
   "contracts": [
     {
       "name": "aqua",
@@ -47,6 +47,13 @@
       "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
     }
   ],
+  "tokenImplementation": {
+    "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+    "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+    "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+    "runtimeBytes": 23464
+  },
   "bindings": {
     "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
     "aqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a",
@@ -63,7 +70,10 @@
     "contracts/aqua-executor/artifacts/AquaGuardV2.json": "d6e656f0e74efff6366e8f4efc5dc51e4abb2510941d4d25651b3ec5b8ac1e5d",
     "contracts/aqua-executor/artifacts/AquaSwapVMRouter.json": "bf8e5ecffe627cb612a226d2a713ad098056165d601b0c7a52e939c5734f1717",
     "contracts/aqua-executor/contracts/AquaGuardV2.sol": "e8dbf6a908f085f30c978296df377374e05805c5e9768cfffbf3d6bc5b4bf91c",
-    "contracts/aqua-executor/src/guard.ts": "11b8d6fe02324329fa63115cbf3d97790d0f2e0e904ed6254c918d2552177789",
+    "contracts/aqua-executor/src/guard.ts": "b8c84399c1a9b56f0ab629da48317c756981d8d2d1a8df78455f07103320b936",
+    "contracts/aqua-executor/src/guard-compile.ts": "204185bb077c481d236fa613c322c8e2cb45e05b3261a591eda6e0c6957085d7",
+    "contracts/aqua-executor/src/builder-compile.ts": "7b512e8fbc36befe7f0bc4c31680c4e520824b0c012e77dbebc9bfa9dc74b2cf",
+    "contracts/aqua-executor/src/builder-token-proxy.ts": "022140c4967846cefea01e5b24def929e706ad068c63193bb2bf33b108685d00",
     "packages/strategy-builder/src/capabilities.ts": "6fcc97bc2a9f958649680991123cf6a6ebd14e98dd927b5004ac7a9e24317d06"
   },
   "limits": [

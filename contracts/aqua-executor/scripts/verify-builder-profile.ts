@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { digestJson, sepoliaStandingProfile } from '@pintool/strategy-builder'
 import { createPublicClient, erc20Abi, http, keccak256, parseAbi, zeroAddress, zeroHash, type Abi } from 'viem'
 import { sepolia } from 'viem/chains'
+import { readBuilderTokenImplementation } from '../src/builder-token-proxy.ts'
 
 const root = new URL('../../../', import.meta.url)
 const file = (name: string) => new URL(name, root)
@@ -33,6 +34,7 @@ try {
     if (!code || code === '0x') throw new Error(`empty code: ${name}`)
     return { name, address, runtimeBytes: (code.length - 2) / 2, codeHash: keccak256(code) }
   }))
+  const tokenImplementation = await readBuilderTokenImplementation(pc, profile, block.number)
   for (const token of profile.tokens) {
     const decimals = await pc.readContract({ address: token.address, abi: erc20Abi, functionName: 'decimals', blockNumber: block.number })
     const symbol = await pc.readContract({ address: token.address, abi: erc20Abi, functionName: 'symbol', blockNumber: block.number })
@@ -41,11 +43,13 @@ try {
   const sameBlock = await pc.getBlock({ blockNumber: block.number })
   if (sameBlock.hash !== block.hash) throw new Error('verification block changed')
   const paths = ['contracts/aqua-executor/artifacts/AquaGuardV2.json', 'contracts/aqua-executor/artifacts/AquaSwapVMRouter.json',
-    'contracts/aqua-executor/contracts/AquaGuardV2.sol', 'contracts/aqua-executor/src/guard.ts', 'packages/strategy-builder/src/capabilities.ts']
+    'contracts/aqua-executor/contracts/AquaGuardV2.sol', 'contracts/aqua-executor/src/guard.ts',
+    'contracts/aqua-executor/src/guard-compile.ts', 'contracts/aqua-executor/src/builder-compile.ts',
+    'contracts/aqua-executor/src/builder-token-proxy.ts', 'packages/strategy-builder/src/capabilities.ts']
   const evidence = { schemaVersion: 1, profileId: profile.id, manifestHash: digestJson(profile), mode: 'live-read',
     rpcHost: new URL(rpc).hostname, checkedAt: new Date().toISOString(), chainId,
     blockNumber: String(block.number), blockHash: block.hash, blockTimestamp: String(block.timestamp),
-    contracts, bindings: { ...bindings, routerAqua }, opcodeTableHash: profile.opcodeTableHash,
+    contracts, tokenImplementation, bindings: { ...bindings, routerAqua }, opcodeTableHash: profile.opcodeTableHash,
     sourceHashes: Object.fromEntries(paths.map(path => [path, createHash('sha256').update(readFileSync(file(path))).digest('hex')])),
     limits: ['Code presence and immutable bindings verified at one finalized block.', 'This read does not independently rebuild deployed runtime bytecode from source.',
       'No swap transaction or production DON/TEE attestation was performed.', 'Recipe execution evidence remains separate from deployment reads.'],

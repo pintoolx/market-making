@@ -35,6 +35,7 @@
     "typescript": "^5.9.3"
   },
   "exports": {
-    "./builder": "./src/builder-compile.ts"
+    "./builder": "./src/builder-compile.ts",
+    "./builder-simulation": "./src/builder-simulation.ts"
   }
 }

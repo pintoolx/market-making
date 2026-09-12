@@ -1,6 +1,6 @@
 # Builder implementation status
 
-Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md). Initial main: `167b630`. Worktree: `/home/kuoba123/eth-glo/market-making-builder-impl`; current branch: `feat/builder-preparation`, integrated main `aa8579c` (PR #54).
+Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md). Initial main: `167b630`. Worktree: `/home/kuoba123/eth-glo/market-making-builder-impl`; current branch: `feat/builder-simulation`, based on merged preparation PR #55 (`d759691`).
 
 | Area | Current state |
 |---|---|
@@ -8,7 +8,8 @@ Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENT
 | Capability inventory | Every non-reserved Aqua opcode accounted for; unsupported combinations retain specific reasons and distinct readiness evidence |
 | Guard recipes | Extended existing V2 compiler to XYC/Pegged; CLMM retained; local actual-router tests pass |
 | Compiler/decoder | Three zero-fee curves compile from new Maker drafts; independent decoder checks recipe, traits, target, envelope and parameters |
-| Deployment | Fixed-block read verifier passed at Sepolia finalized block 11690690; all 6 contracts, Guard/router bindings and token metadata checked. Source-to-runtime and live recipe gates remain separate |
+| Deployment | Fixed-block read verifier refreshed at Sepolia finalized block 11691533; all 6 contracts, Guard/router bindings, token metadata, and USDC implementation address/runtime checked. Source-to-runtime and live recipe gates remain separate |
+| Lifecycle simulation | Standalone Node adapter runs the exact compiled Maker artifact in an owned Sepolia fork. XYC/CLMM/Pegged each pass 25 named checks, with 11 successful swaps. Explicit synthetic funding/report authority; no registration readiness. Durable jobs, API/tool/UI integration and remaining range/extreme-input coverage pending |
 | PostgreSQL/auth | Additive migrations, owned drafts/messages/history, atomic idempotency/outbox, generic jobs, durable design turns, EOA SIWE sessions and HTTP handler. Privy app/user/session verification plus wallet proof implemented; production mounting/migration and application roles pending |
 | OpenAI/UI | OpenAI + AI SDK with seven design/preparation tools, streamed public events, bounded worker and replayable HTTP API implemented. Five direct model turns and six authenticated HTTP/worker turns passed live. Initial Privy-connected chat/summary/revisions workspace tested with browser fixtures; inventory/scenario/simulation/wallet preparation tools pending |
 | Private policies/template permissions | Existing evaluator reusable; Builder authoring, consent and publication integration pending |
@@ -19,13 +20,13 @@ Goal active since 2026-09-13. Scope: [approved goal v2](SWAPVM-BUILDER-IMPLEMENT
 
 Core verification is recorded in PR #42. Builder tests have created only disposable local databases. Real OpenAI requests consumed the user-configured Railway key opaquely through a local process; no Railway business migration or public-chain write was performed. Cloudflare's existing PR/main integration builds the frontend automatically; the new Builder handler is not deployed or mounted yet.
 
-Local verification: Builder 6 passed; executor suite 79 passed / 1 optional Sepolia fork skipped; both TypeScript checks pass. After making exported order traits JSON-safe, the 5 Builder compiler/settlement cases were rerun successfully. A pinned-action CI workflow now runs the domain and local Guard suites without secrets or public-chain writes.
+Core baseline verification: Builder 6 passed; executor suite 79 passed / 1 optional Sepolia fork skipped; both TypeScript checks pass. After making exported order traits JSON-safe, the 5 Builder compiler/settlement cases were rerun successfully. A pinned-action CI workflow runs the domain and local Guard suites without secrets or public-chain writes. Later batches and their additional tests are described below.
 
 Continue with the full goal. The original workspace remains on another user's ENS work; do not overwrite it or assume its files match this implementation worktree.
 
 The latest main also contains ENS/monitor/standing-documentation updates and a publication config fix; all are retained. After integrating main, orchestrator verification was 43 passed / 1 optional fork skipped. Two pre-existing interrupted-transaction tests were fixed to compare pending nonces when the transaction is still in Anvil's mempool; all 12 affected tests and final CI passed.
 
-Design follow-up: [service package](../packages/builder-service/README.md) and [live evaluation evidence](BUILDER-AGENT-EVALUATION.md). Local service verification: 28 tests passed on PostgreSQL 16.15, TypeScript passed; CI targets 18.6. Lease/cancellation/restart, public event replay, numeric history ordering beyond ten messages, Date-to-JSON conversion and provider error redaction are covered. The model workflow still prepares public drafts only; template publication, private-policy editing, compile/simulation/wallet tools, trusted dynamic binding and event-driven Guard delivery remain required.
+Design follow-up: [service package](../packages/builder-service/README.md) and [live evaluation evidence](BUILDER-AGENT-EVALUATION.md). Local service verification: 28 tests passed on PostgreSQL 16.15, TypeScript passed; CI targets 18.6. Lease/cancellation/restart, public event replay, numeric history ordering beyond ten messages, Date-to-JSON conversion and provider error redaction are covered. The model workflow prepares public drafts and compiled Maker artifacts; template publication, private-policy editing, simulation/wallet tools, trusted dynamic binding and event-driven Guard delivery remain required.
 
 Workspace follow-up: `/builder` now provides public strategy chat, streamed replies, current parameters/validation, version diffs/restoration, cancellation and recovery. Python Playwright passed real API/PostgreSQL tests using fixture Privy identity and a deterministic model, including lost responses, expired sessions and mobile layout. Production Next build and scoped lint passed. The Provider link remains off unless `NEXT_PUBLIC_BUILDER_ENABLED=true`; live Privy/browser acceptance and service rollout remain pending.
 
@@ -38,3 +39,5 @@ Compilation follow-up: migration 004 persists immutable decoded Maker artifacts,
 Actual model compiler acceptance: `eval-design-api.ts --maker-compile` passed five turns through signed HTTP/API/durable worker and real compiler artifacts. It verifies XYC → cap edit → Pegged → CLMM, exact decoded caps, one current artifact and stale predecessors. Allocations are public local fixture inputs; no wallet inventory, public-chain write or lifecycle simulation is claimed. Browser acceptance also passed an initial single-cap draft with missing limits visibly retained.
 
 Latest main includes PR #54’s explicit CRE market-scenario runner and fixture-source guards. These changes are retained; Builder lifecycle simulation has not yet been wired to that runner.
+
+Preparation PR #55 merged at `d759691` after final-head Guard/PostgreSQL CI and Cloudflare preview passed. The standalone [lifecycle evaluator](BUILDER-LIFECYCLE-SIMULATION.md) is the next batch. Its snapshot/receipt handling, exact cap boundaries, report domain/replay/active-switch behavior, wallet/virtual exhaustion, deadline/standing/revoke/dock checks and evidence modes are documented separately. Full goal completion still requires the pending product and deployment gates above.
