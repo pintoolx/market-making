@@ -1,5 +1,6 @@
 {
   "schedule": "0 */2 * * * *",
+  "authorizedEVMAddress": "0x1111111111111111111111111111111111111111",
   "providerSecretId": "PROVIDER_STRATEGY",
   "makerSecretId": "MAKER_LIMITS",
   "publishMode": "dry-run",
