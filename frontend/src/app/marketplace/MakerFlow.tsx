@@ -77,10 +77,6 @@ const percentageError = (value: string) => {
   const n = toNumber(value);
   return !value.trim() ? '' : !(n > 0 && n <= 100) ? 'Enter a percentage between 1 and 100.' : '';
 };
-const validityError = (value: string) => {
-  const n = toNumber(value);
-  return !value.trim() ? '' : !Number.isInteger(n) || n < 1 || n > 10 ? 'Enter 1 to 10 whole minutes.' : '';
-};
 const shortHash = (value: string) => `${value.slice(0, 8)}…${value.slice(-6)}`;
 const decimalToAtomic = (value: string, decimals: number): string => {
   const [whole, fraction = ''] = value.replace(/,/g, '').trim().split('.');
@@ -98,7 +94,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [exposure, setExposure] = useState('60');
   const [maxWethInventory, setMaxWethInventory] = useState('12');
   const [maxTrade, setMaxTrade] = useState('1');
-  const [validityMinutes, setValidityMinutes] = useState('10');
   const [phase, setPhase] = useState<Phase>('choose');
   const [mandate, setMandate] = useState<MandateState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -178,7 +173,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
   const valid = [budget, maxWethInventory, maxTrade].every(value => value.trim() && !positiveError(value))
     && !!exposure.trim() && !percentageError(exposure)
-    && !!validityMinutes.trim() && !validityError(validityMinutes)
     && toNumber(maxWethInventory) <= toNumber(budget)
     && toNumber(maxTrade) <= toNumber(budget);
 
@@ -195,12 +189,12 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     go('submitting');
     try {
       const makerLimitsEnvelope = sealForConfidentialWorkflow({
-        schemaVersion: 2,
+        schemaVersion: 3,
         maxBudget1: decimalToAtomic(budget, 6),
         maxToken0ShareBps: percentageToBps(exposure),
         maxToken0Value1: decimalToAtomic(maxWethInventory, 6),
         maxSwapValue1: decimalToAtomic(maxTrade, 6),
-        maxTtlSec: Number(validityMinutes) * 60,
+        authorization: 'until-changed',
       }, CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, makerAddress);
       const state = await createMandate({
         maker: makerAddress,
@@ -220,7 +214,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         maxExposure: exposure.trim(),
         maxWeakAsset: maxWethInventory.trim(),
         maxTrade: maxTrade.trim(),
-        validityMinutes: validityMinutes.trim(),
+        authorization: 'until-changed',
         feePct: item.feePct,
       }));
       go('monitor');
@@ -243,12 +237,12 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
   };
 
-  const reevaluate = async () => {
+  const reevaluate = async (profileId?: string) => {
     if (!mandate) return;
     const active = mandate.strategies.find(item => item.status === 'active');
     const lastEvaluated = mandate.strategies.at(-1)?.listingId;
     const current = active?.listingId ?? lastEvaluated;
-    const target = current === ADAPTIVE_PROFILE_IDS[0] ? ADAPTIVE_PROFILE_IDS[1] : ADAPTIVE_PROFILE_IDS[0];
+    const target = profileId ?? current ?? ADAPTIVE_PROFILE_IDS[0];
     setReevaluating(true);
     go('submitting');
     try {
@@ -311,7 +305,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
           <label>Maximum WETH exposure (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={event => setExposure(event.target.value)} /></label>
           <label>Maximum WETH inventory (USDC value)<FormInput inputMode="decimal" value={maxWethInventory} aria-invalid={!!positiveError(maxWethInventory) || toNumber(maxWethInventory) > toNumber(budget)} onChange={event => setMaxWethInventory(event.target.value)} /></label>
           <label>Maximum amount per swap (USDC)<FormInput inputMode="decimal" value={maxTrade} aria-invalid={!!positiveError(maxTrade) || toNumber(maxTrade) > toNumber(budget)} onChange={event => setMaxTrade(event.target.value)} /></label>
-          <label>Mandate validity (minutes)<FormInput inputMode="numeric" value={validityMinutes} aria-invalid={!!validityError(validityMinutes)} onChange={event => setValidityMinutes(event.target.value)} /><span className={validityError(validityMinutes) ? aqua.fieldError : aqua.hint}>{validityError(validityMinutes) || 'Trading stops when the latest authorization expires.'}</span></label>
+          <p className={aqua.hint}>Your authorization stays in effect until changed or revoked. New execution conditions require a confirmed Guard update.</p>
         </fieldset>
         <Primary type="submit" disabled={!valid}>Review mandate</Primary>
       </form>
@@ -321,14 +315,14 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'review' && <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <StrategySet selected={selected} />
-        <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} validity={validityMinutes} />
+        <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} />
         <div className={aqua.actionRow}><Primary onClick={submit}>Create confidential mandate</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
       </div>
       <PrivacyRoute />
     </div>}
 
     {phase === 'submitting' && <RuntimePanel reevaluating={reevaluating} />}
-    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} />}
+    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} onEdit={() => { setSelected([listings.find(item => (item.executionProfileIds ?? [item.id]).includes(mandate.strategies[0].listingId)) ?? FEATURED[0]]); go('limits'); }} />}
   </section>;
 }
 
@@ -360,8 +354,8 @@ function StrategyDetail({ listing, availabilityKnown, actionLabel, onUse }: { li
   </div>;
 }
 
-function PolicyMetrics({ budget, exposure, maxWethInventory, maxTrade, validity }: { budget: string; exposure: string; maxWethInventory: string; maxTrade: string; validity: string }) {
-  return <div className={aqua.policyReview}><div><span>Capital budget</span><strong>{budget} USDC</strong></div><div><span>WETH exposure</span><strong>{exposure}% max</strong></div><div><span>WETH inventory</span><strong>{maxWethInventory} USDC max</strong></div><div><span>Per swap</span><strong>{maxTrade} USDC max</strong></div><div><span>Authorization validity</span><strong>{validity} minutes</strong></div></div>;
+function PolicyMetrics({ budget, exposure, maxWethInventory, maxTrade }: { budget: string; exposure: string; maxWethInventory: string; maxTrade: string }) {
+  return <div className={aqua.policyReview}><div><span>Capital budget</span><strong>{budget} USDC</strong></div><div><span>WETH exposure</span><strong>{exposure}% max</strong></div><div><span>WETH inventory</span><strong>{maxWethInventory} USDC max</strong></div><div><span>Per swap</span><strong>{maxTrade} USDC max</strong></div><div><span>Authorization</span><strong>Until changed or revoked</strong></div></div>;
 }
 
 function PrivacyRoute() {
@@ -372,7 +366,7 @@ function RuntimePanel({ reevaluating }: { reevaluating: boolean }) {
   return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>Chainlink Confidential Workflow</span><h2>{reevaluating ? 'Re-evaluating execution' : 'Evaluating your strategy'}</h2><p>Applying your hard limits and waiting for the resulting PinTool Guard state to be confirmed onchain.</p></div><ol className={aqua.runtimeSteps}><li data-done>Strategy policy received</li><li data-done>Maker mandate received</li><li data-active>Private policies being evaluated</li><li>Guard confirmation</li></ol></div>;
 }
 
-function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReevaluate }: { mandate: MandateState; refreshing: boolean; reevaluating: boolean; onRefresh: () => void; onReevaluate: () => void }) {
+function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReevaluate, onEdit }: { mandate: MandateState; refreshing: boolean; reevaluating: boolean; onRefresh: () => void; onReevaluate: (profileId?: string) => void; onEdit: () => void }) {
   // Keep the server render deterministic. Browser-local timestamps are filled
   // after hydration, avoiding locale and clock differences in the initial HTML.
   const [now, setNow] = useState(0);
@@ -383,9 +377,9 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
     return () => clearInterval(timer);
   }, []);
   const fresh = (item: MandateState['strategies'][number]) => !!item.readiness?.validUntil && Date.parse(item.readiness.validUntil) > now;
-  const authorizationCurrent = now > 0 && Date.parse(mandate.evidence.expiresAt) > now;
-  const active = authorizationCurrent ? mandate.strategies.find(item => item.status === 'active') : undefined;
-  const expires = new Date(mandate.evidence.expiresAt);
+  const authorizationCurrent = now > 0 && (mandate.evidence.expiresAt === null || Date.parse(mandate.evidence.expiresAt) > now);
+  const active = authorizationCurrent ? mandate.strategies.find(item => fresh(item) && item.readiness?.authorized) : undefined;
+  const verified = now > 0 && mandate.strategies.every(fresh);
   const profiles = ADAPTIVE_PROFILE_IDS.map(id => ({
     ...(mandate.strategies.find(item => item.listingId === id) ?? {
       listingId: id,
@@ -397,8 +391,8 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
   return <div className={aqua.monitorLayout}>
     <section className={aqua.panel}>
       <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Mandate sequence {mandate.evidence.sequence}</span><h2>Adaptive Market Maker</h2></div></div>
-      <div className={aqua.intentRows}><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : 'Paused or expired'}</strong></div><div><span>Pair</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Authorization expires</span><strong>{now === 0 ? '—' : Number.isNaN(expires.valueOf()) ? mandate.evidence.expiresAt : expires.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong></div></div>
-      <div className={aqua.actionRow}><Primary disabled={reevaluating} onClick={onReevaluate}>{reevaluating ? 'Evaluating…' : 'Re-evaluate strategy'}</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Secondary></div>
+      <div className={aqua.intentRows}><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div><div><span>Pair</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Authorization</span><strong>{mandate.evidence.expiresAt === null ? 'Until changed or revoked' : 'Update limits to continue'}</strong></div></div>
+      <div className={aqua.actionRow}><Primary disabled={reevaluating} onClick={() => onReevaluate()}>{reevaluating ? 'Evaluating…' : 'Re-evaluate strategy'}</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Secondary><Secondary disabled={reevaluating} onClick={onEdit}>Update limits</Secondary></div>
     </section>
 
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
@@ -406,9 +400,10 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
       {profiles.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
         <div><span className={aqua.eyebrow}>Adaptive Market Maker</span><strong>{strategy.name}</strong></div>
         <div className={aqua.rosterStatus}>
-          <span>{strategy.status === 'active' && authorizationCurrent ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby'}</span>
-          {'readiness' in strategy && <small>Guard: {fresh(strategy) && strategy.readiness?.authorized ? 'authorized' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'not verified'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'not verified'}</small>}
+          <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to verify'}</span>
+          {'readiness' in strategy && <small>Guard: {!fresh(strategy) ? 'not verified' : strategy.readiness?.authorized ? 'authorized' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'not verified'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'not verified'}</small>}
           {'strategyHash' in strategy && <CopyStrategyHash value={strategy.strategyHash} />}
+          <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Evaluate profile</Secondary>
         </div>
       </article>)}
     </section>
@@ -419,7 +414,7 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
     </section>
 
     <p className={aqua.muted}>Readiness is a short-lived chain snapshot. Each trade still requires a fresh quote and Guard checks. A saved listing or accepted report alone does not mean liquidity can trade.</p>
-    <div className={aqua.evidence}><div><span>Guard transaction</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View Guard transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua execution</span><strong>2 profiles · one Maker balance</strong></div><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : 'Paused / expired'}</strong></div></div>
+    <div className={aqua.evidence}><div><span>Guard transaction</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View Guard transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua execution</span><strong>2 profiles · one Maker balance</strong></div><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div></div>
   </div>;
 }
 

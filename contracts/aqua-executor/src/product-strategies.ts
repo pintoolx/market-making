@@ -3,7 +3,7 @@ import { compileExecution } from './execution-compile.ts'
 import type { ExecutionRequest } from './execution-request.ts'
 import type { AquaStrategyParams, Deployment, Hex } from './types.ts'
 
-export const MAKER_STRATEGY_RELEASE = 'sepolia-maker-v1'
+export const MAKER_STRATEGY_RELEASE = 'sepolia-maker-v2'
 export const MAKER_STRATEGY_DEADLINE = 1_798_761_600 // 2027-01-01T00:00:00Z
 
 export interface ProductStrategy {
