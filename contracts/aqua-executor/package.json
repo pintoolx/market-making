@@ -17,6 +17,7 @@
     "monitor": "node --env-file-if-exists=.env src/monitor-cli.ts",
     "demo:risk": "node --env-file-if-exists=.env src/risk-demo.ts",
     "demo:guard": "node --env-file-if-exists=.env src/guard-demo.ts",
+    "verify:guard-rejection": "node --env-file-if-exists=.env src/verify-guard-rejection.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc",
     "build:guard:v2": "node scripts/build-guard-v2.ts",
