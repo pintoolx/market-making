@@ -28,6 +28,7 @@ This lets one Maker balance support multiple strategies without transferring cus
 - **Provider Studio** — create a strategy from structured market-making templates and publish its public listing.
 - **Maker mandate** — configure private risk limits and assign liquidity to compatible strategies.
 - **Activity monitor** — follow confirmed authorization changes and onchain execution.
+- **ENS strategy names** — publish signed versions under a Provider namespace, delegate one record's updates, and let Makers resolve and pin a verified version. Start at `/ens`; platform owners initialize the Sepolia namespace at `/ens/setup`.
 
 ## Architecture
 
@@ -95,6 +96,7 @@ Provider policies remain Vault DON secrets, while Maker limits are sealed in the
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [ENSv2 integration and setup](docs/ENSV2-INTEGRATION.md)
 - [Mandate API](docs/STRATEGY-MANDATE-API.md)
 - [Authorization format](docs/AUTHORIZATION-FORMAT.md)
 - [Guard report specification](docs/GUARD-REPORT-V1.md)

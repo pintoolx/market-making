@@ -8,6 +8,7 @@ import ClmmPublisher from './ClmmPublisher';
 import { LP_CAPABILITIES } from '../../../../shared/lp-release.mjs';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
+import Link from 'next/link';
 
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const [editing, setEditing] = useState(false);
@@ -22,6 +23,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
     <PageHead eyebrow="Provider Studio" title="Choose an LP template.">
       CLMM supports signed, versioned publication. A Maker-specific program and a valid Guard report are required before a strategy can quote.
     </PageHead>
+    <p><Link href="/ens">Manage your ENS strategy names and publishers →</Link></p>
     <div className={`${styles.grid} ${aqua.grid}`}>
       {AQUA_TEMPLATES.map(template => {
         const capability = LP_CAPABILITIES[template.id];

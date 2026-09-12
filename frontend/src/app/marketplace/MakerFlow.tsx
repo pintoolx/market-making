@@ -16,6 +16,8 @@ import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
+import EnsStrategySearch from '../ens/EnsStrategySearch';
+import { selectionFrom } from '../ens/ensClient';
 
 const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
 const ADAPTIVE_PROFILE_IDS = ['featured-tight-market', 'featured-defensive-market'] as const;
@@ -116,6 +118,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, []);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('ens')) openingLinkedStrategy.current = true;
     if (linkedStrategyId.current === undefined) linkedStrategyId.current = new URLSearchParams(window.location.search).get('strategy');
     const id = linkedStrategyId.current;
     if (!id) return;
@@ -203,6 +206,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         // profile without asking the Maker to buy a second strategy.
         providerStrategyIds: selected.flatMap(item => item.executionProfileIds?.slice(0, 1) ?? [item.id]),
         makerLimitsEnvelope,
+        ensSelections: selected.flatMap(item => item.ensSelection ? [item.ensSelection] : []),
       });
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
@@ -257,6 +261,19 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       setReevaluating(false);
     }
   };
+  const editLimits = () => {
+    if (!mandate) return;
+    const strategy = mandate.strategies[0];
+    const listing = listings.find(item => (item.executionProfileIds ?? [item.id]).includes(strategy.listingId));
+    const pin = mandate.ensSelections?.find(item => `${item.pointer.releaseId}.v${item.pointer.version}` === strategy.listingId);
+    if (pin) {
+      const { name, node, pointer } = pin;
+      setSelected([{ ...listing, id: strategy.listingId, name: strategy.name,
+        summary: listing?.summary ?? `Strategy published as ${name}.`, template: AQUA_TEMPLATES[1], mine: false,
+        releaseId: pointer.releaseId, version: pointer.version, provider: pointer.provider, ensSelection: { name, node, pointer } }]);
+    } else setSelected([listing ?? FEATURED[0]]);
+    go('limits');
+  };
 
   const previousStep = phase === 'detail'
     ? { phase: 'choose' as const, label: 'Strategy marketplace' }
@@ -288,6 +305,11 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
     {phase === 'choose' && <>
+      <EnsStrategySearch onSelect={resolved => {
+        const r = resolved.manifest.release;
+        openStrategy({ id: `${r.id}.v${r.version}`, releaseId: r.id, version: r.version, name: r.name, summary: r.summary,
+          provider: r.provider, template: AQUA_TEMPLATES[1], mine: false, feePct: 0, ensSelection: selectionFrom(resolved) });
+      }} />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={`${styles.grid} ${aqua.grid}`}>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<Secondary onClick={() => openStrategy(item)}>View strategy</Secondary>} />)}
@@ -315,6 +337,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'review' && <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <StrategySet selected={selected} />
+        {selected.filter(item => item.ensSelection).map(item => <p key={item.id} className={aqua.hint}>{item.ensSelection!.name} · version {item.version} is pinned. A later ENS update will not change this mandate.</p>)}
         <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} />
         <div className={aqua.actionRow}><Primary onClick={submit}>Create confidential mandate</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
       </div>
@@ -322,7 +345,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     </div>}
 
     {phase === 'submitting' && <RuntimePanel reevaluating={reevaluating} />}
-    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} onEdit={() => { setSelected([listings.find(item => (item.executionProfileIds ?? [item.id]).includes(mandate.strategies[0].listingId)) ?? FEATURED[0]]); go('limits'); }} />}
+    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} onEdit={editLimits} />}
+    {phase === 'monitor' && mandate?.ensSelections?.map(selection => <p key={`${selection.name}:${selection.pointer.version}`} className={aqua.hint}>{selection.name} · pinned version {selection.pointer.version} · verified at Sepolia block {selection.verifiedBlock}</p>)}
   </section>;
 }
 
