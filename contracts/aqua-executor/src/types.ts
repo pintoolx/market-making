@@ -20,6 +20,10 @@ export interface AquaStrategyParams {
   /** Raw units, same order as `tokens`. */
   amounts: string[]
   program: StrategyProgram
+  /** Explicit, reconstructible Guard recipe; specialized compiled markers remain rejected. */
+  guard?: { address: Hex; version: 1 | 2; caps: {
+    maxAmount0PerSwap: string; maxAmount1PerSwap: string; maxPostBalance0: string; maxPostBalance1: string
+  } }
   meta: { producer: 'fixed-params' | 'tee'; strategyVersion: number; paramsRevision: number }
 }
 
@@ -41,6 +45,7 @@ export interface ProgramCommon {
 }
 export type StrategyProgram = ProgramCommon & (
   | { kind: 'xyc' }
+  | { kind: 'concentrated'; sqrtPriceMin: string; sqrtPriceMax: string }
   | {
     kind: 'pegged'
     /** A in 1e27 fixed point, between 0 and 5000e27. */

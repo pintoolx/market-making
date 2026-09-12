@@ -3,6 +3,7 @@ import type { AquaStrategyParams } from './types.ts'
 // The SDK builder is loaded through CJS by callers; keep only its used surface here.
 interface CurveBuilder {
   xycSwapXD(): this
+  concentrateGrowLiquidity2D(args: { sqrtPriceMin: bigint; sqrtPriceMax: bigint }): this
   peggedSwapGrowPriceRange2D(args: { x0: bigint; y0: bigint; linearWidth: bigint; rateLt: bigint; rateGt: bigint }): this
 }
 export function uint(value: string, name: string, max = (1n << 256n) - 1n): bigint {
@@ -30,6 +31,11 @@ export function peggedArgs(p: AquaStrategyParams) {
 export function appendCurve<T extends CurveBuilder>(builder: T, p: AquaStrategyParams): T {
   if (p.program.kind === 'xyc') builder.xycSwapXD()
   else if (p.program.kind === 'pegged') builder.peggedSwapGrowPriceRange2D(peggedArgs(p))
+  else if (p.program.kind === 'concentrated') {
+    const sqrtPriceMin = uint(p.program.sqrtPriceMin, 'sqrtPriceMin'), sqrtPriceMax = uint(p.program.sqrtPriceMax, 'sqrtPriceMax')
+    if (sqrtPriceMin <= 0n || sqrtPriceMin >= sqrtPriceMax) throw new Error('invalid concentration bounds')
+    builder.concentrateGrowLiquidity2D({ sqrtPriceMin, sqrtPriceMax }).xycSwapXD()
+  }
   else throw new Error('unsupported program')
   return builder
 }
