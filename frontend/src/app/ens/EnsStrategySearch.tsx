@@ -21,7 +21,8 @@ export default function EnsStrategySearch({ onSelect }: { onSelect?: (result: En
     if (navigates && window.location.pathname === '/maker') {
       const url = new URL(window.location.href);
       url.searchParams.set('ens', value);
-      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+      // Next preserves its internal history state and updates useSearchParams.
+      window.history.replaceState(null, '', url.pathname + url.search);
     }
     const token = ++generation.current; setBusy(true); setError(''); setResult(null);
     try { const resolved = await resolveEnsStrategy(value); if (token === generation.current) setResult(resolved); }

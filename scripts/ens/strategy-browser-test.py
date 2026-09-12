@@ -113,8 +113,8 @@ async def main():
         await expect(page.locator('main').get_by_role('alert')).to_contain_text('could not be found')
         await goto(permalink)
         await details()
-        await page.evaluate("history.pushState(history.state, '', '/strategy?id=featured-wide-range')")
-        await expect(page.get_by_role('heading', name='Wide Range Reserve', exact=True)).to_be_visible()
+        await page.evaluate("history.pushState(null, '', '/strategy?id=featured-wide-range')")
+        await expect(page.get_by_role('heading', name='Wide Range Reserve', level=1, exact=True)).to_be_visible()
         assert await page.get_by_text(ens, exact=True).count() == 0
         print('PASS: invalid links fail visibly; changing the URL replaces the detail identity', flush=True)
         assert not errors, errors
