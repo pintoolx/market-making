@@ -6,6 +6,7 @@ import { namehash } from 'viem/ens';
 import { createEnsReader, sameAddress } from '../../shared/ens/chain.mjs';
 import { normalizeRoot, strategyName, manifestMessage, parseSelection, releasePointer } from '../../shared/ens/schema.mjs';
 import { publicationMessage } from '../../shared/lp-release.mjs';
+import { activationCatalog } from './activation-store.mjs';
 
 export function createEnsService(config, registry, dependencies = {}) {
   const rootName = normalizeRoot(config.ensRootName ?? 'pintool.eth');
@@ -101,7 +102,8 @@ export function createEnsService(config, registry, dependencies = {}) {
         seen.add(id);
         const current = await this.resolve(selection.name);
         if (JSON.stringify(current.pointer) !== JSON.stringify(p)) throw new Error('The ENS strategy changed. Resolve it again and review the new version.');
-        const provisioned = config.strategies?.find(item => item.id === id);
+        const activated = config.stateDir ? (await activationCatalog(config.stateDir))[id] : undefined;
+        const provisioned = activated && sameAddress(activated.maker, maker) ? activated : config.strategies?.find(item => item.id === id);
         if (!provisioned?.release || provisioned.release.digest !== p.publicationDigest || !sameAddress(config.strategyMaker, maker)) throw new Error('This exact ENS version is not provisioned for the Maker wallet.');
         result.push({ ...selection, verifiedBlock: current.blockNumber, verifiedBlockHash: current.blockHash });
       }

@@ -215,6 +215,7 @@
 .intentRows { display: grid; border-top: 1px solid var(--aqua-line); }
 .intentRows > div { padding: 13px 0; display: flex; justify-content: space-between; align-items: baseline; gap: 20px; border-bottom: 1px solid var(--aqua-line); }
 .intentRows strong { text-align: right; }
+.intentRows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .monitorLayout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
 .strategyRoster, .activityPanel { padding: 22px; border: 2px solid var(--aqua-ink); border-radius: 14px; background: #e4eaf2; }
 .strategyRoster { display: grid; gap: 10px; }

@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { currentBlock, waitForAcceptedReport, latestAcceptedReport } from './guard-observer.mjs';
 import { triggerCREWorkflow } from './cre-gateway.mjs';
 import { createProviderRegistry } from './provider-registry.mjs';
+import { activationCatalog } from './activation-store.mjs';
 
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
 const HEX32 = /^0x[0-9a-f]{64}$/i;
@@ -61,8 +62,11 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   const listingId = creating ? input.providerStrategyIds[0]
     : request.action === 'add-strategy' ? request.providerStrategyId
       : (current.strategies.find(item => item.status === 'active') ?? current.strategies[0]).listingId;
-  const listing = config.catalog[listingId];
+  const activated = config.stateDir ? await activationCatalog(config.stateDir) : {};
+  const listing = activated[listingId] ?? config.catalog[listingId];
   if (!listing) throw new Error('Selected strategy is not provisioned for this workflow');
+  if (activated[listingId] && config.catalog[listingId] && activated[listingId].strategyHash !== config.catalog[listingId].strategyHash) throw new Error('Conflicting activated strategy');
+  if (listing.maker && listing.maker.toLowerCase() !== (creating ? input.maker : current.maker).toLowerCase()) throw new Error('This activation belongs to a different Maker');
   const previous = current?.strategies.find(item => item.listingId === listingId);
   if (previous && previous.strategyHash.toLowerCase() !== listing.strategyHash.toLowerCase()) throw new Error('Catalog changed this strategy; create a new versioned mandate');
   let providerInput = {};

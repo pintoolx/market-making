@@ -19,6 +19,7 @@ import styles from './page.module.css';
 import aqua from './aqua.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { selectionFrom } from '../ens/ensClient';
+import MakerActivation from './MakerActivation';
 
 const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
 const FEATURED: Listing[] = [
@@ -70,7 +71,7 @@ const FEATURED: Listing[] = [
   },
 ];
 
-type Phase = 'choose' | 'detail' | 'limits' | 'review' | 'submitting' | 'monitor';
+type Phase = 'choose' | 'detail' | 'activate' | 'limits' | 'review' | 'submitting' | 'monitor';
 
 const toNumber = (value: string) => Number(value.replace(/,/g, '').trim());
 const positiveError = (value: string) => !value.trim() ? '' : !(toNumber(value) > 0) ? 'Enter an amount above 0.' : '';
@@ -276,7 +277,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     go('limits');
   };
 
-  const previousStep = phase === 'detail'
+  const previousStep = phase === 'activate' ? { phase: 'detail' as const, label: 'Strategy details' } : phase === 'detail'
     ? { phase: 'choose' as const, label: 'Strategy marketplace' }
     : phase === 'limits'
       ? { phase: 'detail' as const, label: 'Strategy details' }
@@ -284,9 +285,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         ? { phase: 'limits' as const, label: 'Private limits' }
         : phase === 'monitor' ? { phase: 'choose' as const, label: 'Strategy marketplace' } : null;
 
-  const currentStep = ['choose', 'detail'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
+  const currentStep = ['choose', 'detail', 'activate'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
   const title = phase === 'choose' ? 'Find a strategy for your liquidity.'
     : phase === 'detail' ? selected[0]?.name ?? 'Strategy details.'
+      : phase === 'activate' ? 'Enable liquidity from your wallet.'
       : phase === 'limits' ? 'Set your capital boundaries.'
       : phase === 'review' ? 'Review your mandate.'
         : phase === 'submitting' ? reevaluating ? 'Re-evaluating execution.' : 'Creating your mandate.'
@@ -318,7 +320,16 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       </div>
     </>}
 
-    {phase === 'detail' && selected[0] && <StrategyDetail listing={{ ...selected[0], executionReady: isExecutable(selected[0]) }} availabilityKnown={executableCatalog !== null && !!account.address} actionLabel="Use this strategy" onUse={() => go('limits')} />}
+    {phase === 'detail' && selected[0] && <StrategyDetail listing={{ ...selected[0], executionReady: isExecutable(selected[0]) }} availabilityKnown={executableCatalog !== null && !!account.address}
+      canActivate={!!makerAddress && !!selected[0].releaseId} actionLabel="Use this strategy" onUse={() => go(isExecutable(selected[0]) ? 'limits' : 'activate')} />}
+
+    {phase === 'activate' && selected[0]?.releaseId && makerAddress && <MakerActivation key={`${makerAddress}:${selected[0].id}`} listing={selected[0]} maker={makerAddress} account={account}
+      onReady={async () => {
+        const catalog = await getExecutableStrategies();
+        if (!catalog.strategies.some(item => item.id === selected[0].id)) throw new Error('Activation is confirmed, but the strategy catalog is not ready. Retry without signing again.');
+        setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids: new Set(catalog.strategies.map(item => item.id)) });
+        go('limits');
+      }} />}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
@@ -356,12 +367,12 @@ function StrategySet({ selected }: { selected: Listing[] }) {
   return <div className={aqua.providerPair}>{selected.map(item => <div key={item.id}><span>{item.provider ?? 'Independent Provider'}</span><strong>{item.name}</strong><small>{item.template.label}</small></div>)}</div>;
 }
 
-function StrategyDetail({ listing, availabilityKnown, actionLabel, onUse }: { listing: Listing; availabilityKnown: boolean; actionLabel: string; onUse: () => void }) {
+function StrategyDetail({ listing, availabilityKnown, canActivate, actionLabel, onUse }: { listing: Listing; availabilityKnown: boolean; canActivate: boolean; actionLabel: string; onUse: () => void }) {
   return <div className={aqua.decisionGrid}>
     <div className={aqua.previewColumn}>
       <ListingCard listing={listing} />
-      <Primary disabled={!listing.executionReady} onClick={onUse}>{!availabilityKnown ? 'Checking availability' : listing.executionReady ? actionLabel : 'Not accepting liquidity'}</Primary>
-      {availabilityKnown && !listing.executionReady && <p className={aqua.muted}>This Provider is not currently accepting new liquidity for this strategy.</p>}
+      <Primary disabled={!listing.executionReady && !canActivate} onClick={onUse}>{!availabilityKnown ? 'Checking availability' : listing.executionReady ? actionLabel : canActivate ? 'Enable this strategy' : 'Not accepting liquidity'}</Primary>
+      {availabilityKnown && !listing.executionReady && <p className={aqua.muted}>{canActivate ? 'Choose your liquidity amounts and enable this published version with your Maker wallet.' : 'This strategy is not available for the connected wallet.'}</p>}
     </div>
     <aside className={aqua.explanation}>
       <span className={aqua.eyebrow}>Strategy specifications</span>
