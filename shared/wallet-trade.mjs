@@ -10,6 +10,23 @@ export function isInactiveStrategyError(error) {
   return false;
 }
 
+/** Keep wallet transport dumps out of product copy and never imply a safe retry after an ambiguous send. */
+export function walletErrorMessage(error) {
+  let rpcError = false, current = error;
+  for (let i = 0; current && i < 16; i++, current = current.cause) {
+    if (current.code === 4001 || current.name === 'UserRejectedRequestError') return 'Wallet request cancelled.';
+    const name = current.data?.errorName;
+    if (name === 'StrategyNotActive' || name === 'DirectionDisabled') return 'This strategy is not currently authorized to trade in this direction. Its Maker needs to review the execution conditions.';
+    if (name === 'AmountLimitExceeded' || name === 'InventoryLimitExceeded') return 'This trade exceeds the strategy’s current trade or inventory limits. Try a smaller amount.';
+    if (name === 'TakerTraitsDeadlineExpired') return 'The quote expired. Review a fresh quote before signing.';
+    if (current.name === 'WaitForTransactionReceiptTimeoutError') return 'Confirmation is taking longer than expected. Check the existing transaction receipt before sending another request.';
+    if (current.name === 'InsufficientFundsError') return 'Your wallet has insufficient funds. Check the payment token and Sepolia gas balances.';
+    rpcError ||= typeof current.shortMessage === 'string' || typeof current.code === 'number';
+  }
+  if (rpcError) return 'The wallet or RPC could not complete this request. Check wallet activity before retrying; a transaction may already have been submitted.';
+  return typeof error?.message === 'string' ? error.message.split('\n')[0].slice(0, 350) : 'Unable to complete this request.';
+}
+
 export const tradeAbi = parseAbi([
   'struct Order { address maker; uint256 traits; bytes data; }',
   'function quote(Order order, address tokenIn, address tokenOut, uint256 amount, bytes takerTraitsAndData) view returns (uint256 amountIn, uint256 amountOut, bytes32 orderHash)',
