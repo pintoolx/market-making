@@ -185,6 +185,7 @@ describe('onHttpTrigger', () => {
 		}))
 
 		expect(secretCalls).toEqual([['PROVIDER_STRATEGY', 'MAKER_LIMITS']])
+		expect(summary).toContain('requestId=mandate-01')
 		expect(summary).toContain('allowedDirections=3')
 		const report = logs.find((line) => line.includes('report={'))
 		expect(report).toContain('0x5555555555555555555555555555555555555555')

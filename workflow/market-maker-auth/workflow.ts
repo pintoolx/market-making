@@ -134,13 +134,14 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '<root>'}:${i.code}`).join(', ')
 		throw new Error(`HTTP trigger payload failed schema validation (${issues})`)
 	}
-	return executeAuthorization(runtime, {
+	const result = executeAuthorization(runtime, {
 		providerSecretId: runtime.config.providerSecretId,
 		makerSecretId: runtime.config.makerSecretId,
 		maker: parsed.data.maker,
 		strategyHash: parsed.data.strategyHash,
 		marketSnapshot: parsed.data.marketSnapshot,
 	})
+	return `requestId=${parsed.data.requestId} ${result}`
 }
 
 // ─── Workflow Init ──────────────────────────────────────────
