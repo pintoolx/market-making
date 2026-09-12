@@ -25,3 +25,5 @@ node src/server.mjs
 ```
 
 Set the frontend build variable to the public service URL, for example `NEXT_PUBLIC_MANDATE_API_URL=http://localhost:8787` during local integration. When Ethereum Sepolia is ready, change the chain, RPC and explorer environment variables together; the HTTP contract remains unchanged.
+
+The default evidence network is Ethereum Sepolia (11155111), with `sepolia.etherscan.io` transaction links. Set the chain ID, network name, RPC and explorer together when overriding the defaults. The gateway must use the same confirmed Sepolia deployment; changing these defaults does not deploy or configure the gateway.

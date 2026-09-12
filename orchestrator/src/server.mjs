@@ -10,10 +10,10 @@ export function configFromEnv(env = process.env) {
     allowedOrigin: env.ALLOWED_ORIGIN ?? 'http://localhost:3200',
     runner: env.MANDATE_RUNNER,
     runnerTimeoutMs: integer(env.MANDATE_RUNNER_TIMEOUT_MS, 120000),
-    chainId: integer(env.MANDATE_CHAIN_ID, 84532),
-    networkName: env.MANDATE_NETWORK_NAME ?? 'Base Sepolia',
-    rpcUrl: env.MANDATE_RPC_URL ?? 'https://sepolia.base.org',
-    explorerUrl: (env.MANDATE_EXPLORER_URL ?? 'https://sepolia.basescan.org').replace(/\/$/, ''),
+    chainId: integer(env.MANDATE_CHAIN_ID, 11155111),
+    networkName: env.MANDATE_NETWORK_NAME ?? 'Ethereum Sepolia',
+    rpcUrl: env.MANDATE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
+    explorerUrl: (env.MANDATE_EXPLORER_URL ?? 'https://sepolia.etherscan.io').replace(/\/$/, ''),
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
   };
   if (!Number.isSafeInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('invalid PORT');

@@ -1,5 +1,7 @@
 # PinTool Market Making
 
+Current demo asset setup: [Ethereum Sepolia WETH / Circle testnet USDC](contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md).
+
 Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
 
 The product lets a Maker discover a strategy, inspect its public execution envelope, apply private capital limits and monitor its authorization around one self-custodial balance. A Maker may later add more strategies to that mandate. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. The recorded ETHOnline scenario uses two strategies to make the authorization reversal easy to verify. Confidential execution and profit sharing are not implemented end to end yet.

@@ -1,3 +1,5 @@
+> Current demo network: **Ethereum Sepolia / WETH / Circle testnet USDC**. See [setup and migration](../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md). Set `guard` and `router` in `market-maker-auth` public config from the confirmed Sepolia bundle. Older Base references below describe historical validation.
+
 # Confidential workflow (Chainlink CRE, TEE)
 
 Owner: Henry (workflow). Counterpart: pengu (`contracts/`, the Aqua Guard).

@@ -23,15 +23,15 @@ The build writes `.cache/guard-report.wasm`. The SDK downloads a checksum-verifi
 
 The team currently has no CRE account / Confidential Workflows access. These are instructions for a future run, **not completed chain evidence**. Start with [account creation](https://docs.chain.link/cre/account/creating-account), install [CRE CLI](https://docs.chain.link/cre/getting-started/cli-installation/macos-linux) v1.33.0, log in with `cre login`, and confirm `cre whoami`. Real confidential execution separately needs [Confidential Workflows access](https://docs.chain.link/cre/account/confidential-workflows-access).
 
-1. Build the WASM before preparing the short-lived report. Generate a reviewable unsigned Guard creation:
+1. Build the WASM before preparing the short-lived report. The [Sepolia setup](../../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) writes `deployments/11155111.json` and already deploys a simulation AquaGuardV2. Use its `guard.address` in step 2. If preparing an additional receiver instead, generate a reviewable unsigned Guard V2 creation:
 
    ```bash
    bun run setup:guard deployment
    ```
 
-   `.cache/cre-simulation-guard-deployment.json` contains chain ID 84532, zero value, creation `data` and constructor arguments. It is not signed or broadcast. When ready, deploy this creation data with a Base Sepolia wallet, leaving the transaction recipient unset, and record the resulting Guard address and successful receipt. Check deployed code at the configured forwarder and router first. The constructor also rejects missing code. No token approvals, shipping or swaps are needed for this transport check.
+   `.cache/cre-simulation-guard-deployment.json` contains chain ID 11155111, zero value, creation `data` and constructor arguments. It is not signed or broadcast. When ready, deploy this creation data with an Ethereum Sepolia wallet, leaving the transaction recipient unset, and record the resulting Guard address and successful receipt. Check deployed code at the configured forwarder and router first. The constructor also rejects missing code. No token approvals, shipping or swaps are needed for this transport check.
 
-   The constructor binds the official CLI simulation forwarder, existing router, zero workflow ID / owner and `simulationMode=true`. The historical Guard `0x41fde9f1f257fc65a40eb519d22ca9bfb1d2dbeb` trusts our own harness and cannot be reused here.
+   Confirm the tenant-specific `cre workflow supported-chains` output after login. The constructor binds the directory-listed Ethereum Sepolia CLI simulation forwarder, existing router, zero workflow ID / owner and `simulationMode=true`. The historical Guard `0x41fde9f1f257fc65a40eb519d22ca9bfb1d2dbeb` trusts our own harness and cannot be reused here.
 
 2. After deployment, prepare a paused report using your **public** Maker address and an explicit unused nonce:
 
@@ -39,7 +39,7 @@ The team currently has no CRE account / Confidential Workflows access. These are
    bun run setup:guard config --guard NEW_GUARD_ADDRESS --maker PUBLIC_MAKER_ADDRESS --nonce 1
    ```
 
-   The tool makes read-only RPC calls, checks chain and Guard immutables, and refuses a used nonce. It writes `config.generated.json` without overwriting an existing file. The report uses a deliberately unshipped probe hash, disables both directions, sets all caps to zero, and expires 300 seconds after the latest block timestamp. The local clock must agree that the report is current. Save the printed ABI bytes and digest with the config; no key is used by this tool. `--rpc URL` selects another read endpoint.
+   The tool makes read-only RPC calls, checks chain and Guard immutables, and refuses a used nonce. It writes `config.generated.json` without overwriting an existing file. The report uses a deliberately unshipped probe hash, disables both directions, sets all caps to zero, and expires 300 seconds after the latest block timestamp. The local clock must agree that the report is current. Save the printed ABI bytes and digest with the config; no key is used by this tool. `--rpc URL` selects another read endpoint; `--deployment PATH` selects a confirmed Sepolia deployment bundle. Base bundles and other token pairs are rejected.
 
 3. CRE simulation broadcast needs a gas-paying testnet signer. Configure `CRE_ETH_PRIVATE_KEY` in an ignored local `.env`, as used in the [official Base Sepolia example](https://github.com/smartcontractkit/x402-cre-price-alerts); this is the CLI simulator's signer, not a key used by the production workflow. Keep credentials out of config and terminal output. From the repository's `workflow/` directory:
 
@@ -51,7 +51,7 @@ The team currently has no CRE account / Confidential Workflows access. These are
 
    Without `--broadcast`, the adapter cannot report confirmed success: it requires a real receiver receipt and matching chain state. Simulation targets use zero workflow identity. The `production-settings` YAML target does not grant deployment access or turn the public entry point into a confidential workflow.
 
-4. Retain the CLI result, transaction receipt, Guard `ReportAccepted` event and `getReport(maker, strategyHash)` digest matching the prepared bytes. Re-read them with an independent RPC. Only then label this milestone **CRE CLI simulated delivery confirmed on Base Sepolia**. It does not establish production DON / TEE execution or activation of a trading strategy.
+4. Retain the CLI result, transaction receipt, Guard `ReportAccepted` event and `getReport(maker, strategyHash)` digest matching the prepared bytes. Re-read them with an independent RPC. Only then label this milestone **CRE CLI simulated delivery confirmed on Ethereum Sepolia**. It does not establish production DON / TEE execution or activation of a trading strategy.
 
 ## Retry and integration rules
 

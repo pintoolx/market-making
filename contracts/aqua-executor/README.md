@@ -12,7 +12,9 @@ A strategy's parameters can arrive through the [TEE JSON request entry](docs/exe
 maker approve(Aqua) → Aqua.ship → taker router.swap → [Aqua.multicall(dock old, ship new)] → Aqua.dock → revoke
 ```
 
-**Base Sepolia demo completed:** 13 successful lifecycle transactions, including two swaps and atomic rebalance. See [deployment addresses and transaction evidence](docs/base-sepolia-demo.md), or forward the [TEE interface and actual strategy parameters](docs/tee-handoff.md) to the integration team.
+**Current route: Ethereum Sepolia WETH / Circle testnet USDC.** See [funding, deployment, small demos and verification](docs/ETHEREUM-SEPOLIA.md). Run `pnpm sepolia status` before deployment.
+
+**Historical Base Sepolia demo completed:** 13 successful lifecycle transactions, including two swaps and atomic rebalance. See [deployment addresses and transaction evidence](docs/base-sepolia-demo.md), or forward the [TEE interface and actual strategy parameters](docs/tee-handoff.md) to the integration team.
 
 | Step | Signer | Call | What moves |
 |---|---|---|---|

@@ -17,7 +17,7 @@ export function submitPublicReport(runtime: Runtime<unknown>, publicInput: unkno
   if (!transport.success) throw new Error('invalid Guard transport configuration')
   const { report, payload, digest } = encoded
   const expected = transport.data
-  if (report.chainId !== CHAIN_ID) throw new Error('delivery adapter supports Base Sepolia only')
+  if (report.chainId !== CHAIN_ID) throw new Error('delivery adapter supports Ethereum Sepolia only')
   requireCurrent(report, Math.floor(runtime.now().getTime() / 1000))
   const evm = new EVMClient(chainSelector)
   const read = (functionName: string, args: unknown[] = []) => {

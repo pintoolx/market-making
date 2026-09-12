@@ -44,7 +44,7 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 	// ⚠️ TODO(remove-before-deploy): simulation-only logging. The report is
 	// public by design, but production TEE handlers should not log at all.
 	runtime.log(
-		`[publish:${mode}] target=${GUARD_CONFIG.guard} selector=${GUARD_CONFIG.onReportSignature} ` +
+		`[publish:${mode}] target=${result.report.guard} selector=${GUARD_CONFIG.onReportSignature} ` +
 			`chainSelectorName=${GUARD_CONFIG.chainSelectorName}`,
 	)
 	runtime.log(`[publish:${mode}] report=${JSON.stringify(guardReportV1ToJson(result.report))}`)
@@ -56,15 +56,18 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 			return {}
 
 		case 'don-report': {
+			if (result.report.chainId !== GUARD_CONFIG.chainId || /^0x0{40}$/.test(result.report.guard) || /^0x0{40}$/.test(result.report.router)) {
+				throw new Error('Ethereum Sepolia report requires a configured Guard and router')
+			}
 			// ── Option B: cross back to the DON, let it sign, deliver via forwarder ──
 			// This is what the Guard (AquaGuard.sol) is written for: the Keystone
 			// forwarder calls `onReport(metadata, report)` and the Guard checks
 			// `msg.sender == forwarder` (+ workflow identity in production mode).
 			//
 			// TODO(pengu): confirm before enabling —
-			//   1. GUARD_CONFIG.guard is a Guard deployed with
+			//   1. result.report.guard is a Guard deployed with
 			//      forwarder = GUARD_CONFIG.creMockForwarder (for `simulate --broadcast`)
-			//      or the production KeystoneForwarder on Base Sepolia.
+			//      or the production KeystoneForwarder on Ethereum Sepolia.
 			//   2. In production-identity mode the Guard's immutable workflowId/owner
 			//      must equal this workflow's registered identity.
 			//   3. GUARD_CONFIG.writeReportGasLimit covers onReport's storage writes.
@@ -88,7 +91,7 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 
 			const write = new EVMClient(network.chainSelector.selector)
 				.writeReport(donRuntime, {
-					receiver: GUARD_CONFIG.guard,
+					receiver: result.report.guard,
 					report: signed,
 					gasConfig: { gasLimit: GUARD_CONFIG.writeReportGasLimit },
 				})
