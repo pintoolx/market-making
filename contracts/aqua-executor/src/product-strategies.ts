@@ -72,7 +72,7 @@ export function buildProductStrategies(deployment: Deployment, maker: Hex): Prod
     const request: ProductStrategy['request'] = {
       schema: 'aqua-execution-v1', requestId: `ship-${MAKER_STRATEGY_RELEASE}-${index + 1}`,
       sessionId: `${MAKER_STRATEGY_RELEASE}-${index + 1}`, action: 'ship', strategy,
-      policy: { tokens: typedTokens, baselineAmounts: amounts, maxDrawdownBps: 500, maxPriceAgeSec: 86520 },
+      policy: { tokens: typedTokens, baselineAmounts: amounts, maxDrawdownBps: 500, maxPriceAgeSec: 86400 },
     }
     return { listingId: recipe.listingId, name: recipe.name, provider: 'PinTool Strategies', range: recipe.range,
       request, strategyHash: compiled.strategyHash, strategy: compiled.strategy }

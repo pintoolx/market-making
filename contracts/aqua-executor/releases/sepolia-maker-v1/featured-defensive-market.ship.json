@@ -49,6 +49,6 @@
       "10000000"
     ],
     "maxDrawdownBps": 500,
-    "maxPriceAgeSec": 86520
+    "maxPriceAgeSec": 86400
   }
 }
