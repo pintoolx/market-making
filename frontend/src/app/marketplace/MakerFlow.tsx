@@ -6,7 +6,8 @@ import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
-import { addMandateStrategy, createMandate, getExecutableStrategies, getMandate, type MandateState } from './mandateClient';
+import { addMandateStrategy, createMandate, getExecutableStrategies, getMandate, request, type MandateState } from './mandateClient';
+import type { PublicRelease } from './ClmmPublisher';
 import { sealForConfidentialWorkflow } from './confidentialEnvelope';
 import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
@@ -126,10 +127,22 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('strategy');
     if (!id) return;
+    let current = true;
     openingLinkedStrategy.current = true;
     const listing = [...readPublished(), ...FEATURED].find(item => item.id === id);
     if (listing) { setSelected([listing]); setPhase('detail'); }
+    else {
+      const version = id.match(/^([0-9a-f]{40}-clmm)\.v([1-9][0-9]{0,6})$/);
+      if (version) void request<PublicRelease>(`/v1/provider-strategies/${version[1]}/versions/${version[2]}`).then(release => {
+        if (!current) return;
+        if (release.id !== version[1] || release.version !== Number(version[2])) throw new Error('Publication version mismatch.');
+        setSelected([{ id, releaseId: release.id, version: release.version, name: release.name, summary: release.summary,
+          template: AQUA_TEMPLATES[1], provider: release.provider, feePct: 0, mine: false }]);
+        setPhase('detail');
+      }).catch(() => { if (current) setError('This publication version could not be loaded.'); });
+    }
     window.history.replaceState(null, '', '/maker');
+    return () => { current = false; };
   }, []);
   useEffect(() => {
     if (!makerAddress || restoredMaker.current === makerAddress.toLowerCase()

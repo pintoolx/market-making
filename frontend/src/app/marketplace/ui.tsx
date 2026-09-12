@@ -27,12 +27,13 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
     <div className={`${styles.cardBody} ${action ? '' : aqua.cardBodyEnd}`}>
       <div className={styles.tagRow}>
         <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.label}</span>
+        {listing.version && <span className={`${styles.tag} ${aqua.chip}`}>Version {listing.version}</span>}
         {listing.mine && <span className={`${styles.tag} ${aqua.chip} ${aqua.mineTag}`}>Your strategy</span>}
         {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Accepting liquidity</span>}
       </div>
       <h3 className={styles.cardTitle}>{listing.name}</h3>
       {listing.provider && <p className={aqua.byline}><Avatar name={listing.provider} src={listing.providerAvatar} size={28} brand={listing.provider === 'PinTool Strategies'} />by <span>{listing.provider}</span></p>}
-      {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Fee: ${listing.feePct}% of profit`}</p>}
+      {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Proposed profit share: ${listing.feePct}% · collection not enabled`}</p>}
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
     </div>
     {action && <div className={`${styles.cardActions} ${aqua.cardActions}`}>{action}</div>}
