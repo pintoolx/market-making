@@ -60,7 +60,7 @@ export function validateState(value, expected) {
   const evidence = object(state.evidence, 'Evidence');
   if (evidence.chainId !== expected.chainId || evidence.networkName !== expected.networkName || !HEX32.test(evidence.reportDigest)
     || !HEX32.test(evidence.reportTransactionHash) || !/^[1-9][0-9]*$/.test(evidence.sequence)
-    || Number.isNaN(Date.parse(evidence.expiresAt))) throw new Error('runner returned invalid or wrong-network evidence');
+    || (evidence.expiresAt !== null && (typeof evidence.expiresAt !== 'string' || Number.isNaN(Date.parse(evidence.expiresAt))))) throw new Error('runner returned invalid or wrong-network evidence');
   const canonicalExplorer = `${expected.explorerUrl}/tx/${evidence.reportTransactionHash}`;
   if (evidence.reportExplorerUrl !== canonicalExplorer) throw new Error('runner returned a non-canonical report explorer URL');
   if (!Array.isArray(state.events)) throw new Error('runner returned invalid events');

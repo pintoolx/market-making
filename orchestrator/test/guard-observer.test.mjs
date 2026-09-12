@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { encodeAbiParameters, encodeFunctionResult, keccak256, parseAbi, toBytes } from 'viem';
-import { currentBlock, findAcceptedReport, readGuardReport, waitForAcceptedReport } from '../src/guard-observer.mjs';
+import { currentBlock, findAcceptedReport, readGuardReport, waitForAcceptedReport, latestAcceptedReport } from '../src/guard-observer.mjs';
 
 const maker = '0x1111111111111111111111111111111111111111';
 const guard = '0x2222222222222222222222222222222222222222';
@@ -68,4 +68,21 @@ test('a later report cannot be attached to an earlier transaction', async () => 
   const encoded = encodeFunctionResult({ abi, functionName: 'getReport', result: [[...report.slice(0, 8), 10n, ...report.slice(9)], digest] });
   const fetchImpl = async (_url, init) => response(JSON.parse(init.body).method === 'eth_getLogs' ? [acceptedLog] : encoded);
   await assert.rejects(waitForAcceptedReport({ rpcUrl: 'https://rpc.example', guard, maker, strategyHash, fromBlock: 42n }, { fetchImpl, timeoutMs: 1000 }), /does not match/);
+});
+
+
+test('standing evidence recovers one exact historical block and verifies its current digest', async () => {
+  const encoded = encodeFunctionResult({ abi, functionName: 'getReport', result: [report, digest] });
+  let calls = 0;
+  const fetchImpl = async (_url, init) => {
+    const { method, params } = JSON.parse(init.body);
+    if (method === 'eth_getLogs') {
+      assert.equal(params[0].fromBlock, '0x2b'); assert.equal(params[0].toBlock, '0x2b');
+      return response([acceptedLog]);
+    }
+    return response(++calls % 2 === 1 ? encodeAbiParameters([{ type: 'uint256' }], [43n]) : encoded);
+  };
+  const config = { rpcUrl: 'https://rpc.example', guard, maker, strategyHash };
+  assert.equal((await latestAcceptedReport(config, { fetchImpl, expectedDigest: digest })).transactionHash, txHash);
+  await assert.rejects(latestAcceptedReport(config, { fetchImpl, expectedDigest: strategyHash }), /differs from CRE/);
 });

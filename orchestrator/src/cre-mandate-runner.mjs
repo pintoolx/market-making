@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { currentBlock, waitForAcceptedReport } from './guard-observer.mjs';
+import { currentBlock, waitForAcceptedReport, latestAcceptedReport } from './guard-observer.mjs';
 import { triggerCREWorkflow } from './cre-gateway.mjs';
 import { createProviderRegistry } from './provider-registry.mjs';
 
@@ -91,26 +91,26 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     ...providerInput,
   }, { fetchImpl: dependencies.fetchImpl });
 
-  const observe = dependencies.observe ?? waitForAcceptedReport;
+  const observe = dependencies.observe ?? (accepted.unchanged ? latestAcceptedReport : waitForAcceptedReport);
   const evidence = await observe({
     rpcUrl: config.rpcUrl,
     guard: config.guard,
     maker,
     strategyHash: listing.strategyHash,
     fromBlock,
-  }, { fetchImpl: dependencies.fetchImpl, timeoutMs: config.timeoutMs });
+  }, { fetchImpl: dependencies.fetchImpl, timeoutMs: config.timeoutMs, expectedDigest: accepted.reportDigest });
   const active = evidence.report.allowedDirections > 0;
   const transactionUrl = `${config.explorerUrl}/tx/${evidence.transactionHash}`;
   const events = [{
-    id: `${evidence.transactionHash}-report`,
-    type: 'report-accepted',
-    title: 'Guard authorization confirmed',
-    detail: `CRE execution ${accepted.workflowExecutionId} delivered mandate sequence ${evidence.report.nonce}.`,
+    id: accepted.unchanged ? `${accepted.workflowExecutionId}-unchanged` : `${evidence.transactionHash}-report`,
+    type: accepted.unchanged ? 'authorization-unchanged' : 'report-accepted',
+    title: accepted.unchanged ? 'Execution conditions unchanged' : 'Guard authorization confirmed',
+    detail: accepted.unchanged ? 'The confidential evaluation confirmed the existing authorization. No new transaction was submitted.' : `CRE execution ${accepted.workflowExecutionId} delivered mandate sequence ${evidence.report.nonce}.`,
     occurredAt: new Date().toISOString(),
     transactionHash: evidence.transactionHash,
     explorerUrl: transactionUrl,
   }];
-  if (active) events.push({
+  if (active && !accepted.unchanged) events.push({
     id: `${evidence.transactionHash}-active`,
     type: 'strategy-activated',
     title: `${listing.name} authorized`,
@@ -143,9 +143,9 @@ export async function runDirectMandate(request, config, dependencies = {}) {
       reportTransactionHash: evidence.transactionHash,
       reportExplorerUrl: transactionUrl,
       sequence: evidence.report.nonce.toString(),
-      expiresAt: iso(evidence.report.validUntil),
+      expiresAt: Number(evidence.report.schemaVersion) === 2 && Number(evidence.report.validUntil) === 0 ? null : iso(evidence.report.validUntil),
     },
-    events: [...events, ...(current?.events ?? [])],
+    events: [...events, ...(current?.events ?? []).filter(event => !events.some(next => next.id === event.id))],
   };
 }
 

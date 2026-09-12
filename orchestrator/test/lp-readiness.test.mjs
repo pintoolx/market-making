@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { assessReadiness, readLpReadiness } from '../src/lp-readiness.mjs';
 
 const hash = `0x${'1'.repeat(64)}`;
-const base = () => ({ report: { nonce: 1n, allowedDirections: 3, validAfter: 99, validUntil: 200 }, activeHash: hash, strategyHash: hash,
+const base = () => ({ report: { schemaVersion: 1, nonce: 1n, allowedDirections: 3, validAfter: 99, validUntil: 200 }, activeHash: hash, strategyHash: hash,
   raw: [[10n, 2], [20n, 2]], wallets: [10n, 20n], allowances: [10n, 20n], now: 100, programDeadline: 300 });
 test('only ship, current authorization, available funding and unexpired program together permit quoting', () => {
   assert.equal(assessReadiness(base()).phase, 'ready-for-quote');
@@ -36,4 +36,15 @@ test('RPC reads share one block and reject wrong-domain or stale data', async ()
   await assert.rejects(readLpReadiness(config, maker, { listingId: 's', strategyHash: hash }, { client, nowMs: () => 200000 }), /stale/);
   report.router = maker;
   await assert.rejects(readLpReadiness(config, maker, { listingId: 's', strategyHash: hash }, { client, nowMs: () => 100000 }), /domain/);
+});
+
+
+test('standing reports stay authorized while freshness and program checks remain bounded', () => {
+  const base = { report: { schemaVersion: 2, nonce: 1n, allowedDirections: 3, validAfter: 100, validUntil: 0 },
+    activeHash: '0x123', strategyHash: '0x123', now: 10000, programDeadline: 20000,
+    raw: [[10n, 2], [10n, 2]], wallets: [10n, 10n], allowances: [10n, 10n] };
+  assert.equal(assessReadiness(base).authorized, true);
+  assert.equal(assessReadiness({ ...base, activeHash: '0x456' }).authorized, false);
+  assert.equal(assessReadiness({ ...base, report: { ...base.report, schemaVersion: 1 } }).authorized, false);
+  assert.equal(assessReadiness({ ...base, report: { ...base.report, schemaVersion: 3 } }).authorized, false);
 });
