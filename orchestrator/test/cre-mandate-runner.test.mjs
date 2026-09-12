@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { policyDigest, runDirectMandate } from '../src/cre-mandate-runner.mjs';
 
@@ -103,4 +106,27 @@ test('a paused candidate does not replace the currently active strategy in publi
     ['featured-tight-market', 'active'],
     ['featured-defensive-market', 'paused'],
   ]);
+});
+
+test('each execution rereads the configured public market observation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pintool-market-'));
+  const marketSnapshotFile = join(directory, 'current.json');
+  const snapshots = [];
+  const local = { ...config, marketSnapshotFile };
+  const run = volatilityBps => {
+    const transactionHash = `0x${String(volatilityBps).padStart(64, '0')}`;
+    return runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], policy } }, local, {
+      currentBlock: async () => 1n,
+      trigger: async (_config, input) => { snapshots.push(input.marketSnapshot); return { workflowExecutionId: 'local' }; },
+      observe: async () => ({ transactionHash, digest, report: { maker, strategyHash, nonce: 1n,
+        validUntil: 1_900_000_000, allowedDirections: 3, maxAmount1PerSwap: 1n } }),
+    });
+  };
+  await writeFile(marketSnapshotFile, JSON.stringify({ ...config.marketSnapshot, volatilityBps: 120 }));
+  const normal = await run(120);
+  await writeFile(marketSnapshotFile, JSON.stringify({ ...config.marketSnapshot, volatilityBps: 650 }));
+  const volatile = await run(650);
+  assert.equal(normal.regime, 'normal');
+  assert.equal(volatile.regime, 'high-volatility');
+  assert.deepEqual(snapshots.map(item => item.volatilityBps), [120, 650]);
 });

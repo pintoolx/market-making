@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { currentBlock, waitForAcceptedReport } from './guard-observer.mjs';
 import { stableStringify, triggerCREWorkflow } from './cre-gateway.mjs';
@@ -38,6 +39,7 @@ export function mandateRunnerConfig(env = process.env) {
     guard,
     catalog,
     marketSnapshot,
+    marketSnapshotFile: env.MANDATE_MARKET_SNAPSHOT_FILE?.trim() || null,
     expectedPolicyDigest,
     timeoutMs: Number(env.MANDATE_RUNNER_TIMEOUT_MS ?? 120_000),
   };
@@ -76,6 +78,9 @@ export async function runDirectMandate(request, config, dependencies = {}) {
 
   const maker = creating ? input.maker : current.maker;
   const mandateId = creating ? `mandate-${randomUUID()}` : request.mandateId;
+  const marketSnapshot = config.marketSnapshotFile
+    ? JSON.parse(await readFile(config.marketSnapshotFile, 'utf8'))
+    : config.marketSnapshot;
   const fromBlock = await (dependencies.currentBlock ?? currentBlock)(config.rpcUrl, dependencies.fetchImpl);
   const trigger = dependencies.trigger ?? triggerCREWorkflow;
   const accepted = await trigger(dependencies.triggerConfig ?? {
@@ -86,7 +91,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     requestId: mandateId,
     maker,
     strategyHash: listing.strategyHash,
-    marketSnapshot: config.marketSnapshot,
+    marketSnapshot,
   }, { fetchImpl: dependencies.fetchImpl });
 
   const observe = dependencies.observe ?? waitForAcceptedReport;
@@ -132,7 +137,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   return {
     mandateId,
     maker,
-    regime: Number(config.marketSnapshot.volatilityBps) >= 1000 ? 'high-volatility' : 'normal',
+    regime: Number(marketSnapshot.volatilityBps) >= 301 ? 'high-volatility' : 'normal',
     strategies,
     evidence: {
       chainId: config.chainId,
