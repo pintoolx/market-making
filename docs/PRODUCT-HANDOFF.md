@@ -26,9 +26,9 @@ Strategy Provider 提供私密做市邏輯，Maker 提供私密資金與風險�
 
 ## 第一個策略 fixture
 
-Defensive Strategy B 採 **Confidential Toxic-Flow Shield**，以 adverse-flow 風險作為可理解的 high-vol regime。Provider 私下定義風險判斷；Maker 私下定義 inventory、單筆成交、資金與報告時效上限。TEE 只輸出可逐筆執行的方向、額度與 active strategy hash，PinTool Guard 經由 SwapVM Extruction 在每筆 Aqua swap 強制執行。
+兩套錄影策略固定為 WETH／USDC concentrated programs。Tight Market 在低波動狀態使用較窄 range；Defensive Market 在高波動狀態使用較寬 range、較低 per-fill 與 inventory caps。Provider 私下定義 regime 判斷與 range policy；Maker 私下定義 inventory、單筆成交、資金與報告時效上限。TEE 只輸出可逐筆執行的 active strategy hash、方向、額度與期限，PinTool Guard 經由 SwapVM Extruction 在每筆 Aqua swap 強制執行。
 
-錄影只做兩套固定執行 envelope：正常狀態允許 Strategy A、阻擋 B；高波動狀態阻擋 A、允許 Defensive Strategy B。兩套策略使用同一個 Maker wallet。舊 Toxic-Flow Shield 只作為 B 的研究來源，不再使用 USDC／USDT 單策略流程。
+錄影只做兩套固定 execution envelope：正常狀態允許 Strategy A、阻擋 B；高波動狀態阻擋 A、允許 Defensive Strategy B。兩套策略使用相同 compiler、AquaGuardV2、零 LP fee 與同一個 Maker wallet。舊 Toxic-Flow Shield 只作為 B 的風險判斷研究來源，不再是 execution mechanism。
 
 MVP 不宣稱這套規則有超額收益或能預測脫鉤；它證明雙方秘密可以被合成為自託管且可驗證的執行邊界。任何測試價格、額度、門檻都必須說明資料來源，不能把 synthetic fixture 說成 live market data。
 

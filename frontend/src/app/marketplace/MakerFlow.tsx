@@ -18,8 +18,8 @@ const FEATURED: Listing[] = [
   {
     id: 'featured-tight-market',
     name: 'Tight Market',
-    summary: 'Quotes WETH / USDC with a tighter spread when market conditions support active liquidity.',
-    template: AQUA_TEMPLATES[0],
+    summary: 'Concentrates WETH / USDC liquidity in a narrower range when price movement is contained.',
+    template: AQUA_TEMPLATES[1],
     mine: false,
     provider: 'PinTool Strategies',
     providerAvatar: '/pintoolAvatar.svg',
@@ -27,8 +27,8 @@ const FEATURED: Listing[] = [
   {
     id: 'featured-defensive-market',
     name: 'Defensive Market',
-    summary: 'Widens execution bounds and reduces WETH exposure as market risk increases.',
-    template: AQUA_TEMPLATES[0],
+    summary: 'Uses a wider WETH / USDC range with lower fill and inventory caps when market risk increases.',
+    template: AQUA_TEMPLATES[1],
     mine: false,
     provider: 'PinTool Strategies',
     providerAvatar: '/pintoolAvatar.svg',
