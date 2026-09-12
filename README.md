@@ -27,6 +27,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 | Part | Folder | Status |
 |---|---|---|
 | Web app: role choice, structured Provider Studio, strategy discovery and detail, Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
+| Mandate orchestration and evidence gate | `orchestrator/` | HTTP API implemented; waits for a confidential runner and verifies every claimed Base Sepolia receipt before returning public state |
 | CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
 | LP templates and automatic controller | `contracts/aqua-executor/` | XYC, PeggedSwap, concentrated LP; bounded range/fee rollover and guarded JSON recovery tested locally |
@@ -37,7 +38,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 ```bash
 pnpm install
 cp frontend/.env.example frontend/.env.local   # set Privy and mandate service values
-pnpm dev                                        # http://localhost:3000
+pnpm dev                                        # http://localhost:3200
 ```
 
 Uses pnpm with a hoisted `node_modules` (see `.npmrc`). `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
@@ -45,6 +46,8 @@ Uses pnpm with a hoisted `node_modules` (see `.npmrc`). `@solana-program/token` 
 The executor requires **Node 24 or newer** for its SQLite journal. With Node 24 and Anvil installed, run `pnpm typecheck:contracts` and `pnpm test:contracts` (`ANVIL=/path/to/anvil` if needed). The web app's scripts and Node 22 Pages deployment remain separate. See [executor setup and migration](docs/AQUA-EXECUTOR-MIGRATION.md).
 
 The CRE adapter uses a separate Bun package. Run `bun install --frozen-lockfile`, `bun test` and `bun run build` in `workflow/guard-report/`; see the [delivery runbook](workflow/guard-report/README.md).
+
+The mandate service currently targets the existing Base Sepolia contracts. Configure its runner, RPC and allowed frontend origin from `orchestrator/.env.example`, then run `pnpm start:orchestrator`. The runner receives private input only through stdin and must return confirmed public evidence; see the [runner protocol](orchestrator/README.md). The service rejects missing, failed, wrong-chain or wrong-strategy evidence.
 
 ## Deploy (Cloudflare Pages)
 
