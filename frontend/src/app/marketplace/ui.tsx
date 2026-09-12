@@ -6,7 +6,7 @@ import aqua from './aqua.module.css';
 
 // Layout pieces shared by AquaApp (/, /studio, /maker) and /profile.
 export function Steps({ steps, current }: { steps: string[]; current: number }) {
-  return <ol className={aqua.steps} aria-label="Progress">
+  return <ol className={aqua.steps} aria-label="Progress" style={{ '--step-count': steps.length } as React.CSSProperties}>
     {steps.map((label, index) => <li key={label} aria-current={index === current ? 'step' : undefined} data-done={index < current || undefined}>
       <span>{index + 1}</span>{label}
     </li>)}

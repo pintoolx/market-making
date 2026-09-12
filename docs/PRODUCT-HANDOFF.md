@@ -18,20 +18,26 @@ Strategy Provider 提供私密做市邏輯，Maker 提供私密資金與風險�
 
 成功標準：同一份 Provider 策略，在不同 Maker policy 下產生不同額度，或明確拒絕；通過的方案有真實 Aqua swap，拒絕的方案沒有新策略啟用。
 
-## 第一個模板提案
+## ETHOnline 主線
 
-先採 WETH／USDC 單一價格區間 CLMM。Provider 根據市場快照選取候選區間與費率，Maker 限制投入額度與允許的參數範圍。
+2026-09-12 的題目盡職調查找到數個高度重疊的既有作品：Aqua Prime 已做同一本 inventory 上的 strategy race，Sluice 已做 TEE 內生成 Aqua strategy，Doca 已做 shared-balance inventory guard。因此單一動態 MM 或 Toxic-Flow Shield 不足以當整個作品的創新。
 
-理由：1inch 官方提供 AquaAMM 與 MockTaker 範例，適合先驗證策略生成到成交的流程。先前討論的 signal-driven 短效雙邊報價是備選，並非已定案；先不讓執行端同時實作兩種模板。
+目前主線改為 **Confidential Strategy Mandate**：Provider 的私密決策政策與 Maker 的私密資金限制在 Chainlink TEE 內取交集，只輸出一張短效、可撤銷、可逐筆 enforce 的 Aqua strategy mandate。完整結論、競品與 go／no-go 見 [TOPIC-DILIGENCE.md](TOPIC-DILIGENCE.md)。
 
-MVP 不聲稱這套規則有超額收益；模板只證明雙方條件能被合成及執行。任何測試價格、額度、門檻都必須標示 synthetic fixture，與 live market data 分開。
+## 第一個策略 fixture
+
+Defensive Strategy B 採 **Confidential Toxic-Flow Shield**，以 adverse-flow 風險作為可理解的 high-vol regime。Provider 私下定義風險判斷；Maker 私下定義 inventory、單筆成交、資金與報告時效上限。TEE 只輸出可逐筆執行的方向、額度與 active strategy hash，PinTool Guard 經由 SwapVM Extruction 在每筆 Aqua swap 強制執行。
+
+錄影只做兩套固定執行 envelope：正常狀態允許 Strategy A、阻擋 B；高波動狀態阻擋 A、允許 Defensive Strategy B。兩套策略使用同一個 Maker wallet。Toxic-Flow Shield 的方向測試仍以 [WINNING-FLOW.md](WINNING-FLOW.md) 為 fixture 參考。
+
+MVP 不宣稱這套規則有超額收益或能預測脫鉤；它證明雙方秘密可以被合成為自託管且可驗證的執行邊界。任何測試價格、額度、門檻都必須說明資料來源，不能把 synthetic fixture 說成 live market data。
 
 ## 雙方輸入與公開邊界
 
 | 來源 | 私密輸入 | 對外顯示 |
 |---|---|---|
-| Provider | signal 判斷、候選區間、費率、可接受調整範圍、最低部署規模 | 作者、模板用途、策略版本與 commitment |
-| Maker | token 使用上限、允許交易對、最低費率、允許區間寬度、資料時效要求 | 本人可看完整 policy；其他人只看必要 commitment |
+| Provider | 脫鉤訊號、判斷門檻、方向切換與恢復規則 | 作者、模板用途、策略版本與 commitment |
+| Maker | 資金上限、USDT inventory、單筆成交與資料時效限制 | 本人可看完整 policy；其他人只看必要 commitment |
 | 市場來源 | 本身通常公開；包含來源、時間、價格及單位 | 資料來源與時間戳 |
 | TEE 輸出 | 細部拒絕理由僅授權 Maker 可看 | 啟用所需參數、交易結果、版本與 report 關聯 |
 
@@ -40,11 +46,12 @@ MVP 不聲稱這套規則有超額收益；模板只證明雙方條件能被合�
 ## 合成規則
 
 1. 驗證雙方版本、token pair、金額格式、市場快照時效與價格單位。
-2. Provider evaluator 產生一個候選方案；Agent 若有參與，只可提議結構化候選方案。
-3. Validator 檢查費率、區間與額度。只有 Provider 明確允許縮放時才能縮小配置；不能擅改策略假設。
-4. 超過 Maker 額度則按比例縮放兩種 token，維持候選配置比例；若低於 Provider 最低部署規模則拒絕。
-5. 兩種 token 與區間對應的初始價格必須一致。不能任意塞金額後假設 AMM 仍以外部市場價格報價。
-6. 通過後生成綁定 Maker、版本、市場快照、期限及 deployment 的執行方案；拒絕結果不得帶可啟用 payload。
+2. Provider evaluator 依私密邏輯產生結構化風險候選；Agent 若有參與，不可直接控制資金。
+3. 確定性 Validator 檢查候選結果、Maker 硬上限、方向語意、版本與時效。
+4. TEE 只能縮小額度或關閉方向，不能放寬 Maker 隨策略上架的硬限制。
+5. 方向一律使用 Maker 視角：`Maker receives USDT` 會增加 USDT inventory；`Maker pays USDT` 會減少 USDT inventory。
+6. 通過後生成綁定 Maker、strategy hash、sequence、市場快照與期限的 Guard report；拒絕結果不得帶可執行 payload。
+7. Quote 與 swap 都要帶同一個 `expectedSequence`；report 在兩者之間更新時，swap 應以 stale mandate 明確 revert。
 
 報價價差、oracle 偏離、庫存與損失限制不能混為一談。快照檢查僅證明產生方案當下符合條件；如要保證每筆成交的價格／庫存限制，需執行端逐筆 enforce。最大損失先列為研究欄位，不列入已保證的 MVP 條件。
 
@@ -56,10 +63,10 @@ MVP 不聲稱這套規則有超額收益；模板只證明雙方條件能被合�
 
 結果分兩種：
 
-- `APPROVE`：包含 `templateId`、`baseToken`、`quoteToken`、`priceLower`、`priceUpper`、`feeBps`、`baseAmountAtomic`、`quoteAmountAtomic`。
-- `REJECT`：包含對外安全的 `reasonCode`；詳細 policy 門檻不進公開 logs。沒有 execution payload。
+- `APPROVE`：包含兩個 Maker 方向的允許狀態、單筆上限、剩餘 inventory capacity、sequence、期限與 decision digest。
+- `REJECT`：包含對外安全的 `reasonCode`；詳細 policy 門檻不進公開 logs。沒有 Guard update payload。
 
-單位約定：價格一律 quote/base，即 USDC per WETH，以十進位字串傳送；金額為 token 最小單位的整數字串；`feeBps` 中 10000 表示 100%；時間為 Unix seconds。這些是我們的介面單位，不可直接當成 SDK 單位。
+完整 v1 欄位以 [WINNING-FLOW.md](WINNING-FLOW.md) 為準。所有整數以十進位字串傳送，金額使用 token 最小單位，時間為 Unix seconds；不可用 JS `number` 承載 atomic amount。
 
 pengu 的 adapter 負責 token 地址排序、decimals、價格倒數與 sqrtPrice scaling，以及 fee 單位轉換。必須固定 SDK／合約版本，確認實際部署支援哪些 instructions。
 
@@ -78,7 +85,7 @@ pengu 的 adapter 負責 token 地址排序、decimals、價格倒數與 sqrtPri
 1. Provider：選模板、填私密規則、提交；看到版本與已接收狀態。
 2. Maker：選 Provider、填額度與限制；只看自己的 policy。
 3. 評估：顯示資料時間、處理狀態；不顯示另一方原始條件。
-4. 核准：顯示自己將採用的區間、fee、金額與期限，確認並啟用。
+4. 核准：顯示兩個 Maker 方向、單筆上限、剩餘 inventory capacity 與期限，確認並啟用。
 5. 拒絕：顯示「目前條件無法形成可執行策略」，Maker 可查看授權的詳細原因。
 6. 成交：顯示 token 餘額變化、策略識別與 swap 交易；測試 taker 明確標示為測試。
 
@@ -102,7 +109,7 @@ Provider 的 Condition／Action 留在策略邏輯；Maker 的部位與資金分
 - ㄍㄨㄢ材：實際機密輸入路徑、TEE evaluator／validator、秘密與 logs 邊界、可驗證輸出。先接共同介面，確認 Agent 是否真的能在預定環境中執行。
 - pengu：固定參數的 Aqua 成交、compile adapter、Maker 授權與策略啟停、部署版本及 token 單位。先回報可支援的 template 欄位及官方 deployment。
 
-整合前要釘住：模板是否採單區間 CLMM、chain／官方合約版本、TEE 能力與 report 驗證途徑、Maker 親簽或授權 executor。第三 sponsor 暫不增加工程依賴。
+整合前要釘住：Maker／Taker 方向對應、chain／官方合約版本、TEE report 編碼與驗證途徑、Maker 親簽或授權 executor。第三 sponsor 暫不增加工程依賴。
 
 ## 技術依據
 

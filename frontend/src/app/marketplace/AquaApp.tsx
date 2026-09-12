@@ -31,7 +31,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
       <div className={aqua.homeIntro}>
         <span className={aqua.eyebrow}>Private strategies · self-custodial liquidity</span>
         <h1>Two sides.<span>One maker strategy.</span></h1>
-        <p>Makers earn by running a proven market-making strategy with their own funds. Providers earn a share of the profit their strategy creates. Neither side has to reveal its inputs.</p>
+        <p>Makers run a Provider&apos;s market-making strategy with their own funds and private limits. Providers keep their decision logic confidential. Neither side has to reveal its inputs.</p>
       </div>
       <div className={aqua.roleChoices}>
         <article className={`${styles.card} ${aqua.roleCard}`}>

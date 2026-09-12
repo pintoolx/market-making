@@ -9,3 +9,9 @@
 .social { display: inline-flex; }
 .social svg { width: 16px; height: 16px; fill: currentColor; }
 @media (max-width: 900px) { .footer { padding-inline: 16px; } .footer::before { left: 16px; right: 16px; } }
+@media (max-width: 560px) {
+  .footer { align-items: flex-start; flex-direction: column; gap: 12px; padding-block: 20px; }
+  .links { width: 100%; justify-content: space-between; gap: 8px 12px; }
+  .links { order: 1; }
+  .copyright { order: 2; }
+}

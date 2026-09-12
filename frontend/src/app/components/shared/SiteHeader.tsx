@@ -14,8 +14,8 @@ export default function SiteHeader({ role = null, showRoles = true, onReselect }
       </Link>
       <div className={styles.actions}>
         {showRoles && <nav className={styles.roleTabs} aria-label="Role">
-          <Link href="/studio" aria-current={role === 'provider' ? 'page' : undefined} onClick={() => role === 'provider' && onReselect?.()}>Provide strategy</Link>
-          <Link href="/maker" aria-current={role === 'maker' ? 'page' : undefined} onClick={() => role === 'maker' && onReselect?.()}>Provide liquidity</Link>
+          <Link href="/studio" aria-current={role === 'provider' ? 'page' : undefined} onClick={() => role === 'provider' && onReselect?.()}>Strategy</Link>
+          <Link href="/maker" aria-current={role === 'maker' ? 'page' : undefined} onClick={() => role === 'maker' && onReselect?.()}>Liquidity</Link>
         </nav>}
         <PrivyAccountButton />
       </div>
