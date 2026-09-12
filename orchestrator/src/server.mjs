@@ -46,6 +46,10 @@ export function makeServer(config, dependencies) {
     }
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (request.method === 'GET' && url.pathname === '/health') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify({ status: 'ok', chainId: config.chainId, network: config.networkName }));
+      }
       let result;
       if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));
       else {

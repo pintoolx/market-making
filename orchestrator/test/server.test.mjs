@@ -20,6 +20,9 @@ test('HTTP API serves the frontend contract and rejects other origins', async t 
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
+  const health = await fetch(`${base}/health`);
+  assert.equal(health.status, 200);
+  assert.deepEqual(await health.json(), { status: 'ok', chainId: 84532, network: 'Base Sepolia' });
   const created = await fetch(`${base}/v1/mandates`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3200' }, body: JSON.stringify(input) });
   assert.equal(created.status, 200);
   assert.equal((await created.json()).mandateId, state.mandateId);
