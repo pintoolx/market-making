@@ -1,17 +1,17 @@
 {
   "schedule": "0 */2 * * * *",
-  "authorizedEVMAddress": "0x1111111111111111111111111111111111111111",
+  "authorizedEVMAddress": "0x32f79282124eafc681601cdca2883c672c72d340",
   "providerSecretId": "PROVIDER_STRATEGY",
   "providerStrategies": [
     {
-      "strategyHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+      "strategyHash": "0xb63a853b04bb2a043cc27c86f21490225f0fd8455281bae3d089c4f099e0c43e",
       "secretId": "PROVIDER_STRATEGY_DEFENSIVE"
     }
   ],
   "makerSecretId": "MAKER_LIMITS",
-  "publishMode": "dry-run",
-  "maker": "0x3333333333333333333333333333333333333333",
-  "strategyHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+  "publishMode": "don-report",
+  "maker": "0x32f79282124eafc681601cdca2883c672c72d340",
+  "strategyHash": "0x99dad96884c19410b5d92c805de6a515f57a2d019848ccfd2676067a383ba9f6",
   "marketSnapshot": {
     "midPrice": "2500",
     "volatilityBps": 120,

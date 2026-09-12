@@ -1,12 +1,12 @@
 {
   "requestId": "mandate-01",
-  "maker": "0x3333333333333333333333333333333333333333",
-  "strategyHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+  "maker": "0x32f79282124eafc681601cdca2883c672c72d340",
+  "strategyHash": "0x99dad96884c19410b5d92c805de6a515f57a2d019848ccfd2676067a383ba9f6",
   "marketSnapshot": {
-    "midPrice": "3000",
+    "midPrice": "2500",
     "volatilityBps": 120,
-    "balance0": "1000000000000000000",
-    "balance1": "4000000000",
+    "balance0": "4000000000000000",
+    "balance1": "10000000",
     "decimals0": 18,
     "decimals1": 6
   }
