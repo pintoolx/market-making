@@ -29,6 +29,8 @@ RUN cd /workspace/orchestrator \
     && npm install --omit=dev --ignore-scripts --no-audit --no-fund
 
 COPY orchestrator orchestrator
+COPY shared shared
+COPY contracts/aqua-executor/artifacts/AquaGuardV2.json contracts/aqua-executor/artifacts/AquaGuardV2.json
 COPY workflow workflow
 RUN cd /workspace/workflow && bun install --frozen-lockfile
 RUN mkdir -p /data/mandates /home/node/.cre \

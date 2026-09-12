@@ -1,9 +1,12 @@
 import { cre, decodeJson, type HTTPPayload, type TeeRuntime } from '@chainlink/cre-sdk'
 import { z } from 'zod'
+import { keccak256, stringToHex } from 'viem'
 import { GUARD_CONFIG } from '../src/config/guard'
 import { confidentialEnvelopeSchema, openConfidentialEnvelope, type ConfidentialEnvelope } from '../src/confidential-envelope'
 import { computeAuthorization } from '../src/intersect'
 import { publishAuthorization } from '../src/publish'
+import { acquireMarket } from '../src/market-data'
+import { transportSchema } from '../guard-report/config'
 import {
 	makerLimitsSchema,
 	marketSnapshotSchema,
@@ -26,9 +29,11 @@ export const configSchema = z.object({
 		.array(z.object({ strategyHash: hexBytes32, secretId: z.string().min(1) }))
 		.max(12)
 		.default([]),
+	/** Operator-approved publication versions, bound to the exact Maker program and ciphertext. */
+	providerBindings: z.array(z.object({ strategyHash: hexBytes32, provider: hexAddress, strategyId: z.string().min(1), envelopeHash: hexBytes32 }).strict()).default([]),
 	makerSecretId: z.string(),
 	/** X25519 private key stored in Vault DON; its public half is embedded in the web app. */
-	envelopePrivateKeySecretId: z.string(),
+	envelopePrivateKeySecretId: z.string().default('ENVELOPE_PRIVATE_KEY'),
 	/** See src/publish.ts. Defaults to dry-run until pengu confirms the Guard. */
 	publishMode: z.enum(['dry-run', 'don-report', 'http-rpc']).default('dry-run'),
 	/** Maker wallet the report authorises (funds never leave it). */
@@ -38,11 +43,20 @@ export const configSchema = z.object({
 	router: hexAddress,
 	/** TODO(pengu): router.hash(order) of the Maker-approved guarded program. */
 	strategyHash: hexBytes32,
-	/**
-	 * TODO: replace with an HTTPClient fetch from inside the enclave (price feed +
-	 * Maker balances). Kept in config for a deterministic, offline simulation.
-	 */
-	marketSnapshot: marketSnapshotSchema,
+	/** Live mode acquires public observations itself; fixtures are dry-run only. */
+	marketSource: z.enum(['fixture', 'kraken']).default('fixture'),
+	marketSnapshot: marketSnapshotSchema.optional(),
+	transport: transportSchema.optional(),
+}).superRefine((config, ctx) => {
+	if (config.marketSource === 'fixture' && (config.publishMode !== 'dry-run' || !config.marketSnapshot)) {
+		ctx.addIssue({ code: 'custom', message: 'Fixture market data requires dry-run and a marketSnapshot' })
+	}
+	if (config.marketSource === 'kraken' && config.marketSnapshot !== undefined) {
+		ctx.addIssue({ code: 'custom', message: 'Live acquisition must not carry a fixture marketSnapshot' })
+	}
+	if (config.publishMode === 'don-report' && !config.transport) {
+		ctx.addIssue({ code: 'custom', message: 'Report delivery requires an explicit transport profile' })
+	}
 })
 export type Config = z.infer<typeof configSchema>
 
@@ -57,9 +71,8 @@ export const httpRequestSchema = z
 		requestId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/),
 		maker: hexAddress,
 		strategyHash: hexBytes32,
-		marketSnapshot: marketSnapshotSchema,
+		marketSnapshot: marketSnapshotSchema.optional(),
 		makerLimitsEnvelope: confidentialEnvelopeSchema,
-		/** Optional browser-sealed policy for a Provider-published listing. */
 		provider: hexAddress.optional(),
 		providerStrategyEnvelope: confidentialEnvelopeSchema.optional(),
 	})
@@ -77,6 +90,7 @@ type ExecutionInput = Pick<Config, 'maker' | 'strategyHash' | 'marketSnapshot'> 
 	providerSecretId?: string
 	provider?: string
 	providerStrategyEnvelope?: ConfidentialEnvelope
+	expectedStrategyId?: string
 	makerSecretId?: string
 	envelopePrivateKeySecretId?: string
 	makerLimitsEnvelope?: ConfidentialEnvelope
@@ -110,6 +124,15 @@ const parseSecretJson = <S extends z.ZodTypeAny>(schema: S, raw: string, label: 
 // Everything here runs inside the enclave until publishAuthorization()
 // explicitly crosses back with `usingTheDons()` (only in don-report mode).
 const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput): string => {
+	const config = configSchema.parse(runtime.config)
+	if (!input.makerLimitsEnvelope && input.maker.toLowerCase() !== config.maker.toLowerCase()) throw new Error('Maker does not match the provisioned confidential policy')
+	// Acquire and validate PUBLIC data before fetching private inputs. Only maker
+	// and public data-source config are used in DON capability calls.
+	if (config.marketSource === 'kraken' && input.marketSnapshot !== undefined) throw new Error('Live acquisition rejects caller-supplied marketSnapshot')
+	const market = config.marketSource === 'kraken'
+		? acquireMarket(runtime.usingTheDons(), input.maker).market
+		: marketSnapshotSchema.parse(input.marketSnapshot)
+
 	// ── 1. Both confidential inputs, one Vault DON round-trip ──
 	// Secrets are released only into the attested enclave; one getSecrets()
 	// call counts once against PerWorkflow.Secrets.CallLimit (5).
@@ -127,13 +150,11 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 		? openConfidentialEnvelope(input.providerStrategyEnvelope, secrets[makerSecretId].value, input.provider!, 'provider')
 		: secrets[input.providerSecretId!].value
 	const strategy = parseSecretJson(providerStrategySchema, rawStrategy, 'PROVIDER_STRATEGY')
+	if (input.expectedStrategyId && strategy.strategyId !== input.expectedStrategyId) throw new Error('Provider policy version mismatch')
 	const rawLimits = input.makerLimitsEnvelope
 		? openConfidentialEnvelope(input.makerLimitsEnvelope, secrets[makerSecretId].value, input.maker)
 		: secrets[makerSecretId].value
 	const limits = parseSecretJson(makerLimitsSchema, rawLimits, 'MAKER_LIMITS')
-
-	// ── 2. Public observation ──
-	const market = input.marketSnapshot
 
 	// ── 3. Intersect (pure, deterministic) ──
 	// DON consensus time, not Date.now() — see docs "Time in workflows".
@@ -153,8 +174,9 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 		market,
 		identity,
 		nowSec,
-		// Timestamp-based nonce: strictly increasing as long as runs are ≥1 s
-		// apart, and no enclave state is needed. See docs/authorization-format.md.
+		// Timestamp nonce for serialized executions. Same-second/concurrent
+		// attempts can be rejected; inspect receipt/state before retrying.
+		// This is not a durable production nonce allocator.
 		nonce: BigInt(nowSec),
 	})
 
@@ -184,11 +206,19 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '<root>'}:${i.code}`).join(', ')
 		throw new Error(`HTTP trigger payload failed schema validation (${issues})`)
 	}
+	let expectedStrategyId: string | undefined
+	if (parsed.data.providerStrategyEnvelope) {
+		const binding = runtime.config.providerBindings.find(item => item.strategyHash.toLowerCase() === parsed.data.strategyHash.toLowerCase())
+		if (!binding || binding.provider.toLowerCase() !== parsed.data.provider!.toLowerCase()
+			|| binding.envelopeHash.toLowerCase() !== keccak256(stringToHex(JSON.stringify(parsed.data.providerStrategyEnvelope)))) throw new Error('Provider publication is not bound to this program')
+		expectedStrategyId = binding.strategyId
+	}
 	const result = executeAuthorization(runtime, {
 		...(parsed.data.providerStrategyEnvelope
 			? { provider: parsed.data.provider, providerStrategyEnvelope: parsed.data.providerStrategyEnvelope }
 			: { providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash) }),
 		envelopePrivateKeySecretId: runtime.config.envelopePrivateKeySecretId,
+		expectedStrategyId,
 		makerLimitsEnvelope: parsed.data.makerLimitsEnvelope,
 		maker: parsed.data.maker,
 		strategyHash: parsed.data.strategyHash,

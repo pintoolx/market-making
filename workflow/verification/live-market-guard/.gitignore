@@ -1,0 +1,2 @@
+# Only this public synthetic-policy demo keeps its CRE/receipt logs as evidence.
+!*.log

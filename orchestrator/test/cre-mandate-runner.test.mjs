@@ -1,7 +1,4 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { test } from 'node:test';
 import { runDirectMandate } from '../src/cre-mandate-runner.mjs';
 
@@ -107,25 +104,34 @@ test('a paused candidate does not replace the currently active strategy in publi
   ]);
 });
 
-test('each execution rereads the configured public market observation', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'pintool-market-'));
-  const marketSnapshotFile = join(directory, 'current.json');
-  const snapshots = [];
-  const local = { ...config, marketSnapshotFile };
-  const run = volatilityBps => {
-    const transactionHash = `0x${String(volatilityBps).padStart(64, '0')}`;
-    return runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope } }, local, {
-      currentBlock: async () => 1n,
-      trigger: async (_config, input) => { snapshots.push(input.marketSnapshot); return { workflowExecutionId: 'local' }; },
-      observe: async () => ({ transactionHash, digest, report: { maker, strategyHash, nonce: 1n,
-        validUntil: 1_900_000_000, allowedDirections: 3, maxAmount1PerSwap: 1n } }),
-    });
+test('runner delegates acquisition to CRE and never injects legacy snapshots', async () => {
+  let payload;
+  const state = await runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope } }, config, {
+    currentBlock: async () => 1n,
+    trigger: async (_config, input) => { payload = input; return { workflowExecutionId: 'local' }; },
+    observe: async () => ({ transactionHash: txHash, digest, report: { maker, strategyHash, nonce: 1n,
+      validUntil: 1_900_000_000, allowedDirections: 3, maxAmount1PerSwap: 1n } }),
+  });
+  assert.equal(state.regime, 'unknown');
+  assert.equal('marketSnapshot' in payload, false);
+});
+
+test('versioned catalog resolves the stored policy and rejects withdrawn or retargeted releases before delivery', async () => {
+  const id = '11'.repeat(20) + '-clmm', reference = { id, version: 1, digest };
+  const listingId = `${id}.v1`;
+  const local = { ...config, catalog: { [listingId]: { name: 'Versioned', provider: maker, strategyHash, release: reference } } };
+  const record = { release: { provider: maker, state: 'published' }, envelope: makerLimitsEnvelope, digest };
+  const dependencies = {
+    registry: { read: async () => record, latest: async () => record }, currentBlock: async () => 1n,
+    trigger: async (_config, payload) => { assert.equal(payload.provider, maker); assert.deepEqual(payload.providerStrategyEnvelope, makerLimitsEnvelope); return { workflowExecutionId: 'v1' }; },
+    observe: async () => ({ transactionHash: txHash, digest, report: { maker, strategyHash, nonce: 1n, validUntil: 1900000000, allowedDirections: 3, maxAmount1PerSwap: 1n } }),
   };
-  await writeFile(marketSnapshotFile, JSON.stringify({ ...config.marketSnapshot, volatilityBps: 120 }));
-  const normal = await run(120);
-  await writeFile(marketSnapshotFile, JSON.stringify({ ...config.marketSnapshot, volatilityBps: 650 }));
-  const volatile = await run(650);
-  assert.equal(normal.regime, 'normal');
-  assert.equal(volatile.regime, 'high-volatility');
-  assert.deepEqual(snapshots.map(item => item.volatilityBps), [120, 650]);
+  const request = { action: 'create', input: { maker, providerStrategyIds: [listingId], makerLimitsEnvelope } };
+  const state = await runDirectMandate(request, local, dependencies);
+  record.release.state = 'withdrawn';
+  await assert.rejects(runDirectMandate(request, local, dependencies), /withdrawn/);
+  record.release.state = 'published'; record.withdrawnThrough = 2;
+  await assert.rejects(runDirectMandate(request, local, dependencies), /withdrawn/);
+  local.catalog[listingId].strategyHash = defensiveHash;
+  await assert.rejects(runDirectMandate({ action: 'get', current: state, mandateId: state.mandateId, makerLimitsEnvelope }, local, dependencies), /Catalog changed/);
 });

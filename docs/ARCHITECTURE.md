@@ -53,6 +53,8 @@ The workflow source and compiled binary are public. Confidential Workflows prote
 
 ## Deployment state
 
-The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. Its public records verify two strategies sharing one Maker balance, successful guarded swaps, Maker-scoped atomic strategy switching and the expected rejection of an inactive strategy.
+The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. The current Guard V2 `maker-active-v1` receiver is `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`. Public records verify two strategies sharing one Maker balance, successful guarded swaps, Maker-scoped atomic strategy switching and rejection of an inactive strategy. The separate [live acquisition run](../workflow/verification/live-market-guard/README.md) verifies CRE CLI reports, a CLMM trade and a mined direction rejection with public synthetic policies. These are local simulations with testnet delivery; real DON/TEE execution remains unverified.
 
 A production Chainlink deployment also requires Confidential Workflows access, Vault DON secrets, an authorized HTTP trigger signing key and a Guard configured for the official forwarder and workflow identity. Network, contract and Explorer evidence must always resolve to the same chain.
+
+For the executable Aqua lifecycle, current CLMM scope and evidence boundaries, see [Aqua flow and CLMM](AQUA-FLOW-AND-CLMM.md). A validated public market observation can now feed the existing policy evaluator through the [market adapter](../workflow/src/market-observation.ts); the main confidential handler now acquires observations itself in live mode and shares the validated report delivery adapter. The separate [local preview](../workflow/scripts/preview-market-observation.ts) still produces no delivery.

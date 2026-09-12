@@ -1,0 +1,76 @@
+{
+  "schema": "cre-live-demo-plan-v1",
+  "createdAt": 1789223256,
+  "sessionId": "cre-live-1789223256",
+  "deployment": {
+    "chainId": 11155111,
+    "aqua": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+    "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+    "tokens": {
+      "WETH": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "USDC": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+    },
+    "guard": {
+      "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+      "version": 2,
+      "revision": "maker-active-v1",
+      "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "profile": "cre-simulation"
+    }
+  },
+  "strategy": {
+    "schema": "aqua-swapvm-v1.0.2",
+    "chainId": 11155111,
+    "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+    "tokens": [
+      "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+    ],
+    "amounts": [
+      "2000000000000000",
+      "5000000"
+    ],
+    "program": {
+      "kind": "concentrated",
+      "feeBps": 0,
+      "deadline": 1789230456,
+      "salt": "12797987232624844315",
+      "sqrtPriceMin": "18257418583505537115233",
+      "sqrtPriceMax": "22360679774997896964091"
+    },
+    "guard": {
+      "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+      "version": 2,
+      "caps": {
+        "maxAmount0PerSwap": "400000000000000",
+        "maxAmount1PerSwap": "1000000",
+        "maxPostBalance0": "6000000000000000",
+        "maxPostBalance1": "15000000"
+      }
+    },
+    "meta": {
+      "producer": "fixed-params",
+      "strategyVersion": 1,
+      "paramsRevision": 1
+    }
+  },
+  "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+  "range": {
+    "lower": "2000",
+    "upper": "3000",
+    "units": "USDC/WETH",
+    "source": "explicit bounded demo range; authorization uses live Kraken data"
+  },
+  "tradeAmountUsdc": "0.5",
+  "stateDir": "/home/kuoba123/eth-glo/market-making/contracts/aqua-executor/.state/sepolia/0x32f79282124eafc681601cdca2883c672c72d340/",
+  "steps": [
+    "paused CRE probe",
+    "ship",
+    "CRE both-directions report",
+    "0.5 USDC swap",
+    "CRE buy-only report",
+    "rejected USDC-in swap",
+    "CRE paused report",
+    "dock and revoke"
+  ]
+}

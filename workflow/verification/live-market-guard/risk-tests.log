@@ -1,0 +1,10 @@
+✔ USD risk references retain observed USDC price and oldest quote timestamp (1.80936ms)
+✔ USD risk prices reject stale, crossed, malformed, wrong-pair and excessive-spread observations (1.149691ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 370.909124

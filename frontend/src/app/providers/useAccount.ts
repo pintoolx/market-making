@@ -1,6 +1,7 @@
 'use client';
 
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { toHex } from 'viem';
 import { PRIVY_APP_ID } from './PrivyProvider';
 
 export type Account = {
@@ -18,6 +19,7 @@ export type Account = {
   embedded: boolean;
   /** e.g. "Email" or "Wallet · MetaMask". */
   method: string;
+  signMessage?: (message: string) => Promise<`0x${string}`>;
 };
 
 const WALLET_NAMES: Record<string, string> = { metamask: 'MetaMask', coinbase_wallet: 'Coinbase Wallet', rainbow: 'Rainbow', wallet_connect: 'WalletConnect', rabby_wallet: 'Rabby', okx_wallet: 'OKX Wallet', phantom: 'Phantom' };
@@ -25,6 +27,7 @@ const walletName = (type: string) => WALLET_NAMES[type] ?? type.replace(/_/g, ' 
 
 function usePrivyAccount(): Account {
   const { ready, authenticated, login, user } = usePrivy();
+  const { wallets } = useWallets();
   const email = user?.email?.address;
   const addresses = [...new Set([
     user?.wallet?.address,
@@ -35,7 +38,16 @@ function usePrivyAccount(): Account {
   // Privy marks its embedded wallet as "privy"; any other client type means the user connected their own wallet.
   const embedded = user?.wallet?.walletClientType === 'privy';
   const method = user?.wallet && !embedded ? `Wallet · ${walletName(user.wallet.walletClientType ?? 'wallet')}` : email ? 'Email' : 'Unknown';
-  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method };
+  const signMessage = async (message: string): Promise<`0x${string}`> => {
+    const wallet = wallets.find(item => item.address.toLowerCase() === user?.wallet?.address?.toLowerCase());
+    if (!wallet) throw new Error('Connect your Provider wallet before signing.');
+    const provider = await wallet.getEthereumProvider();
+    const signature = await provider.request({ method: 'personal_sign', params: [toHex(message), wallet.address] });
+    if (typeof signature !== 'string' || !/^0x[0-9a-f]{130}$/i.test(signature)) throw new Error('Wallet returned an invalid signature.');
+    return signature as `0x${string}`;
+  };
+  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method, signMessage };
+
 }
 
 function useNoAccount(): Account {

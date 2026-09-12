@@ -1,0 +1,69 @@
+$ bun test src market-maker-auth
+bun test v1.4.2 (744846f84)
+
+market-maker-auth/workflow.test.ts:
+(pass) onCronTrigger > fetches both confidential inputs in a single getSecrets() call [11.36ms]
+(pass) onCronTrigger > rejects a strategy hash without a configured Provider secret [1.61ms]
+(pass) onCronTrigger > returns only public report fields and stays inside the enclave in dry-run [2.50ms]
+(pass) onCronTrigger > dry-run logs the full payload the Guard would receive [2.44ms]
+(pass) onCronTrigger > never logs or returns private inputs (rule ids, thresholds, share, TTL preferences) [1.68ms]
+(pass) onCronTrigger > rejects a malformed secret without echoing its contents [1.16ms]
+(pass) onCronTrigger > rejects a secret that is not JSON [0.35ms]
+(pass) initWorkflow > registers cron and authorized HTTP handlers with Nitro TEE constraints [3.07ms]
+(pass) onHttpTrigger > uses public request identity while fetching both private inputs inside the TEE [1.42ms]
+(pass) onHttpTrigger > rejects private fields and malformed payloads without echoing their values [0.57ms]
+(pass) real delivery rejects fixed fixtures and requires explicit transport [0.67ms]
+(pass) HTTP cannot reuse the provisioned Maker policy for another wallet [0.23ms]
+(pass) live HTTP acquisition rejects injected market data before private inputs are fetched [0.22ms]
+
+src/encode.test.ts:
+(pass) encodeGuardReportV1 (golden against docs/guard-report-v1/example.json) > encodes byte-for-byte identically to the contracts-side fixture [0.37ms]
+(pass) encodeGuardReportV1 (golden against docs/guard-report-v1/example.json) > is exactly 512 bytes (16 words), as AquaGuard requires [0.16ms]
+(pass) encodeGuardReportV1 (golden against docs/guard-report-v1/example.json) > keccak256 of the encoding matches the fixture reportHash [0.57ms]
+(pass) encodeGuardReportV1 (golden against docs/guard-report-v1/example.json) > serializes every report field in an explicit deterministic order [0.16ms]
+
+src/publish.test.ts:
+(pass) confidential publisher accepts a successful receiver on the configured Sepolia domain [39.98ms]
+(pass) confidential publisher rejects earlier V2 receivers and a different router before writing [18.07ms]
+(pass) confidential publisher cannot report an outer success with a failed receiver or missing hash [43.09ms]
+
+src/market-observation.test.ts:
+(pass) validated observation produces the exact existing market schema [5.81ms]
+(pass) wrong identity, network, scope, precision, amount bounds and incomplete inputs fail [3.82ms]
+(pass) stale/future market data and inconsistent embedded authorization inputs fail [2.16ms]
+(pass) volatility is re-derived from aligned completed samples and trade evidence [2.19ms]
+(pass) public synthetic policy can pause on a defined volatility threshold through the existing evaluator [0.54ms]
+
+src/intersect.test.ts:
+(pass) computeAuthorization — happy path > calm market: both directions, each cap taken from the stricter side [0.32ms]
+(pass) computeAuthorization — happy path > Maker stricter than Provider on every axis → every cap is the Maker number [0.30ms]
+(pass) computeAuthorization — happy path > first matching rule wins and regime change flips directions [0.13ms]
+(pass) computeAuthorization — incompatibility → everything forbidden > Maker per-swap cap of zero on one token disables both directions and zeroes all caps [0.11ms]
+(pass) computeAuthorization — incompatibility → everything forbidden > no rule matches the market → paused, no rule id, still a valid window [0.10ms]
+(pass) computeAuthorization — incompatibility → everything forbidden > rule that allows neither direction → paused with its own reason [0.12ms]
+(pass) computeAuthorization — inventory exhausted > both inventories at/over cap → paused, zero caps [0.08ms]
+(pass) computeAuthorization — inventory exhausted > only token0 inventory exhausted → Maker may still sell token0 (taker 1→0) [0.05ms]
+(pass) computeAuthorization — inventory exhausted > only token1 inventory exhausted → Maker may still buy token0 (taker 0→1) [0.05ms]
+(pass) computeAuthorization — expiry > validity = min(rule TTL, Maker TTL) and never exceeds the Guard maximum [0.09ms]
+(pass) computeAuthorization — expiry > rejects a non-positive nonce and a bad clock [0.07ms]
+(pass) helpers > parsePrice keeps 8 decimals and truncates beyond [0.07ms]
+(pass) helpers > makerToken0Ceiling: 60% of 10 000 USDC at 2 500 USDC/WETH = 2.4 WETH [0.06ms]
+(pass) helpers > makerToken0Ceiling throws on a zero price instead of dividing by zero [0.03ms]
+(pass) helpers > matchRule respects inclusive bounds [0.08ms]
+
+src/market-data/observe.test.ts:
+(pass) bid/ask prices reject stale, wrong units, crossed books, empty levels and excess precision [1.96ms]
+(pass) volatility uses 30 returns, conservatively rounds and excludes unfinished candles [2.28ms]
+(pass) carry-forward zero-trade candles are exposed and illiquid windows fail closed [1.47ms]
+(pass) valuation preserves atomic precision, final rounding and empty-wallet semantics [0.23ms]
+(pass) freshness boundaries reject stale, zero and future timestamps [0.14ms]
+(pass) configuration rejects wrong chain, token, zero maker and unknown fields [0.70ms]
+(pass) HTTP and EVM capabilities produce a wallet snapshot at one finalized block without authorizing [24.72ms]
+(pass) HTTP failure, absent Date and stale responses stop before chain reads [3.94ms]
+(pass) stale or malformed finalized headers fail before token reads [10.08ms]
+(pass) wrong token decimals and malformed contract return data cannot produce a snapshot [11.69ms]
+
+ 50 pass
+ 0 fail
+ 265 expect() calls
+Ran 50 tests across 6 files. [714.00ms]

@@ -39,7 +39,8 @@ function Empty({ title, text, action, href }: { title: string; text: string; act
 
 function Providing() {
   const router = useRouter();
-  const { published, unpublish } = usePublishedListings();
+  const { published: allPublished, unpublish } = usePublishedListings();
+  const published = allPublished.filter(item => item.mine);
   if (!published.length) return <Empty title="No strategies yet" text="Start from one of six Aqua templates and publish your first strategy." action="Open Provider Studio" href="/studio" />;
   return <>
     <div className={aqua.sectionTop}>
@@ -49,7 +50,7 @@ function Providing() {
     <div className={`${styles.grid} ${aqua.grid}`}>
       {published.map(item => <ListingCard key={item.id} listing={item} action={<div className={aqua.cardButtons}>
         <Primary onClick={() => router.push(`/studio?edit=${item.template.id}`)}>Edit</Primary>
-        <ConfirmButton label="Unpublish" confirmLabel="Yes, unpublish" onConfirm={() => unpublish(item.template.id)} />
+        {!item.releaseId && <ConfirmButton label="Unpublish" confirmLabel="Yes, unpublish" onConfirm={() => unpublish(item.template.id)} />}
       </div>} />)}
     </div>
   </>;

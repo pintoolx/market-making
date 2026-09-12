@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { currentBlock, waitForAcceptedReport } from './guard-observer.mjs';
 import { triggerCREWorkflow } from './cre-gateway.mjs';
+import { createProviderRegistry } from './provider-registry.mjs';
 
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
 const HEX32 = /^0x[0-9a-f]{64}$/i;
@@ -16,7 +16,6 @@ function required(env, name) {
 
 export function mandateRunnerConfig(env = process.env) {
   const catalog = JSON.parse(required(env, 'MANDATE_STRATEGY_CATALOG'));
-  const marketSnapshot = JSON.parse(required(env, 'MANDATE_MARKET_SNAPSHOT'));
   if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw new Error('MANDATE_STRATEGY_CATALOG must be an object');
   for (const [id, item] of Object.entries(catalog)) {
     if (!id || !item?.name || !HEX32.test(item?.strategyHash ?? '')) throw new Error('MANDATE_STRATEGY_CATALOG contains an invalid strategy');
@@ -32,8 +31,7 @@ export function mandateRunnerConfig(env = process.env) {
     chainId,
     guard,
     catalog,
-    marketSnapshot,
-    marketSnapshotFile: env.MANDATE_MARKET_SNAPSHOT_FILE?.trim() || null,
+    stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
     timeoutMs: Number(env.MANDATE_RUNNER_TIMEOUT_MS ?? 120_000),
   };
 }
@@ -65,12 +63,20 @@ export async function runDirectMandate(request, config, dependencies = {}) {
       : (current.strategies.find(item => item.status === 'active') ?? current.strategies[0]).listingId;
   const listing = config.catalog[listingId];
   if (!listing) throw new Error('Selected strategy is not provisioned for this workflow');
+  const previous = current?.strategies.find(item => item.listingId === listingId);
+  if (previous && previous.strategyHash.toLowerCase() !== listing.strategyHash.toLowerCase()) throw new Error('Catalog changed this strategy; create a new versioned mandate');
+  let providerInput = {};
+  if (listing.release) {
+    if (listingId !== `${listing.release.id}.v${listing.release.version}`) throw new Error('Catalog publication version mismatch');
+    const registry = dependencies.registry ?? createProviderRegistry(config.stateDir);
+    const [record, latest] = await Promise.all([registry.read(listing.release.id, listing.release.version), registry.latest(listing.release.id)]);
+    if (latest?.release.state !== 'published' || listing.release.version <= (latest.withdrawnThrough ?? 0)
+      || record.release.state !== 'published' || record.digest !== listing.release.digest) throw new Error('Provider publication is withdrawn or changed');
+    providerInput = { provider: record.release.provider, providerStrategyEnvelope: record.envelope };
+  }
 
   const maker = creating ? input.maker : current.maker;
   const mandateId = creating ? `mandate-${randomUUID()}` : request.mandateId;
-  const marketSnapshot = config.marketSnapshotFile
-    ? JSON.parse(await readFile(config.marketSnapshotFile, 'utf8'))
-    : config.marketSnapshot;
   const fromBlock = await (dependencies.currentBlock ?? currentBlock)(config.rpcUrl, dependencies.fetchImpl);
   const trigger = dependencies.trigger ?? triggerCREWorkflow;
   const accepted = await trigger(dependencies.triggerConfig ?? {
@@ -81,8 +87,8 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     requestId: mandateId,
     maker,
     strategyHash: listing.strategyHash,
-    marketSnapshot,
     makerLimitsEnvelope: creating ? input.makerLimitsEnvelope : request.makerLimitsEnvelope,
+    ...providerInput,
   }, { fetchImpl: dependencies.fetchImpl });
 
   const observe = dependencies.observe ?? waitForAcceptedReport;
@@ -108,7 +114,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     id: `${evidence.transactionHash}-active`,
     type: 'strategy-activated',
     title: `${listing.name} authorized`,
-    detail: 'The strategy may execute within the confirmed Guard limits.',
+    detail: 'Guard accepted the authorization. Aqua liquidity, funding and program readiness are checked separately.',
     occurredAt: new Date().toISOString(),
     transactionHash: evidence.transactionHash,
     explorerUrl: transactionUrl,
@@ -128,7 +134,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   return {
     mandateId,
     maker,
-    regime: Number(marketSnapshot.volatilityBps) >= 301 ? 'high-volatility' : 'normal',
+    regime: 'unknown', // A public authorization does not disclose the private rule or market regime.
     strategies,
     evidence: {
       chainId: config.chainId,

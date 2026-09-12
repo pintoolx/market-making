@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { decodeEventLog, decodeFunctionData, encodeAbiParameters, keccak256, parseAbi } from 'viem';
+import { readLpReadiness } from './lp-readiness.mjs';
 
 const HEX32 = /^0x[0-9a-f]{64}$/i;
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
@@ -132,6 +133,7 @@ export function createService(config, dependencies = {}) {
   const runner = dependencies.runner ?? (request => runAdapter(config.runner, request, config.runnerTimeoutMs));
   const receipt = dependencies.verifyReceipt ?? ((hash, status) => verifyReceipt(config.rpcUrl, hash, status));
   const aquaSwap = dependencies.verifyAquaSwap ?? ((hash, strategyHash, status) => verifyAquaSwap(config.rpcUrl, config.router, hash, strategyHash, status));
+  const readiness = dependencies.readLpReadiness ?? ((maker, strategy) => readLpReadiness(config, maker, strategy));
   const stateDir = resolve(config.stateDir);
   const statePath = id => join(stateDir, `${id}.json`);
   const envelopePath = id => join(stateDir, `${id}.maker-envelope.json`);
@@ -166,6 +168,10 @@ export function createService(config, dependencies = {}) {
     }
     const verified = await Promise.all([...claims].map(([hash, status]) => receipt(hash, status)));
     if (verified.some(result => result?.chainId !== undefined && result.chainId !== config.chainId)) throw new Error('RPC returned evidence from the wrong chain');
+    for (const strategy of state.strategies) {
+      try { strategy.readiness = await readiness(state.maker, strategy); }
+      catch { strategy.readiness = { phase: 'unverified', reasons: ['chain-state-unavailable'] }; }
+    }
     await saveEnvelope(state.mandateId, sealed);
     await save(state);
     return state;

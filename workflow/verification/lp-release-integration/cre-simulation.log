@@ -1,0 +1,46 @@
+(node:21989) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/kuoba123/eth-glo/market-making/frontend/src/app/marketplace/confidentialEnvelope.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/kuoba123/eth-glo/market-making/frontend/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Initializing...
+Loading settings...
+! Using default private key for chain write simulation. To use your own key, set CRE_ETH_PRIVATE_KEY in your .env file or system environment.
+Checking RPC connectivity...
+Compiling workflow...
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  Binary hash: b7349c34702d0b4a4c4ce505aa1bb845ac8a4bb2f9d1908e9975b95a88d7a827
+  Config hash: 495b6112429664712d98ee04dba50ccfba62947fcb00fc2e0c9f62c373e785e9
+✓ Loaded JSON from file: /tmp/pintool-public-publication-xlksZU/request.json
+✓ Created HTTP trigger payload with 6 fields
+2026-09-12T15:21:13Z [SIMULATION] Simulator Initialized
+
+2026-09-12T15:21:13Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
+╭────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trigger requested TEE Execution your trigger will run in one of the following Tees:                │
+│     - AWS Nitro in us-west-2                                                                       │
+│ The simulator is not a real TEE, and is meant to debug.                                            │
+│ Do not use it for sensitive information.                                                           │
+│ During real execution, user logs for this trigger will not be visible, and will not leave the TEE. │
+│ They are presented in the simulator for debugging only.                                            │
+│                                                                                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+2026-09-12T15:21:16Z [USER LOG] Market snapshot: ETH/USDC midpoint=2540.655; volatility30m=13 bps; maker WETH=0.004431866824117955; USDC=36.506718; finalized block=11689664
+2026-09-12T15:21:16Z [USER LOG] [publish:dry-run] target=0xfadc3165abeb127a0815d5ea4e2862ed430e1f70 selector=onReport(bytes,bytes) chainSelectorName=ethereum-testnet-sepolia
+2026-09-12T15:21:16Z [USER LOG] [publish:dry-run] report={"schemaVersion":"1","chainId":"11155111","guard":"0xfadc3165abeb127a0815d5ea4e2862ed430e1f70","router":"0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092","maker":"0x32F79282124EaFc681601cDCa2883C672C72D340","strategyHash":"0x23b5f02fe3e0bd1079059341d55d45d0cbcb8f992ebf742d82962ec40ff3af4f","token0":"0xfff9976782d46cc05630d1f6ebab18b2324d6b14","token1":"0x1c7d4b196cb0c7b01d743fbc6116a902379c7238","nonce":"1789226476","validAfter":"1789226476","validUntil":"1789226776","allowedDirections":"3","maxAmount0PerSwap":"400000000000000","maxAmount1PerSwap":"1000000","maxPostBalance0":"23615957302349197","maxPostBalance1":"100000000"}
+2026-09-12T15:21:16Z [USER LOG] [publish:dry-run] encodedReport=0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000aa36a7000000000000000000000000fadc3165abeb127a0815d5ea4e2862ed430e1f7000000000000000000000000047a875f39ba4b0d0beaa928bb071d4b4da0b409200000000000000000000000032f79282124eafc681601cdca2883c672c72d34023b5f02fe3e0bd1079059341d55d45d0cbcb8f992ebf742d82962ec40ff3af4f000000000000000000000000fff9976782d46cc05630d1f6ebab18b2324d6b140000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c7238000000000000000000000000000000000000000000000000000000006aa56dec000000000000000000000000000000000000000000000000000000006aa56dec000000000000000000000000000000000000000000000000000000006aa56f18000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000016bcc41e9000000000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000053e6968a098d8d000000 ...(truncated)
+2026-09-12T15:21:16Z [USER LOG] [publish:dry-run] reportHash=0xfd1a3bc1cdeeb2c2e3f5aefcdfcd6fe222990e66a139896c0dbc26d17fea3e6a
+
+✓ Workflow Simulation Result:
+"requestId=public-publication-v1 allowedDirections=3 nonce=1789226476 validAfter=1789226476 validUntil=1789226776 txHash=none (dry-run)"
+
+2026-09-12T15:21:16Z [SIMULATION] Execution finished signal received
+2026-09-12T15:21:16Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯

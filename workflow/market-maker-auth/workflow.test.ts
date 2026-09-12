@@ -1,3 +1,4 @@
+import { keccak256, stringToHex } from 'viem'
 import { describe, expect, test } from 'bun:test'
 import type { HTTPPayload, TeeRuntime } from '@chainlink/cre-sdk'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
@@ -142,7 +143,7 @@ describe('onCronTrigger', () => {
 		const { runtime, secretCalls } = makeFakeTeeRuntime()
 		expect(() => onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-unknown',
-			maker: '0x5555555555555555555555555555555555555555',
+			maker: makeConfig().maker,
 			strategyHash: `0x${'7'.repeat(64)}`,
 			marketSnapshot: makeConfig().marketSnapshot,
 			makerLimitsEnvelope: SEALED_MAKER,
@@ -229,6 +230,7 @@ describe('onHttpTrigger', () => {
 		const provider = '0x7777777777777777777777777777777777777777'
 		const providerEnvelope = seal(PROVIDER, provider, 'provider')
 		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
+		runtime.config.providerBindings = [{ strategyHash: runtime.config.strategyHash, provider, strategyId: PROVIDER.strategyId, envelopeHash: keccak256(stringToHex(JSON.stringify(providerEnvelope))) }]
 		const summary = onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-dynamic-provider',
 			maker: SEALED_MAKER_ADDRESS,
@@ -250,7 +252,7 @@ describe('onHttpTrigger', () => {
 			makerLimitsEnvelope: SEALED_MAKER,
 			provider: '0x8888888888888888888888888888888888888888',
 			providerStrategyEnvelope: providerEnvelope,
-		}))).toThrow('confidential envelope could not be opened')
+		}))).toThrow('Provider publication is not bound')
 	})
 
 	test('requires Provider identity and encrypted policy together', () => {
@@ -263,6 +265,19 @@ describe('onHttpTrigger', () => {
 			makerLimitsEnvelope: SEALED_MAKER,
 			provider: '0x7777777777777777777777777777777777777777',
 		}))).toThrow('providerStrategyEnvelope')
+	})
+
+	test('a sealed policy cannot move to another approved publication version or replace its ciphertext', () => {
+		const provider = '0x7777777777777777777777777777777777777777'
+		const providerStrategyEnvelope = seal(PROVIDER, provider, 'provider')
+		const { runtime, secretCalls } = makeFakeTeeRuntime()
+		runtime.config.providerBindings = [{ strategyHash: runtime.config.strategyHash, provider, strategyId: 'another-version', envelopeHash: keccak256(stringToHex(JSON.stringify(providerStrategyEnvelope))) }]
+		const payload = { requestId: 'version-check', maker: SEALED_MAKER_ADDRESS, strategyHash: runtime.config.strategyHash,
+			marketSnapshot: runtime.config.marketSnapshot, makerLimitsEnvelope: SEALED_MAKER, provider, providerStrategyEnvelope }
+		expect(() => onHttpTrigger(runtime, httpPayload(payload))).toThrow('Provider policy version mismatch')
+		secretCalls.length = 0
+		expect(() => onHttpTrigger(runtime, httpPayload({ ...payload, providerStrategyEnvelope: seal({ ...PROVIDER, strategyId: 'another-version' }, provider, 'provider') }))).toThrow('Provider publication is not bound')
+		expect(secretCalls).toEqual([])
 	})
 
 	test('decrypts dynamic Maker limits only after entering the TEE', () => {
@@ -299,17 +314,17 @@ describe('onHttpTrigger', () => {
 		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
 		const summary = onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-01',
-			maker: '0x5555555555555555555555555555555555555555',
+			maker: makeConfig().maker,
 			strategyHash: `0x${'6'.repeat(64)}`,
 			marketSnapshot: makeConfig().marketSnapshot,
-			makerLimitsEnvelope: SEALED_MAKER,
+			makerLimitsEnvelope: seal(MAKER, makeConfig().maker),
 		}))
 
 		expect(secretCalls).toEqual([['PROVIDER_STRATEGY_DEFENSIVE', 'ENVELOPE_PRIVATE_KEY']])
 		expect(summary).toContain('requestId=mandate-01')
 		expect(summary).toContain('allowedDirections=3')
 		const report = logs.find((line) => line.includes('report={'))
-		expect(report).toContain('0x5555555555555555555555555555555555555555')
+		expect(report).toContain(makeConfig().maker)
 		expect(report).toContain(`0x${'6'.repeat(64)}`)
 		expect(report).toContain(`"guard":"${runtime.config.guard}"`)
 		expect(report).toContain(`"router":"${runtime.config.router}"`)
@@ -327,7 +342,7 @@ describe('onHttpTrigger', () => {
 		try {
 			onHttpTrigger(runtime, httpPayload({
 				requestId: 'mandate-01',
-				maker: '0x5555555555555555555555555555555555555555',
+				maker: makeConfig().maker,
 				strategyHash: `0x${'6'.repeat(64)}`,
 				marketSnapshot: makeConfig().marketSnapshot,
 				makerLimitsEnvelope: SEALED_MAKER,
@@ -337,4 +352,27 @@ describe('onHttpTrigger', () => {
 		expect(message).toContain('HTTP trigger payload failed schema validation')
 		expect(message).not.toContain('TOP-SECRET-LIMITS')
 	})
+})
+
+
+test('real delivery rejects fixed fixtures and requires explicit transport', () => {
+  expect(() => configSchema.parse({ ...makeConfig(), publishMode: 'don-report' })).toThrow('Fixture market data requires dry-run')
+  const { marketSnapshot, ...base } = makeConfig()
+  expect(() => configSchema.parse({ ...base, marketSource: 'kraken', publishMode: 'don-report' })).toThrow('explicit transport')
+})
+
+test('HTTP cannot reuse the provisioned Maker policy for another wallet', () => {
+  const { runtime, secretCalls } = makeFakeTeeRuntime()
+  expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'wrong-maker', maker: '0x5555555555555555555555555555555555555555',
+    strategyHash: runtime.config.strategyHash, marketSnapshot: runtime.config.marketSnapshot }))).toThrow('makerLimitsEnvelope')
+  expect(secretCalls).toEqual([])
+})
+
+test('live HTTP acquisition rejects injected market data before private inputs are fetched', () => {
+  const { runtime, secretCalls } = makeFakeTeeRuntime()
+  const { marketSnapshot, ...base } = runtime.config
+  runtime.config = configSchema.parse({ ...base, marketSource: 'kraken' })
+  expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'injected-market', maker: runtime.config.maker,
+    strategyHash: runtime.config.strategyHash, marketSnapshot, makerLimitsEnvelope: SEALED_MAKER }))).toThrow('rejects caller-supplied')
+  expect(secretCalls).toEqual([])
 })

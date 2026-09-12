@@ -6,6 +6,12 @@
 **/node_modules
 **/out
 **/.state
+**/.cache
 **/records
-contracts
+contracts/*
+!contracts/aqua-executor
+contracts/aqua-executor/*
+!contracts/aqua-executor/artifacts
+contracts/aqua-executor/artifacts/*
+!contracts/aqua-executor/artifacts/AquaGuardV2.json
 frontend

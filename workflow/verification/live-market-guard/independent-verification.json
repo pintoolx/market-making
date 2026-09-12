@@ -1,0 +1,730 @@
+{
+  "verifiedAt": "2026-09-12T14:50:21.089Z",
+  "rpc": "https://sepolia.gateway.tenderly.co",
+  "chainId": 11155111,
+  "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+  "taker": "0x9C69F55b9E6836b8e096C0F61202665C869922Cc",
+  "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+  "guard": {
+    "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+    "version": 2,
+    "revision": "maker-active-v1",
+    "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+    "profile": "cre-simulation"
+  },
+  "reports": [
+    {
+      "log": "cre-paused-probe.log",
+      "kind": "cre-delivery-receipt",
+      "profile": "cre-simulation",
+      "chainId": "11155111",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "nonce": "1789223341",
+      "reportDigest": "0x5d43271a27ddcb7e783f588263baf5052519f3b28f920de78bf9bdc9c6df3305",
+      "transactionHash": "0x955947583290fae2d20addf564def4b61e1c75f550e0d9d165ad944b6f4a763a",
+      "blockNumber": "11689496",
+      "report": {
+        "schemaVersion": 1,
+        "chainId": "11155111",
+        "guard": "0xfaDc3165AbeB127A0815d5EA4e2862ED430E1F70",
+        "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+        "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+        "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+        "token0": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+        "token1": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        "nonce": "1789223341",
+        "validAfter": 1789223341,
+        "validUntil": 1789223641,
+        "allowedDirections": 0,
+        "maxAmount0PerSwap": "0",
+        "maxAmount1PerSwap": "0",
+        "maxPostBalance0": "0",
+        "maxPostBalance1": "0"
+      },
+      "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "binaryHash": "6d80cdb3ffeb4d21248630b4048ce8849345452f7100c551eb490cc3abaca97c",
+      "configHash": "3b823bdafa19db6b7f636b1271c76c650abaefe44dd76a88497ecaa1d97b6222"
+    },
+    {
+      "log": "cre-allow.log",
+      "kind": "cre-delivery-receipt",
+      "profile": "cre-simulation",
+      "chainId": "11155111",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "nonce": "1789223843",
+      "reportDigest": "0x54f7f12942de1480d87d0523a3688b50ec1760efb431269e0fe58e76fdd609db",
+      "transactionHash": "0x031cec36962b0a0028cefe953e6814620fcbf17fd95bf102be6562a7a0595f00",
+      "blockNumber": "11689536",
+      "report": {
+        "schemaVersion": 1,
+        "chainId": "11155111",
+        "guard": "0xfaDc3165AbeB127A0815d5EA4e2862ED430E1F70",
+        "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+        "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+        "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+        "token0": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+        "token1": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        "nonce": "1789223843",
+        "validAfter": 1789223843,
+        "validUntil": 1789224143,
+        "allowedDirections": 3,
+        "maxAmount0PerSwap": "400000000000000",
+        "maxAmount1PerSwap": "1000000",
+        "maxPostBalance0": "23606340663102109",
+        "maxPostBalance1": "100000000"
+      },
+      "activeStrategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "binaryHash": "6d80cdb3ffeb4d21248630b4048ce8849345452f7100c551eb490cc3abaca97c",
+      "configHash": "3b823bdafa19db6b7f636b1271c76c650abaefe44dd76a88497ecaa1d97b6222"
+    },
+    {
+      "log": "cre-buy-only.log",
+      "kind": "cre-delivery-receipt",
+      "profile": "cre-simulation",
+      "chainId": "11155111",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "nonce": "1789223953",
+      "reportDigest": "0xc2d5dd07311c093190a3ef9781e972f175f4e5f8a6b478f80c06a58dba66c10d",
+      "transactionHash": "0x180b492e7180a6ddad99851624193e541f84a2e7933efaefeeb6aaaf2cb7a8e4",
+      "blockNumber": "11689545",
+      "report": {
+        "schemaVersion": 1,
+        "chainId": "11155111",
+        "guard": "0xfaDc3165AbeB127A0815d5EA4e2862ED430E1F70",
+        "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+        "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+        "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+        "token0": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+        "token1": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        "nonce": "1789223953",
+        "validAfter": 1789223953,
+        "validUntil": 1789224253,
+        "allowedDirections": 1,
+        "maxAmount0PerSwap": "400000000000000",
+        "maxAmount1PerSwap": "1000000",
+        "maxPostBalance0": "23591907189437116",
+        "maxPostBalance1": "100000000"
+      },
+      "activeStrategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "binaryHash": "6d80cdb3ffeb4d21248630b4048ce8849345452f7100c551eb490cc3abaca97c",
+      "configHash": "3b823bdafa19db6b7f636b1271c76c650abaefe44dd76a88497ecaa1d97b6222"
+    },
+    {
+      "log": "cre-paused-final.log",
+      "kind": "cre-delivery-receipt",
+      "profile": "cre-simulation",
+      "chainId": "11155111",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "nonce": "1789224194",
+      "reportDigest": "0x6fa12ef4b1c15feea17780ec77158eb363bfdeb3f14184bfbecd7a7fbb662bb0",
+      "transactionHash": "0x82c51809f0bfe15065d6095e4788997f94876f09c5af90dff2951b4e9c08ed4e",
+      "blockNumber": "11689566",
+      "report": {
+        "schemaVersion": 1,
+        "chainId": "11155111",
+        "guard": "0xfaDc3165AbeB127A0815d5EA4e2862ED430E1F70",
+        "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+        "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+        "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+        "token0": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+        "token1": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        "nonce": "1789224194",
+        "validAfter": 1789224194,
+        "validUntil": 1789224494,
+        "allowedDirections": 0,
+        "maxAmount0PerSwap": "0",
+        "maxAmount1PerSwap": "0",
+        "maxPostBalance0": "0",
+        "maxPostBalance1": "0"
+      },
+      "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "binaryHash": "6d80cdb3ffeb4d21248630b4048ce8849345452f7100c551eb490cc3abaca97c",
+      "configHash": "3b823bdafa19db6b7f636b1271c76c650abaefe44dd76a88497ecaa1d97b6222"
+    }
+  ],
+  "execution": {
+    "ship": {
+      "schema": "aqua-execution-result-v1",
+      "requestId": "cre-live-1789223256-ship",
+      "sessionId": "cre-live-1789223256",
+      "action": "ship",
+      "status": "completed",
+      "outcome": "shipped",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "plan": {
+        "strategy": {
+          "schema": "aqua-swapvm-v1.0.2",
+          "chainId": 11155111,
+          "maker": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "tokens": [
+            "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+          ],
+          "amounts": [
+            "2000000000000000",
+            "5000000"
+          ],
+          "program": {
+            "kind": "concentrated",
+            "sqrtPriceMin": "18257418583505537115233",
+            "sqrtPriceMax": "22360679774997896964091",
+            "feeBps": 0,
+            "deadline": 1789230456,
+            "salt": "12797987232624844315"
+          },
+          "meta": {
+            "producer": "fixed-params",
+            "strategyVersion": 1,
+            "paramsRevision": 1
+          },
+          "guard": {
+            "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+            "version": 2,
+            "caps": {
+              "maxAmount0PerSwap": "400000000000000",
+              "maxAmount1PerSwap": "1000000",
+              "maxPostBalance0": "6000000000000000",
+              "maxPostBalance1": "15000000"
+            }
+          }
+        },
+        "policy": {
+          "tokens": [
+            "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+          ],
+          "baselineAmounts": [
+            "2000000000000000",
+            "5000000"
+          ],
+          "maxDrawdownBps": 500,
+          "maxPriceAgeSec": 3600
+        },
+        "rebalances": [],
+        "finished": false
+      },
+      "risk": {
+        "status": "within-limit",
+        "result": {
+          "valueTokenDecimals": 18,
+          "hodlValue": "1008164000000000000000000000",
+          "strategyValue": "1008164000000000000000000000",
+          "pnlValue": "0",
+          "lossBps": "0",
+          "breached": false
+        }
+      },
+      "records": "/home/kuoba123/eth-glo/market-making/contracts/aqua-executor/.state/sepolia/0x32f79282124eafc681601cdca2883c672c72d340/records/cre-live-1789223256-ship.jsonl",
+      "transactions": [
+        {
+          "step": "maker-approve-0",
+          "action": "maker-approve",
+          "hash": "0xe42dccc9b48c2c5708092fedfa97815adbc56067497ca95df17de62e9807b7a8",
+          "status": "success",
+          "blockNumber": "11689505"
+        },
+        {
+          "step": "maker-approve-1",
+          "action": "maker-approve",
+          "hash": "0x15507c0318627b06a8de30a16969ffc251aebd87377b39a77a6cbcfb6fc1e879",
+          "status": "success",
+          "blockNumber": "11689507"
+        },
+        {
+          "step": "primary",
+          "action": "ship",
+          "hash": "0xb474805296df2e90ad601b550a5aa04c5d9dc115458ff4c33bbb73b526ca1fb4",
+          "status": "success",
+          "blockNumber": "11689508"
+        }
+      ]
+    },
+    "swap": {
+      "schema": "aqua-execution-result-v1",
+      "requestId": "cre-live-1789223256-swap",
+      "sessionId": "cre-live-1789223256",
+      "action": "swap",
+      "status": "completed",
+      "outcome": "swapped",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "plan": {
+        "strategy": {
+          "schema": "aqua-swapvm-v1.0.2",
+          "chainId": 11155111,
+          "maker": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "tokens": [
+            "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+          ],
+          "amounts": [
+            "2000000000000000",
+            "5000000"
+          ],
+          "program": {
+            "kind": "concentrated",
+            "sqrtPriceMin": "18257418583505537115233",
+            "sqrtPriceMax": "22360679774997896964091",
+            "feeBps": 0,
+            "deadline": 1789230456,
+            "salt": "12797987232624844315"
+          },
+          "meta": {
+            "producer": "fixed-params",
+            "strategyVersion": 1,
+            "paramsRevision": 1
+          },
+          "guard": {
+            "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+            "version": 2,
+            "caps": {
+              "maxAmount0PerSwap": "400000000000000",
+              "maxAmount1PerSwap": "1000000",
+              "maxPostBalance0": "6000000000000000",
+              "maxPostBalance1": "15000000"
+            }
+          }
+        },
+        "policy": {
+          "tokens": [
+            "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+          ],
+          "baselineAmounts": [
+            "2000000000000000",
+            "5000000"
+          ],
+          "maxDrawdownBps": 500,
+          "maxPriceAgeSec": 3600
+        },
+        "rebalances": [],
+        "finished": false
+      },
+      "risk": {
+        "status": "within-limit",
+        "result": {
+          "valueTokenDecimals": 18,
+          "hodlValue": "1008208000000000000000000000",
+          "strategyValue": "1006924893590010204893500000",
+          "pnlValue": "-1283106409989795106500000",
+          "lossBps": "12",
+          "breached": false
+        }
+      },
+      "records": "/home/kuoba123/eth-glo/market-making/contracts/aqua-executor/.state/sepolia/0x32f79282124eafc681601cdca2883c672c72d340/records/cre-live-1789223256-swap.jsonl",
+      "transactions": [
+        {
+          "step": "primary",
+          "action": "swap",
+          "hash": "0x83616005b47248716044f37f56fff94ebf307c58c330ef5cc51445eb180ef4cf",
+          "status": "success",
+          "blockNumber": "11689539"
+        },
+        {
+          "step": "taker-approve",
+          "action": "taker-approve",
+          "hash": "0x0e2e4ebfc7158e89bba211d164fbf85d1d4caeaa5a2b1a3f0ba630bd9c8dcb23",
+          "status": "success",
+          "blockNumber": "11689537"
+        }
+      ]
+    },
+    "dock": {
+      "schema": "aqua-execution-result-v1",
+      "requestId": "cre-live-1789223256-dock",
+      "sessionId": "cre-live-1789223256",
+      "action": "dock",
+      "status": "completed",
+      "outcome": "docked",
+      "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+      "plan": {
+        "strategy": {
+          "schema": "aqua-swapvm-v1.0.2",
+          "chainId": 11155111,
+          "maker": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "tokens": [
+            "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+          ],
+          "amounts": [
+            "2000000000000000",
+            "5000000"
+          ],
+          "program": {
+            "kind": "concentrated",
+            "sqrtPriceMin": "18257418583505537115233",
+            "sqrtPriceMax": "22360679774997896964091",
+            "feeBps": 0,
+            "deadline": 1789230456,
+            "salt": "12797987232624844315"
+          },
+          "meta": {
+            "producer": "fixed-params",
+            "strategyVersion": 1,
+            "paramsRevision": 1
+          },
+          "guard": {
+            "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+            "version": 2,
+            "caps": {
+              "maxAmount0PerSwap": "400000000000000",
+              "maxAmount1PerSwap": "1000000",
+              "maxPostBalance0": "6000000000000000",
+              "maxPostBalance1": "15000000"
+            }
+          }
+        },
+        "policy": {
+          "tokens": [
+            "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+          ],
+          "baselineAmounts": [
+            "2000000000000000",
+            "5000000"
+          ],
+          "maxDrawdownBps": 500,
+          "maxPriceAgeSec": 3600
+        },
+        "rebalances": [],
+        "finished": true
+      },
+      "records": "/home/kuoba123/eth-glo/market-making/contracts/aqua-executor/.state/sepolia/0x32f79282124eafc681601cdca2883c672c72d340/records/cre-live-1789223256-dock.jsonl",
+      "transactions": [
+        {
+          "step": "maker-revoke-0",
+          "action": "maker-revoke",
+          "hash": "0x5b3da0f61f66cd4dc7e3ee47e939cc4210eb21831f12d0e2246ca203628c5184",
+          "status": "success",
+          "blockNumber": "11689568"
+        },
+        {
+          "step": "maker-revoke-1",
+          "action": "maker-revoke",
+          "hash": "0x610183c619655c76bbe4131d5bb437a2529a5f01903e13769cae92802fd6641b",
+          "status": "success",
+          "blockNumber": "11689569"
+        },
+        {
+          "step": "primary",
+          "action": "dock",
+          "hash": "0x020d9efd11c87f84a0c84a5ed9896f855d4fc1ae6ab57808eba2613e375e5ca4",
+          "status": "success",
+          "blockNumber": "11689567"
+        }
+      ]
+    }
+  },
+  "swap": {
+    "hash": "0x83616005b47248716044f37f56fff94ebf307c58c330ef5cc51445eb180ef4cf",
+    "amountUsdcAtomic": "500000",
+    "amountWethAtomic": "201760068347711",
+    "before": {
+      "aqua": [
+        [
+          "2000000000000000",
+          2
+        ],
+        [
+          "5000000",
+          2
+        ]
+      ],
+      "wallets": [
+        "4633626892465666",
+        "1366373107534334",
+        "36006718",
+        "3993282"
+      ]
+    },
+    "after": {
+      "aqua": [
+        [
+          "1798239931652289",
+          2
+        ],
+        [
+          "5500000",
+          2
+        ]
+      ],
+      "wallets": [
+        "4431866824117955",
+        "1568133175882045",
+        "36506718",
+        "3493282"
+      ]
+    }
+  },
+  "rejection": {
+    "chainId": 11155111,
+    "strategyHash": "0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646",
+    "guard": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+    "reason": "DirectionDisabled",
+    "approvalTransactionHash": "0x8edda257b1442abd153edc1314ddd35b9e66c320ef1dd74bc47bdeedde8cb6e0",
+    "transactionHash": "0xa3011d753f5ad28a4c6bd2e1727d41b0eaaff2d53ffd95c4a517cd52f06187ad",
+    "blockNumber": "11689551",
+    "status": "reverted",
+    "before": {
+      "aqua": [
+        "1798239931652289",
+        "5500000"
+      ],
+      "wallet": [
+        "4431866824117955",
+        "1568133175882045",
+        "36506718",
+        "3493282"
+      ]
+    },
+    "after": {
+      "aqua": [
+        "1798239931652289",
+        "5500000"
+      ],
+      "wallet": [
+        "4431866824117955",
+        "1568133175882045",
+        "36506718",
+        "3493282"
+      ]
+    },
+    "independentlyVerifiedBefore": {
+      "aqua": [
+        [
+          "1798239931652289",
+          2
+        ],
+        [
+          "5500000",
+          2
+        ]
+      ],
+      "wallets": [
+        "4431866824117955",
+        "1568133175882045",
+        "36506718",
+        "3493282"
+      ]
+    },
+    "independentlyVerifiedAfter": {
+      "aqua": [
+        [
+          "1798239931652289",
+          2
+        ],
+        [
+          "5500000",
+          2
+        ]
+      ],
+      "wallets": [
+        "4431866824117955",
+        "1568133175882045",
+        "36506718",
+        "3493282"
+      ]
+    }
+  },
+  "final": {
+    "blockNumber": "11689597",
+    "blockHash": "0xdd32e884dc277f86b4e4c771a9b5cfa253c004da70716a969933f03a4ec67a23",
+    "aqua": [
+      [
+        "0",
+        255
+      ],
+      [
+        "0",
+        255
+      ]
+    ],
+    "wallets": [
+      "4431866824117955",
+      "1568133175882045",
+      "36506718",
+      "3493282"
+    ],
+    "allowances": [
+      "0",
+      "0",
+      "0",
+      "0"
+    ],
+    "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "transactions": [
+    {
+      "hash": "0x955947583290fae2d20addf564def4b61e1c75f550e0d9d165ad944b6f4a763a",
+      "status": "success",
+      "blockNumber": "11689496",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "gasUsed": "302306",
+      "effectiveGasPrice": "1086974377"
+    },
+    {
+      "hash": "0x031cec36962b0a0028cefe953e6814620fcbf17fd95bf102be6562a7a0595f00",
+      "status": "success",
+      "blockNumber": "11689536",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "gasUsed": "173897",
+      "effectiveGasPrice": "1054039115"
+    },
+    {
+      "hash": "0x180b492e7180a6ddad99851624193e541f84a2e7933efaefeeb6aaaf2cb7a8e4",
+      "status": "success",
+      "blockNumber": "11689545",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "gasUsed": "114931",
+      "effectiveGasPrice": "1086780920"
+    },
+    {
+      "hash": "0x82c51809f0bfe15065d6095e4788997f94876f09c5af90dff2951b4e9c08ed4e",
+      "status": "success",
+      "blockNumber": "11689566",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "gasUsed": "107819",
+      "effectiveGasPrice": "1052337792"
+    },
+    {
+      "hash": "0xe42dccc9b48c2c5708092fedfa97815adbc56067497ca95df17de62e9807b7a8",
+      "status": "success",
+      "blockNumber": "11689505",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "gasUsed": "46028",
+      "effectiveGasPrice": "1046456609"
+    },
+    {
+      "hash": "0x15507c0318627b06a8de30a16969ffc251aebd87377b39a77a6cbcfb6fc1e879",
+      "status": "success",
+      "blockNumber": "11689507",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "gasUsed": "55425",
+      "effectiveGasPrice": "1106445553"
+    },
+    {
+      "hash": "0xb474805296df2e90ad601b550a5aa04c5d9dc115458ff4c33bbb73b526ca1fb4",
+      "status": "success",
+      "blockNumber": "11689508",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "gasUsed": "83703",
+      "effectiveGasPrice": "1071609459"
+    },
+    {
+      "hash": "0x83616005b47248716044f37f56fff94ebf307c58c330ef5cc51445eb180ef4cf",
+      "status": "success",
+      "blockNumber": "11689539",
+      "from": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "to": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "gasUsed": "167228",
+      "effectiveGasPrice": "1048516936"
+    },
+    {
+      "hash": "0x0e2e4ebfc7158e89bba211d164fbf85d1d4caeaa5a2b1a3f0ba630bd9c8dcb23",
+      "status": "success",
+      "blockNumber": "11689537",
+      "from": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "gasUsed": "55437",
+      "effectiveGasPrice": "1014387656"
+    },
+    {
+      "hash": "0x5b3da0f61f66cd4dc7e3ee47e939cc4210eb21831f12d0e2246ca203628c5184",
+      "status": "success",
+      "blockNumber": "11689568",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "gasUsed": "24068",
+      "effectiveGasPrice": "962096772"
+    },
+    {
+      "hash": "0x610183c619655c76bbe4131d5bb437a2529a5f01903e13769cae92802fd6641b",
+      "status": "success",
+      "blockNumber": "11689569",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "gasUsed": "33489",
+      "effectiveGasPrice": "1050769994"
+    },
+    {
+      "hash": "0x020d9efd11c87f84a0c84a5ed9896f855d4fc1ae6ab57808eba2613e375e5ca4",
+      "status": "success",
+      "blockNumber": "11689567",
+      "from": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "to": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "gasUsed": "35848",
+      "effectiveGasPrice": "1030041777"
+    },
+    {
+      "hash": "0xa3011d753f5ad28a4c6bd2e1727d41b0eaaff2d53ffd95c4a517cd52f06187ad",
+      "status": "reverted",
+      "blockNumber": "11689551",
+      "from": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "to": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "gasUsed": "66091",
+      "effectiveGasPrice": "1113982477"
+    },
+    {
+      "hash": "0x8edda257b1442abd153edc1314ddd35b9e66c320ef1dd74bc47bdeedde8cb6e0",
+      "status": "success",
+      "blockNumber": "11689548",
+      "from": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "gasUsed": "55437",
+      "effectiveGasPrice": "1060872925"
+    },
+    {
+      "hash": "0xe4624ca3c0fc107790b8118fdf93285eb792285f763ec3509501b871b539baa1",
+      "status": "success",
+      "blockNumber": "11689577",
+      "from": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "gasUsed": "33501",
+      "effectiveGasPrice": "1084102586"
+    }
+  ],
+  "finalSourceSha256": {
+    "workflow/package.json": "cab2365261e556714f0ecd90782093a3a3df12181caa4fd6ada39a2e1a488b52",
+    "workflow/bun.lock": "7be6baae09b17d7ebb4287aebaa218fe630da4c4bd99e4d99f235bece602046a",
+    "workflow/market-maker-auth/main.ts": "b650228baa90590d5d9ac41f88784f22da57eb6ac588682c36f1f247d9acff5e",
+    "workflow/market-maker-auth/workflow.ts": "6f6006fac84ef4ce2dd8216b7b22964eae668bf7425248378f28c43f93992561",
+    "workflow/src/publish.ts": "8d1b83b0dc6ed1ea563e1cee796268c875991e2ea5a696ccf790e882eb911d64",
+    "workflow/src/intersect.ts": "56c6093214b9e056220e900724ea4475cb7b3c386aedd80de95affcf76953c6a",
+    "workflow/src/types.ts": "ed4c162e2141f53053676b5bbba6163ff5dcfc8180bbd64030ba83826c428b8a",
+    "workflow/src/encode.ts": "b6604face78ec158c244b17899ccdfa1d23e2bd60b8cf058eccd82b3cb6dccd8",
+    "workflow/src/market-math.ts": "e3136f21c24391a1529df0723895411fb5982bda8dfacb7bdd5a814f566241f8",
+    "workflow/src/market-observation.ts": "8d964a8343d8f8ceb74d59eaae9d6d8691b6766dbddb2cd517a707a954cf89b9",
+    "workflow/guard-report/delivery.ts": "0ea13ede948552ee27c4cf2b4d879d293e211b6fcfab4a51bac1e77df5fbb61e",
+    "workflow/guard-report/config.ts": "c0f684021564afc6d460fbb26f5f56c98bdcf5063ecfaec59db435e42394368b",
+    "workflow/guard-report/report.ts": "1c6abe9c3e8002c5786c99242ba3f9210efaea4eff7465eb7374117e3dd391f4",
+    "workflow/fixtures/public-live-demo.json": "570339b9ef90a86f65a5ddcbca68e1efc4d9f686e577e195609e90214bb541ff",
+    "workflow/scripts/simulate-public-demo.mjs": "7a9315132c79dde8ec8cf2717dd74c4df2b2f1c91114f03c2a756814de27055f",
+    "workflow/scripts/verify-live-guard.mjs": "a942703baf2f31e0517f91c4015e2dbe48b4fb536daaa20d31e548dd8656ec3f",
+    "contracts/aqua-executor/scripts/cre-live-plan.ts": "016c4459d5cdfc20a1c59d272b89f65baa5cafa0ab35bc72167864387483581f",
+    "contracts/aqua-executor/scripts/cre-live-reject.ts": "74649888fb78ab65de18ea7442ef3e929e1c9950b7c680850b6e6ded24708ed5",
+    "contracts/aqua-executor/scripts/cre-risk-prices.ts": "f1c40945e3104ea7c6b9a1e7455ea4d50c4d08ef8c93cb998ff504772844b5ed",
+    "contracts/aqua-executor/src/kraken-risk-prices.ts": "b1c844006426a0321aec0460fff034f53493b7d792eed0bf2b42908bb79bcc1a",
+    "contracts/aqua-executor/scripts/cre-live-close.ts": "3482a24badb3f03e9351ce2baedfb996b0d3b5840e99ca94a8b70d0228772646",
+    "contracts/aqua-executor/src/execution-controller.ts": "e393e1474b401d142f733d5390e59949a144cd4e8d34a2227b1e46487d9ac7d1",
+    "contracts/aqua-executor/src/durable-send.ts": "488131d5e313293655b01ff2f62c87c156f27c3448f2115afe72916f0981a89a",
+    "contracts/aqua-executor/contracts/AquaGuardV2.sol": "d1ba50e7bfdc7d37e61bcba162497db7c9528d35740757566a6402d42d57a91f",
+    "contracts/aqua-executor/artifacts/AquaGuardV2.json": "8cb4851c377043f666144a5cd462a5a39d5918e61d21e3b62d7dc2b66abb77cd",
+    "workflow/src/market-data/config.ts": "e496027df6c7af4839903bb7f91c1104cee953a877627aff69c1df2b27ad133f",
+    "workflow/src/market-data/defaults.json": "7216a1bee5149e8494139966a81df1ab1785b2f612dd6f03c6e0267fe0735363",
+    "workflow/src/market-data/index.ts": "7bac0a9f02805365068340ce299404db37173e3b10892065760396c141cc7901",
+    "workflow/src/market-data/kraken.ts": "270134e8d0309d5c31389bf718c45126770e8359d71db634f45fdb6447994482",
+    "workflow/src/market-data/observe.test.ts": "b43b194cbdaed864ef259675083516e0f5863429f97d32176f8788edda3fd155",
+    "workflow/src/market-data/observe.ts": "cb656964e0879f9ca954b43d53ce090f740f35f0ff6d0b77db1e879ab3f10894"
+  },
+  "sourceScope": "Hashes identify final verified source. Per-run WASM binary/config hashes are preserved separately in the CLI logs.",
+  "limits": [
+    "CLI simulation using public synthetic policies, not DON deployment or real TEE attestation.",
+    "Single concentrated strategy tested; frontend publication, A/B strategy replacement and other templates are separate work."
+  ]
+}
