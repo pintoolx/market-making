@@ -1,6 +1,7 @@
 .page { --aqua-ink: #0e0f28; --aqua-accent: #2050f2; --aqua-line: #abb8ce; --aqua-muted: #4c5870; --aqua-panel: #edf1f7; }
 /* globals.css locks html/body scrolling for the canvas app, so the page itself scrolls; the header is inside it and scrolls away with the content. */
-.page { height: 100dvh; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+/* Outrank the base page class regardless of CSS chunk/import order. */
+.page.page { height: 100dvh; min-height: 0; overflow-x: hidden; overflow-y: auto; }
 /* main fills the leftover height so the footer stays at the bottom on short pages. */
 .page > main { flex: 1 0 auto; overflow: visible; }
 .page h1:focus, .page h2:focus { outline: none; }
@@ -96,6 +97,8 @@
 .card h3 { margin: 14px 0 10px; font-size: 22px; line-height: 1.2; }
 .byline { margin: -4px 0 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
 .byline span { color: var(--aqua-ink); }
+.providerIdentity { flex-wrap: wrap; overflow-wrap: anywhere; }
+.strategyName { overflow-wrap: anywhere; display: block; }
 .feeLine { margin: -6px 0 10px; font-size: 13px; font-weight: 700; color: var(--aqua-ink); }
 /* Original PinTool tags used a near-invisible #d7e1ee border; give them a readable edge. */
 .chip { border-color: #8997ad; background: #e4eaf2; padding: 4px 6px; }
@@ -112,6 +115,7 @@
 
 .editorGrid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 48px; align-items: start; }
 .panel { padding: 28px; border-radius: 16px; background: var(--aqua-panel); outline: 2px solid var(--aqua-ink); box-shadow: 0 2px 0 var(--aqua-ink); display: flex; flex-direction: column; gap: 24px; }
+.tradeForm { display: flex; flex-direction: column; gap: 24px; }
 .panel fieldset { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .panel legend { padding: 0; margin-bottom: 16px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
 .panel .privateField { padding: 8px 20px 20px; border: 2px dashed var(--aqua-ink); border-radius: 12px; }

@@ -52,6 +52,8 @@ export type EvaluateMandateInput = {
 };
 
 export type ExecutableStrategy = {
+  shipTransaction?: `0x${string}`;
+  maker?: string;
   id: string;
   name: string;
   provider: string;

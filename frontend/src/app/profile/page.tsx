@@ -14,6 +14,7 @@ import AccountDetails from './AccountDetails';
 import Avatar from '../components/shared/Avatar';
 import ConfirmButton from './ConfirmButton';
 import CopyAddress from './CopyAddress';
+import { strategyHref } from '../marketplace/strategyLinks';
 import { useBasicProfile } from './profileStore';
 import styles from '../marketplace/page.module.css';
 import aqua from '../marketplace/aqua.module.css';
@@ -73,7 +74,7 @@ function Making() {
             <h3 className={aqua.proposalTitle}>{item.strategyName}</h3>
           </div>
           <div className={aqua.cardButtons}>
-            <Primary onClick={() => router.push(`/maker?strategy=${item.id}`)}>Review</Primary>
+            <Primary onClick={() => router.push(strategyHref(item.id))}>Review</Primary>
             <ConfirmButton label="Remove" confirmLabel="Yes, remove" onConfirm={() => remove(item.id)} />
           </div>
         </div>

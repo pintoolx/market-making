@@ -22,7 +22,8 @@
     "typecheck": "tsc",
     "build:guard:v2": "node scripts/build-guard-v2.ts",
     "autopilot": "node --env-file-if-exists=.env src/autopilot-cli.ts",
-    "prepare:product-strategies": "node scripts/prepare-product-strategies.ts"
+    "prepare:product-strategies": "node scripts/prepare-product-strategies.ts",
+    "prepare:wallet-swap": "node scripts/prepare-wallet-swap.ts"
   },
   "dependencies": {
     "@pintool/strategy-builder": "workspace:*",
