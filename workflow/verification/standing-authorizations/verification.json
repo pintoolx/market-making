@@ -1,0 +1,137 @@
+{
+  "schema": "pintool-standing-verification-v1",
+  "sourceCommit": "7848d549329d231a2936c736f78876977b599005",
+  "chainId": 11155111,
+  "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+  "maker": "0x24f93609de41a839f411d18f3ee242c5089caad7",
+  "mode": "cre-local-simulation-with-sepolia-broadcast",
+  "initialAuthorization": {
+    "chainId": 11155111,
+    "networkName": "Ethereum Sepolia",
+    "reportDigest": "0x60680de99ef47075912d26b3b4a34408627bbeac3f9bcdb74f5d2b62a807020f",
+    "reportTransactionHash": "0xb890e17e82caeecc0361ec8d5614453e784d3a1b079c8582cb201ea1f6d2b0fa",
+    "reportExplorerUrl": "https://sepolia.etherscan.io/tx/0xb890e17e82caeecc0361ec8d5614453e784d3a1b079c8582cb201ea1f6d2b0fa",
+    "sequence": "1789234562",
+    "expiresAt": null
+  },
+  "repeatedEvaluation": {
+    "evidence": {
+      "chainId": 11155111,
+      "networkName": "Ethereum Sepolia",
+      "reportDigest": "0x60680de99ef47075912d26b3b4a34408627bbeac3f9bcdb74f5d2b62a807020f",
+      "reportTransactionHash": "0xb890e17e82caeecc0361ec8d5614453e784d3a1b079c8582cb201ea1f6d2b0fa",
+      "reportExplorerUrl": "https://sepolia.etherscan.io/tx/0xb890e17e82caeecc0361ec8d5614453e784d3a1b079c8582cb201ea1f6d2b0fa",
+      "sequence": "1789234562",
+      "expiresAt": null
+    },
+    "event": {
+      "id": "local-simulation-7d58bde0-9dc6-4e26-a582-707af2033a96-unchanged",
+      "type": "authorization-unchanged",
+      "title": "Execution conditions unchanged",
+      "detail": "The confidential evaluation confirmed the existing authorization. No new transaction was submitted.",
+      "occurredAt": "2026-09-12T17:36:58.710Z",
+      "transactionHash": "0xb890e17e82caeecc0361ec8d5614453e784d3a1b079c8582cb201ea1f6d2b0fa",
+      "explorerUrl": "https://sepolia.etherscan.io/tx/0xb890e17e82caeecc0361ec8d5614453e784d3a1b079c8582cb201ea1f6d2b0fa"
+    }
+  },
+  "candidateEvaluation": {
+    "evidence": {
+      "chainId": 11155111,
+      "networkName": "Ethereum Sepolia",
+      "reportDigest": "0x4040122b69422dc64e4c14f5b385b0f9c957e3fdd608182c30a9e2e0d8311805",
+      "reportTransactionHash": "0xd4ffec5a04472b138459a6dbe164ea0485aca0e955aed9862470523df9a2af42",
+      "reportExplorerUrl": "https://sepolia.etherscan.io/tx/0xd4ffec5a04472b138459a6dbe164ea0485aca0e955aed9862470523df9a2af42",
+      "sequence": "1789234696",
+      "expiresAt": null
+    },
+    "profiles": [
+      {
+        "listingId": "featured-tight-market",
+        "strategyHash": "0x404b5695e6733ad52c2402a43991c4a3d50181adb1ed94d8c1f404d319899a85",
+        "status": "active"
+      },
+      {
+        "listingId": "featured-defensive-market",
+        "strategyHash": "0x7767a30f308311da63a47e530443d8c525267601ee63c8065a3d954a4a900c97",
+        "status": "paused"
+      }
+    ]
+  },
+  "tightSwap": {
+    "status": "completed",
+    "outcome": "swapped",
+    "transactions": [
+      {
+        "step": "primary",
+        "action": "swap",
+        "hash": "0x518b8fe0ad9e56ef5d559807187fdb6ae7df4ccdd9b766e1273b4a2794241969",
+        "status": "success",
+        "blockNumber": "11690412"
+      },
+      {
+        "step": "taker-approve",
+        "action": "taker-approve",
+        "hash": "0xd20217f2d37178b32534b95591ea47e5d6a1d2edbf05829cefc9dd734736ef7a",
+        "status": "success",
+        "blockNumber": "11690411"
+      }
+    ]
+  },
+  "independentRpcReads": {
+    "verifiedAt": "2026-09-12T17:39:16.299Z",
+    "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+    "verification": [
+      {
+        "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+        "blockNumber": "11690407",
+        "report": {
+          "schemaVersion": 2,
+          "chainId": "11155111",
+          "guard": "0x64F6e18E85DAe5ec2Ee44Fe7f9fc66cF2A1f056f",
+          "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+          "maker": "0x24F93609dE41a839f411D18f3eE242c5089CAaD7",
+          "strategyHash": "0x404b5695e6733ad52c2402a43991c4a3d50181adb1ed94d8c1f404d319899a85",
+          "token0": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+          "token1": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+          "nonce": "1789234562",
+          "validAfter": 1789234562,
+          "validUntil": 0,
+          "allowedDirections": 3,
+          "maxAmount0PerSwap": "400000000000000",
+          "maxAmount1PerSwap": "1000000",
+          "maxPostBalance0": "6000000000000000",
+          "maxPostBalance1": "20000000"
+        },
+        "digest": "0x60680de99ef47075912d26b3b4a34408627bbeac3f9bcdb74f5d2b62a807020f"
+      },
+      {
+        "rpc": "https://sepolia.gateway.tenderly.co",
+        "blockNumber": "11690407",
+        "report": {
+          "schemaVersion": 2,
+          "chainId": "11155111",
+          "guard": "0x64F6e18E85DAe5ec2Ee44Fe7f9fc66cF2A1f056f",
+          "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+          "maker": "0x24F93609dE41a839f411D18f3eE242c5089CAaD7",
+          "strategyHash": "0x404b5695e6733ad52c2402a43991c4a3d50181adb1ed94d8c1f404d319899a85",
+          "token0": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+          "token1": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+          "nonce": "1789234562",
+          "validAfter": 1789234562,
+          "validUntil": 0,
+          "allowedDirections": 3,
+          "maxAmount0PerSwap": "400000000000000",
+          "maxAmount1PerSwap": "1000000",
+          "maxPostBalance0": "6000000000000000",
+          "maxPostBalance1": "20000000"
+        },
+        "digest": "0x60680de99ef47075912d26b3b4a34408627bbeac3f9bcdb74f5d2b62a807020f"
+      }
+    ]
+  },
+  "defensiveRejection": {
+    "status": "verified",
+    "error": "StrategyNotActive",
+    "transactionHash": "0xbb85c1ff3e3cd5ed6d5dfc3f975fc356dfec402c56ac618578591b3ed0c2e96b"
+  }
+}
