@@ -94,6 +94,7 @@ Provider policies and Maker limits are intended to remain confidential. Deployed
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Mandate API](docs/STRATEGY-MANDATE-API.md)
+- [Authorization format](docs/AUTHORIZATION-FORMAT.md)
 - [Guard report specification](docs/GUARD-REPORT-V1.md)
 - [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md)
 - [Aqua executor](contracts/aqua-executor/README.md)
