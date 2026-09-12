@@ -184,7 +184,7 @@ function TradeForm() {
         {failedHash && <a href={`https://sepolia.etherscan.io/tx/${failedHash}`} target="_blank" rel="noreferrer">View failed transaction ↗</a>}
         {busy && <p role="status">{busy}</p>}
         {error && <p role="alert" className={aqua.fieldError}>{error.length > 500 ? `${error.slice(0, 500)}…` : error}</p>}
-        <GuardCheck onPendingChange={setGuardCheckPending} available={!busy && !pending && !!error && inactiveStrategy === selected} choice={choice} wallet={wallet} amount={amount} direction={direction} />
+        <GuardCheck onPendingChange={setGuardCheckPending} available={!busy && !pending && !!error && !!inactiveStrategy && inactiveStrategy === selected} choice={choice} wallet={wallet} amount={amount} direction={direction} />
       </div>
       <aside className={aqua.explanation}>
         <h2>{choice?.name || 'Direct settlement'}</h2>
