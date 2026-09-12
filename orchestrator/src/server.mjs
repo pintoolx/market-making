@@ -20,10 +20,14 @@ function strategyCatalog(value) {
       || typeof item.name !== 'string' || !item.name.trim() || typeof item.provider !== 'string' || !item.provider.trim()
       || !/^0x[0-9a-f]{64}$/i.test(item.strategyHash ?? '')) throw new Error('MANDATE_STRATEGY_CATALOG contains an invalid strategy');
     if (item.programDeadline !== undefined && (!Number.isSafeInteger(item.programDeadline) || item.programDeadline < 1)) throw new Error('Invalid program deadline');
+    if (item.shipTransaction !== undefined || item.maker !== undefined) {
+      if (!/^0x[0-9a-f]{64}$/i.test(item.shipTransaction ?? '') || !/^0x[0-9a-f]{40}$/i.test(item.maker ?? '')) throw new Error('Wallet trading requires both a Maker and a ship transaction');
+    }
     if (item.release !== undefined && (!item.release || Object.keys(item.release).some(k => !['id', 'version', 'digest'].includes(k))
       || !/^[0-9a-f]{40}-clmm$/.test(item.release.id ?? '') || !Number.isSafeInteger(item.release.version) || item.release.version < 1
       || !/^0x[0-9a-f]{64}$/i.test(item.release.digest ?? '') || id !== `${item.release.id}.v${item.release.version}`)) throw new Error('Invalid publication binding');
     return { id, name: item.name, provider: item.provider, strategyHash: item.strategyHash.toLowerCase(),
+      ...(item.shipTransaction !== undefined ? { maker: item.maker.toLowerCase(), shipTransaction: item.shipTransaction.toLowerCase() } : {}),
       ...(item.programDeadline !== undefined ? { programDeadline: item.programDeadline } : {}),
       ...(item.release !== undefined ? { release: item.release } : {}) };
   });
@@ -54,6 +58,7 @@ export function configFromEnv(env = process.env) {
   if (!config.runner) throw new Error('MANDATE_RUNNER is required; the service will not fabricate mandate evidence');
   if (!/^0x[0-9a-f]{40}$/i.test(config.router ?? '')) throw new Error('MANDATE_ROUTER_ADDRESS is required');
   if (!/^0x[0-9a-f]{40}$/i.test(config.strategyMaker ?? '')) throw new Error('MANDATE_STRATEGY_MAKER is required');
+  if (config.strategies.some(item => item.maker && item.maker !== config.strategyMaker)) throw new Error('Configured trading strategy belongs to a different Maker');
   return config;
 }
 
