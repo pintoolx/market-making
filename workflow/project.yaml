@@ -1,0 +1,9 @@
+simulation-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
+
+production-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com

@@ -2,7 +2,7 @@
 
 > 2026-09-12 更新：這份流程保留為 **Defensive Strategy B 的測試 fixture**，不再是整個作品的題目。作品主線已收斂為 Confidential Strategy Mandate：同一個 Maker balance 支援兩套 Provider strategies，TEE 依雙方私密條件切換短效授權。決策依據與完整競品分析見 [TOPIC-DILIGENCE.md](TOPIC-DILIGENCE.md)。
 
-狀態：團隊整合基準。這份文件定義唯一主 demo、方向語意、跨模組介面與驗收證據。若實作與本文衝突，先修正介面再繼續串接。
+狀態：Defensive Strategy B 的目標整合 fixture，定義方向語意、跨模組需求與驗收證據。本文的產品 JSON、`expectedSequence` 和 Ethereum Sepolia 範例，不等同目前已實作的 Guard ABI。第一步 CRE transport check 沿用 Base Sepolia 84532、mWETH / mUSDC、零費率 XYC 與 16 欄位 v1；完整雙策略及 sequence 約束尚待合約／workflow 一起整合。範圍對照見 [CRE-GUARD-INTEGRATION.md](CRE-GUARD-INTEGRATION.md)。
 
 ## 一句話
 

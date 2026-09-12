@@ -1,10 +1,10 @@
 # PinTool Market Making
 
-Private market-making strategies on 1inch Aqua, powered by Chainlink Confidential Compute.
+Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
 
-Strategy Providers publish market-making strategies without revealing their logic. Makers run them with their own funds and their own private limits, and pay the Provider a share of the profit, only when there is one.
+The intended design lets Strategy Providers offer strategies while keeping their raw logic private. Makers use their own funds and private limits, with a Provider fee only when there is profit. Confidential execution and profit sharing are not implemented end to end yet.
 
-## How it works
+## Intended flow
 
 1. **A Provider publishes a strategy.** They start from an Aqua template, write the logic only they know, and set a performance fee. Makers only see the name, a description and the fee.
 2. **A Maker sets private limits.** They pick a strategy and set a budget and a maximum exposure. The Provider never sees these.
@@ -13,10 +13,12 @@ Strategy Providers publish market-making strategies without revealing their logi
 
 ## What stays private
 
-| Private | Public |
+| Intended private inputs | Public output |
 |---|---|
 | Provider's pricing and adjustment logic | Strategy name, description and fee |
-| Maker's budget and exposure limits | Parameters of an activated strategy and every trade onchain |
+| Maker's original budget and exposure policy | Derived direction flags, caps, validity windows, activated strategy parameters and every onchain trade |
+
+Public outputs and their history can reveal information about private inputs over time. Short expiry limits the use of an authorization; it does not erase historical reports or prevent strategy inference. We make no quantified privacy guarantee. Current frontend drafts remain in the browser, and the report delivery fixture uses public data; real TEE processing is still pending. See the [privacy and integration decision](docs/CRE-GUARD-INTEGRATION.md).
 
 Limits reduce exposure; they do not guarantee a maximum loss.
 
@@ -25,9 +27,9 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 | Part | Folder | Status |
 |---|---|---|
 | Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
-| Confidential workflow (Chainlink TEE) | `workflow/` | In progress |
+| CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; account access, actual delivery and TEE evaluator pending |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
-| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Prototype with synthetic report / swap tests; interface agreement and CRE delivery pending |
+| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Prototype with synthetic-report testnet swaps / rejection evidence; actual CRE delivery pending |
 
 ## Getting started
 
@@ -40,6 +42,8 @@ pnpm dev                                        # http://localhost:3000
 Uses pnpm with a hoisted `node_modules` (see `.npmrc`). `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
 
 The executor requires **Node 24 or newer** for its SQLite journal. With Node 24 and Anvil installed, run `pnpm typecheck:contracts` and `pnpm test:contracts` (`ANVIL=/path/to/anvil` if needed). The web app's scripts and Node 22 Pages deployment remain separate. See [executor setup and migration](docs/AQUA-EXECUTOR-MIGRATION.md).
+
+The CRE adapter uses a separate Bun package. Run `bun install --frozen-lockfile`, `bun test` and `bun run build` in `workflow/guard-report/`; see the [delivery runbook](workflow/guard-report/README.md).
 
 ## Deploy (Cloudflare Pages)
 
@@ -57,6 +61,7 @@ The web app is exported as a static site (`output: "export"`).
 - [ETHOnline topic diligence and prior-art analysis](docs/TOPIC-DILIGENCE.md)
 - [Aqua maker strategy research](docs/AQUA-MAKER-RESEARCH.md)
 - [What Aqua can enforce per swap, and the Guard design](docs/AQUA-STRATEGY-DEEP-DIVE.md)
+- [CRE delivery decision, pinned VM version and privacy limits](docs/CRE-GUARD-INTEGRATION.md)
 - [User stories and UX walkthrough](docs/UX-USER-STORIES.md)
 
 ## Background
