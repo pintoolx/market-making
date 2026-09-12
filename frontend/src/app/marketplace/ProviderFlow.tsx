@@ -26,6 +26,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
       Publish a version of your CLMM strategy for Makers to review. CLMM is currently the available template.
     </PageHead>
     <p><Link href="/ens">Manage your ENS strategy names and publishers →</Link></p>
+    {process.env.NEXT_PUBLIC_BUILDER_ENABLED === 'true' && <p><Link href="/builder">透過對話設計你的策略 →</Link></p>}
     <div className={`${styles.grid} ${aqua.grid}`}>
       {PUBLISHABLE_TEMPLATES.map(template => <article key={template.id} className={aqua.panel}>
           <span className={aqua.eyebrow}>{template.label}</span>

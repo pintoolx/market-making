@@ -21,6 +21,7 @@ export type Account = {
   /** e.g. "Email" or "Wallet · MetaMask". */
   method: string;
   signMessage?: (message: string) => Promise<`0x${string}`>;
+  getAccessToken?: () => Promise<string | null>;
   ensWallet?: () => Promise<WalletClient>;
   evmWallet?: (address?: string) => Promise<WalletClient>;
 };
@@ -29,7 +30,7 @@ const WALLET_NAMES: Record<string, string> = { metamask: 'MetaMask', coinbase_wa
 const walletName = (type: string) => WALLET_NAMES[type] ?? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 function usePrivyAccount(): Account {
-  const { ready, authenticated, login, user } = usePrivy();
+  const { ready, authenticated, login, user, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
   const email = user?.email?.address;
   const addresses = [...new Set([
@@ -57,7 +58,7 @@ function usePrivyAccount(): Account {
     return createWalletClient({ account: wallet.address as `0x${string}`, chain: sepolia, transport: custom(provider) });
   };
   const ensWallet = () => evmWallet();
-  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method, signMessage, ensWallet, evmWallet };
+  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method, signMessage, getAccessToken, ensWallet, evmWallet };
 
 }
 

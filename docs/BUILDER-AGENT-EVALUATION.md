@@ -23,7 +23,7 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 
 ## Offline regression checks
 
-`pnpm typecheck:builder-service` passed. `pnpm test:builder-service` passed 20 tests using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
+`pnpm typecheck:builder-service` passed. `pnpm test:builder-service` passed 23 tests using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
 
 - Atomic/idempotent acceptance, owner isolation, strict client input and one active turn per draft.
 - Multiple workers, expired-lease recovery after a new pool, three-attempt limit, cancellation, and late worker rejection even when it supplies the latest draft revision.
@@ -31,9 +31,15 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 - Exact human-to-atomic conversion; chain-qualified Sepolia identities without cross-chain substitution; template allocation rejection.
 - Numeric ordering beyond ten messages/revisions and JSON-safe history timestamps, including the model history tool.
 - Provider exception redaction before SDK logging and no credentials/leases in model tool context.
+- Privy JWT signatures/claims, app/user/session binding, refreshed access tokens, forged identities, and combined wallet/session ownership through HTTP.
+- Owned validation results and active-turn discovery for browser recovery.
+
+## Browser checks
+
+Python Playwright/Chromium drove the actual Builder component against a real local HTTP handler, PostgreSQL and durable worker. The identity and model were deterministic fixtures, isolated from application routes. The run passed wallet proof, visible streamed text, CLMM 2200–2800 creation, upper-bound-only change to 2700, all four caps preserved, restoration as new revision 4, cancellation, committed-request/lost-response recovery without duplicate messages, reload/reopen, session-expiry recovery and 390px mobile layout. No browser page errors were observed. Screenshots and the runnable fixture are described in the service README. The Next production build and scoped frontend lint passed.
 
 ## What remains outside this evidence
 
-These checks prove public design conversations and the service data/API path. They do not prove the frontend, Provider publication, private policy handling, full twelve-tool workflow, simulator repair loops, Maker signing, Guard delivery, onchain settlement or deployment. XYC/CLMM/Pegged selection under live model evaluation still needs broader scenarios; a successful CLMM conversation is not complete coverage of the approved goal. No public-chain transaction, CRE upload/activation or Builder production rollout was performed.
+These checks prove public design conversations, the service data/API path and the initial workspace against fixture identity/model. They do not prove live Privy browser sign-in, Provider publication, private policy handling, full twelve-tool workflow, simulator repair loops, Maker signing, Guard delivery, onchain settlement or deployment. XYC/CLMM/Pegged selection under live model evaluation still needs broader scenarios; a successful CLMM conversation is not complete coverage of the approved goal. No public-chain transaction, CRE upload/activation or Builder production rollout was performed.
 
-The API currently uses an EOA SIWE adapter. Existing application Privy token verification and browser integration remain part of the next integration work. Responses `store: false` disables Responses storage; it is not a zero-data-retention guarantee.
+The API supports app-pinned Privy verification plus EOA wallet proof; production mounting must enable the Privy configuration. Responses `store: false` disables Responses storage; it is not a zero-data-retention guarantee.

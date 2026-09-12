@@ -1,11 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Pool } from 'pg'
 import { ZodError, z } from 'zod'
-import { DraftConflict, DraftAccessDenied, getCapabilities } from '@pintool/strategy-builder'
+import { DraftConflict, DraftAccessDenied, getCapabilities, sepoliaStandingProfile, validateStrategy, assessRequirements } from '@pintool/strategy-builder'
 import { createAuth } from './auth.ts'
 import { createStore } from './store.ts'
 import { ServiceError } from './errors.ts'
 import { createTurns } from './turns.ts'
+import { createPrivyVerifier } from './privy.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -23,8 +24,10 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 })
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
-export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean }) {
+export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; privyAppId?: string },
+  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier> } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
+  const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -46,7 +49,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
     response.setHeader('Content-Type', 'application/json; charset=utf-8')
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('Access-Control-Allow-Origin', config.origin)
-    response.setHeader('Access-Control-Allow-Headers', 'content-type,authorization,idempotency-key')
+    response.setHeader('Access-Control-Allow-Headers', 'content-type,authorization,idempotency-key,x-privy-access-token')
     response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     response.setHeader('Vary', 'Origin')
     const send = (value: unknown, status = 200) => { response.writeHead(status); response.end(JSON.stringify(value)); return true }
@@ -56,11 +59,13 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
       if (!['GET', 'POST'].includes(request.method ?? '')) throw new ServiceError('method-not-allowed', 405)
       if (request.method === 'POST' && request.headers['content-type']?.split(';')[0] !== 'application/json') throw new ServiceError('json-required', 415)
       const post = request.method === 'POST', route = url.pathname.slice('/v1/builder'.length)
+      if (post && (route === '/auth/challenge' || route === '/auth/login')) limit(request, 60)
+      const privyHeader = request.headers['x-privy-access-token']
+      const identity = verifyPrivy ? await verifyPrivy(typeof privyHeader === 'string' ? privyHeader : undefined) : undefined
       if (post && (route === '/auth/challenge' || route === '/auth/login')) {
-        limit(request, 60)
-        return send(route === '/auth/challenge' ? await auth.challenge(await readJson(request)) : await auth.login(await readJson(request)))
+        return send(route === '/auth/challenge' ? await auth.challenge(await readJson(request), identity) : await auth.login(await readJson(request), identity))
       }
-      const actor = await auth.authenticate(request.headers.authorization)
+      const actor = await auth.authenticate(request.headers.authorization, identity)
       if (route === '/auth/session' && !post) return send({ actor })
       if (route === '/auth/logout' && post) return send(await auth.logout(request.headers.authorization))
       if (route === '/capabilities' && !post) return send({ profileId: config.profileId, capabilities: getCapabilities() })
@@ -82,9 +87,16 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
           return send(await turns.cancel(actor.owner, turn[1]!))
         }
       }
-      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore))?$/)
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if (!post && draft[3] === 'validation') {
+          const current = await store.get(actor.owner, draft[1]!)
+          if (config.profileId !== sepoliaStandingProfile.id) throw new ServiceError('profile-unavailable', 503)
+          const result = validateStrategy(current, sepoliaStandingProfile, Math.floor(Date.now() / 1000))
+          return send({ revision: current.revision, ready: result.ready, errors: result.errors,
+            missingFields: result.missingFields, requirements: assessRequirements(current) })
+        }
         if (!post && draft[3] === 'history') return send({ revisions: await store.history(actor.owner, draft[1]!) })
         if (post && ['patch', 'restore'].includes(draft[3]!)) {
           const body = z.record(z.string(), z.unknown()).parse(await readJson(request))
