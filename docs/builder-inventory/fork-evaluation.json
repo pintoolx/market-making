@@ -1,0 +1,793 @@
+{
+  "passed": true,
+  "publicChainWrites": 0,
+  "sourceHashes": {
+    "contracts/aqua-executor/src/builder-inventory.ts": "14cfc6d1dfea128b3fefe217bbe8d2aa882569f10006960eceba1cb6a321c189",
+    "contracts/aqua-executor/src/builder-token-proxy.ts": "022140c4967846cefea01e5b24def929e706ad068c63193bb2bf33b108685d00",
+    "contracts/aqua-executor/scripts/eval-builder-inventory.ts": "7d192853d20d65fb1295ace0a6a8d407dd017d5f594aaaa6694371aa3c2d2275"
+  },
+  "fork": {
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "blockNumber": "11692001",
+    "blockHash": "0x5ba7d1cc7d5fb010959d6dc106d9380b9a2354316670799c0984ae1ae6d3ae7c",
+    "sourceTimestamp": "1789254240",
+    "contracts": [
+      {
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "authorization": "synthetic-forwarder-impersonation",
+    "frozenBlockTime": true,
+    "limitations": [
+      "Local fork balances and report authority are synthetic.",
+      "No live wallet funding, DON/TEE delivery or source-to-runtime rebuild is proven."
+    ]
+  },
+  "drafts": [
+    {
+      "schemaVersion": 1,
+      "id": "fork-xyc",
+      "owner": "wallet:0x122860757c1a2177f120281df29db4d8a9d7687c",
+      "revision": 1,
+      "kind": "maker",
+      "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789341514,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "5000000000000000",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "requirements": [],
+      "salt": "100",
+      "createdAt": "2026-09-12T23:18:34.000Z",
+      "updatedAt": "2026-09-12T23:18:34.000Z"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "second-shared-inventory",
+      "owner": "wallet:0x122860757c1a2177f120281df29db4d8a9d7687c",
+      "revision": 1,
+      "kind": "maker",
+      "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789341514,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "5000000000000000",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "requirements": [],
+      "salt": "101",
+      "createdAt": "2026-09-12T23:18:34.000Z",
+      "updatedAt": "2026-09-12T23:18:34.000Z"
+    }
+  ],
+  "initial": {
+    "schemaVersion": 1,
+    "engineVersion": "builder-inventory-v1",
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+    "blockNumber": "11692005",
+    "blockHash": "0x0acdfd3590fda4be2f49940daf6387ca9521679cc25c9feda3b237bb6b374c1d",
+    "blockTimestamp": "1789255122",
+    "observedAt": "2026-09-12T23:18:43.996Z",
+    "finality": "latest-unfinalized",
+    "contracts": [
+      {
+        "name": "aqua",
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "runtimeBytes": 5619,
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "name": "router",
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "runtimeBytes": 20541,
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "name": "guard",
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "runtimeBytes": 6687,
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "name": "forwarder",
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "runtimeBytes": 4579,
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "name": "WETH",
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "runtimeBytes": 3124,
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "name": "USDC",
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "runtimeBytes": 1798,
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "native": {
+      "symbol": "ETH",
+      "decimals": 18,
+      "walletBalanceAtomic": "99999785835924752485"
+    },
+    "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+    "tokens": [
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18,
+        "walletBalanceAtomic": "10000000000000000",
+        "allowanceToAquaAtomic": "0"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6,
+        "walletBalanceAtomic": "25000000",
+        "allowanceToAquaAtomic": "0"
+      }
+    ],
+    "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "strategies": [
+      {
+        "strategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+        "state": "unregistered-for-pair",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "0",
+            "tokensCount": 0,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "0",
+            "tokensCount": 0,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          }
+        ]
+      },
+      {
+        "strategyHash": "0x26cc86e42fffc282697edb5430e9267c6e6e61fdaf23dd635405e5e1a0ebab6a",
+        "state": "unregistered-for-pair",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "0",
+            "tokensCount": 0,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "0",
+            "tokensCount": 0,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          }
+        ]
+      }
+    ],
+    "commitmentsComplete": false,
+    "registrationReady": false,
+    "limitations": [
+      "ETH is gas currency and is not WETH; no wrapping or approval is performed.",
+      "Ship records virtual inventory without depositing tokens. Wallet and virtual balances must not be added.",
+      "These known strategy hashes are not an exhaustive scan of all Aqua apps, wallets or other commitments.",
+      "Per-strategy inventory/allowance capacity shares the same wallet funds; capacities cannot be summed or treated as uncommitted funds.",
+      "Guard selection alone does not prove an active report. Curve, report caps, deadlines, transfer behavior and gas can further restrict a trade.",
+      "A fixed recent block is still unfinalized; re-read wallet and chain state before signing."
+    ]
+  },
+  "shipped": {
+    "schemaVersion": 1,
+    "engineVersion": "builder-inventory-v1",
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+    "blockNumber": "11692008",
+    "blockHash": "0x19f412b5f5e706933a1fa29388eb661f8fb2c79062e3ecd183b4f5c5105ffa02",
+    "blockTimestamp": "1789255124",
+    "observedAt": "2026-09-12T23:18:45.624Z",
+    "finality": "latest-unfinalized",
+    "contracts": [
+      {
+        "name": "aqua",
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "runtimeBytes": 5619,
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "name": "router",
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "runtimeBytes": 20541,
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "name": "guard",
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "runtimeBytes": 6687,
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "name": "forwarder",
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "runtimeBytes": 4579,
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "name": "WETH",
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "runtimeBytes": 3124,
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "name": "USDC",
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "runtimeBytes": 1798,
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "native": {
+      "symbol": "ETH",
+      "decimals": 18,
+      "walletBalanceAtomic": "99999522319483131969"
+    },
+    "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+    "tokens": [
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18,
+        "walletBalanceAtomic": "10000000000000000",
+        "allowanceToAquaAtomic": "0"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6,
+        "walletBalanceAtomic": "25000000",
+        "allowanceToAquaAtomic": "0"
+      }
+    ],
+    "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "strategies": [
+      {
+        "strategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+        "state": "shipped",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "10000000000000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "25000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          }
+        ]
+      },
+      {
+        "strategyHash": "0x26cc86e42fffc282697edb5430e9267c6e6e61fdaf23dd635405e5e1a0ebab6a",
+        "state": "shipped",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "10000000000000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "25000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          }
+        ]
+      }
+    ],
+    "commitmentsComplete": false,
+    "registrationReady": false,
+    "limitations": [
+      "ETH is gas currency and is not WETH; no wrapping or approval is performed.",
+      "Ship records virtual inventory without depositing tokens. Wallet and virtual balances must not be added.",
+      "These known strategy hashes are not an exhaustive scan of all Aqua apps, wallets or other commitments.",
+      "Per-strategy inventory/allowance capacity shares the same wallet funds; capacities cannot be summed or treated as uncommitted funds.",
+      "Guard selection alone does not prove an active report. Curve, report caps, deadlines, transfer behavior and gas can further restrict a trade.",
+      "A fixed recent block is still unfinalized; re-read wallet and chain state before signing."
+    ]
+  },
+  "approved": {
+    "schemaVersion": 1,
+    "engineVersion": "builder-inventory-v1",
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+    "blockNumber": "11692011",
+    "blockHash": "0xd6deffeb121788dbf844e5a1f7a55f0554533f2bd313eb66bc9904d5967f3dbc",
+    "blockTimestamp": "1789255126",
+    "observedAt": "2026-09-12T23:18:47.395Z",
+    "finality": "latest-unfinalized",
+    "contracts": [
+      {
+        "name": "aqua",
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "runtimeBytes": 5619,
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "name": "router",
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "runtimeBytes": 20541,
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "name": "guard",
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "runtimeBytes": 6687,
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "name": "forwarder",
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "runtimeBytes": 4579,
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "name": "WETH",
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "runtimeBytes": 3124,
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "name": "USDC",
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "runtimeBytes": 1798,
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "native": {
+      "symbol": "ETH",
+      "decimals": 18,
+      "walletBalanceAtomic": "99999380603982154820"
+    },
+    "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+    "tokens": [
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18,
+        "walletBalanceAtomic": "10000000000000000",
+        "allowanceToAquaAtomic": "10000000000000000"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6,
+        "walletBalanceAtomic": "25000000",
+        "allowanceToAquaAtomic": "25000000"
+      }
+    ],
+    "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "strategies": [
+      {
+        "strategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+        "state": "shipped",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "10000000000000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "10000000000000000"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "25000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "25000000"
+          }
+        ]
+      },
+      {
+        "strategyHash": "0x26cc86e42fffc282697edb5430e9267c6e6e61fdaf23dd635405e5e1a0ebab6a",
+        "state": "shipped",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "10000000000000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "10000000000000000"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "25000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "25000000"
+          }
+        ]
+      }
+    ],
+    "commitmentsComplete": false,
+    "registrationReady": false,
+    "limitations": [
+      "ETH is gas currency and is not WETH; no wrapping or approval is performed.",
+      "Ship records virtual inventory without depositing tokens. Wallet and virtual balances must not be added.",
+      "These known strategy hashes are not an exhaustive scan of all Aqua apps, wallets or other commitments.",
+      "Per-strategy inventory/allowance capacity shares the same wallet funds; capacities cannot be summed or treated as uncommitted funds.",
+      "Guard selection alone does not prove an active report. Curve, report caps, deadlines, transfer behavior and gas can further restrict a trade.",
+      "A fixed recent block is still unfinalized; re-read wallet and chain state before signing."
+    ]
+  },
+  "selected": {
+    "schemaVersion": 1,
+    "engineVersion": "builder-inventory-v1",
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+    "blockNumber": "11692013",
+    "blockHash": "0x3e4c780dd8e6526a5ebeb1255943e33235d0a87104a4c2240bf87aeb402fe50f",
+    "blockTimestamp": "1789255131",
+    "observedAt": "2026-09-12T23:18:52.543Z",
+    "finality": "latest-unfinalized",
+    "contracts": [
+      {
+        "name": "aqua",
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "runtimeBytes": 5619,
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "name": "router",
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "runtimeBytes": 20541,
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "name": "guard",
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "runtimeBytes": 6687,
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "name": "forwarder",
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "runtimeBytes": 4579,
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "name": "WETH",
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "runtimeBytes": 3124,
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "name": "USDC",
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "runtimeBytes": 1798,
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "native": {
+      "symbol": "ETH",
+      "decimals": 18,
+      "walletBalanceAtomic": "99999380603982154820"
+    },
+    "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+    "tokens": [
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18,
+        "walletBalanceAtomic": "10000000000000000",
+        "allowanceToAquaAtomic": "10000000000000000"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6,
+        "walletBalanceAtomic": "25000000",
+        "allowanceToAquaAtomic": "25000000"
+      }
+    ],
+    "activeStrategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+    "strategies": [
+      {
+        "strategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+        "state": "shipped",
+        "source": "guard-selection",
+        "selectedByGuard": true,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "10000000000000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "10000000000000000"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "25000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "25000000"
+          }
+        ]
+      }
+    ],
+    "commitmentsComplete": false,
+    "registrationReady": false,
+    "limitations": [
+      "ETH is gas currency and is not WETH; no wrapping or approval is performed.",
+      "Ship records virtual inventory without depositing tokens. Wallet and virtual balances must not be added.",
+      "These known strategy hashes are not an exhaustive scan of all Aqua apps, wallets or other commitments.",
+      "Per-strategy inventory/allowance capacity shares the same wallet funds; capacities cannot be summed or treated as uncommitted funds.",
+      "Guard selection alone does not prove an active report. Curve, report caps, deadlines, transfer behavior and gas can further restrict a trade.",
+      "A fixed recent block is still unfinalized; re-read wallet and chain state before signing."
+    ]
+  },
+  "docked": {
+    "schemaVersion": 1,
+    "engineVersion": "builder-inventory-v1",
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "maker": "0x122860757c1a2177f120281df29db4d8a9d7687c",
+    "blockNumber": "11692015",
+    "blockHash": "0x7a4ffb552b378718343047c2cd4f4f2c4c29b58c3d559c9700573414d8b835f4",
+    "blockTimestamp": "1789255132",
+    "observedAt": "2026-09-12T23:18:53.544Z",
+    "finality": "latest-unfinalized",
+    "contracts": [
+      {
+        "name": "aqua",
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "runtimeBytes": 5619,
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "name": "router",
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "runtimeBytes": 20541,
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "name": "guard",
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "runtimeBytes": 6687,
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "name": "forwarder",
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "runtimeBytes": 4579,
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "name": "WETH",
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "runtimeBytes": 3124,
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "name": "USDC",
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "runtimeBytes": 1798,
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "native": {
+      "symbol": "ETH",
+      "decimals": 18,
+      "walletBalanceAtomic": "99999336911517385780"
+    },
+    "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+    "tokens": [
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18,
+        "walletBalanceAtomic": "10000000000000000",
+        "allowanceToAquaAtomic": "10000000000000000"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6,
+        "walletBalanceAtomic": "25000000",
+        "allowanceToAquaAtomic": "25000000"
+      }
+    ],
+    "activeStrategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+    "strategies": [
+      {
+        "strategyHash": "0x310330a93ca27ae61741bd6b77f493e0922654fb0dee00da740430505c297b1f",
+        "state": "docked",
+        "source": "owned-artifact",
+        "selectedByGuard": true,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "0",
+            "tokensCount": 255,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "0",
+            "tokensCount": 255,
+            "inventoryAndAllowanceCapacityAtomic": "0"
+          }
+        ]
+      },
+      {
+        "strategyHash": "0x26cc86e42fffc282697edb5430e9267c6e6e61fdaf23dd635405e5e1a0ebab6a",
+        "state": "shipped",
+        "source": "owned-artifact",
+        "selectedByGuard": false,
+        "balances": [
+          {
+            "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "virtualBalanceAtomic": "10000000000000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "10000000000000000"
+          },
+          {
+            "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "virtualBalanceAtomic": "25000000",
+            "tokensCount": 2,
+            "inventoryAndAllowanceCapacityAtomic": "25000000"
+          }
+        ]
+      }
+    ],
+    "commitmentsComplete": false,
+    "registrationReady": false,
+    "limitations": [
+      "ETH is gas currency and is not WETH; no wrapping or approval is performed.",
+      "Ship records virtual inventory without depositing tokens. Wallet and virtual balances must not be added.",
+      "These known strategy hashes are not an exhaustive scan of all Aqua apps, wallets or other commitments.",
+      "Per-strategy inventory/allowance capacity shares the same wallet funds; capacities cannot be summed or treated as uncommitted funds.",
+      "Guard selection alone does not prove an active report. Curve, report caps, deadlines, transfer behavior and gas can further restrict a trade.",
+      "A fixed recent block is still unfinalized; re-read wallet and chain state before signing."
+    ]
+  }
+}

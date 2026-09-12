@@ -11,6 +11,7 @@ import { createArtifacts } from './artifacts.ts'
 import { createSimulations } from './simulations.ts'
 import { createPreviews } from './previews.ts'
 import { scenarioInputSchema } from 'aqua-executor/builder-preview'
+import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -29,12 +30,13 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
 export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string },
-  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier> } = {}) {
+  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
   const simulations = artifacts ? createSimulations(pool, sepoliaStandingProfile) : undefined
   const previews = artifacts ? createPreviews(pool, sepoliaStandingProfile) : undefined
+  const inventory = artifacts && dependencies.inventoryAdapter ? createInventoryReader(pool, sepoliaStandingProfile, dependencies.inventoryAdapter) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -120,9 +122,16 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         if (!previews) throw new ServiceError('profile-unavailable', 503)
         return send(await previews.get(actor.owner, preview[1]!))
       }
-      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations|previews))?$/)
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations|previews|inventory))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if (!post && draft[3] === 'inventory') {
+          if (!inventory) throw new ServiceError('inventory-unavailable', 503)
+          if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1) throw new ServiceError('invalid-request')
+          const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
+          limit(request, 120)
+          return send(await inventory.read(actor.owner, { draftId: draft[1], expectedRevision }))
+        }
         if (draft[3] === 'previews') {
           if (!previews) throw new ServiceError('profile-unavailable', 503)
           if (!post) return send({ previews: await previews.list(actor.owner, draft[1]!) })
