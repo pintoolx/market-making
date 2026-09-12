@@ -39,3 +39,17 @@ test('HTTP API serves the frontend contract and rejects other origins', async t 
   const denied = await fetch(`${base}/v1/mandates/${state.mandateId}`, { headers: { origin: 'https://evil.example' } });
   assert.equal(denied.status, 403);
 });
+
+test('configured wallet trading preserves a complete activation reference and rejects partial or foreign references', async () => {
+  const { configFromEnv } = await import('../src/server.mjs');
+  const maker = `0x${'11'.repeat(20)}`;
+  const entry = { name: 'Provisioned strategy', provider: 'Provider', strategyHash: h('a'), maker, shipTransaction: h('b') };
+  const env = { MANDATE_RUNNER: '/unused', MANDATE_ROUTER_ADDRESS: `0x${'22'.repeat(20)}`, MANDATE_STRATEGY_MAKER: maker,
+    MANDATE_STRATEGY_CATALOG: JSON.stringify({ strategy: entry }) };
+  const config = configFromEnv(env);
+  assert.equal(config.strategies[0].shipTransaction, h('b'));
+  assert.equal(config.strategies[0].maker, maker);
+  for (const patch of [{ maker: undefined }, { shipTransaction: undefined }, { maker: `0x${'33'.repeat(20)}` }]) {
+    assert.throws(() => configFromEnv({ ...env, MANDATE_STRATEGY_CATALOG: JSON.stringify({ strategy: { ...entry, ...patch } }) }));
+  }
+});
