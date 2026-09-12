@@ -1,6 +1,7 @@
 import { decodeEventLog, decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toBytes } from 'viem';
 
 const guardAbi = parseAbi([
+  'function latestReportBlock(address maker, bytes32 strategyHash) view returns (uint256)',
   'event ReportAccepted(address indexed maker, bytes32 indexed strategyHash, uint64 nonce, bytes32 digest, uint48 validUntil)',
   'function getReport(address maker, bytes32 strategyHash) view returns ((uint16 schemaVersion,uint256 chainId,address guard,address router,address maker,bytes32 strategyHash,address token0,address token1,uint64 nonce,uint48 validAfter,uint48 validUntil,uint8 allowedDirections,uint128 maxAmount0PerSwap,uint128 maxAmount1PerSwap,uint128 maxPostBalance0,uint128 maxPostBalance1) report, bytes32 digest)',
 ]);
@@ -30,11 +31,11 @@ export async function readGuardReport({ rpcUrl, guard, maker, strategyHash, bloc
   return { report, digest };
 }
 
-export async function findAcceptedReport({ rpcUrl, guard, maker, strategyHash, fromBlock }, fetchImpl = fetch) {
+export async function findAcceptedReport({ rpcUrl, guard, maker, strategyHash, fromBlock, toBlock }, fetchImpl = fetch) {
   const logs = await rpc(rpcUrl, 'eth_getLogs', [{
     address: guard,
     fromBlock: `0x${fromBlock.toString(16)}`,
-    toBlock: 'latest',
+    toBlock: toBlock === undefined ? 'latest' : `0x${toBlock.toString(16)}`,
     topics: [REPORT_ACCEPTED_TOPIC, addressTopic(maker), strategyHash],
   }], fetchImpl);
   if (!Array.isArray(logs) || logs.length === 0) return null;
@@ -62,4 +63,19 @@ export async function waitForAcceptedReport(config, options = {}) {
     await (options.wait ?? (ms => new Promise(resolve => setTimeout(resolve, ms))))(intervalMs);
   }
   throw new Error('Timed out waiting for the Guard report');
+}
+
+
+/** Recover the original receipt of a standing report; no renewal transaction is needed. */
+export async function latestAcceptedReport(config, options = {}) {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const data = encodeFunctionData({ abi: guardAbi, functionName: 'latestReportBlock', args: [config.maker, config.strategyHash] });
+  const raw = await rpc(config.rpcUrl, 'eth_call', [{ to: config.guard, data }, 'latest'], fetchImpl);
+  const blockNumber = decodeFunctionResult({ abi: guardAbi, functionName: 'latestReportBlock', data: raw });
+  if (blockNumber === 0n) throw new Error('No accepted Guard report exists');
+  const accepted = await findAcceptedReport({ ...config, fromBlock: blockNumber, toBlock: blockNumber }, fetchImpl);
+  const stored = await readGuardReport(config, fetchImpl);
+  if (!accepted || stored.report.nonce !== accepted.nonce || stored.digest !== accepted.digest) throw new Error('Current Guard report and original receipt differ');
+  if (options.expectedDigest && stored.digest !== options.expectedDigest) throw new Error('Reused Guard report differs from CRE evaluation');
+  return { ...accepted, ...stored };
 }

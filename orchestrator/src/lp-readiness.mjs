@@ -11,7 +11,7 @@ const same = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLow
 
 export function assessReadiness({ report: r, activeHash, raw, wallets, allowances, now, programDeadline, strategyHash }) {
   const reasons = [];
-  const authorized = r.nonce > 0n && same(activeHash, strategyHash) && r.allowedDirections > 0 && r.validAfter <= now && now <= r.validUntil;
+  const authorized = r.nonce > 0n && same(activeHash, strategyHash) && r.allowedDirections > 0 && r.validAfter <= now && (Number(r.schemaVersion) === 2 ? Number(r.validUntil) === 0 : Number(r.schemaVersion) === 1 && now < r.validUntil);
   const shipped = raw.every(([balance, count]) => count === 2 && balance > 0n);
   const funded = shipped && raw.every(([balance], i) => wallets[i] >= balance && allowances[i] >= balance);
   const programValid = Number.isSafeInteger(programDeadline) && programDeadline >= now;
@@ -47,6 +47,6 @@ export async function readLpReadiness(config, maker, strategy, dependencies = {}
     raw: rows.map(row => row[0]), wallets: rows.map(row => row[1]), allowances: rows.map(row => row[2]), programDeadline: catalog?.programDeadline });
   // A public snapshot expires quickly; neither persisted state nor a stalled browser can keep it ready forever.
   return { ...result, blockNumber: String(block.number), checkedAt: new Date(wall * 1000).toISOString(),
-    validUntil: new Date(Math.min(wall + 30, result.authorized ? Number(report.validUntil) : wall + 30,
+    validUntil: new Date(Math.min(wall + 30, result.authorized && Number(report.schemaVersion) === 1 ? Number(report.validUntil) : wall + 30,
       result.programValid ? catalog.programDeadline : wall + 30) * 1000).toISOString() };
 }

@@ -30,3 +30,12 @@ test('local simulator always runs the HTTP TEE handler with a Sepolia broadcast'
 test('local simulator requires an absolute CRE project directory', () => {
   assert.throws(() => localSimulatorConfig({ CRE_PROJECT_DIR: 'workflow' }), /absolute path/);
 });
+
+
+test('local simulator exposes only a validated public unchanged marker', async () => {
+  const config = localSimulatorConfig({ CRE_PROJECT_DIR: '/workspace/workflow' });
+  const strategyHash = `0x${'22'.repeat(32)}`, reportDigest = `0x${'33'.repeat(32)}`;
+  const result = await simulateCREWorkflow(config, { strategyHash }, { spawnImpl: () => ({}),
+    runImpl: async () => `log prefix ${JSON.stringify({ kind: 'cre-authorization-unchanged', strategyHash, reportDigest })}\n` });
+  assert.equal(result.unchanged, true); assert.equal(result.reportDigest, reportDigest);
+});

@@ -274,3 +274,15 @@ describe('helpers', () => {
 		expect(matchRule(s, market({ volatilityBps: 301 }))?.id).toBe('volatile-sell-only')
 	})
 })
+
+
+test('standing Maker consent produces schema 2 while old envelopes retain their bounded lifetime', () => {
+  const standing: MakerLimits = { schemaVersion: 3, authorization: 'until-changed', maxBudget1: USDC(10000),
+    maxToken0ShareBps: 6000, maxToken0Value1: USDC(6000), maxSwapValue1: USDC(1000) }
+  const a = run({ limits: standing })
+  expect(a.report.schemaVersion).toBe(2)
+  expect(a.report.validUntil).toBe(0)
+  expect(a.report.allowedDirections).toBe(3)
+  expect(a.report.maxAmount1PerSwap).toBe(1000_000_000n)
+  expect(run().report.validUntil).toBe(NOW + 240)
+})

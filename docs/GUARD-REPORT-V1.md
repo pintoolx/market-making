@@ -25,6 +25,14 @@ Standing authorization remains usable until replaced, paused, revoked by the Mak
 
 Existing deployed receivers do not gain these features through a source update. Deploy a new receiver and rebuild/re-ship its bound strategy programs before sending schema-2 reports.
 
+## Evaluation and publication
+
+Maker envelope schema 3 explicitly requests `authorization: "until-changed"` and omits the legacy TTL. Existing Maker schemas 1 and 2 retain their bounded consent; they are not silently extended. Standing evaluations continue to intersect both parties' trading and inventory limits. Provider rule TTLs apply only to bounded authorizations.
+
+For standing reports, CRE reads the stored report and active strategy before delivery. Equal effective terms reuse the existing authorization without signing or writing another report. A changed direction, cap or active profile requires a new report; changed nonce/time alone does not. Reactivating an inactive profile also requires a new report, even when its stored caps match. The publisher advances the nonce against stored state before writing.
+
+The local simulation adapter recognizes a public unchanged result. The mandate service then retrieves the original acceptance block and checks its event against current Guard state and the digest returned by CRE. The activity entry says the conditions were unchanged and links the original transaction. Refreshing status remains read-only. Readiness snapshots still expire quickly because wallet balances, allowances and Aqua availability can change independently of standing authorization.
+
 ## Two interfaces with different purposes
 
 | Interface | Purpose |

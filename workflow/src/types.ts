@@ -126,7 +126,13 @@ export const makerLimitsV2Schema = z
 	})
 	.strict()
 
-export const makerLimitsSchema = z.discriminatedUnion('schemaVersion', [makerLimitsV1Schema, makerLimitsV2Schema])
+/** Explicit standing consent; legacy envelopes keep their original bounded TTL. */
+export const makerLimitsV3Schema = makerLimitsV2Schema.omit({ maxTtlSec: true }).extend({
+    schemaVersion: z.literal(3),
+    authorization: z.literal('until-changed'),
+}).strict()
+
+export const makerLimitsSchema = z.discriminatedUnion('schemaVersion', [makerLimitsV1Schema, makerLimitsV2Schema, makerLimitsV3Schema])
 
 export type MakerLimitsV1 = z.infer<typeof makerLimitsV1Schema>
 export type MakerLimitsV2 = z.infer<typeof makerLimitsV2Schema>
@@ -167,7 +173,7 @@ export type ReportIdentity = {
 // ─── Output: GuardReportV1 (the only thing that leaves the TEE) ─
 
 export type GuardReportV1 = {
-	schemaVersion: number // uint16, always 1
+	schemaVersion: number // uint16: 1 = bounded, 2 = standing
 	chainId: bigint // uint256
 	guard: `0x${string}`
 	router: `0x${string}`
