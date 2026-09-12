@@ -36,6 +36,11 @@ The runner therefore accepts only a Maker policy whose canonical SHA-256 matches
 TEE. This restriction can be removed when the workflow has an approved dynamic encrypted
 input path.
 
+The direct runner supports creation, reevaluation and adding a provisioned strategy. Each
+catalog entry maps a public marketplace listing to an Aqua strategy hash. The workflow
+selects the corresponding isolated Provider secret, and AquaGuardV2 atomically replaces
+the Maker's active strategy hash after accepting the new report.
+
 ```bash
 cp .env.example .env
 # Set MANDATE_RUNNER to the absolute path of bin/confidential-http-runner.

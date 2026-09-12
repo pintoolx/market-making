@@ -2,7 +2,7 @@
 
 Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested Base Sepolia router and Guard ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
 
-The product flow targets multiple Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is the target deployment; the Base Sepolia setup below remains the tested transport fallback. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement a Maker-scoped active strategy hash.
+The product flow supports multiple Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is the target deployment; the Base Sepolia setup below remains the tested transport fallback. The 16-field report remains bound to one strategy, while AquaGuardV2 maintains the Maker-scoped active strategy hash. Accepting an active report for strategy B atomically prevents strategy A from executing, even while A's earlier report remains unexpired.
 
 ## What is implemented
 
