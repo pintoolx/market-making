@@ -79,6 +79,7 @@ MANDATE_MARKET_SNAPSHOT=<public market-state JSON>
 ```
 
 Railway supplies `PORT`. After deployment, open `/health`, add the generated HTTPS origin to the frontend as `NEXT_PUBLIC_MANDATE_API_URL`, and rebuild the static frontend. A healthy process proves only that configuration parsing and HTTP serving work; create a mandate to verify CRE compilation, simulated confidential execution, official-forwarder delivery and onchain evidence. This mode is CRE local simulation, not production DON execution or TEE attestation.
-# Versioned LP integration
+
+## Versioned LP integration
 
 See [LP releases and readiness](../docs/LP-RELEASES.md) for signed Provider publication routes, immutable versions, required provisioning and readiness configuration. Live market acquisition now happens inside the CRE workflow; `MANDATE_MARKET_SNAPSHOT` and `MANDATE_MARKET_SNAPSHOT_FILE` are no longer authorization inputs to the direct runner. `regime` is `unknown` because a public report does not prove which private rule matched.

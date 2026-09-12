@@ -114,6 +114,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
+  const linkedStrategyId = useRef<string | null | undefined>(undefined);
   const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
@@ -125,7 +126,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, []);
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('strategy');
+    if (linkedStrategyId.current === undefined) linkedStrategyId.current = new URLSearchParams(window.location.search).get('strategy');
+    const id = linkedStrategyId.current;
     if (!id) return;
     let current = true;
     openingLinkedStrategy.current = true;
