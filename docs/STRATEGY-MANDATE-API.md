@@ -1,12 +1,12 @@
 # Frontend strategy mandate API
 
-狀態：2026-09-12 integration contract。這是 PinTool 團隊需要提供的 orchestration／status service，不是 Chainlink 或 1inch 的官方 endpoint。Base URL 由 `NEXT_PUBLIC_MANDATE_API_URL` 提供。
+Status: active integration contract. This is PinTool's orchestration and status service, not an official Chainlink or 1inch endpoint. `NEXT_PUBLIC_MANDATE_API_URL` supplies its base URL.
 
-實作位於 `orchestrator/`。目前預設驗證既有 Base Sepolia contract flow；它透過 stdin runner protocol 接 Chainlink／Aqua 執行端，並使用獨立 RPC 驗證 report 與 activity transaction receipts。Maker policy 只轉交 confidential runner，不寫入 service state 或一般 log。pengu 的 Ethereum Sepolia deployment 完成後，HTTP contract 不變，只需一起更新 runner、chain ID、RPC 與 explorer 設定。
+The implementation lives in `orchestrator/`. Its current defaults verify the existing Base Sepolia contract flow. It connects to the Chainlink and Aqua execution side through the stdin runner protocol and verifies report and activity receipts through an independent RPC. Maker policy is forwarded only to the confidential runner; it is never written to service state or ordinary logs. When the Ethereum Sepolia deployment is ready, the HTTP contract remains unchanged. Update the runner, chain ID, RPC and explorer settings together.
 
-前端只建立 mandate、讀取已確認狀態與 activity。市場 fixture、CRE delivery 與 test-taker swap 由 workflow／contract tooling 驅動，不暴露成產品操作。Service 不得回傳「預期會成功」的結果冒充已確認 evidence。
+The frontend creates mandates and reads confirmed state and activity. Workflow and contract tooling drive market fixtures, CRE delivery and test-taker swaps; these are not exposed as product actions. The service must never present an expected outcome as confirmed evidence.
 
-原始 Provider policy 與 Maker mandate 必須走經驗證的 confidential input path；若 transport 尚未完成，service 必須拒絕請求，不能把 plaintext 留在一般 backend logs。
+Raw Provider policy and Maker limits must use a verified confidential input path. When that transport is unavailable, the service must reject the request and must not leave plaintext in ordinary backend logs.
 
 ## Create a mandate
 
@@ -29,9 +29,9 @@
 }
 ```
 
-`providerStrategyIds` 至少一筆，產品不限制恰好兩筆。首次 onboarding 只送使用者在 detail page 選定的策略；後續 portfolio expansion 才加入更多策略。ETHOnline 錄影 fixture 固定使用上面兩套策略。
+`providerStrategyIds` must contain at least one entry; the product does not require exactly two. Initial onboarding submits the strategy chosen on its detail page. Makers may add compatible strategies later. The filmed ETHOnline flow uses the two fixtures above to demonstrate an authorization switch.
 
-Response 必須代表 initial report 已由 Guard 接受：
+The response must represent an initial report already accepted by the Guard:
 
 ```json
 {
@@ -72,14 +72,14 @@ Response 必須代表 initial report 已由 Guard 接受：
 
 `GET /v1/mandates/:mandateId`
 
-回傳同一個 `MandateState`。當 CRE report、Guard state 或 Aqua receipt 更新後，service 重新讀取可驗證來源並更新：
+Returns the same `MandateState`. When the CRE report, Guard state or Aqua receipt changes, the service rereads verifiable sources and updates:
 
 - `regime`: `normal | high-volatility | unknown`
-- 每套 strategy 的 `status`: `active | standby | paused`
-- `evidence.sequence`、expiry、digest 與 report transaction
+- each strategy's `status`: `active | standby | paused`
+- `evidence.sequence`, expiry, digest and report transaction
 - `events`: `report-accepted | strategy-activated | swap-settled | swap-rejected`
 
-每個 event 包含 `id`、`type`、`title`、`detail`、`occurredAt`，有鏈上交易時再附 `transactionHash` 與 `explorerUrl`。
+Each event contains `id`, `type`, `title`, `detail` and `occurredAt`. Events backed by an onchain transaction also include `transactionHash` and `explorerUrl`.
 
 ## Add a strategy
 
@@ -89,13 +89,13 @@ Response 必須代表 initial report 已由 Guard 接受：
 { "providerStrategyId": "featured-defensive-market" }
 ```
 
-Service 以既有 Maker policy 重新評估 strategy set，並在新 report 已被 Guard 接受後回傳更新後的 `MandateState`。資產不因加入策略而離開 Maker wallet，且任一時間最多一套 strategy 為 `active`。
+The service reevaluates the strategy set against the existing Maker policy and returns an updated `MandateState` only after the Guard accepts the new report. Adding a strategy does not move assets out of the Maker wallet, and at most one strategy may be `active` at a time.
 
 ## Required invariants
 
-- Strategy set 至少一套，任一狀態最多一套 `active`。
-- chainId、network、token pair、strategy hash 與 Explorer URL 必須來自同一個 deployment。
-- sequence 必須單調遞增；expiresAt 必須對應 Guard 接受的 report。
-- transactionHash 必須能由獨立 RPC 查到 receipt。
-- `swap-settled` 只能來自成功 receipt；`swap-rejected` 必須來自實際 revert／失敗 receipt，不能由 UI 推測。
-- Service 不得把 private policy、Provider thresholds、模型 chain of thought 或秘密來源回傳前端。
+- A strategy set contains at least one strategy and at most one `active` strategy.
+- Chain ID, network, token pair, strategy hash and Explorer URL come from the same deployment.
+- Sequence increases monotonically. `expiresAt` corresponds to the report accepted by the Guard.
+- Every transaction hash resolves to a receipt through an independent RPC.
+- `swap-settled` requires a successful receipt. `swap-rejected` requires an actual reverted or failed receipt and cannot be inferred by the UI.
+- The service never returns private policy, Provider thresholds, model chain of thought or secret sources to the frontend.
