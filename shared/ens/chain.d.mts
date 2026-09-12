@@ -1,0 +1,20 @@
+import type { Abi, Address, Hex, PublicClient } from 'viem';
+import type { ReleasePointer } from './schema.mjs';
+export const deployments: { chainId: number; sourceCommit: string; contracts: Record<string, { address: Address; artifactSha256: string }>; mockUsdc: Address };
+export const registryAbi: Abi;
+export const factoryAbi: Abi;
+export const resolverAbi: Abi;
+export const registrarArtifact: { abi: Abi; bytecode: Hex; deployedBytecode: Hex; immutableReferences: Record<string, { start: number; length: number }[]> };
+export function sameAddress(a: unknown, b: unknown): boolean;
+export function matchingRegistrarCode(code?: Hex): boolean;
+export type EnsPlatform = { rootName: string; registry: Address; registrar: Address; owner: Address; expiry: string; blockNumber: string; blockHash: Hex };
+export type EnsProvider = { name: string; address: Address; registry: Address; resolver: Address; expiry: string };
+export type ResolvedName = { name: string; node: Hex; provider: Address; registry: Address; resolver: Address; blockNumber: string; blockHash: Hex; checkedAt: string; pointer: ReleasePointer };
+export type Delegation = { name: string; delegate: Address; key: string; allowed: boolean; broaderAccess: boolean; resolver: Address };
+export function createEnsReader(config?: { rootName?: string; rpcUrl?: string; client?: PublicClient }): {
+  client: PublicClient; rootName: string; platform(): Promise<EnsPlatform>;
+  provider(address: Address): Promise<EnsPlatform & { provider: EnsProvider | null }>;
+  describeName(name: string): Promise<Omit<ResolvedName, 'pointer'>>;
+  resolve(name: string): Promise<ResolvedName>;
+  delegation(name: string, delegate: Address): Promise<Delegation>;
+};

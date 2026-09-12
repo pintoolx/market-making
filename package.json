@@ -4,6 +4,9 @@
   "private": true,
   "packageManager": "pnpm@10.6.2",
   "scripts": {
+    "build:ens": "node scripts/ens/build-contract.mjs",
+    "test:ens": "node --test orchestrator/test/ens*.test.mjs",
+    "start:ens-publisher": "node orchestrator/bin/ens-publisher.mjs",
     "dev": "pnpm --filter ./frontend dev",
     "build": "pnpm --filter ./frontend build",
     "lint": "pnpm --filter ./frontend lint",

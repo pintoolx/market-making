@@ -10,6 +10,7 @@ import FormInput from '../components/shared/FormInput';
 import { request } from './mandateClient';
 import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealProviderStrategy } from './confidentialEnvelope';
 import aqua from './aqua.module.css';
+import EnsWorkspace from '../ens/EnsWorkspace';
 
 export type PublicRelease = LpRelease & { digest: string; executionStatus: string };
 export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
@@ -120,5 +121,6 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
       </div>
       {!publicKey && <p className={aqua.muted}>Publication is waiting for a configured workflow encryption key.</p>}
     </form>
+    <EnsWorkspace key={provider} account={account} release={latest} />
   </section>;
 }

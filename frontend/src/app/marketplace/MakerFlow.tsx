@@ -16,6 +16,8 @@ import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
+import EnsStrategySearch from '../ens/EnsStrategySearch';
+import { selectionFrom } from '../ens/ensClient';
 
 const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
 const FEATURED: Listing[] = [
@@ -127,6 +129,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, []);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('ens')) openingLinkedStrategy.current = true;
     if (linkedStrategyId.current === undefined) linkedStrategyId.current = new URLSearchParams(window.location.search).get('strategy');
     const id = linkedStrategyId.current;
     if (!id) return;
@@ -208,6 +211,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         maker: makerAddress,
         providerStrategyIds: selected.map(item => item.id),
         makerLimitsEnvelope,
+        ensSelections: selected.flatMap(item => item.ensSelection ? [item.ensSelection] : []),
       });
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
@@ -246,7 +250,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     if (!mandate || !selected[0]) return;
     go('submitting');
     try {
-      const state = await addMandateStrategy(mandate.mandateId, selected[0].id);
+      const state = await addMandateStrategy(mandate.mandateId, selected[0].id, selected[0].ensSelection);
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
       setExpanding(false);
@@ -289,6 +293,11 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
     {phase === 'choose' && <>
+      <EnsStrategySearch onSelect={resolved => {
+        const r = resolved.manifest.release;
+        openStrategy({ id: `${r.id}.v${r.version}`, releaseId: r.id, version: r.version, name: r.name, summary: r.summary,
+          provider: r.provider, template: AQUA_TEMPLATES[1], mine: false, feePct: 0, ensSelection: selectionFrom(resolved) });
+      }} />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={`${styles.grid} ${aqua.grid}`}>
         {listings.filter(item => !expanding || !mandate?.strategies.some(strategy => strategy.listingId === item.id)).map(item => <ListingCard key={item.id} listing={item} action={<Secondary onClick={() => openStrategy(item)}>View strategy</Secondary>} />)}
@@ -316,6 +325,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'review' && <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <StrategySet selected={selected} />
+        {selected.filter(item => item.ensSelection).map(item => <p key={item.id} className={aqua.hint}>{item.ensSelection!.name} · version {item.version} is pinned. A later ENS update will not change this mandate.</p>)}
         <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} validity={validityMinutes} />
         <div className={aqua.actionRow}><Primary onClick={submit}>Create confidential mandate</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
       </div>
@@ -324,6 +334,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
     {phase === 'submitting' && <RuntimePanel expanding={expanding} />}
     {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} onRefresh={refresh} onAdd={startAdding} />}
+    {phase === 'monitor' && mandate?.ensSelections?.map(selection => <p key={`${selection.name}:${selection.pointer.version}`} className={aqua.hint}>{selection.name} · pinned version {selection.pointer.version} · verified at Sepolia block {selection.verifiedBlock}</p>)}
   </section>;
 }
 

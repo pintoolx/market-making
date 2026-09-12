@@ -1,4 +1,5 @@
 import type { ConfidentialEnvelope } from './confidentialEnvelope';
+import type { EnsSelection } from '../../../../shared/ens/schema.mjs';
 
 export type MarketRegime = 'normal' | 'high-volatility' | 'unknown';
 export type StrategyStatus = 'active' | 'standby' | 'paused';
@@ -34,6 +35,7 @@ export type MandateEvent = {
 };
 
 export type MandateState = {
+  ensSelections?: (EnsSelection & { verifiedBlock: string; verifiedBlockHash: string })[];
   mandateId: string;
   maker: string;
   regime: MarketRegime;
@@ -43,6 +45,7 @@ export type MandateState = {
 };
 
 export type EvaluateMandateInput = {
+  ensSelections?: EnsSelection[];
   maker: string;
   providerStrategyIds: string[];
   makerLimitsEnvelope: ConfidentialEnvelope;
@@ -118,9 +121,9 @@ export async function getMandate(mandateId: string): Promise<MandateState> {
   return validateState(state);
 }
 
-export async function addMandateStrategy(mandateId: string, providerStrategyId: string): Promise<MandateState> {
+export async function addMandateStrategy(mandateId: string, providerStrategyId: string, ensSelection?: EnsSelection): Promise<MandateState> {
   const state = await request<MandateState>('/v1/mandates/' + encodeURIComponent(mandateId) + '/strategies', {
-    method: 'POST', body: JSON.stringify({ providerStrategyId }),
+    method: 'POST', body: JSON.stringify({ providerStrategyId, ...(ensSelection ? { ensSelection } : {}) }),
   });
   return validateState(state);
 }

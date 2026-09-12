@@ -5,10 +5,11 @@ import { AQUA_TEMPLATES, type AquaTemplate } from './aquaTemplates';
 import { request } from './mandateClient';
 import { useAccount } from '../providers/useAccount';
 import type { PublicRelease } from './ClmmPublisher';
+import type { EnsSelection } from '../../../../shared/ens/schema.mjs';
 
 // A strategy a Maker can pick: either one the Provider published from /studio or a sample listing.
 // feePct: share of the Maker's profit paid to the Provider, only when there is a profit.
-export type Listing = { id: string; name: string; summary: string; template: AquaTemplate; mine: boolean; provider?: string; providerAvatar?: string; feePct?: number; publishedAt?: number; executionReady?: boolean; version?: number; releaseId?: string };
+export type Listing = { id: string; name: string; summary: string; template: AquaTemplate; mine: boolean; provider?: string; providerAvatar?: string; feePct?: number; publishedAt?: number; executionReady?: boolean; version?: number; releaseId?: string; ensSelection?: EnsSelection };
 type Stored = { templateId: string; name: string; summary: string; provider?: string; providerAvatar?: string; feePct?: number; publishedAt?: number };
 
 // Kept in this browser until the TEE / backend stores Provider strategies. Private logic is never stored here.
