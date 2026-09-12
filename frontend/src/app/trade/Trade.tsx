@@ -55,10 +55,13 @@ function TradeForm() {
   const [error, setError] = useState('');
   const [now, setNow] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [returnMandate, setReturnMandate] = useState<string | null>(null);
   const choice = choices.find(c => c.id === selected);
   const wallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
   useEffect(() => {
     let alive = true;
+    const sourceMandate = new URLSearchParams(window.location.search).get('mandate');
+    if (sourceMandate && /^mandate-[a-f0-9-]{36}$/.test(sourceMandate)) setReturnMandate(sourceMandate);
     void request<ExecutableStrategyCatalog>('/v1/strategies').then(catalog => {
       if (!alive) return;
       const list = catalog.strategies.filter((c): c is Choice => !!c.shipTransaction && !!c.maker);
@@ -154,7 +157,7 @@ function TradeForm() {
   const outputSymbol = direction === 'USDC' ? 'WETH' : 'USDC';
   const expired = !!quote && now / 1000 >= quote.deadline - 15;
   return <section className={aqua.flow}>
-    <Link href="/maker">← Back to strategies</Link>
+    <Link href={returnMandate ? `/maker?mandate=${encodeURIComponent(returnMandate)}` : '/maker'}>← {returnMandate ? 'Back to mandate' : 'Back to strategies'}</Link>
     <div className={aqua.sectionTop}><div><span className={aqua.eyebrow}>Ethereum Sepolia · Aqua</span><h1>Trade with a Maker</h1><p>Get a quote from a published strategy and settle from your wallet.</p></div></div>
     <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
