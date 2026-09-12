@@ -111,7 +111,7 @@ describe('onCronTrigger', () => {
 		const { runtime, secretCalls } = makeFakeTeeRuntime()
 		expect(() => onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-unknown',
-			maker: '0x5555555555555555555555555555555555555555',
+			maker: makeConfig().maker,
 			strategyHash: `0x${'7'.repeat(64)}`,
 			marketSnapshot: makeConfig().marketSnapshot,
 		}))).toThrow('No Provider secret is configured')
@@ -197,7 +197,7 @@ describe('onHttpTrigger', () => {
 		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
 		const summary = onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-01',
-			maker: '0x5555555555555555555555555555555555555555',
+			maker: makeConfig().maker,
 			strategyHash: `0x${'6'.repeat(64)}`,
 			marketSnapshot: makeConfig().marketSnapshot,
 		}))
@@ -206,7 +206,7 @@ describe('onHttpTrigger', () => {
 		expect(summary).toContain('requestId=mandate-01')
 		expect(summary).toContain('allowedDirections=3')
 		const report = logs.find((line) => line.includes('report={'))
-		expect(report).toContain('0x5555555555555555555555555555555555555555')
+		expect(report).toContain(makeConfig().maker)
 		expect(report).toContain(`0x${'6'.repeat(64)}`)
 		expect(report).toContain(`"guard":"${runtime.config.guard}"`)
 		expect(report).toContain(`"router":"${runtime.config.router}"`)
@@ -218,7 +218,7 @@ describe('onHttpTrigger', () => {
 		try {
 			onHttpTrigger(runtime, httpPayload({
 				requestId: 'mandate-01',
-				maker: '0x5555555555555555555555555555555555555555',
+				maker: makeConfig().maker,
 				strategyHash: `0x${'6'.repeat(64)}`,
 				marketSnapshot: makeConfig().marketSnapshot,
 				makerLimits: 'TOP-SECRET-LIMITS',
@@ -227,4 +227,27 @@ describe('onHttpTrigger', () => {
 		expect(message).toContain('HTTP trigger payload failed schema validation')
 		expect(message).not.toContain('TOP-SECRET-LIMITS')
 	})
+})
+
+
+test('real delivery rejects fixed fixtures and requires explicit transport', () => {
+  expect(() => configSchema.parse({ ...makeConfig(), publishMode: 'don-report' })).toThrow('Fixture market data requires dry-run')
+  const { marketSnapshot, ...base } = makeConfig()
+  expect(() => configSchema.parse({ ...base, marketSource: 'kraken', publishMode: 'don-report' })).toThrow('explicit transport')
+})
+
+test('HTTP cannot reuse the provisioned Maker policy for another wallet', () => {
+  const { runtime, secretCalls } = makeFakeTeeRuntime()
+  expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'wrong-maker', maker: '0x5555555555555555555555555555555555555555',
+    strategyHash: runtime.config.strategyHash, marketSnapshot: runtime.config.marketSnapshot }))).toThrow('Maker does not match')
+  expect(secretCalls).toEqual([])
+})
+
+test('live HTTP acquisition rejects injected market data before private inputs are fetched', () => {
+  const { runtime, secretCalls } = makeFakeTeeRuntime()
+  const { marketSnapshot, ...base } = runtime.config
+  runtime.config = configSchema.parse({ ...base, marketSource: 'kraken' })
+  expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'injected-market', maker: runtime.config.maker,
+    strategyHash: runtime.config.strategyHash, marketSnapshot }))).toThrow('rejects caller-supplied')
+  expect(secretCalls).toEqual([])
 })

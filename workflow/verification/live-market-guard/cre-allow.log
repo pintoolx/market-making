@@ -1,0 +1,36 @@
+Initializing...
+Loading settings...
+Checking RPC connectivity...
+Compiling workflow...
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  Binary hash: 6d80cdb3ffeb4d21248630b4048ce8849345452f7100c551eb490cc3abaca97c
+  Config hash: 3b823bdafa19db6b7f636b1271c76c650abaefe44dd76a88497ecaa1d97b6222
+2026-09-12T14:37:20Z [SIMULATION] Simulator Initialized
+
+2026-09-12T14:37:20Z [SIMULATION] Running trigger trigger=cron-trigger@1.0.0
+╭────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trigger requested TEE Execution your trigger will run in one of the following Tees:                │
+│     - AWS Nitro in us-west-2                                                                       │
+│ The simulator is not a real TEE, and is meant to debug.                                            │
+│ Do not use it for sensitive information.                                                           │
+│ During real execution, user logs for this trigger will not be visible, and will not leave the TEE. │
+│ They are presented in the simulator for debugging only.                                            │
+│                                                                                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+2026-09-12T14:37:23Z [USER LOG] Market snapshot: ETH/USDC midpoint=2541.69; volatility30m=17 bps; maker WETH=0.004633626892465666; USDC=36.006718; finalized block=11689447
+2026-09-12T14:37:36Z [USER LOG] {"kind":"cre-delivery-receipt","profile":"cre-simulation","chainId":"11155111","strategyHash":"0x85c6ecaab6b1f6e61877f61760eed5dcc843962b083aa0da7bb2f60012811646","nonce":"1789223843","reportDigest":"0x54f7f12942de1480d87d0523a3688b50ec1760efb431269e0fe58e76fdd609db","transactionHash":"0x031cec36962b0a0028cefe953e6814620fcbf17fd95bf102be6562a7a0595f00"}
+
+✓ Workflow Simulation Result:
+"allowedDirections=3 nonce=1789223843 validAfter=1789223843 validUntil=1789224143 txHash=0x031cec36962b0a0028cefe953e6814620fcbf17fd95bf102be6562a7a0595f00"
+
+2026-09-12T14:37:36Z [SIMULATION] Execution finished signal received
+2026-09-12T14:37:36Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯

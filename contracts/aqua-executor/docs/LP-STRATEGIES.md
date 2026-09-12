@@ -50,7 +50,7 @@ SOLC=/path/to/solc-0.8.30 node scripts/build-guard-v2.ts --check
 ANVIL=/path/to/anvil node --test test/concentrated.test.ts
 ```
 
-No public Guard v2 deployment is included. Deploy it with the same forwarder/router/workflow identity configuration as v1; its constructor discovers and pins Aqua from the router. The report ABI remains report-v1. Test forwarders and synthetic reports do not supply TEE attestation or DON authentication.
+Ethereum Sepolia now has a deployed Guard V2 simulation receiver; the [deployment bundle](../deployments/11155111.json) points to revision `maker-active-v1`. The [public demo](ethereum-sepolia-demo.md) records concentrated swaps and a rejected swap against a separate synthetic-report receiver. The constructor discovers and pins Aqua from the router. New deployments must use the intended forwarder/router/workflow identity, rather than copying a simulation profile into production. The report ABI remains report-v1. Test forwarders and synthetic reports do not supply TEE attestation or DON authentication.
 
 ## Durable Guard recipes
 
@@ -119,7 +119,7 @@ Loss monitoring runs before expiry/cooldown/budget/range checks. In execute mode
 
 The complete decision is saved **before** the executor signs. After interruption, retry the same command: it resumes the original request and signed transaction, even if the oracle has changed. A pending unrelated executor request is reported for recovery rather than superseded. A failed executed request halts new rollovers; risk monitoring continues. All processes controlling these signers must share the same state directory. These guarantees use the existing local journal and RPC receipt assumptions, not a distributed keeper or finality protocol.
 
-Every guarded rollover reports `reportRequired: true`. Trading remains blocked until the authorized workflow delivers a report for the replacement hash. No CRE account, report impersonation, inventory target trading, frontend strategy selector or public Guard v2 deployment is included in this implementation.
+Every guarded rollover reports `reportRequired: true`. Trading remains blocked until the authorized workflow delivers a report for the replacement hash. The autopilot does not perform report delivery or inventory target trading. A public Guard V2 simulation deployment now exists, and the frontend has a CLMM authoring template; a complete frontend-to-runner CLMM lifecycle and real CRE/DON/TEE delivery have not been verified. CRE CLI login and local market observation simulation do not establish those capabilities.
 
 ```sh
 ANVIL=/path/to/anvil node --test test/autopilot.test.ts

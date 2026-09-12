@@ -1,0 +1,26 @@
+{
+  "label": "PUBLIC SYNTHETIC POLICY — local CRE simulation demonstration only",
+  "volatilityMethod": "rss-simple-returns-30m-v1",
+  "strategy": {
+    "schemaVersion": 1,
+    "strategyId": "public-live-market-demo",
+    "rules": [{
+      "id": "public-demo-calm",
+      "when": {"volatilityBpsMax": 300},
+      "allowMakerBuyToken0": true,
+      "allowMakerSellToken0": true,
+      "maxAmount0PerSwap": "400000000000000",
+      "maxAmount1PerSwap": "1000000",
+      "ttlSec": 300
+    }],
+    "inventory": {"maxBalance0": "1000000000000000000", "maxBalance1": "1000000000"}
+  },
+  "limits": {
+    "schemaVersion": 1,
+    "maxBudget1": "100000000",
+    "maxToken0ShareBps": 6000,
+    "maxAmount0PerSwap": "400000000000000",
+    "maxAmount1PerSwap": "1000000",
+    "maxTtlSec": 300
+  }
+}

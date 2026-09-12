@@ -4,19 +4,28 @@ import { EvmMock, addContractMock, newTestRuntime, test } from '@chainlink/cre-s
 import { zeroAddress, zeroHash } from 'viem'
 import fixture from '../../docs/guard-report-v1/example.json'
 import { GUARD_CONFIG } from './config/guard'
-import { publishAuthorization, receiverCapabilitiesAbi } from './publish'
+import { publishAuthorization } from './publish'
+import { receiverAbi, SIMULATION_FORWARDER } from '../guard-report/config'
+import { encodeGuardReportV1 } from './encode'
+import { keccak256 } from 'viem'
 import type { Authorization } from './types'
 
 function setup() {
   const report = Object.fromEntries(Object.entries({ ...fixture.report, chainId: String(GUARD_CONFIG.chainId) }).map(([key, value]) => [key,
     ['schemaVersion', 'validAfter', 'validUntil', 'allowedDirections'].includes(key) ? Number(value)
       : ['chainId', 'nonce'].includes(key) || key.startsWith('max') ? BigInt(value) : value])) as unknown as Authorization['report']
-  const don = newTestRuntime(null, {}, {})
-  const tee = { config: { publishMode: 'don-report' }, log: () => {}, usingTheDons: () => don } as unknown as TeeRuntime<{ publishMode: 'don-report' }>
+  const don = newTestRuntime(null, { timeProvider: () => (report.validAfter + 1) * 1000 }, {})
+  const tee = { config: { publishMode: 'don-report', transport: { profile: 'cre-simulation', forwarder: SIMULATION_FORWARDER, workflowId: zeroHash, workflowOwner: zeroAddress, gasLimit: '500000' } }, log: () => {}, usingTheDons: () => don } as unknown as TeeRuntime<{ publishMode: 'don-report' }>
   const chain = getNetwork({ chainFamily: 'evm', chainSelectorName: GUARD_CONFIG.chainSelectorName, isTestnet: true })!
-  const guard = addContractMock(EvmMock.testInstance(chain.chainSelector.selector), { address: report.guard, abi: receiverCapabilitiesAbi })
+  const guard = addContractMock(EvmMock.testInstance(chain.chainSelector.selector), { address: report.guard, abi: receiverAbi }) as ReturnType<typeof addContractMock> &
+    Partial<Record<'forwarder' | 'router' | 'simulationMode' | 'workflowId' | 'workflowOwner' | 'getReport' | 'activeStrategyHash', (...args: readonly unknown[]) => unknown>>
   guard.router = () => report.router
   guard.activeStrategyHash = () => zeroHash
+  guard.forwarder = () => SIMULATION_FORWARDER
+  guard.simulationMode = () => true
+  guard.workflowId = () => zeroHash
+  guard.workflowOwner = () => zeroAddress
+  guard.getReport = () => [report, keccak256(encodeGuardReportV1(report))]
   const txHash = `0x${'ab'.repeat(32)}` as const
   const success = { txStatus: 'TX_STATUS_SUCCESS' as const, receiverContractExecutionStatus: 'RECEIVER_CONTRACT_EXECUTION_STATUS_SUCCESS' as const, txHash: hexToBase64(txHash) }
   let writes = 0
@@ -33,7 +42,7 @@ test('confidential publisher accepts a successful receiver on the configured Sep
 test('confidential publisher rejects earlier V2 receivers and a different router before writing', () => {
   const t = setup()
   t.guard.router = () => zeroAddress
-  expect(() => publishAuthorization(t.tee, t.result)).toThrow('Guard router')
+  expect(() => publishAuthorization(t.tee, t.result)).toThrow('Guard immutable configuration')
   t.guard.router = () => t.result.report.router
   t.guard.activeStrategyHash = () => { throw new Error('unknown selector') }
   expect(() => publishAuthorization(t.tee, t.result)).toThrow('Maker-scoped active strategies')

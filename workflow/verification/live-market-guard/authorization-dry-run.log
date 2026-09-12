@@ -1,0 +1,40 @@
+Initializing...
+Loading settings...
+! Using default private key for chain write simulation. To use your own key, set CRE_ETH_PRIVATE_KEY in your .env file or system environment.
+Checking RPC connectivity...
+Compiling workflow...
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
+  Binary hash: 6d80cdb3ffeb4d21248630b4048ce8849345452f7100c551eb490cc3abaca97c
+  Config hash: 6fe5c97407c75a52c328e9b1a80306f9393ea473115811e0151b7b72442bd3e1
+2026-09-12T14:25:30Z [SIMULATION] Simulator Initialized
+
+2026-09-12T14:25:30Z [SIMULATION] Running trigger trigger=cron-trigger@1.0.0
+╭────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Trigger requested TEE Execution your trigger will run in one of the following Tees:                │
+│     - AWS Nitro in us-west-2                                                                       │
+│ The simulator is not a real TEE, and is meant to debug.                                            │
+│ Do not use it for sensitive information.                                                           │
+│ During real execution, user logs for this trigger will not be visible, and will not leave the TEE. │
+│ They are presented in the simulator for debugging only.                                            │
+│                                                                                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+2026-09-12T14:25:33Z [USER LOG] Market snapshot: ETH/USDC midpoint=2542.5; volatility30m=21 bps; maker WETH=0.004633626892465666; USDC=36.006718; finalized block=11689383
+2026-09-12T14:25:33Z [USER LOG] [publish:dry-run] target=0xfadc3165abeb127a0815d5ea4e2862ed430e1f70 selector=onReport(bytes,bytes) chainSelectorName=ethereum-testnet-sepolia
+2026-09-12T14:25:33Z [USER LOG] [publish:dry-run] report={"schemaVersion":"1","chainId":"11155111","guard":"0xfadc3165abeb127a0815d5ea4e2862ed430e1f70","router":"0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092","maker":"0x32F79282124EaFc681601cDCa2883C672C72D340","strategyHash":"0x4444444444444444444444444444444444444444444444444444444444444444","token0":"0xfff9976782d46cc05630d1f6ebab18b2324d6b14","token1":"0x1c7d4b196cb0c7b01d743fbc6116a902379c7238","nonce":"1789223133","validAfter":"1789223133","validUntil":"1789223433","allowedDirections":"3","maxAmount0PerSwap":"400000000000000","maxAmount1PerSwap":"1000000","maxPostBalance0":"23598820058997050","maxPostBalance1":"100000000"}
+2026-09-12T14:25:33Z [USER LOG] [publish:dry-run] encodedReport=0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000aa36a7000000000000000000000000fadc3165abeb127a0815d5ea4e2862ed430e1f7000000000000000000000000047a875f39ba4b0d0beaa928bb071d4b4da0b409200000000000000000000000032f79282124eafc681601cdca2883c672c72d3404444444444444444444444444444444444444444444444444444444444444444000000000000000000000000fff9976782d46cc05630d1f6ebab18b2324d6b140000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c7238000000000000000000000000000000000000000000000000000000006aa560dd000000000000000000000000000000000000000000000000000000006aa560dd000000000000000000000000000000000000000000000000000000006aa56209000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000016bcc41e9000000000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000053d70076bc213a000000 ...(truncated)
+2026-09-12T14:25:33Z [USER LOG] [publish:dry-run] reportHash=0x80f178c28849d4af729d612d5c235ade2d59b2591aabefdc30bac1fb506b80c0
+
+✓ Workflow Simulation Result:
+"allowedDirections=3 nonce=1789223133 validAfter=1789223133 validUntil=1789223433 txHash=none (dry-run)"
+
+2026-09-12T14:25:33Z [SIMULATION] Execution finished signal received
+2026-09-12T14:25:33Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯

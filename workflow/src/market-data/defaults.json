@@ -1,0 +1,18 @@
+{
+  "schedule": "*/30 * * * * *",
+  "chainSelectorName": "ethereum-testnet-sepolia",
+  "maker": "0x32F79282124EaFc681601cDCa2883C672C72D340",
+  "weth": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+  "usdc": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+  "maxHttpResponseAgeSeconds": 90,
+  "maxFinalizedBlockAgeSeconds": 1800,
+  "clockSkewSeconds": 15,
+  "bookUrl": "https://api.kraken.com/0/public/Depth?pair=ETHUSDC&count=1",
+  "ohlcUrl": "https://api.kraken.com/0/public/OHLC?pair=ETHUSDC&interval=1",
+  "maxBookAgeSeconds": 90,
+  "maxSpreadBps": 100,
+  "lookbackMinutes": 30,
+  "completionLagSeconds": 60,
+  "minTradedIntervals": 5,
+  "maxLastTradeAgeSeconds": 900
+}

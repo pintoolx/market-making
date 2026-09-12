@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { GUARD_CONFIG } from '../src/config/guard'
 import { computeAuthorization } from '../src/intersect'
 import { publishAuthorization } from '../src/publish'
+import { acquireMarket } from '../src/market-data'
+import { transportSchema } from '../guard-report/config'
 import {
 	makerLimitsSchema,
 	marketSnapshotSchema,
@@ -35,11 +37,20 @@ export const configSchema = z.object({
 	router: hexAddress,
 	/** TODO(pengu): router.hash(order) of the Maker-approved guarded program. */
 	strategyHash: hexBytes32,
-	/**
-	 * TODO: replace with an HTTPClient fetch from inside the enclave (price feed +
-	 * Maker balances). Kept in config for a deterministic, offline simulation.
-	 */
-	marketSnapshot: marketSnapshotSchema,
+	/** Live mode acquires public observations itself; fixtures are dry-run only. */
+	marketSource: z.enum(['fixture', 'kraken']).default('fixture'),
+	marketSnapshot: marketSnapshotSchema.optional(),
+	transport: transportSchema.optional(),
+}).superRefine((config, ctx) => {
+	if (config.marketSource === 'fixture' && (config.publishMode !== 'dry-run' || !config.marketSnapshot)) {
+		ctx.addIssue({ code: 'custom', message: 'Fixture market data requires dry-run and a marketSnapshot' })
+	}
+	if (config.marketSource === 'kraken' && config.marketSnapshot !== undefined) {
+		ctx.addIssue({ code: 'custom', message: 'Live acquisition must not carry a fixture marketSnapshot' })
+	}
+	if (config.publishMode === 'don-report' && !config.transport) {
+		ctx.addIssue({ code: 'custom', message: 'Report delivery requires an explicit transport profile' })
+	}
 })
 export type Config = z.infer<typeof configSchema>
 
@@ -53,7 +64,7 @@ export const httpRequestSchema = z
 		requestId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/),
 		maker: hexAddress,
 		strategyHash: hexBytes32,
-		marketSnapshot: marketSnapshotSchema,
+		marketSnapshot: marketSnapshotSchema.optional(),
 	})
 	.strict()
 export type HTTPRequest = z.infer<typeof httpRequestSchema>
@@ -88,6 +99,15 @@ const parseSecretJson = <S extends z.ZodTypeAny>(schema: S, raw: string, label: 
 // Everything here runs inside the enclave until publishAuthorization()
 // explicitly crosses back with `usingTheDons()` (only in don-report mode).
 const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput): string => {
+	const config = configSchema.parse(runtime.config)
+	if (input.maker.toLowerCase() !== config.maker.toLowerCase()) throw new Error('Maker does not match the provisioned confidential policy')
+	// Acquire and validate PUBLIC data before fetching private inputs. Only maker
+	// and public data-source config are used in DON capability calls.
+	if (config.marketSource === 'kraken' && input.marketSnapshot !== undefined) throw new Error('Live acquisition rejects caller-supplied marketSnapshot')
+	const market = config.marketSource === 'kraken'
+		? acquireMarket(runtime.usingTheDons(), input.maker).market
+		: marketSnapshotSchema.parse(input.marketSnapshot)
+
 	// ── 1. Both confidential inputs, one Vault DON round-trip ──
 	// Secrets are released only into the attested enclave; one getSecrets()
 	// call counts once against PerWorkflow.Secrets.CallLimit (5).
@@ -97,9 +117,6 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 
 	const strategy = parseSecretJson(providerStrategySchema, secrets[input.providerSecretId].value, 'PROVIDER_STRATEGY')
 	const limits = parseSecretJson(makerLimitsSchema, secrets[input.makerSecretId].value, 'MAKER_LIMITS')
-
-	// ── 2. Public observation ──
-	const market = input.marketSnapshot
 
 	// ── 3. Intersect (pure, deterministic) ──
 	// DON consensus time, not Date.now() — see docs "Time in workflows".
@@ -119,8 +136,9 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 		market,
 		identity,
 		nowSec,
-		// Timestamp-based nonce: strictly increasing as long as runs are ≥1 s
-		// apart, and no enclave state is needed. See docs/authorization-format.md.
+		// Timestamp nonce for serialized executions. Same-second/concurrent
+		// attempts can be rejected; inspect receipt/state before retrying.
+		// This is not a durable production nonce allocator.
 		nonce: BigInt(nowSec),
 	})
 

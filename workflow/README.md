@@ -11,7 +11,28 @@ The workflow has two entry points:
 
 Both handlers enter the TEE before fetching Provider and Maker secrets, then call the shared report delivery seam. The separate [`guard-report/`](guard-report/) package verifies encoding, DON delivery and Guard readback. CLI simulation is not production DON or TEE attestation. See the [system architecture](../docs/ARCHITECTURE.md) and [transport verification boundary](../docs/CRE-GUARD-INTEGRATION.md).
 
+## Live acquisition and delivery
+
+The main workflow and the delivery adapter both use CRE SDK 1.20.1. The publisher shares the existing receiver-profile, receipt and digest-readback implementation in `guard-report/delivery.ts`.
+
+- `marketSource: "kraken"`: omit `marketSnapshot`. Cron reads live data; HTTP payloads contain only `requestId`, `maker` and `strategyHash`. The maker must match the configured wallet whose private limits are provisioned.
+- `marketSource: "fixture"`: requires a snapshot and `publishMode: "dry-run"`; it cannot issue onchain reports.
+- `publishMode: "don-report"`: requires an explicit `transport` profile, forwarder and workflow identity. Simulation and production identities cannot be interchanged.
+- The existing direct mandate runner still sends a configured snapshot. Its frontend/data acquisition integration is separate work; it cannot use live mode until its payload and state handling are updated.
+
+[The Sepolia CRE/CLMM run](verification/live-market-guard/README.md) records real CLI simulation broadcasts, a successful trade, a mined direction rejection and cleanup. It uses explicitly public synthetic policies, not private-beta DON/TEE execution. Run logs preserve each WASM/config hash.
+
 ## Layout
+
+The public observation adapter in [`src/market-observation.ts`](src/market-observation.ts) accepts `market-observation-v2` (Ethereum Sepolia WETH/USDC), validates freshness and units, and recomputes midpoint and `rss-simple-returns-30m-v1` volatility before producing the existing `MarketSnapshot`. [`src/market-math.ts`](src/market-math.ts) is shared with the local CRE onboarding producer. This adapter validates consistency, not authenticity; only call it from a trusted observation acquisition boundary. The confidential handler now calls the in-repo [`src/market-data/`](src/market-data/) producer when `marketSource="kraken"`. It acquires public data through the DON runtime before retrieving private inputs; caller-supplied market snapshots are rejected in this mode. Fixture snapshots are accepted only for dry-run.
+
+To preview a **fresh public observation file** with explicitly synthetic policies, run from `workflow/`:
+
+```bash
+bun run scripts/preview-market-observation.ts /path/public-observation.json 0x32F79282124EaFc681601cDCa2883C672C72D340
+```
+
+The host CLI calls the existing evaluator and encodes a report for an unshipped demonstration hash. It does not read credentials, sign or deliver anything. Policy thresholds are illustrative and must be calibrated to the stated volatility definition before actual use. See [Aqua flow and CLMM support](../docs/AQUA-FLOW-AND-CLMM.md) for the current end-to-end verification boundary.
 
 ```
 workflow/

@@ -1,5 +1,11 @@
 # Delivery adapter verification — 2026-09-12
 
+## Current live acquisition → Guard → CLMM run
+
+CRE login and local confidential-handler simulation now work. The main evaluator uses the in-repo Kraken/Sepolia producer and this delivery adapter. Real `cre workflow simulate --broadcast` calls delivered reports to the current `maker-active-v1` receiver, followed by a CLMM trade and an intentional mined rejection. See [the run and independent verification](../verification/live-market-guard/README.md). Policies were explicitly synthetic; this is not production DON or TEE attestation.
+
+The sections below preserve the earlier verification stages and their original limitations.
+
 ## Ethereum Sepolia update
 
 The adapter now targets chain 11155111 and AquaGuardV2. Typechecks, **11 tests /

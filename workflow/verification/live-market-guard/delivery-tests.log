@@ -1,0 +1,22 @@
+$ bun test
+bun test v1.4.2 (744846f84)
+
+delivery.test.ts:
+(pass) public report matches the shared 16-field ABI fixture exactly [6.74ms]
+(pass) public boundary rejects private/unknown fields, malformed integers and invalid Guard bounds [6.63ms]
+(pass) public cron entry sends ABI bytes through SDK report/writeReport and verifies Guard readback [41.68ms]
+(pass) production profile requires matching workflow identity and forwarder before any write [23.72ms]
+(pass) expired, future and wrong-chain reports fail before report delivery [2.71ms]
+(pass) older V2 receivers without active strategy enforcement fail before any write [3.60ms]
+(pass) receiver revert, absent status, failed transaction and missing hash cannot be reported as success [41.19ms]
+(pass) TEE adapter validates public output before crossing to DON and uses the same delivery path [4.18ms]
+
+tools/prepare.test.ts:
+(pass) unsigned creation binds a new Guard to the CLI forwarder, pinned router and simulation identity [0.50ms]
+(pass) smoke reports cannot enable trades and do not invent a nonce [1.20ms]
+(pass) preparation rejects a Base deployment or noncanonical Sepolia token [0.09ms]
+
+ 11 pass
+ 0 fail
+ 78 expect() calls
+Ran 11 tests across 2 files. [462.00ms]

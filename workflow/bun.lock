@@ -1,10 +1,11 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@pintool/workflow",
       "dependencies": {
-        "@chainlink/cre-sdk": "1.18.0",
+        "@chainlink/cre-sdk": "1.20.1",
         "viem": "2.34.0",
         "zod": "3.25.76",
       },
@@ -23,7 +24,7 @@
 
     "@bufbuild/protoplugin": ["@bufbuild/protoplugin@2.6.3", "", { "dependencies": { "@bufbuild/protobuf": "2.6.3", "@typescript/vfs": "^1.5.2", "typescript": "5.4.5" } }, "sha512-VceMuxeRukxGeABfo34SXq0VqY1MU+mzS+PBf0HAWo97ylFut8F6sQ3mV0tKiM08UQ/xQco7lxCn83BkoxrWrA=="],
 
-    "@chainlink/cre-sdk": ["@chainlink/cre-sdk@1.18.0", "", { "dependencies": { "@bufbuild/protobuf": "2.6.3", "@bufbuild/protoc-gen-es": "2.6.3", "@chainlink/cre-sdk-javy-plugin": "1.7.0", "@noble/hashes": "2.2.0", "@solana/addresses": "6.10.0", "@solana/codecs": "6.10.0", "@standard-schema/spec": "1.0.0", "viem": "2.34.0", "zod": "3.25.76" }, "bin": { "cre-compile": "bin/cre-compile.ts" } }, "sha512-UXSiGRGWUfqiaF5ji4vHXv18gMWL3glHpzHSTyvvFWoAHk17rRMo/rfbyXh/nPnm0oCJpivZsWJOgjz7HmOY6w=="],
+    "@chainlink/cre-sdk": ["@chainlink/cre-sdk@1.20.1", "", { "dependencies": { "@bufbuild/protobuf": "2.6.3", "@bufbuild/protoc-gen-es": "2.6.3", "@chainlink/cre-sdk-javy-plugin": "1.7.0", "@noble/hashes": "2.2.0", "@solana/addresses": "6.10.0", "@solana/codecs": "6.10.0", "@standard-schema/spec": "1.0.0", "viem": "^2.54.2", "zod": "3.25.76" }, "bin": { "cre-compile": "bin/cre-compile.ts" } }, "sha512-windpDbJxgY8CzUCJCkP9XHGJtKJgpZriCcMid4P3Y7xvLVrAU43DPumxI2qFjiO9MWQ1rmPljkAHJnsOqV2Nw=="],
 
     "@chainlink/cre-sdk-javy-plugin": ["@chainlink/cre-sdk-javy-plugin@1.7.0", "", { "peerDependencies": { "zod": ">=3.0.0" }, "optionalPeers": ["zod"], "bin": { "cre-setup": "bin/setup.ts", "cre-compile-workflow": "bin/compile-workflow.ts" } }, "sha512-WLnPwd81gWEJdSpaCks8Ci2EdgMylTP5ILGiNYnO6fgCt1Yn+C4R7pn0mugXpmhOEMzCJbA48MVy0NLMxVPljg=="],
 
@@ -99,6 +100,8 @@
 
     "@bufbuild/protoplugin/typescript": ["typescript@5.4.5", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ=="],
 
+    "@chainlink/cre-sdk/viem": ["viem@2.56.3", "", { "dependencies": { "@noble/curves": "1.9.1", "@noble/hashes": "1.8.0", "@scure/bip32": "1.7.0", "@scure/bip39": "1.6.0", "abitype": "1.2.3", "isows": "1.0.7", "ox": "0.14.44", "ws": "8.21.0" }, "peerDependencies": { "typescript": ">=5.0.4" }, "optionalPeers": ["typescript"] }, "sha512-vUObq3GO7D3lz9gPNEE/xd5jIUnMbeVDWewh252o54pDEDlW4pDe6FEd/qTGL5RyK52cGHMM7kQ3wjxhilEvkQ=="],
+
     "@noble/curves/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
     "@scure/bip32/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
@@ -108,5 +111,15 @@
     "ox/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
     "viem/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
+
+    "@chainlink/cre-sdk/viem/@noble/curves": ["@noble/curves@1.9.1", "", { "dependencies": { "@noble/hashes": "1.8.0" } }, "sha512-k11yZxZg+t+gWvBbIswW0yoJlu8cHOC7dhunwOzoWH/mXGBiYyR4YY6hAEK/3EUs4UpB8la1RfdRpeGsFHkWsA=="],
+
+    "@chainlink/cre-sdk/viem/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
+
+    "@chainlink/cre-sdk/viem/abitype": ["abitype@1.2.3", "", { "peerDependencies": { "typescript": ">=5.0.4", "zod": "^3.22.0 || ^4.0.0" }, "optionalPeers": ["typescript", "zod"] }, "sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg=="],
+
+    "@chainlink/cre-sdk/viem/ox": ["ox@0.14.44", "", { "dependencies": { "@adraffy/ens-normalize": "^1.11.0", "@noble/ciphers": "^1.3.0", "@noble/curves": "1.9.1", "@noble/hashes": "^1.8.0", "@scure/bip32": "^1.7.0", "@scure/bip39": "^1.6.0", "abitype": "^1.2.3", "eventemitter3": "5.0.1" }, "peerDependencies": { "typescript": ">=5.4.0" }, "optionalPeers": ["typescript"] }, "sha512-O54qXXHEk4ySamMSyBpI0AeBegS5frxU6+LA6Jb9Sf6kMOxcTNaxYmwZfpOu22DIQsdKfgQxHq8EsAGaoBQScA=="],
+
+    "@chainlink/cre-sdk/viem/ws": ["ws@8.21.0", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g=="],
   }
 }
