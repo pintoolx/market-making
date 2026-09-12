@@ -184,13 +184,12 @@ export function createService(config, dependencies = {}) {
     async get(id) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
       let current;
-      try { current = await load(id); } catch {}
-      const sealed = current ? await loadEnvelope(id) : null;
-      let output;
-      try { output = await runner({ action: 'get', mandateId: id, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) }); }
-      catch (error) { if (current) output = current; else throw error; }
-      if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [], current?.maker, sealed);
+      try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
+      if (current.mandateId !== id) throw new Error('stored mandate ID does not match its file');
+      // Reading product state must never trigger a new confidential evaluation or
+      // broadcast another Guard report. Re-verify the stored public evidence and
+      // refresh short-lived chain readiness only.
+      return accept(current, [], current.maker);
     },
     async add(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');

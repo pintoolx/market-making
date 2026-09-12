@@ -93,19 +93,21 @@ test('service rejects evidence for a different strategy than the user selected',
   await assert.rejects(service.create(input), /does not contain the requested strategy set/);
 });
 
-test('get may use verified public cache during a runner outage; add may not', async () => {
+test('get is read-only during a runner outage; add still requires the runner', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pintool-mandates-'));
-  let online = true;
+  let online = true, calls = 0;
   const service = createService({ ...config, stateDir: dir }, { runner: async request => {
+    calls++;
     if (!online) throw new Error('offline');
     return request.action === 'add-strategy' ? { ...state, strategies: [...state.strategies, { ...state.strategies[0], listingId: request.providerStrategyId, status: 'standby' }] } : structuredClone(state);
   }, verifyReceipt: async () => {} });
   await service.create(input); online = false;
   assert.equal((await service.get(state.mandateId)).mandateId, state.mandateId);
+  assert.equal(calls, 1);
   await assert.rejects(service.add(state.mandateId, { providerStrategyId: 'featured-defensive-market' }), /offline/);
 });
 
-test('get and add pass only previously verified public state to the runner', async () => {
+test('get stays read-only and add passes only previously verified public state to the runner', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'pintool-mandates-'));
   const calls = [];
   const service = createService({ ...config, stateDir: dir }, {
@@ -123,10 +125,10 @@ test('get and add pass only previously verified public state to the runner', asy
   await service.create(input);
   await service.get(state.mandateId);
   await service.add(state.mandateId, { providerStrategyId: 'featured-defensive-market' });
-  assert.deepEqual(calls[1], { action: 'get', mandateId: state.mandateId, current: { ...state, strategies: state.strategies.map(item => ({ ...item, readiness: { phase: 'unverified', reasons: ['readiness-not-configured'] } })) }, makerLimitsEnvelope });
-  assert.equal(calls[2].current.mandateId, state.mandateId);
-  assert.equal(calls[2].providerStrategyId, 'featured-defensive-market');
-  assert.deepEqual(calls[2].makerLimitsEnvelope, makerLimitsEnvelope);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].current.mandateId, state.mandateId);
+  assert.equal(calls[1].providerStrategyId, 'featured-defensive-market');
+  assert.deepEqual(calls[1].makerLimitsEnvelope, makerLimitsEnvelope);
 });
 
 test('service records only verified Aqua settlement and Guard rejection receipts', async () => {
