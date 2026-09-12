@@ -3,6 +3,7 @@ FROM oven/bun:1.4.2 AS bun-runtime
 FROM node:20-bookworm-slim
 
 ENV NODE_ENV=production
+ENV HOME=/home/node
 ENV MANDATE_STATE_DIR=/data/mandates
 ENV CRE_CLI=/usr/local/bin/cre
 ENV CRE_TOOL_PATH=/usr/local/bin
