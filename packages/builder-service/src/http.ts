@@ -1,0 +1,96 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { Pool } from 'pg'
+import { ZodError, z } from 'zod'
+import { DraftConflict, DraftAccessDenied, getCapabilities } from '@pintool/strategy-builder'
+import { createAuth } from './auth.ts'
+import { createStore } from './store.ts'
+import { ServiceError } from './errors.ts'
+
+const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
+  let size = 0, overflow = false
+  const chunks: Buffer[] = []
+  request.on('data', (chunk: Buffer) => {
+    size += chunk.length
+    if (size > 65536) { if (!overflow) reject(new ServiceError('request-too-large', 413)); overflow = true; chunks.length = 0; return }
+    chunks.push(chunk)
+  })
+  request.on('end', () => {
+    if (overflow) return
+    try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')) } catch { reject(new ServiceError('invalid-json')) }
+  })
+  request.on('error', () => reject(new ServiceError('request-interrupted')))
+})
+
+/** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
+export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string }) {
+  const auth = createAuth(pool, config), store = createStore(pool, config.profileId)
+  // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
+  // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
+  const attempts = new Map<string, { count: number; expires: number }>()
+  function limit(request: IncomingMessage, budget: number) {
+    const now = Date.now(), key = request.socket.remoteAddress ?? 'unknown'
+    let entry = attempts.get(key)
+    if (!entry || entry.expires <= now) {
+      for (const [id, value] of attempts) if (value.expires <= now) attempts.delete(id)
+      if (attempts.size >= 10000) throw new ServiceError('rate-limited', 429)
+      entry = { count: 0, expires: now + 60000 }; attempts.set(key, entry)
+    }
+    if (++entry.count > budget) throw new ServiceError('rate-limited', 429)
+  }
+  return async (request: IncomingMessage, response: ServerResponse): Promise<boolean> => {
+    if (!(request.url ?? '').startsWith('/v1/builder/')) return false
+    const url = new URL(request.url ?? '/', 'http://localhost')
+    if (!url.pathname.startsWith('/v1/builder/')) return false
+    response.setHeader('Cache-Control', 'no-store')
+    response.setHeader('Content-Type', 'application/json; charset=utf-8')
+    response.setHeader('X-Content-Type-Options', 'nosniff')
+    response.setHeader('Access-Control-Allow-Origin', config.origin)
+    response.setHeader('Access-Control-Allow-Headers', 'content-type,authorization,idempotency-key')
+    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.setHeader('Vary', 'Origin')
+    const send = (value: unknown, status = 200) => { response.writeHead(status); response.end(JSON.stringify(value)); return true }
+    try {
+      if (request.headers.origin && request.headers.origin !== config.origin) throw new ServiceError('origin-not-allowed', 403)
+      if (request.method === 'OPTIONS') { response.writeHead(204); response.end(); return true }
+      if (!['GET', 'POST'].includes(request.method ?? '')) throw new ServiceError('method-not-allowed', 405)
+      if (request.method === 'POST' && request.headers['content-type']?.split(';')[0] !== 'application/json') throw new ServiceError('json-required', 415)
+      const post = request.method === 'POST', route = url.pathname.slice('/v1/builder'.length)
+      if (post && (route === '/auth/challenge' || route === '/auth/login')) {
+        limit(request, 60)
+        return send(route === '/auth/challenge' ? await auth.challenge(await readJson(request)) : await auth.login(await readJson(request)))
+      }
+      const actor = await auth.authenticate(request.headers.authorization)
+      if (route === '/auth/session' && !post) return send({ actor })
+      if (route === '/auth/logout' && post) return send(await auth.logout(request.headers.authorization))
+      if (route === '/capabilities' && !post) return send({ profileId: config.profileId, capabilities: getCapabilities() })
+      const requestId = request.headers['idempotency-key']
+      if (post && (typeof requestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(requestId))) throw new ServiceError('idempotency-key-required')
+      if (route === '/conversations') return send(post ? await store.create(actor.owner, requestId as string, await readJson(request)) : { conversations: await store.list(actor.owner) })
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore))?$/)
+      if (draft) {
+        if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if (!post && draft[3] === 'history') return send({ revisions: await store.history(actor.owner, draft[1]!) })
+        if (post && ['patch', 'restore'].includes(draft[3]!)) {
+          const body = z.record(z.string(), z.unknown()).parse(await readJson(request))
+          if ('draftId' in body) throw new ServiceError('resource-id-in-body')
+          const value = { ...body, draftId: draft[1] }
+          return send(draft[3] === 'patch' ? await store.patch(actor.owner, requestId as string, value) : await store.restore(actor.owner, requestId as string, value))
+        }
+      }
+      const messages = route.match(/^\/conversations\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/messages$/)
+      if (messages) {
+        if (!post) return send({ messages: await store.messages(actor.owner, messages[1]!, url.searchParams.get('before') ?? undefined) })
+        const body = z.object({ content: z.string() }).strict().parse(await readJson(request))
+        return send(await store.appendUserMessage(actor.owner, requestId as string, { ...body, conversationId: messages[1] }))
+      }
+      throw new ServiceError('not-found', 404)
+    } catch (error) {
+      if (error instanceof ServiceError) return send({ error: error.code }, error.status)
+      if (error instanceof DraftConflict) return send({ error: 'revision-or-template-conflict' }, 409)
+      if (error instanceof DraftAccessDenied) return send({ error: 'not-found' }, 404)
+      if (error instanceof ZodError) return send({ error: 'invalid-request' }, 400)
+      // PostgreSQL errors may contain input values, and driver errors may contain credentials.
+      return send({ error: 'builder-unavailable' }, 503)
+    }
+  }
+}
