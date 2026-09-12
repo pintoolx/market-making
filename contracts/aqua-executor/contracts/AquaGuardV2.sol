@@ -16,7 +16,7 @@ interface IReportReceiver is IERC165 {
     function onReport(bytes calldata metadata, bytes calldata report) external;
 }
 
-/// @notice Concentrated LP Guard: report-v1 transport and version-2 envelope; real Aqua inventory, zero fee only.
+/// @notice Concentrated LP Guard: versioned report transport and version-2 envelope; real Aqua inventory, zero fee only.
 /// @dev Immutable transport configuration. Simulation must use a separate testnet deployment.
 contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     struct GuardReportV1 {
@@ -53,6 +53,9 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     uint256 public constant MAX_REPORT_LIFETIME = 600;
     mapping(address maker => mapping(bytes32 strategyHash => StoredReport)) private reports;
     mapping(address maker => bytes32 strategyHash) public activeStrategyHash;
+    mapping(address maker => mapping(bytes32 strategyHash => uint256)) public latestReportBlock;
+    mapping(address maker => mapping(bytes32 strategyHash => bool)) public strategyRevoked;
+    uint16 public constant reportSchemaVersion = 2;
 
     error InvalidConfiguration();
     error UnauthorizedForwarder();
@@ -66,6 +69,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     error InvalidEnvelope();
     error MissingReport();
     error StrategyNotActive();
+    error StrategyRevoked();
     error UnsupportedSwap();
     error TokenPairMismatch();
     error DirectionDisabled();
@@ -74,6 +78,8 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
 
     event ReportAccepted(address indexed maker, bytes32 indexed strategyHash, uint64 nonce, bytes32 digest, uint48 validUntil);
     event ActiveStrategyChanged(address indexed maker, bytes32 indexed previousStrategyHash, bytes32 indexed strategyHash);
+
+    event StrategyRevocationChanged(address indexed maker, bytes32 indexed strategyHash, bool revoked);
 
     constructor(address forwarder_, address router_, bytes32 workflowId_, address workflowOwner_, bool simulationMode_) {
         if (forwarder_.code.length == 0 || router_.code.length == 0) revert InvalidConfiguration();
@@ -103,6 +109,17 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         return (saved.report, saved.digest);
     }
 
+    /// @notice Maker opt-out persists across workflow updates. Re-enabling requires a fresh report.
+    function setStrategyRevoked(bytes32 strategyHash, bool revoked) external {
+        if (strategyHash == bytes32(0)) revert InvalidReport();
+        strategyRevoked[msg.sender][strategyHash] = revoked;
+        if (revoked && activeStrategyHash[msg.sender] == strategyHash) {
+            activeStrategyHash[msg.sender] = bytes32(0);
+            emit ActiveStrategyChanged(msg.sender, strategyHash, bytes32(0));
+        }
+        emit StrategyRevocationChanged(msg.sender, strategyHash, revoked);
+    }
+
     function onReport(bytes calldata metadata, bytes calldata payload) external {
         if (msg.sender != forwarder) revert UnauthorizedForwarder();
         if (!simulationMode) {
@@ -115,12 +132,18 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         if (payload.length != 512) revert InvalidReport();
         GuardReportV1 memory r = abi.decode(payload, (GuardReportV1));
         bytes32 digest = keccak256(payload);
-        if (keccak256(abi.encode(r)) != digest || r.schemaVersion != 1 || r.maker == address(0) ||
+        if (keccak256(abi.encode(r)) != digest || (r.schemaVersion != 1 && r.schemaVersion != 2) || r.maker == address(0) ||
             r.strategyHash == bytes32(0) || r.token0 == address(0) || r.token1 == address(0) ||
             r.token0 == r.token1 || r.allowedDirections > 3 || r.nonce == 0) revert InvalidReport();
         if (r.chainId != block.chainid || r.guard != address(this) || r.router != router) revert InvalidReportDomain();
-        if (r.validAfter > block.timestamp || r.validUntil <= block.timestamp ||
-            r.validUntil - r.validAfter > MAX_REPORT_LIFETIME) revert ReportNotCurrent();
+        // Schema 1 retains bounded leases. Schema 2 explicitly grants standing authorization.
+        if (r.validAfter > block.timestamp) revert ReportNotCurrent();
+        if (r.schemaVersion == 2) {
+            if (r.validUntil != 0) revert InvalidReport();
+        } else if (r.validUntil <= block.timestamp || r.validUntil - r.validAfter > MAX_REPORT_LIFETIME) {
+            revert ReportNotCurrent();
+        }
+        if (r.allowedDirections != 0 && strategyRevoked[r.maker][r.strategyHash]) revert StrategyRevoked();
         if (r.allowedDirections != 0 && (r.maxAmount0PerSwap == 0 || r.maxAmount1PerSwap == 0 ||
             r.maxPostBalance0 == 0 || r.maxPostBalance1 == 0)) revert InvalidReport();
 
@@ -129,6 +152,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         if (r.nonce <= saved.report.nonce) revert ReportReplay();
         saved.report = r;
         saved.digest = digest;
+        latestReportBlock[r.maker][r.strategyHash] = block.number;
         bytes32 previous = activeStrategyHash[r.maker];
         bytes32 next = r.allowedDirections != 0 ? r.strategyHash
             : previous == r.strategyHash ? bytes32(0)
@@ -154,7 +178,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         GuardReportV1 storage r = reports[query.maker][query.orderHash].report;
         if (r.nonce == 0) revert MissingReport();
         if (activeStrategyHash[query.maker] != query.orderHash) revert StrategyNotActive();
-        if (block.timestamp < r.validAfter || block.timestamp >= r.validUntil) revert ReportNotCurrent();
+        if (block.timestamp < r.validAfter || (r.schemaVersion == 1 && block.timestamp >= r.validUntil)) revert ReportNotCurrent();
         if (!query.isExactIn || swap.amountNetPulled != 0 || swap.amountIn == 0 || swap.amountOut == 0 ||
             swap.amountOut > swap.balanceOut) revert UnsupportedSwap();
         if (r.token0 != token0 || r.token1 != token1) revert TokenPairMismatch();
