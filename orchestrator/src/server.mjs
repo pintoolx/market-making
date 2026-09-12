@@ -106,7 +106,8 @@ export function makeServer(config, dependencies) {
           if (item.release) {
             try {
               const [record, latest] = await Promise.all([registry.read(item.release.id, item.release.version), registry.latest(item.release.id)]);
-              if (record.digest !== item.release.digest || record.release.state !== 'published' || latest?.release.state !== 'published') continue;
+              if (record.digest !== item.release.digest || record.release.state !== 'published' || latest?.release.state !== 'published'
+                || item.release.version <= (latest.withdrawnThrough ?? 0)) continue;
             } catch { continue; }
           }
           available.push(item);

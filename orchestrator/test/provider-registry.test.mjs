@@ -34,6 +34,9 @@ test('signed publication survives restart; updates, retries and withdrawal prese
   assert.equal(listing[0].state, 'withdrawn');
   assert.equal(JSON.stringify(listing).includes(envelope.ciphertext), false);
   assert.equal(JSON.stringify(listing).includes('volatilityBpsMax'), false);
+  await restarted.publish(await signed(release(4)));
+  assert.equal((await restarted.latest(saved.id)).withdrawnThrough, 3);
+  assert.equal((await restarted.latest(saved.id)).release.state, 'published');
 });
 
 test('tampering, stale updates, missing versions and concurrent conflicting writers cannot overwrite a version', async t => {

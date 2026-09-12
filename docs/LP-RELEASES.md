@@ -20,7 +20,7 @@ Public list/history responses omit the ciphertext, signature and private rule. R
 | `POST /v1/provider-strategies` | `{release, envelope, signature}`; publish/update/withdraw by signed next version |
 | `GET /v1/strategies` | Operator-provisioned Maker programs; saving a publication does not add one |
 
-Withdrawal removes a release from new provisioning/evaluation. It **does not send a transaction**, revoke an already accepted report or dock assets. Existing onchain permissions stop at report expiry or an explicit pause/dock. An existing Maker stays pinned to a version; updating a Provider listing cannot retarget that Maker's program silently.
+Withdrawal removes that version and all preceding versions from new provisioning/evaluation. Publishing a later version does not revive those older approvals. It **does not send a transaction**, revoke an already accepted report or dock assets. Existing onchain permissions stop at report expiry or an explicit pause/dock. An existing Maker stays pinned to a version; updating a Provider listing cannot retarget that Maker's program silently.
 
 Encryption here protects browser-to-service policy transport/storage, but does not prove enclave custody. The configured local CRE simulator's operator can access decrypted inputs. Real DON/TEE deployment and enrollment remain separate; no workflow deployment or secret upload was performed for this change. The ordinary mandate service remains an operator-managed demo boundary, not a permissionless production automation service.
 

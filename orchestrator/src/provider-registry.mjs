@@ -42,7 +42,9 @@ export function createProviderRegistry(stateDir) {
       if (release.version !== (current?.release.version ?? 0) + 1 || (!current && release.state === 'withdrawn')) throw new Error('Version conflict; reload the current release');
       const directory = join(root, release.id);
       await mkdir(directory, { recursive: true, mode: 0o700 });
-      const record = { release, envelope, signature: input.signature, digest };
+      // Republishing after a withdrawal must not revive approvals for older versions.
+      const withdrawnThrough = release.state === 'withdrawn' ? release.version : (current?.withdrawnThrough ?? 0);
+      const record = { release, envelope, signature: input.signature, digest, withdrawnThrough };
       // Write a complete temporary file then link atomically without replacing an existing version.
       const { randomUUID } = await import('node:crypto');
       const { link, unlink } = await import('node:fs/promises');

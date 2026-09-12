@@ -70,7 +70,8 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     if (listingId !== `${listing.release.id}.v${listing.release.version}`) throw new Error('Catalog publication version mismatch');
     const registry = dependencies.registry ?? createProviderRegistry(config.stateDir);
     const [record, latest] = await Promise.all([registry.read(listing.release.id, listing.release.version), registry.latest(listing.release.id)]);
-    if (latest?.release.state !== 'published' || record.release.state !== 'published' || record.digest !== listing.release.digest) throw new Error('Provider publication is withdrawn or changed');
+    if (latest?.release.state !== 'published' || listing.release.version <= (latest.withdrawnThrough ?? 0)
+      || record.release.state !== 'published' || record.digest !== listing.release.digest) throw new Error('Provider publication is withdrawn or changed');
     providerInput = { provider: record.release.provider, providerStrategyEnvelope: record.envelope };
   }
 

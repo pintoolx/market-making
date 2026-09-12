@@ -130,6 +130,8 @@ test('versioned catalog resolves the stored policy and rejects withdrawn or reta
   const state = await runDirectMandate(request, local, dependencies);
   record.release.state = 'withdrawn';
   await assert.rejects(runDirectMandate(request, local, dependencies), /withdrawn/);
+  record.release.state = 'published'; record.withdrawnThrough = 2;
+  await assert.rejects(runDirectMandate(request, local, dependencies), /withdrawn/);
   local.catalog[listingId].strategyHash = defensiveHash;
   await assert.rejects(runDirectMandate({ action: 'get', current: state, mandateId: state.mandateId, makerLimitsEnvelope }, local, dependencies), /Catalog changed/);
 });
