@@ -26,7 +26,8 @@ COPY --from=bun-runtime /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-cer
 
 COPY orchestrator/package.json orchestrator/package.json
 RUN cd /workspace/orchestrator \
-    && npm install --omit=dev --ignore-scripts --no-audit --no-fund
+    && npm install --omit=dev --ignore-scripts --no-audit --no-fund \
+    && ln -s /workspace/orchestrator/node_modules /workspace/node_modules
 
 COPY orchestrator orchestrator
 COPY shared shared

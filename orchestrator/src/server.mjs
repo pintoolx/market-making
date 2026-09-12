@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { createService, HttpError } from './service.mjs';
 import { createProviderRegistry } from './provider-registry.mjs';
 import { LP_CAPABILITIES } from '../../shared/lp-release.mjs';
+import { createEnsService } from './ens-service.mjs';
+import { normalizeRoot } from '../../shared/ens/schema.mjs';
 
 const integer = (value, fallback) => value === undefined ? fallback : Number(value);
 
@@ -40,6 +42,8 @@ export function configFromEnv(env = process.env) {
     strategies: strategyCatalog(env.MANDATE_STRATEGY_CATALOG),
     strategyMaker: env.MANDATE_STRATEGY_MAKER?.toLowerCase(),
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
+    ensRootName: normalizeRoot(env.ENS_ROOT_NAME ?? 'pintool.eth'),
+    ensRpcUrl: env.ENS_SEPOLIA_RPC_URL ?? env.MANDATE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
   };
   if (!Number.isSafeInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('invalid PORT');
   if (!Number.isSafeInteger(config.chainId) || config.chainId < 1) throw new Error('invalid MANDATE_CHAIN_ID');
@@ -59,9 +63,10 @@ const readJson = request => new Promise((resolve, reject) => {
   request.on('error', reject);
 });
 
-export function makeServer(config, dependencies) {
-  const service = createService(config, dependencies);
+export function makeServer(config, dependencies = {}) {
   const registry = createProviderRegistry(config.stateDir);
+  const ens = createEnsService(config, registry, dependencies);
+  const service = createService(config, { ...dependencies, validateEnsSelections: (...args) => ens.validateSelections(...args) });
   return createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', config.allowedOrigin);
     response.setHeader('Vary', 'Origin');
@@ -74,6 +79,37 @@ export function makeServer(config, dependencies) {
     }
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (url.pathname.startsWith('/v1/ens/')) {
+        let result;
+        try {
+          if (request.method === 'GET' && url.pathname === '/v1/ens/config') result = { rootName: ens.rootName, chainId: 11155111 };
+          else if (request.method === 'GET' && url.pathname === '/v1/ens/names') {
+            const provider = url.searchParams.get('provider');
+            if (provider && !/^0x[0-9a-f]{40}$/i.test(provider)) throw new Error('Provider wallet is invalid.');
+            result = await ens.names(provider);
+          }
+          else if (request.method === 'GET' && url.pathname === '/v1/ens/status') {
+            const provider = url.searchParams.get('provider');
+            if (provider && !/^0x[0-9a-f]{40}$/i.test(provider)) throw new Error('Provider wallet is invalid.');
+            result = await ens.status(provider);
+          } else if (request.method === 'GET' && url.pathname === '/v1/ens/resolve') result = await ens.resolve(url.searchParams.get('name'));
+          else if (request.method === 'POST' && url.pathname === '/v1/ens/manifests') result = await ens.saveManifest(await readJson(request));
+          else if (request.method === 'GET' && url.pathname === '/v1/ens/manifest') result = await ens.approvedManifest(url.searchParams.get('name'), url.searchParams.get('releaseId'), Number(url.searchParams.get('version')));
+          else if (request.method === 'GET' && url.pathname === '/v1/ens/latest-approved') result = await ens.latestApproved(url.searchParams.get('name'));
+          else if (request.method === 'GET' && url.pathname === '/v1/ens/delegation') {
+            const delegate = url.searchParams.get('delegate');
+            if (!/^0x[0-9a-f]{40}$/i.test(delegate ?? '')) throw new Error('Delegate wallet is invalid.');
+            result = await ens.reader.delegation(url.searchParams.get('name'), delegate);
+          } else throw new HttpError(404, 'ENS route not found.');
+        } catch (e) {
+          if (e instanceof HttpError) throw e;
+          // Provider publication storage may contain ciphertext; never expose filesystem errors or RPC internals.
+          const message = e?.code || e?.shortMessage ? 'ENS data is unavailable. Check the name, approved version and Sepolia connection, then retry.' : e.message;
+          throw new HttpError(409, message || 'ENS verification failed.');
+        }
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(result));
+      }
       const releaseVersion = url.pathname.match(/^\/v1\/provider-strategies\/([0-9a-f]{40}-clmm)\/versions\/([1-9][0-9]{0,6})$/);
       if (request.method === 'GET' && releaseVersion) {
         let record;

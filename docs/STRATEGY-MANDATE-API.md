@@ -4,9 +4,9 @@ Status: active integration contract. This is PinTool's orchestration and status 
 
 The implementation lives in `orchestrator/`. It connects to Chainlink and Aqua through the runner protocol and verifies report and activity receipts through an independent Ethereum Sepolia RPC. Maker limits are encrypted in the browser. The service validates and forwards the sealed envelope, stores it separately from public mandate state and never receives plaintext. Update the runner, chain ID, RPC and Explorer settings together.
 
-The frontend creates mandates, explicitly requests strategy reevaluation and reads confirmed state and activity. Workflow and contract tooling drive market fixtures, CRE delivery and test-taker swaps; these are not exposed as ordinary product actions. The service must never present an expected outcome as confirmed evidence.
+The frontend creates mandates, explicitly requests strategy reevaluation and reads confirmed state and activity. Workflow and contract tooling drive live market acquisition, CRE delivery and test-taker swaps; these are not exposed as ordinary product actions. The service must never present an expected outcome as confirmed evidence.
 
-For the hackathon path, configure `MANDATE_RUNNER` with `orchestrator/bin/cre-local-simulation-runner`. Each create or add-strategy request invokes the confidential HTTP handler through `cre workflow simulate --broadcast`, waits for the matching `ReportAccepted` event on Ethereum Sepolia, verifies the receipt, and only then returns the public mandate state. This path requires CRE CLI authentication and a funded Sepolia signer, but it does not require a deployed workflow or Confidential Workflows deployment access.
+For the hackathon path, configure `MANDATE_RUNNER` with `orchestrator/bin/cre-local-simulation-runner`. Each create or reevaluation request invokes the confidential HTTP handler through `cre workflow simulate --broadcast`. Changed authorizations wait for a matching `ReportAccepted` event on Ethereum Sepolia and verified receipt; unchanged standing authorizations reuse independently verified evidence. Only then does the service return public mandate state. This path requires CRE CLI authentication and a funded Sepolia signer, but it does not require a deployed workflow or Confidential Workflows deployment access.
 
 Raw Provider policy and Maker limits must use a verified confidential input path. The current web application seals Maker limits for a Vault DON key before calling this API. When that transport is unavailable, the frontend rejects the request instead of sending plaintext to an ordinary backend.
 
@@ -51,7 +51,7 @@ The `maker` is the wallet encoded into every returned Aqua strategy. The Maker a
 }
 ```
 
-Initial onboarding submits the first provisioned execution profile of the strategy selected on its detail page. Tight and defensive profiles belong to the same Adaptive Market Maker product and inherit the same Maker mandate; the Maker does not purchase or configure them separately. The encrypted plaintext uses Maker limits schema v2: token1-denominated capital, WETH-value, per-swap and validity ceilings. The TEE converts value ceilings to WETH atomic units at the same market snapshot used for strategy evaluation.
+Initial onboarding submits the first provisioned execution profile of the strategy selected on its detail page. Tight and defensive profiles belong to the same Adaptive Market Maker product and inherit the same Maker mandate; the Maker does not purchase or configure them separately. The encrypted plaintext uses Maker limits schema v3: token1-denominated capital, WETH-value and per-swap ceilings, with explicit `authorization: "until-changed"`. Older schema-1/2 envelopes retain bounded lifetimes. The TEE converts value ceilings to WETH atomic units at the same market snapshot used for strategy evaluation.
 
 The response must represent an initial report already accepted by the Guard:
 
@@ -76,7 +76,7 @@ The response must represent an initial report already accepted by the Guard:
     "reportTransactionHash": "0x...",
     "reportExplorerUrl": "https://sepolia.etherscan.io/tx/0x...",
     "sequence": "1",
-    "expiresAt": "2026-09-12T00:00:00Z"
+    "expiresAt": null
   },
   "events": []
 }
@@ -91,7 +91,7 @@ Returns the same `MandateState`. This is a read-only operation: it never invokes
 - `regime`: `normal | high-volatility | unknown`
 - each strategy's `status`: `active | standby | paused`
 - `evidence.sequence`, expiry, digest and report transaction
-- `events`: `report-accepted | strategy-activated | swap-settled | swap-rejected`
+- `events`: `report-accepted | authorization-unchanged | strategy-activated | swap-settled | swap-rejected`
 
 Each event contains `id`, `type`, `title`, `detail` and `occurredAt`. Events backed by an onchain transaction also include `transactionHash` and `explorerUrl`.
 
@@ -103,9 +103,9 @@ Each event contains `id`, `type`, `title`, `detail` and `occurredAt`. Events bac
 { "providerStrategyId": "featured-defensive-market" }
 ```
 
-The route retains its original path for compatibility, but the product uses it to evaluate another pre-provisioned profile of the same marketplace strategy. The service reuses the existing encrypted Maker policy and returns an updated `MandateState` only after the Guard accepts the result. An enabled report for a new profile atomically changes the active Guard hash; a non-matching profile remains paused and cannot trade. Reevaluation does not move assets out of the Maker wallet, and at most one profile may be `active` at a time.
+The route retains its original path for compatibility, but the product uses it to evaluate another pre-provisioned profile of the same marketplace strategy. The service reuses the existing encrypted Maker policy. Changed terms require a confirmed Guard update; unchanged standing terms reuse verified existing evidence and produce an `authorization-unchanged` event without broadcasting. An enabled report for a new profile atomically changes the active Guard hash; a non-matching profile remains paused and cannot trade. Reevaluation does not move assets out of the Maker wallet, and at most one profile may be `active` at a time.
 
-Report publication is separate from state polling. It occurs for initial activation and explicit reevaluation in the current application. A production scheduler should trigger reevaluation only for a material market or policy event, a pause, or renewal near expiry; ordinary status reads must remain transaction-free.
+Report publication is separate from state polling. Initial activation and explicit reevaluation compare the derived authorization with Guard state. Unchanged standing terms and active-profile selection produce no new transaction; changed terms, pause or reactivation require a report. Standing authorization has no periodic expiry renewal. Legacy bounded reports retain their expiry. Ordinary status reads remain transaction-free.
 
 ## Record an Aqua execution
 
@@ -129,7 +129,7 @@ event. Only this verified evidence is appended to the activity shown by the fron
 
 - A strategy product contains at least one execution profile and at most one `active` profile for a Maker.
 - Chain ID, network, token pair, strategy hash and Explorer URL come from the same deployment.
-- Sequence increases monotonically. `expiresAt` corresponds to the report accepted by the Guard.
+- `evidence.sequence` is the accepted report nonce, strictly increasing per `(maker, strategyHash)`, not a global mandate counter. Switching the evidence to another profile can display a lower nonce. `expiresAt` is `null` for standing reports and the accepted deadline for bounded reports.
 - Every transaction hash resolves to a receipt through an independent RPC.
 - `swap-settled` requires a successful receipt. `swap-rejected` requires an actual reverted or failed receipt and cannot be inferred by the UI.
 - The service never returns private policy, Provider thresholds, model chain of thought or secret sources to the frontend.

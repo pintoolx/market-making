@@ -1,0 +1,27 @@
+.workspace { display: grid; gap: 20px; min-width: 0; }
+.workspace h1, .workspace h2, .workspace p { margin: 0; }
+.workspace h1 { font-size: 32px; line-height: 1.15; font-weight: 700; }
+.workspace h2 { font-size: 22px; line-height: 1.25; font-weight: 700; }
+.workspace fieldset { display: grid; gap: 14px; border: 1px solid var(--aqua-line); border-radius: 12px; padding: 20px; min-width: 0; }
+.workspace legend { padding: 0 8px; font-weight: 600; }
+.workspace label { display: grid; gap: 8px; }
+.workspace form { min-width: 0; }
+.workspace a { color: var(--aqua-accent); text-underline-offset: 3px; }
+.workspace :is(button, a, input):focus-visible { outline: 3px solid var(--aqua-accent); outline-offset: 3px; }
+.workspace button { min-height: 44px; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.heading h2 { margin-top: 8px; }
+.identity { display: grid; gap: 8px; padding: 16px; border-left: 3px solid var(--aqua-accent); }
+.identity strong, .name { font-size: 18px; overflow-wrap: anywhere; }
+.identity span { font-size: 13px; overflow-wrap: anywhere; }
+.notice { display: grid; gap: 12px; border-left: 3px solid var(--aqua-accent); padding: 16px; }
+.feedback { overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
+.skeleton { min-height: 48px; display: flex; align-items: center; }
+.setupSteps { display: grid; gap: 24px; padding-left: 24px; }
+.setupSteps li > p { margin: 10px 0 16px; }
+.search { display: flex; gap: 12px; align-items: end; }
+.search label { flex: 1; min-width: 0; }
+.result { display: grid; gap: 12px; border-top: 1px solid var(--aqua-line); padding-top: 20px; }
+.knownNames { display: flex; flex-wrap: wrap; gap: 8px; }
+.knownNames button { background: transparent; border: 1px solid var(--aqua-line); border-radius: var(--radius-md); padding: 8px 12px; color: var(--aqua-accent); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .heading, .search { align-items: stretch; flex-direction: column; } .workspace fieldset { padding: 14px; } }

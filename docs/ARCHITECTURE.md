@@ -6,7 +6,7 @@ PinTool Market Making connects private strategy policies to self-custodial liqui
 
 - A **Strategy Provider** publishes a public listing and keeps its activation rules, market thresholds and sizing policy confidential.
 - A **Maker** selects one strategy product, supplies liquidity from their own wallet and defines private capital, inventory and fill limits.
-- A strategy product may compile to several immutable Aqua execution profiles. The current Adaptive Market Maker uses tight, defensive and paused profiles; these are states of one Provider strategy, not separate marketplace purchases.
+- A strategy product may compile to several immutable Aqua execution profiles. The current Adaptive Market Maker uses Tight and Defensive profiles and a paused state; these are states of one Provider strategy, not separate marketplace purchases.
 - The **confidential workflow** intersects both policies and the current market observation. It may narrow the Maker's limits but cannot expand them, then authorizes the compatible execution profile.
 - **PinTool Guard** accepts the resulting public authorization and enforces it during every Aqua swap.
 
@@ -24,7 +24,7 @@ Maker wallet ── Aqua execution profiles ── PinTool Guard ── SwapVM e
 
 The web application calls the PinTool mandate service. The service delegates confidential work to an isolated runner and independently verifies every transaction receipt before returning public state. It never creates placeholder transaction hashes or treats a planned action as confirmed.
 
-The workflow supports scheduled evaluation and an authorized HTTP trigger. Evaluation and report publication are event-driven: initial activation, a material condition or policy change, explicit reevaluation, pause, or renewal near expiry. Reading status never invokes CRE and never publishes a report. HTTP trigger input is visible to Workflow DON nodes, so Maker limits are sealed in the browser with an ephemeral X25519 key and XChaCha20-Poly1305. Authenticated context binds the envelope to its Maker address, preventing reuse for another wallet. Provider-published policies can use the same transport with a separate Provider-address context; pre-provisioned policies remain Vault DON secrets. The trigger carries only public execution identity, market observations and ciphertext. After execution enters the TEE, the workflow fetches the envelope private key, opens the submitted envelopes and computes the intersection. The mandate service stores sealed inputs separately from public mandate state and never returns them to the web application.
+The workflow supports scheduled evaluation and an authorized HTTP trigger. Evaluation occurs on initial activation or an explicit request; a production scheduler can also react to material market or policy changes. Current Maker mandates use standing authorization. Evaluation compares the derived terms with the stored report and active profile, and publishes only when an update is needed. There is no periodic ten-minute renewal for standing reports; bounded legacy reports retain their expiry semantics. Reading status never invokes CRE and never publishes a report. HTTP trigger input is visible to Workflow DON nodes, so Maker limits are sealed in the browser with an ephemeral X25519 key and XChaCha20-Poly1305. Authenticated context binds the envelope to its Maker address, preventing reuse for another wallet. Provider-published policies can use the same transport with a separate Provider-address context; pre-provisioned policies remain Vault DON secrets. The trigger carries only public execution identity, market observations and ciphertext. After execution enters the TEE, the workflow fetches the envelope private key, opens the submitted envelopes and computes the intersection. The mandate service stores sealed inputs separately from public mandate state and never returns them to the web application.
 
 ## Components
 
@@ -39,7 +39,7 @@ The workflow supports scheduled evaluation and an authorized HTTP trigger. Evalu
 
 ## Privacy boundary
 
-The confidential inputs are Provider rules and Maker limits. Strategy names, deployed programs, authorization bounds, transaction receipts and completed trades are public. Repeated public outputs may reveal information about confidential inputs over time. Short authorization lifetimes limit future use but do not erase history or provide a quantified resistance-to-inference guarantee.
+The confidential inputs are Provider rules and Maker limits. Strategy names, deployed programs, authorization bounds, transaction receipts and completed trades are public. Repeated public outputs may reveal information about confidential inputs over time. Standing authorization persists until changed or revoked. Legacy bounded lifetimes limit future use, but neither mode erases public history or provides a quantified resistance-to-inference guarantee.
 
 The workflow source and compiled binary are public. Confidential Workflows protect the data processed in the TEE, not the source code itself. No plaintext private value may be logged, returned from the TEE or placed directly in an HTTP trigger payload.
 
@@ -47,7 +47,7 @@ The workflow source and compiled binary are public. Confidential Workflows prote
 
 - Assets remain in the Maker wallet and are made available to Aqua through virtual balances and token approvals.
 - A report is bound to one chain, Guard, router, Maker, strategy hash and token pair.
-- A standing Guard authorization remains effective until changed or revoked, uses a strictly increasing nonce and cannot exceed the Maker-approved public envelope.
+- A standing Guard authorization remains effective until changed or revoked, uses a strictly increasing nonce per Maker and strategy hash and cannot exceed the Maker-approved public envelope.
 - A strategy product contains at least one Aqua execution profile. AquaGuardV2 maintains one active profile hash per Maker; accepting another active report atomically replaces it, while a paused report clears only that same profile if it is active.
 - The service reports an accepted authorization or swap only after an independent RPC confirms its receipt and status.
 - Risk limits constrain execution; they do not guarantee profit or a maximum loss.

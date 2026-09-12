@@ -9,6 +9,7 @@ import { AQUA_TEMPLATES } from './aquaTemplates';
 import { createMandate, getExecutableStrategies, getMandate, reevaluateExecutionProfile, request, type MandateState } from './mandateClient';
 import type { PublicRelease } from './ClmmPublisher';
 import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealForConfidentialWorkflow } from './confidentialEnvelope';
+import { ADAPTIVE_PROFILE_IDS, presentMandate } from './mandatePresentation';
 
 import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
@@ -16,10 +17,10 @@ import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
+import EnsStrategySearch from '../ens/EnsStrategySearch';
+import { selectionFrom } from '../ens/ensClient';
 
 const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
-const ADAPTIVE_PROFILE_IDS = ['featured-tight-market', 'featured-defensive-market'] as const;
-const profileName = (id: string) => id === ADAPTIVE_PROFILE_IDS[0] ? 'Tight profile' : 'Defensive profile';
 const FEATURED: Listing[] = [
   {
     id: 'featured-adaptive-market-maker',
@@ -116,6 +117,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, []);
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('ens')) openingLinkedStrategy.current = true;
     if (linkedStrategyId.current === undefined) linkedStrategyId.current = new URLSearchParams(window.location.search).get('strategy');
     const id = linkedStrategyId.current;
     if (!id) return;
@@ -203,6 +205,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         // profile without asking the Maker to buy a second strategy.
         providerStrategyIds: selected.flatMap(item => item.executionProfileIds?.slice(0, 1) ?? [item.id]),
         makerLimitsEnvelope,
+        ensSelections: selected.flatMap(item => item.ensSelection ? [item.ensSelection] : []),
       });
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
@@ -257,6 +260,21 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       setReevaluating(false);
     }
   };
+  const editLimits = () => {
+    if (!mandate) return;
+    const strategy = mandate.strategies.find(item => item.status === 'active') ?? mandate.strategies[0];
+    if (!strategy) { go('choose'); return; }
+    const listing = listings.find(item => (item.executionProfileIds ?? [item.id]).includes(strategy.listingId));
+    const pin = mandate.ensSelections?.find(item => `${item.pointer.releaseId}.v${item.pointer.version}` === strategy.listingId);
+    if (pin) {
+      const { name, node, pointer } = pin;
+      setSelected([{ ...listing, id: strategy.listingId, name: strategy.name,
+        summary: listing?.summary ?? `Strategy published as ${name}.`, template: AQUA_TEMPLATES[1], mine: false,
+        releaseId: pointer.releaseId, version: pointer.version, provider: pointer.provider, ensSelection: { name, node, pointer } }]);
+    } else setSelected([listing ?? { id: strategy.listingId, name: strategy.name, provider: strategy.provider,
+      summary: 'Your selected strategy version.', template: AQUA_TEMPLATES[1], mine: false }]);
+    go('limits');
+  };
 
   const previousStep = phase === 'detail'
     ? { phase: 'choose' as const, label: 'Strategy marketplace' }
@@ -264,7 +282,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       ? { phase: 'detail' as const, label: 'Strategy details' }
       : phase === 'review'
         ? { phase: 'limits' as const, label: 'Private limits' }
-        : null;
+        : phase === 'monitor' ? { phase: 'choose' as const, label: 'Strategy marketplace' } : null;
 
   const currentStep = ['choose', 'detail'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
   const title = phase === 'choose' ? 'Find a strategy for your liquidity.'
@@ -288,6 +306,12 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
     {phase === 'choose' && <>
+      {mandate && <Secondary onClick={() => { go('monitor'); void refresh(); }}>View current mandate</Secondary>}
+      <EnsStrategySearch onSelect={resolved => {
+        const r = resolved.manifest.release;
+        openStrategy({ id: `${r.id}.v${r.version}`, releaseId: r.id, version: r.version, name: r.name, summary: r.summary,
+          provider: r.provider, template: AQUA_TEMPLATES[1], mine: false, feePct: 0, ensSelection: selectionFrom(resolved) });
+      }} />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={`${styles.grid} ${aqua.grid}`}>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<Secondary onClick={() => openStrategy(item)}>View strategy</Secondary>} />)}
@@ -315,6 +339,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'review' && <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <StrategySet selected={selected} />
+        {selected.filter(item => item.ensSelection).map(item => <p key={item.id} className={aqua.hint}>{item.ensSelection!.name} · version {item.version} is pinned. A later ENS update will not change this mandate.</p>)}
         <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} />
         <div className={aqua.actionRow}><Primary onClick={submit}>Create confidential mandate</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
       </div>
@@ -322,7 +347,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     </div>}
 
     {phase === 'submitting' && <RuntimePanel reevaluating={reevaluating} />}
-    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} onEdit={() => { setSelected([listings.find(item => (item.executionProfileIds ?? [item.id]).includes(mandate.strategies[0].listingId)) ?? FEATURED[0]]); go('limits'); }} />}
+    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} onEdit={editLimits} />}
+    {phase === 'monitor' && mandate?.ensSelections?.map(selection => <p key={`${selection.name}:${selection.pointer.version}`} className={aqua.hint}>{selection.name} · pinned version {selection.pointer.version} · verified at Sepolia block {selection.verifiedBlock}</p>)}
   </section>;
 }
 
@@ -376,33 +402,26 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, []);
-  const fresh = (item: MandateState['strategies'][number]) => !!item.readiness?.validUntil && Date.parse(item.readiness.validUntil) > now;
+  const fresh = (item: Pick<MandateState['strategies'][number], 'readiness'>) => !!item.readiness?.validUntil && Date.parse(item.readiness.validUntil) > now;
   const authorizationCurrent = now > 0 && (mandate.evidence.expiresAt === null || Date.parse(mandate.evidence.expiresAt) > now);
   const active = authorizationCurrent ? mandate.strategies.find(item => fresh(item) && item.readiness?.authorized) : undefined;
   const verified = now > 0 && mandate.strategies.every(fresh);
-  const profiles = ADAPTIVE_PROFILE_IDS.map(id => ({
-    ...(mandate.strategies.find(item => item.listingId === id) ?? {
-      listingId: id,
-      provider: 'PinTool Strategies',
-      status: 'standby' as const,
-    }),
-    name: profileName(id),
-  }));
+  const { name, adaptive, profiles, profileName } = presentMandate(mandate.strategies);
   return <div className={aqua.monitorLayout}>
     <section className={aqua.panel}>
-      <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Mandate sequence {mandate.evidence.sequence}</span><h2>Adaptive Market Maker</h2></div></div>
+      <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Report nonce {mandate.evidence.sequence}</span><h2>{name}</h2></div></div>
       <div className={aqua.intentRows}><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div><div><span>Pair</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Authorization</span><strong>{mandate.evidence.expiresAt === null ? 'Until changed or revoked' : 'Update limits to continue'}</strong></div></div>
       <div className={aqua.actionRow}><Primary disabled={reevaluating} onClick={() => onReevaluate()}>{reevaluating ? 'Evaluating…' : 'Re-evaluate strategy'}</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Secondary><Secondary disabled={reevaluating} onClick={onEdit}>Update limits</Secondary></div>
     </section>
 
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
-      <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Execution profiles</h2><span className={aqua.muted}>One strategy · one shared balance</span></div>
+      <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Execution profiles</h2><span className={aqua.muted}>{adaptive ? 'One strategy · one shared balance' : 'Self-custodial liquidity'}</span></div>
       {profiles.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
-        <div><span className={aqua.eyebrow}>Adaptive Market Maker</span><strong>{strategy.name}</strong></div>
+        <div><span className={aqua.eyebrow}>{adaptive ? name : strategy.provider ?? 'Independent Provider'}</span><strong>{strategy.name}</strong></div>
         <div className={aqua.rosterStatus}>
           <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to verify'}</span>
           {'readiness' in strategy && <small>Guard: {!fresh(strategy) ? 'not verified' : strategy.readiness?.authorized ? 'authorized' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'not verified'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'not verified'}</small>}
-          {'strategyHash' in strategy && <CopyStrategyHash value={strategy.strategyHash} />}
+          {strategy.strategyHash && <CopyStrategyHash value={strategy.strategyHash} />}
           <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Evaluate profile</Secondary>
         </div>
       </article>)}
@@ -414,7 +433,7 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
     </section>
 
     <p className={aqua.muted}>Readiness is a short-lived chain snapshot. Each trade still requires a fresh quote and Guard checks. A saved listing or accepted report alone does not mean liquidity can trade.</p>
-    <div className={aqua.evidence}><div><span>Guard transaction</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View Guard transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua execution</span><strong>2 profiles · one Maker balance</strong></div><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div></div>
+    <div className={aqua.evidence}><div><span>Guard transaction</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View Guard transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua execution</span><strong>{profiles.length} {profiles.length === 1 ? 'profile' : 'profiles'} · one Maker balance</strong></div><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div></div>
   </div>;
 }
 
