@@ -27,7 +27,7 @@
 }
 ```
 
-`providerStrategyIds` 至少一筆，產品不限制恰好兩筆。ETHOnline 錄影 fixture 固定使用上面兩套策略。
+`providerStrategyIds` 至少一筆，產品不限制恰好兩筆。首次 onboarding 只送使用者在 detail page 選定的策略；後續 portfolio expansion 才加入更多策略。ETHOnline 錄影 fixture 固定使用上面兩套策略。
 
 Response 必須代表 initial report 已由 Guard 接受：
 

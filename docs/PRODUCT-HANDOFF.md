@@ -82,14 +82,14 @@ pengu 的 adapter 負責 token 地址排序、decimals、價格倒數與 sqrtPri
 
 ## 產品流程
 
-1. Provider：選模板、填私密規則、提交；看到版本與已接收狀態。
-2. Maker：選一個或多個 Provider strategy、填一份套用到整個 strategy set 的共同額度與限制；只看自己的 policy。
+1. Provider：選 execution template、填對應的機制參數及結構化私密 activation policy、提交；看到版本與已接收狀態。自由文字只作為 optional constraints，不可直接成為資金執行指令。
+2. Maker：先在 Marketplace 瀏覽並閱讀單一 strategy detail，決定使用後再填自己的共同額度與限制。建立第一套後，才從 portfolio 加入其他 Provider strategy；不要求新使用者先組合 strategy set。
 3. 評估：顯示資料時間、處理狀態；不顯示另一方原始條件。
 4. 核准：顯示 market regime、active strategy hash、另一套 blocked strategy、單筆上限與期限。
 5. 拒絕：顯示「目前條件無法形成可執行策略」，Maker 可查看授權的詳細原因。
 6. 監控：顯示目前被授權的策略、期限、已確認的 report 與成交紀錄。市場 fixture 與測試 taker 由外部整合工具驅動，不做成產品按鈕。
 
-Provider 的 Condition／Action 留在策略邏輯；Maker 的部位與資金分配由輸出推導，呈現在 Position／Split 層。Provider Studio 下一步要把自由文字改成各模板的結構化欄位，文字助手只能協助填表，不能直接成為可執行政策。
+Provider 的 Condition／Action 留在策略邏輯；Maker 的部位與資金分配由輸出推導，呈現在 Position／Split 層。Provider Studio 已將模板機制參數與 signal／operator／threshold／observation window／recovery threshold 分開；文字助手未來只能協助填寫這些 schema，不能直接成為可執行政策。
 
 ## Demo 與驗收
 
