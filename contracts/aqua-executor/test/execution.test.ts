@@ -180,6 +180,26 @@ test('a cross-process lock prevents competing senders and is released after SIGK
   await executeRequest(ctx, d, { schema: 'aqua-execution-v1', requestId: 'locked-close', sessionId: ship.sessionId, action: 'dock', expectedStrategyHash: result.strategyHash, revokeAllowances: true }, opts)
 })
 
+test('one maker can keep two Aqua strategies active against the same wallet balance', { timeout: 30000 }, async () => {
+  const stateDir = join(dir, 'shared-liquidity')
+  const opts = { stateDir, getPrices: async () => prices() }
+  const first = await shipRequest('shared-a', 2300n)
+  const second = await shipRequest('shared-b', 2301n)
+  const [a, b] = [compile(first.strategy), compile(second.strategy)]
+
+  const shippedA = await executeRequest(ctx, d, first, opts)
+  const shippedB = await executeRequest(ctx, d, second, opts)
+  assert.equal(shippedA.outcome, 'shipped')
+  assert.equal(shippedB.outcome, 'shipped')
+  assert.notEqual(shippedA.strategyHash, shippedB.strategyHash)
+  assert.ok((await rawBalances(ctx, d, a)).every(value => value.tokensCount === 2))
+  assert.ok((await rawBalances(ctx, d, b)).every(value => value.tokensCount === 2))
+
+  for (const [id, hash] of [[first.sessionId, a.strategyHash], [second.sessionId, b.strategyHash]] as const) {
+    await executeRequest(ctx, d, { schema: 'aqua-execution-v1', requestId: `${id}-close`, sessionId: id, action: 'dock', expectedStrategyHash: hash }, opts)
+  }
+})
+
 test('the watcher recovers a data outage and follows a rebalance submitted by another process', { timeout: 30000 }, async () => {
   const stateDir = join(dir, 'watcher'), ship = await shipRequest('watched-session', 2500n)
   const opts = { stateDir, getPrices: async () => prices() }

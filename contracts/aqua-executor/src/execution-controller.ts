@@ -85,7 +85,6 @@ export async function executeRequest(ctx: Ctx, d: Deployment, input: unknown, op
       let session = store.get<ExecutionSession>('sessions', request.sessionId)
       if (request.action === 'ship') {
         if (session) throw new Error('sessionId already exists; use its original requestId to resume')
-        if (store.all<ExecutionSession>('sessions').some(s => s.status !== 'closed')) throw new Error('this controller supports one open session per maker; close it before shipping another')
         checkStrategy(ctx, d, compile(request.strategy))
         session = { id: request.sessionId, createdBy: request.requestId, status: 'starting', plan: { strategy: request.strategy, policy: request.policy, rebalances: [], finished: false } }
       } else {
