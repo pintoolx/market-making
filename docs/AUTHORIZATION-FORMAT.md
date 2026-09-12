@@ -21,24 +21,26 @@ Market snapshot (public) ─────────────┘             
                                    1inch Aqua swap ──► SwapVM Extruction ──► AquaGuard.extruction() ──► pass / revert
 ```
 
-Only the report crosses the enclave boundary. The matched rule, the thresholds, the Maker's
+The diagram describes the production boundary. The configured CRE CLI simulation executes locally and broadcasts to the Sepolia simulation forwarder; it does not prove hardware enclave isolation or production DON execution.
+
+Only the report crosses the intended enclave boundary. The matched rule, the thresholds, the Maker's
 budget and share, and which side "won" each cap stay inside the TEE.
 
 ## 2. Field table (`GuardReportV1`, 16 fields, `abi.encode` tuple = 512 bytes)
 
 | # | Field | Solidity | Unit / range | Set by | Why it is needed |
 |---|---|---|---|---|---|
-| 1 | `schemaVersion` | `uint16` | always `1` | workflow constant | Lets the Guard reject a payload from an older/newer encoder instead of mis-decoding it. |
+| 1 | `schemaVersion` | `uint16` | `1` bounded; `2` standing | workflow constant | Lets the Guard reject a payload from an older/newer encoder instead of mis-decoding it. |
 | 2 | `chainId` | `uint256` | `11155111` (Ethereum Sepolia) | `config/guard.ts` | Prevents replaying an Ethereum Sepolia report on another chain where the same Guard bytecode may exist. |
 | 3 | `guard` | `address` | 20 bytes | workflow config | Binds the report to one receiver so a report signed for Guard A cannot be replayed into Guard B. |
 | 4 | `router` | `address` | 20 bytes | `config/guard.ts` | The Guard only accepts `extruction()` calls from this router; the report must name the same one. |
-| 5 | `maker` | `address` | 20 bytes | HTTP request or workflow config | Storage key #1 — the Guard keys state by `(maker, strategyHash)`; funds never leave this wallet. |
+| 5 | `maker` | `address` | 20 bytes | HTTP request or workflow config | Storage key #1 — the Guard keys state by `(maker, strategyHash)`; assets remain self-custodied until traded. |
 | 6 | `strategyHash` | `bytes32` | `router.hash(order)` | HTTP request or workflow config | Storage key #2 — ties the authorization to one Maker-approved guarded program. |
 | 7 | `token0` | `address` | 20 bytes | `config/guard.ts` | With `token1`, lets the Guard reject a swap on the wrong pair; order = the approved program's order, never sorted. |
 | 8 | `token1` | `address` | 20 bytes | `config/guard.ts` | See `token0`. |
 | 9 | `nonce` | `uint64` | `> 0`, strictly increasing per `(maker, strategyHash)` | TEE (unix seconds, see §5) | Ordering + replay protection: older or reused nonces revert; a byte-identical retry is a no-op. |
 | 10 | `validAfter` | `uint48` | unix seconds | TEE (`runtime.now()`) | Start of the window; the Guard requires `validAfter <= block.timestamp`. |
-| 11 | `validUntil` | `uint48` | `validAfter < validUntil <= validAfter + 600` | TEE | Expiry; the Guard rejects swaps after it. Also the main leakage limiter (§7). |
+| 11 | `validUntil` | `uint48` | schema 1: `validAfter < validUntil <= validAfter + 600`; schema 2: `0` | TEE | Bounded expiry or explicit standing authorization. Standing reports remain effective until changed or revoked. |
 | 12 | `allowedDirections` | `uint8` | `0..3` bitmask, taker perspective | TEE (§4) | `1` = taker 0→1 (Maker buys token0), `2` = taker 1→0 (Maker sells token0), `3` both, `0` paused. One byte says which side of the book is open. |
 | 13 | `maxAmount0PerSwap` | `uint128` | atomic token0 | TEE = `min(provider, maker)` | Per-fill ceiling on token0 exchanged; applies to both directions; must be `> 0` if any direction is enabled. |
 | 14 | `maxAmount1PerSwap` | `uint128` | atomic token1 | TEE = `min(provider, maker)` | Same for token1. |
@@ -63,7 +65,7 @@ snapshot wins, none matching = paused.
 | `rules[].when.{priceMin,priceMax,volatilityBpsMin,volatilityBpsMax}` | Market regime the rule applies to (inclusive bounds, any subset). |
 | `rules[].allowMakerBuyToken0` / `allowMakerSellToken0` | Which sides of the book the Provider opens in that regime. |
 | `rules[].maxAmount0PerSwap` / `maxAmount1PerSwap` | Provider's per-fill ceilings (atomic). |
-| `rules[].ttlSec` | How long a report issued under this rule should live (≤ 600). |
+| `rules[].ttlSec` | Bounded report lifetime (≤ 600); ignored for an explicitly standing Maker mandate. |
 | `inventory.maxBalance0` / `maxBalance1` | Provider's own inventory ceilings. |
 
 **Maker limits** — stated in the Maker's terms, translated by the enclave.
@@ -74,9 +76,10 @@ snapshot wins, none matching = paused.
 | `maxToken0ShareBps` | Max share of that budget that may sit in token0 (6000 = 60 %). |
 | `maxToken0Value1` | Absolute WETH inventory ceiling stated in token1 value. The stricter of this and the percentage ceiling is used. |
 | `maxSwapValue1` | Per-fill ceiling stated in token1 value; converted to both token amounts at the observed mid price. |
-| `maxTtlSec` | Maker's upper bound on report lifetime. |
+| `maxTtlSec` | Legacy schema-1/2 upper bound on report lifetime; absent from schema 3. |
+| `authorization` | Schema 3 requires `"until-changed"`; it produces a schema-2 standing report. |
 
-**Market snapshot** (public, supplied by the authorized trigger or scheduled workflow configuration): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
+**Market snapshot** (public, acquired and validated by the workflow in live mode; supplied fixtures are dry-run only): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
 `balance0` / `balance1`, and the two token decimals.
 
 ## 4. Derivation rules (the "intersection")
@@ -92,23 +95,20 @@ snapshot wins, none matching = paused.
 | direction bit 2 (Maker sells token0) | `rule.allowMakerSellToken0 && balance1 < maxPostBalance1` |
 | paused (`allowedDirections = 0`) | no rule matched · rule opens neither side · either per-swap cap is 0 · both inventories already at/over cap. **Paused reports carry all-zero caps** (allowed by the Guard, reveals nothing extra). |
 | `validAfter` | `runtime.now()` in seconds (DON time, never `Date.now()`). |
-| `validUntil` | `validAfter + min(rule.ttlSec, maker.maxTtlSec, 600)` |
-| `nonce` | `validAfter` (see §5) |
+| `validUntil` | Maker schema 3: `0`. Legacy Maker schema 1/2: `validAfter + min(rule.ttlSec, maker.maxTtlSec, 600)`. |
+| `nonce` | Initially `validAfter`; standing delivery advances it beyond the stored nonce when required (see §5). |
 
 Edge cases covered by unit tests (`workflow/src/intersect.test.ts`): both sides
 incompatible → everything forbidden; inventory exhausted on one or both sides; Maker
-stricter than Provider on every axis; rule ordering; expiry never exceeding 600 s.
+stricter than Provider on every axis; rule ordering; bounded expiry never exceeding 600 s; explicit standing consent.
 
-## 5. Nonce and expiry semantics
+## 5. Nonce and authorization semantics
 
-- **Nonce = unix seconds of `validAfter`.** The enclave has no persistent state and cannot
-  read the chain, so a timestamp is the only monotonic source available without a round
-  trip. It is strictly increasing as long as two runs are ≥ 1 s apart (cron is every 2 min).
-  Fits `uint64` trivially. A byte-identical re-issue within the same second is a no-op on the
-  Guard, which is the documented behaviour.
-- **Lifetime** is the shortest of the three bounds; the Guard's `MAX_REPORT_LIFETIME = 600`
-  is never exceeded. A paused report still gets a window so the Guard keeps rejecting until
-  the next report; once it expires the Guard rejects anyway (missing/expired report ⇒ revert).
+- Nonces are strictly increasing per `(maker, strategyHash)`. The evaluator starts from `validAfter`; standing-report delivery reads the existing Guard report and raises a stale or same-second candidate nonce to the stored nonce plus one. This is not a distributed nonce allocator: serialize concurrent executions for the same Maker.
+- Standing delivery compares execution terms and the active profile against chain state. Equivalent terms require no new transaction. If another profile is active, an enabling report must still be delivered to reactivate this profile.
+- Maker schema 3 explicitly requests `authorization: "until-changed"`. It produces report schema 2 with `validUntil = 0`, including when paused. There is no ten-minute renewal requirement.
+- Legacy Maker schemas 1/2 produce report schema 1. Its lifetime is the shortest of the Provider rule TTL, Maker TTL and Guard maximum of 600 seconds. Expired bounded reports cannot authorize swaps.
+- Standing status does not bypass active-profile selection, per-fill limits, inventory checks or the Aqua program deadline. A 30-second readiness snapshot is a read freshness limit, not an authorization lifetime.
 
 ## 6. ABI encoding and delivery
 
@@ -134,11 +134,12 @@ stricter than Provider on every axis; rule ordering; expiry never exceeding 600 
 
 ## 7. Information leakage
 
-Each report publishes `min(provider, maker)` for four caps plus a window length. An
+Each report publishes `min(provider, maker)` for four caps plus a validity mode and, for bounded reports, a window length. An
 observer collecting many reports can infer the *stricter* side's numbers and the regime
 switches. Mitigations already in place: paused reports zero every cap; the matched rule, the
-thresholds, the budget/share and the "who bound" attribution never leave the enclave; short
-`validUntil` limits how long any one number is useful. Options if we want more: coarsen caps
+thresholds, the budget/share and the "who bound" attribution remain private inputs. A bounded
+`validUntil` limits future execution, but neither expiry nor standing authorization erases
+public cap values or prevents inference from repeated outputs. Options if we want more: coarsen caps
 to a grid, or add bounded noise below the true cap (always safe for the Maker). The
 `scripts/check-no-leak.sh` scan prints exactly which secret values surface, and fails on any
 other.
