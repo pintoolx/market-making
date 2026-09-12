@@ -10,6 +10,27 @@ For the hackathon path, configure `MANDATE_RUNNER` with `orchestrator/bin/cre-lo
 
 Raw Provider policy and Maker limits must use a verified confidential input path. The current web application seals Maker limits for a Vault DON key before calling this API. When that transport is unavailable, the frontend rejects the request instead of sending plaintext to an ordinary backend.
 
+## List executable strategies
+
+`GET /v1/strategies`
+
+Returns the public catalog entries that have both a provisioned Provider policy and an Aqua strategy hash for the configured network:
+
+```json
+{
+  "strategies": [
+    {
+      "id": "featured-tight-market",
+      "name": "Tight Market",
+      "provider": "PinTool Strategies",
+      "strategyHash": "0x..."
+    }
+  ]
+}
+```
+
+The Maker application uses this catalog as the authority for whether a listing is currently accepting liquidity. A listing may remain discoverable without appearing in this response, but it cannot create or join a mandate until its Provider policy and Maker-specific Aqua execution have been provisioned.
+
 ## Create a mandate
 
 `POST /v1/mandates`

@@ -4,6 +4,18 @@ import { createService, HttpError } from './service.mjs';
 
 const integer = (value, fallback) => value === undefined ? fallback : Number(value);
 
+function strategyCatalog(value) {
+  let parsed;
+  try { parsed = JSON.parse(value ?? '{}'); } catch { throw new Error('MANDATE_STRATEGY_CATALOG must be valid JSON'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('MANDATE_STRATEGY_CATALOG must be an object');
+  return Object.entries(parsed).map(([id, item]) => {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(id) || !item || typeof item !== 'object'
+      || typeof item.name !== 'string' || !item.name.trim() || typeof item.provider !== 'string' || !item.provider.trim()
+      || !/^0x[0-9a-f]{64}$/i.test(item.strategyHash ?? '')) throw new Error('MANDATE_STRATEGY_CATALOG contains an invalid strategy');
+    return { id, name: item.name, provider: item.provider, strategyHash: item.strategyHash.toLowerCase() };
+  });
+}
+
 export function configFromEnv(env = process.env) {
   const config = {
     port: integer(env.PORT, 8787),
@@ -15,6 +27,7 @@ export function configFromEnv(env = process.env) {
     rpcUrl: env.MANDATE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
     explorerUrl: (env.MANDATE_EXPLORER_URL ?? 'https://sepolia.etherscan.io').replace(/\/$/, ''),
     router: env.MANDATE_ROUTER_ADDRESS,
+    strategies: strategyCatalog(env.MANDATE_STRATEGY_CATALOG),
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
   };
   if (!Number.isSafeInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('invalid PORT');
@@ -51,6 +64,10 @@ export function makeServer(config, dependencies) {
       if (request.method === 'GET' && url.pathname === '/health') {
         response.writeHead(200, { 'content-type': 'application/json' });
         return response.end(JSON.stringify({ status: 'ok', chainId: config.chainId, network: config.networkName }));
+      }
+      if (request.method === 'GET' && url.pathname === '/v1/strategies') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify({ strategies: config.strategies }));
       }
       let result;
       if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));

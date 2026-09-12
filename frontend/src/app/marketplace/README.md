@@ -17,12 +17,13 @@ The application exposes the two sides of the PinTool market:
 - Provider drafts remain in session storage until publication.
 - Maker limits are sealed in the browser for the confidential workflow. Provider policies are provisioned through Vault DON; plaintext private inputs never enter the mandate service.
 - Confirmed mandate state comes from `NEXT_PUBLIC_MANDATE_API_URL`. The UI never generates transaction receipts or treats requested actions as confirmed.
+- Executable strategy availability comes from `GET /v1/strategies`; a visible listing cannot create a mandate unless the service confirms its Provider policy and Aqua strategy are provisioned.
 
 ## Integration points
 
 - `aquaTemplates.ts` defines supported strategy templates and their structured parameters.
 - `mandateClient.ts` implements the product-facing mandate API.
-- `publishedStore.ts` can be replaced by a durable Provider registry without changing the mandate contract.
+- `publishedStore.ts` retains Provider-authored listing metadata until a durable registry is connected. Publication alone does not make a strategy executable.
 - Aqua programs, authorization bounds and completed trades are public even when the source policies remain private.
 
 ## Development

@@ -16,6 +16,8 @@ Supported runner requests:
 
 Ethereum Sepolia is the target network. The runner owns the mapping from listing IDs to provisioned Provider secrets and Aqua strategy hashes. It must return only after the Guard report is accepted. The service validates the response, verifies the report transaction receipt through an independent RPC and persists only the public state. It never invents hashes or treats a planned transaction as evidence.
 
+`GET /v1/strategies` exposes the public projection of `MANDATE_STRATEGY_CATALOG`. The Maker application uses it to distinguish discoverable listings from strategies that are ready to accept liquidity on the configured network. Private policy contents never appear in this response.
+
 ### Direct CRE runner
 
 `bin/cre-mandate-runner` implements the production HTTP trigger protocol:

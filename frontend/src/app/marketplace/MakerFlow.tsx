@@ -6,7 +6,7 @@ import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
-import { addMandateStrategy, createMandate, getMandate, type MandateState } from './mandateClient';
+import { addMandateStrategy, createMandate, getExecutableStrategies, getMandate, type MandateState } from './mandateClient';
 import { sealForConfidentialWorkflow } from './confidentialEnvelope';
 import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
@@ -108,12 +108,20 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expanding, setExpanding] = useState(false);
   const [error, setError] = useState('');
+  const [executableIds, setExecutableIds] = useState<Set<string> | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
+  useEffect(() => {
+    let current = true;
+    getExecutableStrategies()
+      .then(items => { if (current) setExecutableIds(new Set(items.map(item => item.id))); })
+      .catch(() => { if (current) setExecutableIds(new Set()); });
+    return () => { current = false; };
+  }, []);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('strategy');
     if (!id) return;
@@ -142,7 +150,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, [account.address]);
 
-  const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))];
+  const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))]
+    .map(item => ({ ...item, executionReady: executableIds?.has(item.id) ?? false }));
   const go = (next: Phase) => {
     didNavigate.current = true;
     scrollTop();
@@ -270,7 +279,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       </div>
     </>}
 
-    {phase === 'detail' && selected[0] && <StrategyDetail listing={selected[0]} actionLabel={expanding ? 'Add to mandate' : 'Use this strategy'} onUse={expanding ? addSelectedStrategy : () => go('limits')} />}
+    {phase === 'detail' && selected[0] && <StrategyDetail listing={{ ...selected[0], executionReady: executableIds?.has(selected[0].id) ?? false }} availabilityKnown={executableIds !== null} actionLabel={expanding ? 'Add to mandate' : 'Use this strategy'} onUse={expanding ? addSelectedStrategy : () => go('limits')} />}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
@@ -306,11 +315,12 @@ function StrategySet({ selected }: { selected: Listing[] }) {
   return <div className={aqua.providerPair}>{selected.map(item => <div key={item.id}><span>{item.provider ?? 'Independent Provider'}</span><strong>{item.name}</strong><small>{item.template.label}</small></div>)}</div>;
 }
 
-function StrategyDetail({ listing, actionLabel, onUse }: { listing: Listing; actionLabel: string; onUse: () => void }) {
+function StrategyDetail({ listing, availabilityKnown, actionLabel, onUse }: { listing: Listing; availabilityKnown: boolean; actionLabel: string; onUse: () => void }) {
   return <div className={aqua.decisionGrid}>
     <div className={aqua.previewColumn}>
       <ListingCard listing={listing} />
-      <Primary onClick={onUse}>{actionLabel}</Primary>
+      <Primary disabled={!listing.executionReady} onClick={onUse}>{!availabilityKnown ? 'Checking availability' : listing.executionReady ? actionLabel : 'Not accepting liquidity'}</Primary>
+      {availabilityKnown && !listing.executionReady && <p className={aqua.muted}>This Provider is not currently accepting new liquidity for this strategy.</p>}
     </div>
     <aside className={aqua.explanation}>
       <span className={aqua.eyebrow}>Strategy specifications</span>
