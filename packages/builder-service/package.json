@@ -21,7 +21,8 @@
     "zod": "4.4.3",
     "ai": "7.0.99",
     "@ai-sdk/openai": "4.0.66",
-    "jose": "6.2.12"
+    "jose": "6.2.12",
+    "aqua-executor": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.13.4",

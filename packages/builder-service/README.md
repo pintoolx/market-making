@@ -49,6 +49,9 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | GET `/drafts/:id` | Owned draft |
 | GET `/drafts/:id/history` | Latest 100 immutable revision summaries |
 | GET `/drafts/:id/validation` | Authoritative validation and requirement assessment for the current revision and pinned profile |
+| POST `/drafts/:id/compile` | `{ expectedRevision }`; owned Maker instance only; stores decoded compilation and returns its reference |
+| GET `/drafts/:id/artifacts` | Owned immutable compilation references, newest revision first |
+| GET `/artifacts/:id` | Compiled bytes/decoded public parameters, current/stale flag and explicit `registrationReady: false` |
 | POST `/drafts/:id/patch` | `{ expectedRevision, patch }` |
 | POST `/drafts/:id/restore` | `{ expectedRevision, revision }`; appends a revision |
 | POST `/conversations/:id/messages` | `{ content }`; public user text only |
@@ -64,7 +67,9 @@ Missing/foreign resources return the same 404. Stale revisions or template permi
 
 The provider uses `@ai-sdk/openai` 4.0.66 and `ai` 7.0.99, with `ToolLoopAgent`, eight model steps maximum, 3,000 output tokens per step, bounded recent server history and an authoritative draft read. Default model `gpt-5.6-sol` was verified against the configured account; operators may set `BUILDER_OPENAI_MODEL`. The API key is consumed only in the server provider. Responses storage is disabled with `store: false`; that setting is not a claim of zero data retention. Provider exceptions are redacted before SDK logging.
 
-Six tools are currently wired: capabilities, token resolution, patch/restore, validation, inspection and non-executable public export. Amount edits use human token units and convert exactly using pinned token decimals. Untouched settings persist; template tools reject Maker allocation. The other six goal tools and their artifact/simulation/wallet gates remain in subsequent batches.
+Seven tools are currently wired: capabilities, token resolution, patch/restore, validation, compilation, inspection and non-executable public draft export. Amount edits use human token units and convert exactly using pinned token decimals. A draft can save one Guard limit or one Maker allocation at a time; validation identifies each missing field and the compiler still requires complete limits and allocations. Untouched settings persist; template tools reject Maker allocation. Pair changes cannot silently relabel existing amounts or price intent. Inventory, scenario preview, lifecycle simulation, registration and cancellation preparation remain to be wired.
+
+Compilation uses the `aqua-executor/builder` package entry, which imports the pure Guard compiler, not wallet configuration or contract-artifact loaders. Maker compiles are serialized with the draft revision and any active agent lease; identical revision/profile requests return the same immutable artifact. A durable request receipt retains its original revision after an edit. Read the artifact's current flag before using it; restoring an old specification creates a new revision and does not make its old artifact current. Current compilation does not authorize registration: simulation, user review and current wallet/chain checks remain separate gates. Provider templates are not compiled with invented Maker allocations; template preparation/instantiation is still pending.
 
 Agent work survives HTTP disconnects. A separate process claims queued/expired turns; each attempt has a lease, and a draft mutation checks the current lease and last revision in the same transaction. User edits or new standalone user messages supersede the old turn. Cancellation prevents late events, mutations and assistant completion; it does not erase an already committed revision. A process restart can reclaim an expired turn up to three attempts; graceful shutdown leaves the lease available for recovery. A `started` event resets provisional text for the new attempt. Ordinary model failure is terminal for that turn and leaves the draft reviewable; the user can submit a new turn against its current revision.
 
@@ -94,6 +99,8 @@ Live checks use disposable localhost PostgreSQL databases and public fixture con
 # Needs server-side OPENAI_API_KEY and local BUILDER_TEST_DATABASE_URL.
 node packages/builder-service/scripts/eval-design-agent.ts
 node packages/builder-service/scripts/eval-design-api.ts
+node packages/builder-service/scripts/eval-incremental-agent.ts
+node packages/builder-service/scripts/eval-design-api.ts --maker-compile
 ```
 
 The first records model tool inputs/results for public fixtures. The second exercises signed HTTP login, idempotent acceptance, the durable worker, event replay and resulting database drafts. Evidence is saved under ignored `.cache/builder/`. These checks do not verify the frontend, publication, simulation, Guard delivery or onchain settlement.

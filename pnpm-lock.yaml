@@ -148,6 +148,9 @@ importers:
 
   packages/builder-service:
     dependencies:
+      aqua-executor:
+        specifier: workspace:*
+        version: link:../../contracts/aqua-executor
       jose:
         specifier: 6.2.12
         version: 6.2.12

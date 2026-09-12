@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { assertArtifactCurrent, contentDigest, DraftAccessDenied, DraftConflict, draftSchema, getCapabilities,
-  patchDraft, restoreDraft, AQUA_OPCODES } from '../src/index.ts'
+  patchDraft, restoreDraft, AQUA_OPCODES, sepoliaStandingProfile as profile, validateStrategy } from '../src/index.ts'
 
 const now = '2026-09-13T03:00:00.000Z'
 const start = () => draftSchema.parse({ schemaVersion: 1, id: 'draft-one', owner: 'privy:alice', revision: 1, kind: 'template',
@@ -87,4 +87,43 @@ test('capabilities enumerate the deployed table including reserved gaps and keep
   fee.productEnabled.state = 'verified'
   assert.equal(getCapabilities({ ids: [fee.id] })[0]!.productEnabled.state, 'blocked')
   assert.ok(getCapabilities({ text: '波動' }).some(c => c.id === 'policy.market-rules'))
+})
+
+test('individual Guard limits and allocations persist across turns but cannot become executable while incomplete', () => {
+  let d = draftSchema.parse({ ...start(), kind: 'maker', maker: '0x1111111111111111111111111111111111111111', spec: {
+    title: '逐項確認', profileId: profile.id, baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0, deadline: 10000,
+  } })
+  const limits = { maxAmountBasePerSwap: '50000000000000000', maxAmountQuotePerSwap: '125000000', maxPostBalanceBase: '2000000000000000000', maxPostBalanceQuote: '5000000000' }
+  const expected: Record<string, string> = {}
+  for (const [field, value] of Object.entries(limits)) {
+    expected[field] = value
+    d = change(d, { spec: { guardEnvelope: { [field]: value } } }).draft
+    assert.deepEqual(d.spec.guardEnvelope, expected)
+    const validation = validateStrategy(d, profile, 1)
+    assert.equal(validation.ready, false); assert.deepEqual(validation.errors, [])
+    assert.deepEqual(validation.missingFields.filter(f => f.startsWith('spec.guardEnvelope.')),
+      Object.keys(limits).filter(f => !(f in expected)).map(f => `spec.guardEnvelope.${f}`))
+  }
+  d = change(d, { allocations: { baseAtomic: '1000000000000000000' } }).draft
+  assert.deepEqual(validateStrategy(d, profile, 1).missingFields, ['allocations.quoteAtomic'])
+  const partial = d
+  d = change(d, { allocations: { quoteAtomic: '1000000000' } }).draft
+  assert.deepEqual(d.allocations, { baseAtomic: '1000000000000000000', quoteAtomic: '1000000000' })
+  assert.equal(validateStrategy(d, profile, 1).ready, true)
+  const smaller = change(d, { spec: { guardEnvelope: { maxAmountBasePerSwap: '10000000000000000' } } }).draft
+  assert.deepEqual(smaller.spec.guardEnvelope, { ...limits, maxAmountBasePerSwap: '10000000000000000' })
+  assert.equal(validateStrategy(change(d, { allocations: { quoteAtomic: '5000000001' } }).draft, profile, 1).errors[0]?.code, 'inventory-above-envelope')
+  const restored = restoreDraft(smaller, partial, { owner: d.owner, expectedRevision: smaller.revision, now }).draft
+  assert.equal(validateStrategy(restored, profile, 1).ready, false)
+  assert.deepEqual(restored.allocations, partial.allocations)
+  assert.throws(() => change(d, { spec: { guardEnvelope: { maxPostBalanceBase: '0' } } }))
+})
+
+test('direct patches cannot relabel existing atomic amounts or price intent with a different pair', () => {
+  const d = draftSchema.parse({ ...start(), spec: { ...start().spec, baseToken: profile.tokens[0], quoteToken: profile.tokens[1] } })
+  assert.throws(() => change(d, { spec: { baseToken: profile.tokens[1], quoteToken: profile.tokens[0] } }), /requires a new draft/)
+  const plain = change(d, { spec: { model: { kind: 'xyc' } } }).draft
+  const capped = change(plain, { spec: { guardEnvelope: { maxAmountBasePerSwap: '1' } } }).draft
+  assert.throws(() => change(capped, { spec: { baseToken: profile.tokens[1] } }), /requires a new draft/)
+  assert.equal(change(capped, { spec: { baseToken: profile.tokens[0] } }).changed, false)
 })

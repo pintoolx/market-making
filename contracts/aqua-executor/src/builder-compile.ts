@@ -1,6 +1,6 @@
-import { canonical, decodeGuardedOrder, digestJson, scaledDecimal, validateStrategy, type DeploymentProfile } from '@pintool/strategy-builder'
+import { allocationSchema, canonical, decodeGuardedOrder, digestJson, guardEnvelopeSchema, scaledDecimal, validateStrategy, type DeploymentProfile } from '@pintool/strategy-builder'
 import { concentrationBounds } from './concentrated.ts'
-import { compileGuardedV2 } from './guard.ts'
+import { compileGuardedV2 } from './guard-compile.ts'
 import { peggedArgs } from './curves.ts'
 import type { AquaStrategyParams } from './types.ts'
 
@@ -12,9 +12,10 @@ export function compileBuilderStrategy(input: unknown, profile: DeploymentProfil
   if (!result.validated) throw new Error(`strategy is not valid: ${[...result.missingFields, ...result.errors.map(e => e.path + ': ' + e.message)].join('; ')}`)
   const { draft, manifestHash, contentDigest, recipeId } = result.validated
   if (draft.kind !== 'maker' || !draft.maker || !draft.allocations) throw new Error('a Provider template must be instantiated by a Maker before compiling')
-  const { spec } = draft, base = spec.baseToken!, quote = spec.quoteToken!, model = spec.model!, caps = spec.guardEnvelope!
+  const { spec } = draft, base = spec.baseToken!, quote = spec.quoteToken!, model = spec.model!
+  const caps = guardEnvelopeSchema.parse(spec.guardEnvelope), allocations = allocationSchema.parse(draft.allocations)
   const common = { feeBps: spec.feeBps!, deadline: spec.deadline!, salt: draft.salt }
-  const amounts = [draft.allocations.baseAtomic, draft.allocations.quoteAtomic]
+  const amounts = [allocations.baseAtomic, allocations.quoteAtomic]
   let program: AquaStrategyParams['program']
   if (model.kind === 'xyc') program = { ...common, kind: 'xyc' }
   else if (model.kind === 'concentrated') program = { ...common, kind: 'concentrated',

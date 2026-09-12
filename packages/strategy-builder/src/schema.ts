@@ -41,7 +41,8 @@ export const specSchema = z.object({
   model: curveSchema.optional(), feeBps: z.number().int().min(0).max(9999).optional(),
   deadline: z.number().int().min(1).max(2 ** 40 - 1).optional(),
   modifiers: z.array(modifierSchema).max(8).default([]),
-  guardEnvelope: guardEnvelopeSchema.optional(),
+  // A conversation can confirm one bound at a time; execution requires the complete schema.
+  guardEnvelope: guardEnvelopeSchema.partial().optional(),
 }).strict()
 export const allocationSchema = z.object({ baseAtomic: positiveAtomicSchema, quoteAtomic: positiveAtomicSchema }).strict()
 export const requirementInputSchema = z.object({
@@ -55,7 +56,7 @@ export const requirementSchema = requirementInputSchema.extend({
 
 export const draftSchema = z.object({
   schemaVersion: z.literal(1), id: idSchema, owner: z.string().min(1).max(200), revision: revisionSchema,
-  kind: z.enum(['template', 'maker']), maker: addressSchema.optional(), allocations: allocationSchema.optional(),
+  kind: z.enum(['template', 'maker']), maker: addressSchema.optional(), allocations: allocationSchema.partial().optional(),
   templatePin: z.object({ templateId: idSchema, version: revisionSchema, digest: hashSchema }).strict().optional(),
   spec: specSchema, requirements: z.array(requirementSchema).max(100),
   salt: atomicSchema.refine(v => BigInt(v) < 1n << 64n, 'exceeds uint64'),
@@ -67,7 +68,7 @@ export const patchSchema = z.object({
   // Defaults belong to new documents, never patches: Zod 4 materializes nested
   // defaults even under partial(), which would erase modifiers on a title edit.
   spec: specSchema.omit({ modifiers: true }).partial().extend({ modifiers: z.array(modifierSchema).max(8).optional() }).strict().optional(),
-  maker: addressSchema.optional(), allocations: allocationSchema.optional(),
+  maker: addressSchema.optional(), allocations: allocationSchema.partial().optional(),
   upsertRequirements: z.array(requirementInputSchema).max(100).optional(),
   removeRequirementIds: z.array(idSchema).max(100).optional(),
 }).strict()

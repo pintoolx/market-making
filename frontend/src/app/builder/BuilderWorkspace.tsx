@@ -16,9 +16,9 @@ const fields: Record<string, string> = { 'spec.baseToken': '基礎幣種', 'spec
   'spec.deadline': '策略期限', 'spec.guardEnvelope': '公開 Guard 上限', 'spec.title': '策略名稱', 'requirements': '策略條件',
   'spec.guardEnvelope.maxAmountBasePerSwap': '單筆基礎幣上限', 'spec.guardEnvelope.maxAmountQuotePerSwap': '單筆報價幣上限',
   'spec.guardEnvelope.maxPostBalanceBase': '成交後基礎幣庫存上限', 'spec.guardEnvelope.maxPostBalanceQuote': '成交後報價幣庫存上限',
-  'maker': 'Maker 錢包', 'allocations': 'Maker 配置' };
+  'maker': 'Maker 錢包', 'allocations': 'Maker 配置', 'allocations.baseAtomic': '基礎幣配置', 'allocations.quoteAtomic': '報價幣配置' };
 const toolNames: Record<string, string> = { inspectStrategy: '讀取策略與版本', getCapabilities: '核對可用功能', resolveTokens: '核對交易對',
-  createOrPatchDraft: '保存策略變更', validateStrategy: '驗證公開設定', exportStrategy: '整理公開策略' };
+  createOrPatchDraft: '保存策略變更', validateStrategy: '驗證公開設定', exportStrategy: '整理公開策略', compileStrategy: '編譯並核對策略' };
 const amount = (value?: string, decimals?: number) => value && decimals !== undefined ? formatUnits(BigInt(value), decimals) : '尚未設定';
 function valueLabel(path: string, value: unknown, draft: Draft) {
   if (value === null || value === undefined) return '未設定';

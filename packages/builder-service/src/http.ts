@@ -7,6 +7,7 @@ import { createStore } from './store.ts'
 import { ServiceError } from './errors.ts'
 import { createTurns } from './turns.ts'
 import { createPrivyVerifier } from './privy.ts'
+import { createArtifacts } from './artifacts.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -28,6 +29,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
   dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier> } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
+  const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -87,9 +89,20 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
           return send(await turns.cancel(actor.owner, turn[1]!))
         }
       }
-      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation))?$/)
+      const artifact = route.match(/^\/artifacts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})$/)
+      if (artifact && !post) {
+        if (!artifacts) throw new ServiceError('profile-unavailable', 503)
+        return send(await artifacts.get(actor.owner, artifact[1]!))
+      }
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if ((post && draft[3] === 'compile') || (!post && draft[3] === 'artifacts')) {
+          if (!artifacts) throw new ServiceError('profile-unavailable', 503)
+          if (!post) return send({ artifacts: await artifacts.list(actor.owner, draft[1]!) })
+          const body = z.object({ expectedRevision: z.number().int().positive() }).strict().parse(await readJson(request))
+          return send(await artifacts.compile(actor.owner, requestId as string, { draftId: draft[1], ...body }))
+        }
         if (!post && draft[3] === 'validation') {
           const current = await store.get(actor.owner, draft[1]!)
           if (config.profileId !== sepoliaStandingProfile.id) throw new ServiceError('profile-unavailable', 503)

@@ -50,6 +50,6 @@ jobs:
         with:
           node-version: '24.14.0'
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @pintool/builder-service --filter @pintool/strategy-builder
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @pintool/builder-service --filter @pintool/strategy-builder --filter aqua-executor
       - run: pnpm typecheck:builder-service
       - run: pnpm test:builder-service

@@ -34,15 +34,15 @@ after(async () => {
 
 test('real PostgreSQL migrations serialize, verify checksums and preserve unrelated data', async () => {
   const applied = await Promise.all([migrate(pool), migrate(pool)])
-  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 3)
+  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 4)
   assert.equal((await pool.query('SELECT value FROM public.legacy_marker')).rows[0].value, 'keep')
-  assert.deepEqual(await migrate(pool), { available: 3, applied: 0 })
+  assert.deepEqual(await migrate(pool), { available: 4, applied: 0 })
   const dir = await mkdtemp(join(tmpdir(), 'builder-migration-'))
   try {
     const sql = await readFile(new URL('../migrations/001_drafts_and_jobs.sql', import.meta.url), 'utf8')
     await writeFile(join(dir, '001_drafts_and_jobs.sql'), sql + '\n-- changed migration\n')
     await assert.rejects(migrate(pool, pathToFileURL(dir + '/')), /checksum mismatch/)
-    assert.deepEqual(await migrate(pool), { available: 3, applied: 0 })
+    assert.deepEqual(await migrate(pool), { available: 4, applied: 0 })
   } finally { await rm(dir, { recursive: true, force: true }) }
 })
 
@@ -195,6 +195,21 @@ test('HTTP routes authenticate wallet ownership, persist multi-turn data and rej
     const validation = await call(`/drafts/${draft.id}/validation`, { token })
     assert.equal(validation.status, 200); assert.equal(validation.body.revision, 1); assert.equal(validation.body.ready, false)
     assert.ok(validation.body.missingFields.includes('spec.guardEnvelope'))
+    assert.equal((await call(`/drafts/${draft.id}/compile`, { token, key: randomUUID(), body: { expectedRevision: 1 } })).body.error, 'maker-instance-required')
+    const makerDraft = (await call('/conversations', { token, key: randomUUID(), body: { title: 'Maker order', kind: 'maker' } })).body.draft
+    const { sepoliaStandingProfile } = await import('@pintool/strategy-builder')
+    const makerPatch = { allocations: { baseAtomic: '1000000000000000000', quoteAtomic: '2500000000' }, spec: {
+      baseToken: sepoliaStandingProfile.tokens[0], quoteToken: sepoliaStandingProfile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
+      deadline: Math.floor(Date.now() / 1000) + 86400, guardEnvelope: { maxAmountBasePerSwap: '50000000000000000', maxAmountQuotePerSwap: '125000000',
+        maxPostBalanceBase: '2000000000000000000', maxPostBalanceQuote: '5000000000' },
+    } }
+    assert.equal((await call(`/drafts/${makerDraft.id}/patch`, { token, key: randomUUID(), body: { expectedRevision: 1, patch: makerPatch } })).status, 200)
+    const compiled = await call(`/drafts/${makerDraft.id}/compile`, { token, key: randomUUID(), body: { expectedRevision: 2 } })
+    assert.equal(compiled.status, 200)
+    const artifactPath = `/artifacts/${compiled.body.artifactId}`
+    assert.equal((await call(artifactPath, { token })).body.current, true)
+    assert.equal((await call(artifactPath, { token: another })).status, 404)
+    assert.equal((await call(`/drafts/${makerDraft.id}/artifacts`, { token })).body.artifacts.length, 1)
     assert.equal((await call(`/drafts/${draft.id}/patch`, { token, key: randomUUID(), body: { expectedRevision: 1, owner: other, patch: {} } })).status, 400)
     const edit = { expectedRevision: 1, patch: { spec: { model: { kind: 'xyc' }, feeBps: 0 } } }, requestId = randomUUID()
     const response = await call(`/drafts/${draft.id}/patch`, { token, key: requestId, body: edit })

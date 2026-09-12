@@ -6,9 +6,9 @@ export type Draft = {
   id: string; revision: number; kind: 'template' | 'maker'; maker?: string;
   spec: { title: string; profileId: string; baseToken?: Token; quoteToken?: Token;
     model?: { kind: 'xyc' | 'concentrated' | 'pegged'; minPrice?: string; maxPrice?: string; relativeWidthBps?: number; referencePrice?: string; amplification?: string };
-    feeBps?: number; deadline?: number; guardEnvelope?: Record<'maxAmountBasePerSwap' | 'maxAmountQuotePerSwap' | 'maxPostBalanceBase' | 'maxPostBalanceQuote', string>;
+    feeBps?: number; deadline?: number; guardEnvelope?: Partial<Record<'maxAmountBasePerSwap' | 'maxAmountQuotePerSwap' | 'maxPostBalanceBase' | 'maxPostBalanceQuote', string>>;
   };
-  allocations?: { baseAtomic: string; quoteAtomic: string };
+  allocations?: { baseAtomic?: string; quoteAtomic?: string };
   requirements: { id: string; text: string; priority: 'must' | 'prefer' }[];
 };
 export type Conversation = { conversationId: string; draftId: string; title: string; revision: string; activeTurnId: string | null };
