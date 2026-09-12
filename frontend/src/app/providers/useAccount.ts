@@ -1,7 +1,8 @@
 'use client';
 
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { toHex } from 'viem';
+import { createWalletClient, custom, toHex, type WalletClient } from 'viem';
+import { sepolia } from 'viem/chains';
 import { PRIVY_APP_ID } from './PrivyProvider';
 
 export type Account = {
@@ -20,6 +21,7 @@ export type Account = {
   /** e.g. "Email" or "Wallet · MetaMask". */
   method: string;
   signMessage?: (message: string) => Promise<`0x${string}`>;
+  ensWallet?: () => Promise<WalletClient>;
 };
 
 const WALLET_NAMES: Record<string, string> = { metamask: 'MetaMask', coinbase_wallet: 'Coinbase Wallet', rainbow: 'Rainbow', wallet_connect: 'WalletConnect', rabby_wallet: 'Rabby', okx_wallet: 'OKX Wallet', phantom: 'Phantom' };
@@ -46,7 +48,14 @@ function usePrivyAccount(): Account {
     if (typeof signature !== 'string' || !/^0x[0-9a-f]{130}$/i.test(signature)) throw new Error('Wallet returned an invalid signature.');
     return signature as `0x${string}`;
   };
-  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method, signMessage };
+  const ensWallet = async (): Promise<WalletClient> => {
+    const wallet = wallets.find(item => item.address.toLowerCase() === user?.wallet?.address?.toLowerCase());
+    if (!wallet) throw new Error('Connect your Provider wallet before changing ENS.');
+    await wallet.switchChain(sepolia.id);
+    const provider = await wallet.getEthereumProvider();
+    return createWalletClient({ account: wallet.address as `0x${string}`, chain: sepolia, transport: custom(provider) });
+  };
+  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method, signMessage, ensWallet };
 
 }
 

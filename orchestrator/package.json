@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node src/server.mjs",
     "test": "node --test test/*.test.mjs"
@@ -14,6 +16,6 @@
     "pintool-cre-local-simulation-runner": "bin/cre-local-simulation-runner"
   },
   "dependencies": {
-    "viem": "2.34.0"
+    "viem": "2.56.3"
   }
 }

@@ -39,12 +39,13 @@ function envelope(value) {
 
 export function parseCreate(input) {
   const body = object(input, 'Request');
-  exactKeys(body, ['maker', 'providerStrategyIds', 'makerLimitsEnvelope'], 'Request');
+  exactKeys(body, ['maker', 'providerStrategyIds', 'makerLimitsEnvelope', 'ensSelections'], 'Request');
   if (typeof body.maker !== 'string' || !ADDRESS.test(body.maker) || /^0x0{40}$/i.test(body.maker)) throw new HttpError(400, 'Maker address is invalid.');
   if (!Array.isArray(body.providerStrategyIds) || body.providerStrategyIds.length < 1 || body.providerStrategyIds.length > 12
     || body.providerStrategyIds.some(id => typeof id !== 'string' || !STRATEGY_ID.test(id))
     || new Set(body.providerStrategyIds).size !== body.providerStrategyIds.length) throw new HttpError(400, 'Provider strategy IDs are invalid.');
-  return { maker: body.maker.toLowerCase(), providerStrategyIds: body.providerStrategyIds, makerLimitsEnvelope: envelope(body.makerLimitsEnvelope) };
+  return { maker: body.maker.toLowerCase(), providerStrategyIds: body.providerStrategyIds, makerLimitsEnvelope: envelope(body.makerLimitsEnvelope),
+    ...(body.ensSelections !== undefined ? { ensSelections: body.ensSelections } : {}) };
 }
 
 export function validateState(value, expected) {
@@ -152,7 +153,7 @@ export function createService(config, dependencies = {}) {
     await writeFile(temporary, `${JSON.stringify(sealed)}\n`, { mode: 0o600 });
     await rename(temporary, target);
   };
-  const accept = async (output, requiredStrategyIds = [], expectedMaker, sealed) => {
+  const accept = async (output, requiredStrategyIds = [], expectedMaker, sealed, ensSelections = []) => {
     const state = validateState(output, config);
     if (expectedMaker && state.maker.toLowerCase() !== expectedMaker.toLowerCase()) throw new Error('runner response is for a different Maker');
     const returnedIds = new Set(state.strategies.map(strategy => strategy.listingId));
@@ -173,13 +174,23 @@ export function createService(config, dependencies = {}) {
       catch { strategy.readiness = { phase: 'unverified', reasons: ['chain-state-unavailable'] }; }
     }
     await saveEnvelope(state.mandateId, sealed);
+    // ENS is pinned at explicit creation/addition only. A runner cannot retarget the saved selection.
+    delete state.ensSelections;
+    if (ensSelections.length) state.ensSelections = ensSelections;
     await save(state);
     return state;
   };
   return {
     async create(input) {
       const parsed = parseCreate(input);
-      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds, parsed.maker, parsed.makerLimitsEnvelope);
+      const { ensSelections, ...runnerInput } = parsed;
+      let pins = [];
+      if (ensSelections !== undefined) {
+        if (!dependencies.validateEnsSelections) throw new HttpError(503, 'ENS verification is unavailable.');
+        try { pins = await dependencies.validateEnsSelections(ensSelections, parsed.providerStrategyIds, parsed.maker); }
+        catch (e) { throw new HttpError(409, e.message); }
+      }
+      return accept(await runner({ action: 'create', input: runnerInput }), parsed.providerStrategyIds, parsed.maker, parsed.makerLimitsEnvelope, pins);
     },
     async get(id) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
@@ -189,18 +200,25 @@ export function createService(config, dependencies = {}) {
       // Reading product state must never trigger a new confidential evaluation or
       // broadcast another Guard report. Re-verify the stored public evidence and
       // refresh short-lived chain readiness only.
-      return accept(current, [], current.maker);
+      return accept(current, [], current.maker, undefined, current.ensSelections ?? []);
     },
     async add(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
-      const body = object(input, 'Request'); exactKeys(body, ['providerStrategyId'], 'Request');
+      const body = object(input, 'Request'); exactKeys(body, ['providerStrategyId', 'ensSelection'], 'Request');
       if (typeof body.providerStrategyId !== 'string' || !STRATEGY_ID.test(body.providerStrategyId)) throw new HttpError(400, 'Provider strategy ID is invalid.');
       let current;
       try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
+      let pins = current.ensSelections ?? [];
+      if (body.ensSelection !== undefined) {
+        if (current.strategies.some(strategy => strategy.listingId === body.providerStrategyId)) throw new HttpError(409, 'This strategy is already in the mandate.');
+        if (!dependencies.validateEnsSelections) throw new HttpError(503, 'ENS verification is unavailable.');
+        try { pins = [...pins, ...await dependencies.validateEnsSelections([body.ensSelection], [body.providerStrategyId], current.maker)]; }
+        catch (e) { throw new HttpError(409, e.message); }
+      }
       const sealed = await loadEnvelope(id);
       const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) });
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [body.providerStrategyId], current.maker, sealed);
+      return accept(output, [body.providerStrategyId], current.maker, sealed, pins);
     },
     async recordExecution(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
