@@ -51,6 +51,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const params = useSearchParams();
   const linkedId = params.get('strategy');
   const linkedEns = params.get('ens');
+  const linkedMandateId = params.get('mandate');
   const start = params.get('start') === '1';
   const [loadingLinked, setLoadingLinked] = useState(false);
   const { published } = usePublishedListings();
@@ -116,25 +117,31 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => cancelAnimationFrame(frame);
   }, [phase, published.length, linkedId]);
   useEffect(() => {
-    if (!makerAddress || restoredMaker.current === makerAddress.toLowerCase()
-      || openingLinkedStrategy.current || returningToMarketplace.current) return;
-    restoredMaker.current = makerAddress.toLowerCase();
-    const reference = readMandateReference(makerAddress);
+    const restoreKey = `${makerAddress?.toLowerCase()}:${linkedMandateId ?? ''}`;
+    if (!makerAddress || restoredMaker.current === restoreKey
+      || openingLinkedStrategy.current || (!linkedMandateId && returningToMarketplace.current)) return;
+    if (linkedMandateId && !/^mandate-[a-f0-9-]{36}$/.test(linkedMandateId)) {
+      setError('This mandate link is invalid.'); return;
+    }
+    const reference = linkedMandateId ? { mandateId: linkedMandateId } : readMandateReference(makerAddress);
     if (!reference) return;
     let current = true;
     setRefreshing(true);
     getMandate(reference.mandateId)
       .then(state => {
-        if (!current || state.maker.toLowerCase() !== makerAddress.toLowerCase()
-          || openingLinkedStrategy.current || returningToMarketplace.current) return;
+        if (!current || openingLinkedStrategy.current || (!linkedMandateId && returningToMarketplace.current)) return;
+        if (state.maker.toLowerCase() !== makerAddress.toLowerCase()) throw new Error('This mandate belongs to a different Maker wallet.');
+        restoredMaker.current = restoreKey;
+        saveMandateReference(state.maker, state.mandateId);
+        setError('');
         setMandate(state);
         setSelected([]);
         setPhase('monitor');
       })
-      .catch(() => { /* Keep the marketplace usable while the service is unavailable. */ })
+      .catch(() => { if (current && linkedMandateId) setError('Unable to open this mandate. Check the link and Maker wallet, then reload.'); })
       .finally(() => { if (current) setRefreshing(false); });
     return () => { current = false; };
-  }, [makerAddress]);
+  }, [makerAddress, linkedMandateId]);
 
   const catalogMatchesWallet = !!makerAddress;
   const isExecutable = (item: Listing) => {
@@ -145,7 +152,11 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     .map(item => ({ ...item, executionReady: isExecutable(item) }));
   const go = (next: Phase) => {
     if (next === 'detail' && selected[0]) { router.push(strategyHref(selected[0].id, selected[0].ensName)); return; }
-    if (next === 'choose' && linkedId) router.push('/maker');
+    if (next === 'choose') {
+      returningToMarketplace.current = true;
+      restoredMaker.current = '';
+      if (linkedId || linkedMandateId) router.push('/maker');
+    }
     didNavigate.current = true;
     scrollTop();
     setError('');
@@ -188,6 +199,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       });
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
+      router.replace(`/maker?mandate=${encodeURIComponent(state.mandateId)}`);
       selected.forEach(item => save({
         id: item.id,
         strategyName: item.name,
