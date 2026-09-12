@@ -261,7 +261,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         </fieldset>
         <Primary type="submit" disabled={!valid}>Review mandate</Primary>
       </form>
-      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>You can add other compatible strategies after activation.</li></ul><h3>Execution pair</h3><p>WETH / Circle testnet USDC on Ethereum Sepolia, through Aqua.</p></aside>
+      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>You can add other compatible strategies after activation.</li></ul><h3>Execution pair</h3><p>WETH / USDC</p></aside>
     </div>}
 
     {phase === 'review' && <div className={aqua.decisionGrid}>
