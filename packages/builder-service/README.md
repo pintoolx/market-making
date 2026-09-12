@@ -1,6 +1,6 @@
-# Builder persistence and API foundation
+# Builder design service
 
-Node 24+, PostgreSQL 16+ (Railway and CI target 18.6). This package exports an authenticated HTTP handler and durable repositories; it is not yet mounted in the deployed orchestrator. Public messages are persisted, but this batch does not run an agent or dispatch its outbox. No Railway migration or application deployment has been performed by this batch.
+Node 24+, PostgreSQL 16+ (Railway and CI target 18.6). This package exports an authenticated HTTP handler, durable repositories and an OpenAI/Vercel AI SDK design worker. It is not yet mounted in the deployed orchestrator. No Railway business migration or Builder application rollout has been performed by this batch.
 
 ## Verification and migration
 
@@ -11,6 +11,8 @@ pnpm typecheck:builder-service
 pnpm test:builder-service
 # Deployment operator configures DATABASE_URL privately, then:
 pnpm --filter @pintool/builder-service migrate
+# After configuring DATABASE_URL and OPENAI_API_KEY privately:
+node packages/builder-service/scripts/design-worker.ts
 ```
 
 The integration test requires CREATE DATABASE permission. It creates a unique `pintool_builder_test_*` database and removes only that database afterward. It does not silently skip when PostgreSQL is unavailable. Tests exercise migrations, concurrent writers and retries, owner isolation, restoring revisions, a fresh pool reading persisted records, job lease recovery, actual wallet signatures and HTTP requests. Local verification used PostgreSQL 16 from the distribution packages; CI uses the pinned official 18.6 image. None of these tests use public-chain writes or user credentials.
@@ -48,7 +50,33 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | POST `/drafts/:id/restore` | `{ expectedRevision, revision }`; appends a revision |
 | POST `/conversations/:id/messages` | `{ content }`; public user text only |
 | GET `/conversations/:id/messages?before=<sequence>` | Latest 100 messages before optional cursor, returned in chronological order |
+| POST `/conversations/:id/turns` | `{ expectedRevision, content }`; atomically accepts one message and durable design turn, returns 202; requires `designEnabled: true` in the server configuration |
+| GET `/turns/:id` | Current owned state, attempt count and resulting revision/message |
+| GET `/turns/:id/events?after=<sequence>` | Replayable public text/tool-status events, 100 per page; numeric cursor |
+| POST `/turns/:id/cancel` | `{}`; idempotently stops queued/running authority; already committed draft edits remain in revision history |
 
-Missing/foreign resources return the same 404. Stale revisions or template permission conflicts return 409. Unknown SQL and driver failures return a generic 503 without input values or credentials. Requests have a 64 KiB byte limit. Signature endpoints have a bounded per-process socket-address limit; no proxy headers are trusted. Production ingress quotas and per-user model/simulation budgets will be added with the agent service, before rollout.
+Missing/foreign resources return the same 404. Stale revisions or template permission conflicts return 409. Unknown SQL and driver failures return a generic 503 without input values or credentials. Requests have a 64 KiB byte limit. Signature endpoints have a bounded per-process socket-address limit; no proxy headers are trusted. Design acceptance has a shared database limit of 60 turns per wallet per hour and one active turn per draft. Deployment still needs ingress limits and simulation budgets.
+
+## Public design agent
+
+The provider uses `@ai-sdk/openai` 4.0.66 and `ai` 7.0.99, with `ToolLoopAgent`, eight model steps maximum, 3,000 output tokens per step, bounded recent server history and an authoritative draft read. Default model `gpt-5.6-sol` was verified against the configured account; operators may set `BUILDER_OPENAI_MODEL`. The API key is consumed only in the server provider. Responses storage is disabled with `store: false`; that setting is not a claim of zero data retention. Provider exceptions are redacted before SDK logging.
+
+Six tools are currently wired: capabilities, token resolution, patch/restore, validation, inspection and non-executable public export. Amount edits use human token units and convert exactly using pinned token decimals. Untouched settings persist; template tools reject Maker allocation. The other six goal tools and their artifact/simulation/wallet gates remain in subsequent batches.
+
+Agent work survives HTTP disconnects. A separate process claims queued/expired turns; each attempt has a lease, and a draft mutation checks the current lease and last revision in the same transaction. User edits or new standalone user messages supersede the old turn. Cancellation prevents late events, mutations and assistant completion; it does not erase an already committed revision. A process restart can reclaim an expired turn up to three attempts; graceful shutdown leaves the lease available for recovery. A `started` event resets provisional text for the new attempt. Ordinary model failure is terminal for that turn and leaves the draft reviewable; the user can submit a new turn against its current revision.
+
+Text and allowlisted tool name/success events are persisted for replay. No raw SDK event, reasoning trace, credential, private-policy input or tool output object goes to the client stream. Owner and lease identifiers do not go into model tool context. Existing SIWE is an EOA adapter; application Privy-token verification, UI integration and deployment mounting remain pending. The chat is explicitly for public strategy goals and public parameters; the private-policy editor is a separate future boundary.
+
+Live checks use disposable localhost PostgreSQL databases and public fixture conversations:
+
+```sh
+# Needs server-side OPENAI_API_KEY and local BUILDER_TEST_DATABASE_URL.
+node packages/builder-service/scripts/eval-design-agent.ts
+node packages/builder-service/scripts/eval-design-api.ts
+```
+
+The first records model tool inputs/results for public fixtures. The second exercises signed HTTP login, idempotent acceptance, the durable worker, event replay and resulting database drafts. Evidence is saved under ignored `.cache/builder/`. These checks do not verify the frontend, publication, simulation, Guard delivery or onchain settlement.
 
 Sources: [node-postgres transactions](https://node-postgres.com/features/transactions), [pooling](https://node-postgres.com/features/pooling), [PostgreSQL locking](https://www.postgresql.org/docs/18/sql-select.html), [ERC-4361](https://eips.ethereum.org/EIPS/eip-4361).
+
+Agent sources: [AI SDK agents](https://ai-sdk.dev/docs/agents/building-agents), [OpenAI function calling](https://developers.openai.com/api/docs/guides/function-calling), [OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data).

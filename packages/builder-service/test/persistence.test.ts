@@ -34,15 +34,15 @@ after(async () => {
 
 test('real PostgreSQL migrations serialize, verify checksums and preserve unrelated data', async () => {
   const applied = await Promise.all([migrate(pool), migrate(pool)])
-  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 1)
+  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 2)
   assert.equal((await pool.query('SELECT value FROM public.legacy_marker')).rows[0].value, 'keep')
-  assert.deepEqual(await migrate(pool), { available: 1, applied: 0 })
+  assert.deepEqual(await migrate(pool), { available: 2, applied: 0 })
   const dir = await mkdtemp(join(tmpdir(), 'builder-migration-'))
   try {
     const sql = await readFile(new URL('../migrations/001_drafts_and_jobs.sql', import.meta.url), 'utf8')
     await writeFile(join(dir, '001_drafts_and_jobs.sql'), sql + '\n-- changed migration\n')
     await assert.rejects(migrate(pool, pathToFileURL(dir + '/')), /checksum mismatch/)
-    assert.deepEqual(await migrate(pool), { available: 1, applied: 0 })
+    assert.deepEqual(await migrate(pool), { available: 2, applied: 0 })
   } finally { await rm(dir, { recursive: true, force: true }) }
 })
 
@@ -164,7 +164,7 @@ test('wallet sessions require a valid scoped signature and resist replay, cross-
 })
 
 test('HTTP routes authenticate wallet ownership, persist multi-turn data and reject forged history and stale revisions', async () => {
-  const origin = 'https://pintool.example', handle = builderHandler(pool, { origin, chainId: 11155111, profileId: profile })
+  const origin = 'https://pintool.example', handle = builderHandler(pool, { origin, chainId: 11155111, profileId: profile, designEnabled: true })
   const server = createServer(async (req, res) => { if (!await handle(req, res)) { res.writeHead(404); res.end() } })
   server.listen(0, '127.0.0.1'); await once(server, 'listening')
   const address = server.address(); assert.ok(address && typeof address !== 'string')
@@ -202,6 +202,18 @@ test('HTTP routes authenticate wallet ownership, persist multi-turn data and rej
     assert.equal((await call(message, { token, key: randomUUID(), body: { content: '改成固定區間看看' } })).status, 200)
     assert.equal((await call(message, { token })).body.messages.length, 1)
     assert.equal((await call('/capabilities', { token })).body.profileId, profile)
+    const turnPath = `/conversations/${conversationId}/turns`, turnInput = { expectedRevision: 2, content: '先比較範圍' }, turnKey = randomUUID()
+    assert.equal((await call(turnPath, { token, key: randomUUID(), body: { ...turnInput, role: 'system' } })).status, 400)
+    assert.equal((await call(turnPath, { token: another, key: randomUUID(), body: turnInput })).status, 404)
+    const accepted = await call(turnPath, { token, key: turnKey, body: turnInput })
+    assert.equal(accepted.status, 202)
+    assert.deepEqual((await call(turnPath, { token, key: turnKey, body: turnInput })).body, accepted.body)
+    assert.equal((await call(turnPath, { token, key: randomUUID(), body: turnInput })).status, 409)
+    const turnId = accepted.body.id
+    assert.equal((await call(`/turns/${turnId}`, { token })).body.turn.state, 'queued')
+    assert.equal((await call(`/turns/${turnId}/events`, { token: another })).status, 404)
+    assert.deepEqual((await call(`/turns/${turnId}/events`, { token })).body.events, [])
+    assert.equal((await call(`/turns/${turnId}/cancel`, { token, key: randomUUID(), body: {} })).body.state, 'cancelled')
     assert.equal((await call('/auth/logout', { token, body: {} })).status, 200)
     assert.equal((await call('/conversations', { token })).status, 401)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
