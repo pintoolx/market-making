@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Primary from '../components/shared/Primary';
 import FormInput from '../components/shared/FormInput';
 import { resolveEnsStrategy, type EnsResolution } from './ensClient';
 import aqua from '../marketplace/aqua.module.css';
 import styles from './ens.module.css';
 import { request } from '../marketplace/mandateClient';
+import StrategyLink from '../marketplace/StrategyLink';
 
-export default function EnsStrategySearch({ onSelect }: { onSelect: (result: EnsResolution) => void }) {
+export default function EnsStrategySearch({ onSelect }: { onSelect?: (result: EnsResolution) => void }) {
   const [name, setName] = useState('');
   const [result, setResult] = useState<EnsResolution | null>(null);
   const [error, setError] = useState('');
@@ -15,18 +16,25 @@ export default function EnsStrategySearch({ onSelect }: { onSelect: (result: Ens
   const [known, setKnown] = useState<{ name: string; verified: boolean }[]>([]);
   const generation = useRef(0);
   const initial = useRef<string | null | undefined>(undefined);
-  const resolve = async (value: string) => {
+  const navigates = !onSelect;
+  const resolve = useCallback(async (value: string) => {
+    if (navigates && window.location.pathname === '/maker') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('ens', value);
+      // Next preserves its internal history state and updates useSearchParams.
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
     const token = ++generation.current; setBusy(true); setError(''); setResult(null);
     try { const resolved = await resolveEnsStrategy(value); if (token === generation.current) setResult(resolved); }
     catch (e) { if (token === generation.current) setError(e instanceof Error ? e.message : 'The ENS strategy could not be verified. Retry when Sepolia is available.'); }
     finally { if (token === generation.current) setBusy(false); }
-  };
+  }, [navigates]);
   useEffect(() => {
     const activeGeneration = generation;
     if (initial.current === undefined) initial.current = new URLSearchParams(window.location.search).get('ens');
     if (initial.current) { setName(initial.current); void resolve(initial.current); }
     return () => { activeGeneration.current++; };
-  }, []);
+  }, [resolve]);
   useEffect(() => {
     let alive = true;
     request<{ names: { name: string; verified: boolean }[] }>('/v1/ens/names').then(data => { if (alive) setKnown(data.names); }).catch(() => { /* Explicit name resolution remains available when indexing fails. */ });
@@ -45,7 +53,8 @@ export default function EnsStrategySearch({ onSelect }: { onSelect: (result: Ens
       <strong className={styles.name}>{result.name}</strong><p>{result.manifest.release.name} · version {result.pointer.version}</p>
       <p>{result.manifest.release.summary}</p>
       <p className={styles.feedback}>Provider signature verified · Sepolia block {result.blockNumber}</p>
-      <Primary onClick={() => onSelect(result)}>Review this version</Primary>
+      {onSelect ? <Primary onClick={() => onSelect(result)}>Review this version</Primary>
+        : <StrategyLink id={`${result.pointer.releaseId}.v${result.pointer.version}`} ens={result.name}>Review this version</StrategyLink>}
     </div>}
   </section>;
 }

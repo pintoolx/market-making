@@ -18,10 +18,32 @@ Registrar deployment estimates the exact constructor through the application's S
 
 1. A Provider opens `/ens` or the ENS panel below the CLMM editor, claims `alice.pintool.eth`, and receives a separate UserRegistry and PermissionedResolver. The registrar supports one Provider label per wallet. Names expire with the platform's current registration; the standard claim does not grant transfer rights. The platform retains parent administration.
 2. Publish a CLMM version using the existing signed, encrypted publication flow. Provider Studio shows templates with publication support in `LP_CAPABILITIES`; unsupported templates are omitted. In the ENS panel, choose a strategy label such as `eth-usdc`, then **Approve version for ENS**. This registers the strategy subname if needed and signs a separate public manifest.
-3. **Publish approved version** writes the record onchain and reads it back. Maker search and the `/maker?ens=eth-usdc.alice.pintool.eth` link resolve and verify that name.
+3. **Publish approved version** writes the record onchain and reads it back. Maker search and the `/strategy?ens=eth-usdc.alice.pintool.eth` link resolve and verify that name.
 4. Optionally authorize a separate publisher wallet for the one `fun.pintool.release` text key. That wallet can use **Publish as delegate** on `/ens`, or run the standalone publisher service. Revoke it in the Provider panel; the UI verifies that no broader grant still permits updates.
 
 If ENS status cannot be loaded, Providers can retry with **Refresh ENS**. The public workspace does not link to platform initialization.
+
+## Public strategy identity and links
+
+Provider cards and strategy details use the same name discovery. The Provider byline prefers the verified platform namespace (for example, `alice.pintool.eth`), with a shortened, copyable wallet address. The address remains the publication signer. Provider namespaces are read through the canonical ENS registry; the strategy-name index only supplies candidates. A strategy name is attached after independent ENS resolution and Provider-signature verification, matching the exact release ID, version, publication digest and public release fields.
+
+Both **View strategy** and **Review this version** navigate in the current browser tab to a public `/strategy` page. An account is not required to review or share it.
+
+| URL | Behavior |
+|---|---|
+| `/strategy?id=<release-id>.v1` | Load that immutable version, then discover its verified names. |
+| `/strategy?id=<release-id>.v1&ens=eth-usdc.alice.pintool.eth` | Load the same version and verify the specified ENS alias. |
+| `/strategy?ens=eth-usdc.alice.pintool.eth` | Resolve the current ENS record, then replace the alias URL with the exact version URL. |
+
+Refreshing or copying the detail URL retains its version. If ENS advances to v2, a v1 page can display a signed historical name with a visible historical label; it never treats that old name as a current ENS selection. Unverifiable names are omitted, while the publication remains reviewable by ID. An explicit but unverifiable alias blocks continuation through that alias. Discovery chooses the first verified candidate in name order when no alias was specified.
+
+Browser back/forward navigation and the marketplace return link retain the ENS search query. Returning from a strategy also restores the saved marketplace scroll position and avoids automatically opening an existing mandate monitor. The return reference contains only a public URL and scroll offset in session storage. Existing `/maker?strategy=<id>` links redirect to the detail page; `/maker?ens=<name>` remains a compatible search entry.
+
+The detail action opens the existing Maker flow with the exact strategy ID. A current ENS selection is verified again before entering Maker setup, and the service still verifies it before execution. Page navigation performs no wallet transactions. Private limits never appear in share URLs.
+
+Run discovery and link regressions with `bun test scripts/ens/strategy-discovery.test.ts`; the existing ENS service regressions run with `node --test orchestrator/test/ens.test.mjs`. Production builds include the static `/strategy` page for direct links on Cloudflare Pages.
+
+For browser verification, serve `frontend/out` with Wrangler Pages and run `python scripts/ens/strategy-browser-test.py --help`. Supply a current named publication's Provider address, Provider name, strategy ENS name and title. The script checks real ENS reads, both navigation entries, address/link copying, back/forward navigation, refresh, old links, direct links in a fresh session, mobile layout and Maker setup. Its API proxy permits GET requests only; it does not submit application writes or wallet transactions.
 
 ## Verification and data
 

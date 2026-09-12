@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Primary from '../components/shared/Primary';
 import SiteHeader from '../components/shared/SiteHeader';
@@ -21,6 +21,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
   const scrollTop = () => pageRef.current?.scrollTo({ top: 0 });
   const goTo = (next: Screen) => {
     if (next !== screen) { router.push(PATHS[next]); return; }
+    if (window.location.search) router.push(PATHS[next]);
     scrollTop();
     setRestart(n => n + 1);
   };
@@ -90,13 +91,13 @@ export default function AquaApp({ screen }: { screen: Screen }) {
   </div>;
 
   return (
-    <div ref={pageRef} className={`${styles.page} ${aqua.page}`}>
+    <div ref={pageRef} data-marketplace-scroll={screen === 'maker' ? true : undefined} className={`${styles.page} ${aqua.page}`}>
       <SiteHeader role={screen === 'home' ? null : screen} showRoles={screen !== 'home'} onReselect={() => goTo(screen)} />
       <main className={styles.mainScroll}>
         <div className={`${styles.main} ${screen === 'home' ? aqua.mainHome : ''}`}>
           {screen === 'home' ? home
             : screen === 'provider' ? <ProviderFlow key={restart} scrollTop={scrollTop} />
-            : <MakerFlow key={restart} scrollTop={scrollTop} />}
+            : <Suspense fallback={<p role="status">Loading strategies…</p>}><MakerFlow key={restart} scrollTop={scrollTop} /></Suspense>}
         </div>
       </main>
       <SiteFooter />

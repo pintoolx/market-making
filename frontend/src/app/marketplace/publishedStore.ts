@@ -6,10 +6,12 @@ import { request } from './mandateClient';
 import { useAccount } from '../providers/useAccount';
 import type { PublicRelease } from './ClmmPublisher';
 import type { EnsSelection } from '../../../../shared/ens/schema.mjs';
+import { discoverStrategyNames, clearStrategyNameCache, type StrategyNames } from '../ens/strategyNames';
+import { listingFromRelease } from './publicationListing';
 
 // A strategy a Maker can pick: either one the Provider published from /studio or a sample listing.
 // feePct: share of the Maker's profit paid to the Provider, only when there is a profit.
-export type Listing = { id: string; name: string; summary: string; template: AquaTemplate; mine: boolean; provider?: string; providerAvatar?: string; feePct?: number; publishedAt?: number; executionReady?: boolean; version?: number; releaseId?: string; executionProfileIds?: string[]; ensSelection?: EnsSelection };
+export type Listing = StrategyNames & { id: string; name: string; summary: string; template: AquaTemplate; mine: boolean; provider?: string; providerAvatar?: string; feePct?: number; publishedAt?: number; executionReady?: boolean; version?: number; releaseId?: string; executionProfileIds?: string[]; ensSelection?: EnsSelection; publication?: PublicRelease };
 type Stored = { templateId: string; name: string; summary: string; provider?: string; providerAvatar?: string; feePct?: number; publishedAt?: number };
 
 // Kept in this browser until the TEE / backend stores Provider strategies. Private logic is never stored here.
@@ -41,22 +43,25 @@ export function usePublishedListings() {
   // Read after mount so server and first client render match; stay in sync with other components and tabs.
   useEffect(() => {
     let alive = true;
+    let generation = 0;
     const sync = async () => {
+      const current = ++generation;
       const legacy = toListings(readStored());
       try {
         const data = await request<{ strategies: PublicRelease[] }>('/v1/provider-strategies');
-        const template = AQUA_TEMPLATES.find(t => t.id === 'clmm')!;
         const remote = data.strategies.filter(r => r.state === 'published').map(r => ({
-          id: `${r.id}.v${r.version}`, releaseId: r.id, version: r.version, name: r.name, summary: r.summary,
-          template, provider: r.provider, mine: r.provider === account.address?.toLowerCase(), feePct: 0,
+          ...listingFromRelease(r), mine: r.provider === account.address?.toLowerCase(),
         }));
-        if (alive) setPublished([...remote, ...legacy]);
-      } catch { if (alive) setPublished(legacy); }
+        if (alive && current === generation) setPublished([...remote, ...legacy]);
+        const named = await Promise.all(remote.map(async item => ({ ...item, ...await discoverStrategyNames(item).catch(() => ({})) })));
+        if (alive && current === generation) setPublished([...named, ...legacy]);
+      } catch { if (alive && current === generation) setPublished(legacy); }
     };
     void sync();
-    window.addEventListener(CHANGED, sync);
-    window.addEventListener('storage', sync);
-    return () => { alive = false; window.removeEventListener(CHANGED, sync); window.removeEventListener('storage', sync); };
+    const refresh = () => { clearStrategyNameCache(); void sync(); };
+    window.addEventListener(CHANGED, refresh);
+    window.addEventListener('storage', refresh);
+    return () => { alive = false; window.removeEventListener(CHANGED, refresh); window.removeEventListener('storage', refresh); };
   }, [account.address]);
 
   const publish = useCallback((template: AquaTemplate, name: string, summary: string, provider: string | undefined, feePct: number, providerAvatar?: string) => {

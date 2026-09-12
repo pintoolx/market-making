@@ -2,75 +2,32 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
-import { createMandate, getExecutableStrategies, getMandate, reevaluateExecutionProfile, request, type MandateState } from './mandateClient';
-import type { PublicRelease } from './ClmmPublisher';
+import { createMandate, getExecutableStrategies, getMandate, reevaluateExecutionProfile, type MandateState } from './mandateClient';
 import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealForConfidentialWorkflow } from './confidentialEnvelope';
 import { ADAPTIVE_PROFILE_IDS, presentMandate } from './mandatePresentation';
 
 import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
-import { readPublished, usePublishedListings, type Listing } from './publishedStore';
+import { usePublishedListings, type Listing } from './publishedStore';
 import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
-import { selectionFrom } from '../ens/ensClient';
+import { discoverStrategyNames } from '../ens/strategyNames';
+import { FEATURED } from './featuredStrategies';
+import { loadStrategyListing } from './strategyCatalog';
+import { strategyHref, restoreMarketplaceScroll, consumeMarketplaceReturn } from './strategyLinks';
+import StrategyLink from './StrategyLink';
+import ProviderIdentity from './ProviderIdentity';
 import MakerActivation from './MakerActivation';
 
 const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
-const FEATURED: Listing[] = [
-  {
-    id: 'featured-adaptive-market-maker',
-    name: 'Adaptive Market Maker',
-    summary: 'Adapts between tighter and defensive WETH / USDC execution profiles as market conditions and your private mandate change.',
-    template: AQUA_TEMPLATES[1],
-    mine: false,
-    provider: 'PinTool Strategies',
-    providerAvatar: '/pintoolAvatar.svg',
-    executionProfileIds: [...ADAPTIVE_PROFILE_IDS],
-  },
-  {
-    id: 'featured-adaptive-range',
-    name: 'Adaptive Range',
-    summary: 'Concentrates WETH / USDC liquidity around a private reference range and recenters when conditions change.',
-    template: AQUA_TEMPLATES[1],
-    mine: false,
-    provider: 'PinTool Strategies',
-    providerAvatar: '/pintoolAvatar.svg',
-  },
-  {
-    id: 'featured-wide-range',
-    name: 'Wide Range Reserve',
-    summary: 'Uses a wider WETH / USDC range to remain available through larger price moves.',
-    template: AQUA_TEMPLATES[1],
-    mine: false,
-    provider: 'PinTool Strategies',
-    providerAvatar: '/pintoolAvatar.svg',
-  },
-  {
-    id: 'featured-inventory-recovery',
-    name: 'Inventory Recovery',
-    summary: 'Adjusts WETH / USDC quoting to move inventory back toward the Maker’s target allocation.',
-    template: AQUA_TEMPLATES[4],
-    mine: false,
-    provider: 'PinTool Strategies',
-    providerAvatar: '/pintoolAvatar.svg',
-  },
-  {
-    id: 'featured-flow-decay',
-    name: 'Flow Decay',
-    summary: 'Temporarily changes WETH / USDC pricing after a fill, then decays toward its baseline quote.',
-    template: AQUA_TEMPLATES[3],
-    mine: false,
-    provider: 'PinTool Strategies',
-    providerAvatar: '/pintoolAvatar.svg',
-  },
-];
 
 type Phase = 'choose' | 'detail' | 'activate' | 'limits' | 'review' | 'submitting' | 'monitor';
 
@@ -90,6 +47,12 @@ const percentageToBps = (value: string): number => Number(decimalToAtomic(value,
 
 export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const account = useAccount();
+  const router = useRouter();
+  const params = useSearchParams();
+  const linkedId = params.get('strategy');
+  const linkedEns = params.get('ens');
+  const start = params.get('start') === '1';
+  const [loadingLinked, setLoadingLinked] = useState(false);
   const { published } = usePublishedListings();
   const { save } = useProposals();
   const [selected, setSelected] = useState<Listing[]>([]);
@@ -107,10 +70,12 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
-  const linkedStrategyId = useRef<string | null | undefined>(undefined);
+  const returningToMarketplace = useRef(false);
+  const lastLinkedStrategy = useRef<string | null>(null);
   const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
+  useEffect(() => { returningToMarketplace.current ||= consumeMarketplaceReturn(); }, []);
   useEffect(() => {
     let current = true;
     getExecutableStrategies()
@@ -119,30 +84,40 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, []);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('ens')) openingLinkedStrategy.current = true;
-    if (linkedStrategyId.current === undefined) linkedStrategyId.current = new URLSearchParams(window.location.search).get('strategy');
-    const id = linkedStrategyId.current;
-    if (!id) return;
-    let current = true;
-    openingLinkedStrategy.current = true;
-    const listing = [...readPublished(), ...FEATURED].find(item => item.id === id);
-    if (listing) { setSelected([listing]); setPhase('detail'); }
-    else {
-      const version = id.match(/^([0-9a-f]{40}-clmm)\.v([1-9][0-9]{0,6})$/);
-      if (version) void request<PublicRelease>(`/v1/provider-strategies/${version[1]}/versions/${version[2]}`).then(release => {
-        if (!current) return;
-        if (release.id !== version[1] || release.version !== Number(version[2])) throw new Error('Publication version mismatch.');
-        setSelected([{ id, releaseId: release.id, version: release.version, name: release.name, summary: release.summary,
-          template: AQUA_TEMPLATES[1], provider: release.provider, feePct: 0, mine: false }]);
-        setPhase('detail');
-      }).catch(() => { if (current) setError('This publication version could not be loaded.'); });
+    openingLinkedStrategy.current = !!(linkedId || linkedEns);
+    if (!linkedId) {
+      if (lastLinkedStrategy.current) { setPhase('choose'); setSelected([]); setError(''); setLoadingLinked(false); }
+      lastLinkedStrategy.current = null;
+      return;
     }
-    window.history.replaceState(null, '', '/maker');
+    lastLinkedStrategy.current = linkedId;
+    if (!start) { router.replace(strategyHref(linkedId, linkedEns ?? undefined)); return; }
+    let current = true;
+    setLoadingLinked(true); setSelected([]); setError('');
+    const load = async () => {
+      const [listing, catalog] = await Promise.all([loadStrategyListing(linkedId), getExecutableStrategies()]);
+      const names = await discoverStrategyNames(listing, linkedEns ?? undefined);
+      if (linkedEns && !names.ensSelection) throw new Error('The ENS entry no longer points to this version. Open the strategy details again to review it.');
+      const ids = new Set(catalog.strategies.map(item => item.id));
+      const executable = (listing.executionProfileIds ?? [listing.id]).every(id => ids.has(id));
+      if (!executable && !listing.releaseId) throw new Error('This strategy is not available for activation.');
+      if (!current) return;
+      setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids });
+      setSelected([{ ...listing, ...names }]);
+      setPhase(executable ? 'limits' : 'activate');
+    };
+    load().catch(reason => { if (current) setError(reason instanceof Error ? reason.message : 'This strategy could not be loaded.'); })
+      .finally(() => { if (current) setLoadingLinked(false); });
     return () => { current = false; };
-  }, []);
+  }, [linkedId, linkedEns, start, router]);
+  useEffect(() => {
+    if (phase !== 'choose' || linkedId) return;
+    const frame = requestAnimationFrame(restoreMarketplaceScroll);
+    return () => cancelAnimationFrame(frame);
+  }, [phase, published.length, linkedId]);
   useEffect(() => {
     if (!makerAddress || restoredMaker.current === makerAddress.toLowerCase()
-      || openingLinkedStrategy.current) return;
+      || openingLinkedStrategy.current || returningToMarketplace.current) return;
     restoredMaker.current = makerAddress.toLowerCase();
     const reference = readMandateReference(makerAddress);
     if (!reference) return;
@@ -150,7 +125,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     setRefreshing(true);
     getMandate(reference.mandateId)
       .then(state => {
-        if (!current || state.maker.toLowerCase() !== makerAddress.toLowerCase()) return;
+        if (!current || state.maker.toLowerCase() !== makerAddress.toLowerCase()
+          || openingLinkedStrategy.current || returningToMarketplace.current) return;
         setMandate(state);
         setSelected([]);
         setPhase('monitor');
@@ -168,12 +144,13 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))]
     .map(item => ({ ...item, executionReady: isExecutable(item) }));
   const go = (next: Phase) => {
+    if (next === 'detail' && selected[0]) { router.push(strategyHref(selected[0].id, selected[0].ensName)); return; }
+    if (next === 'choose' && linkedId) router.push('/maker');
     didNavigate.current = true;
     scrollTop();
     setError('');
     setPhase(next);
   };
-  const openStrategy = (listing: Listing) => { setSelected([listing]); go('detail'); };
 
   const valid = [budget, maxWethInventory, maxTrade].every(value => value.trim() && !positiveError(value))
     && !!exposure.trim() && !percentageError(exposure)
@@ -308,21 +285,15 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     <Steps steps={STEPS} current={currentStep} />
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
-    {phase === 'choose' && <>
+    {loadingLinked && <p role="status">Loading selected strategy…</p>}
+    {phase === 'choose' && !loadingLinked && <>
       {mandate && <Secondary onClick={() => { go('monitor'); void refresh(); }}>View current mandate</Secondary>}
-      <EnsStrategySearch onSelect={resolved => {
-        const r = resolved.manifest.release;
-        openStrategy({ id: `${r.id}.v${r.version}`, releaseId: r.id, version: r.version, name: r.name, summary: r.summary,
-          provider: r.provider, template: AQUA_TEMPLATES[1], mine: false, feePct: 0, ensSelection: selectionFrom(resolved) });
-      }} />
+      <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={`${styles.grid} ${aqua.grid}`}>
-        {listings.map(item => <ListingCard key={item.id} listing={item} action={<Secondary onClick={() => openStrategy(item)}>View strategy</Secondary>} />)}
+        {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
       </div>
     </>}
-
-    {phase === 'detail' && selected[0] && <StrategyDetail listing={{ ...selected[0], executionReady: isExecutable(selected[0]) }} availabilityKnown={executableCatalog !== null && !!account.address}
-      canActivate={!!makerAddress && !!selected[0].releaseId} actionLabel="Use this strategy" onUse={() => go(isExecutable(selected[0]) ? 'limits' : 'activate')} />}
 
     {phase === 'activate' && selected[0]?.releaseId && makerAddress && <MakerActivation key={`${makerAddress}:${selected[0].id}`} listing={selected[0]} maker={makerAddress} account={account}
       onReady={async () => {
@@ -331,6 +302,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids: new Set(catalog.strategies.map(item => item.id)) });
         go('limits');
       }} />}
+
+    {phase === 'activate' && !makerAddress && <div className={aqua.panel}>
+      {account.authenticated ? <p>Connect the configured Maker wallet to enable this strategy.</p> : <Primary onClick={account.login}>Connect Maker wallet</Primary>}
+    </div>}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
@@ -365,31 +340,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 }
 
 function StrategySet({ selected }: { selected: Listing[] }) {
-  return <div className={aqua.providerPair}>{selected.map(item => <div key={item.id}><span>{item.provider ?? 'Independent Provider'}</span><strong>{item.name}</strong><small>{item.template.label}</small></div>)}</div>;
-}
-
-function StrategyDetail({ listing, availabilityKnown, canActivate, actionLabel, onUse }: { listing: Listing; availabilityKnown: boolean; canActivate: boolean; actionLabel: string; onUse: () => void }) {
-  return <div className={aqua.decisionGrid}>
-    <div className={aqua.previewColumn}>
-      <ListingCard listing={listing} />
-      <Primary disabled={!listing.executionReady && !canActivate} onClick={onUse}>{!availabilityKnown ? 'Checking availability' : listing.executionReady ? actionLabel : canActivate ? 'Enable this strategy' : 'Not accepting liquidity'}</Primary>
-      {availabilityKnown && !listing.executionReady && <p className={aqua.muted}>{canActivate ? 'Choose your liquidity amounts and enable this published version with your Maker wallet.' : 'This strategy is not available for the connected wallet.'}</p>}
-    </div>
-    <aside className={aqua.explanation}>
-      <span className={aqua.eyebrow}>Strategy specifications</span>
-      <h2>Liquidity configuration</h2>
-      <div className={aqua.intentRows}>
-        <div><span>Pair</span><strong>WETH / USDC</strong></div>
-        <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
-        <div><span>Custody</span><strong>Maker wallet</strong></div>
-        <div><span>Provider policy</span><strong>{listing.template.privateInputs}</strong></div>
-        {listing.executionProfileIds && <div><span>Execution profiles</span><strong>Tight · Defensive · Paused</strong></div>}
-      </div>
-      <h3>Risk to understand</h3>
-      <p>{listing.template.risk}</p>
-      <p className={aqua.muted}>Reviewing a strategy does not reveal its Provider&apos;s private policy. Your own limits are applied before it can be authorized.</p>
-    </aside>
-  </div>;
+  return <div className={aqua.providerPair}>{selected.map(item => <div key={item.id}><ProviderIdentity listing={item} /><strong>{item.name}</strong><small>{item.template.label}</small></div>)}</div>;
 }
 
 function PolicyMetrics({ budget, exposure, maxWethInventory, maxTrade }: { budget: string; exposure: string; maxWethInventory: string; maxTrade: string }) {

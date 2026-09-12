@@ -1,5 +1,5 @@
 import React from 'react';
-import Avatar from '../components/shared/Avatar';
+import ProviderIdentity from './ProviderIdentity';
 import type { Listing } from './publishedStore';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
@@ -32,8 +32,9 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
         {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Accepting liquidity</span>}
       </div>
       <h3 className={styles.cardTitle}>{listing.name}</h3>
-      {listing.ensSelection && <p className={aqua.byline}>{listing.ensSelection.name}</p>}
-      {listing.provider && <p className={aqua.byline}><Avatar name={listing.provider} src={listing.providerAvatar} size={28} brand={listing.provider === 'PinTool Strategies'} />by <span>{listing.provider}</span></p>}
+      {(listing.ensName || listing.ensSelection) && <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>}
+      {listing.ensStatus === 'historical' && <p className={aqua.muted}>Previously published under this name. ENS now points to another version.</p>}
+      <ProviderIdentity listing={listing} />
       {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Proposed profit share: ${listing.feePct}% · collection not enabled`}</p>}
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
     </div>
