@@ -133,9 +133,10 @@ test('explicit guarded JSON recipe survives an interrupted range replacement wit
   const next = { ...p, program: { ...p.program, salt: String(BigInt(p.program.salt) + 100n) } }
   const request = { ...base, requestId: 'replace', action: 'rebalance', expectedStrategyHash: s.strategyHash, strategy: next }
   await assert.rejects(executeRequest(ctx, d, request, { ...opts, onTransaction: e => { if (e.phase === 'broadcast' && e.step === 'primary') throw new Error('interrupted') } }), /interrupted/)
-  const nonce = await ctx.pc.getTransactionCount({ address: ctx.maker.account.address })
+  // Include the interrupted transaction even if Anvil has not mined it yet.
+  const nonce = await ctx.pc.getTransactionCount({ address: ctx.maker.account.address, blockTag: 'pending' })
   await executeRequest(ctx, d, request, opts)
-  assert.equal(await ctx.pc.getTransactionCount({ address: ctx.maker.account.address }), nonce)
+  assert.equal(await ctx.pc.getTransactionCount({ address: ctx.maker.account.address, blockTag: 'pending' }), nonce)
   const status = await executionStatus(ctx, d, stateDir, 'range')
   assert.equal(status.strategyHash, compileExecution(next).strategyHash)
   assert.deepEqual(status.session.plan.policy.baselineAmounts, p.amounts)
