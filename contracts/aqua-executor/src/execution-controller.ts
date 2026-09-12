@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { erc20Abi, keccak256 } from 'viem'
+import { BaseError, ContractFunctionRevertedError, erc20Abi, keccak256 } from 'viem'
 import { takerTraits, type Compiled } from './compile.ts'
 import { compileExecution as compile } from './execution-compile.ts'
 import type { Ctx } from './config.ts'
@@ -209,7 +209,17 @@ export async function executeRequest(ctx: Ctx, d: Deployment, input: unknown, op
         await sender.send('taker-approve', ctx.taker, 'taker-approve', before.strategyHash, async () => buildTx.approve(request.tokenIn, d.router, amountIn))
         await sender.send('primary', ctx.taker, 'swap', before.strategyHash, async () => {
           await ensureActive(before); await fresh(before)
-          const q = await quote(ctx, d, before, request.tokenIn, tokenOut, amountIn)
+          const q = await quote(ctx, d, before, request.tokenIn, tokenOut, amountIn).catch(error => {
+            // prepare runs before the primary transaction is signed. A contract
+            // rejection ends this intent; transport errors remain resumable.
+            const revert = error instanceof BaseError
+              ? error.walk(cause => cause instanceof ContractFunctionRevertedError)
+              : undefined
+            if (revert instanceof ContractFunctionRevertedError) {
+              throw new ExecutionRevertedError(`swap quote rejected: ${revert.shortMessage}`)
+            }
+            throw error
+          })
           const [balance, allowance, block] = await Promise.all([
             ctx.pc.readContract({ address: tokenOut, abi: erc20Abi, functionName: 'balanceOf', args: [before.params.maker] }),
             ctx.pc.readContract({ address: tokenOut, abi: erc20Abi, functionName: 'allowance', args: [before.params.maker, d.aqua] }),
