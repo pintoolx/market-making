@@ -4,6 +4,10 @@
   "private": true,
   "packageManager": "pnpm@10.6.2",
   "scripts": {
+    "test:builder-service": "pnpm --filter @pintool/builder-service test",
+    "typecheck:builder-service": "pnpm --filter @pintool/builder-service typecheck",
+    "test:builder": "pnpm --filter @pintool/strategy-builder test",
+    "typecheck:builder": "pnpm --filter @pintool/strategy-builder typecheck",
     "build:ens": "node scripts/ens/build-contract.mjs",
     "test:ens": "node --test orchestrator/test/ens*.test.mjs",
     "start:ens-publisher": "node orchestrator/bin/ens-publisher.mjs",

@@ -1,0 +1,59 @@
+{
+  "checkedAt": "2026-09-12T16:40:46.044Z",
+  "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+  "mode": "live-read",
+  "chainId": 11155111,
+  "blockNumber": "11690067",
+  "blockHash": "0x4f0b635cca08fd98a4528ca1debce1101a77ca56568831a61d5de1955c63b843",
+  "blockTimestamp": "1789230432",
+  "contracts": [
+    {
+      "name": "router",
+      "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "codeBytes": 20541,
+      "runtimeCodeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+    },
+    {
+      "name": "aqua",
+      "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "codeBytes": 5619,
+      "runtimeCodeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+    },
+    {
+      "name": "guard",
+      "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+      "codeBytes": 5963,
+      "runtimeCodeHash": "0x4a6a15af7b058701438537ecbde2c7c71a74ca34214ddcbc4ba5693e4f2af650"
+    },
+    {
+      "name": "canonicalRouterFromOfficialDocs",
+      "address": "0x111111338c5091e8440b67b168bae16a668ac0de",
+      "codeBytes": 0,
+      "runtimeCodeHash": null
+    }
+  ],
+  "tokens": [
+    {
+      "configuredSymbol": "WETH",
+      "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "decimals": 18,
+      "onchainSymbol": "WETH"
+    },
+    {
+      "configuredSymbol": "USDC",
+      "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "decimals": 6,
+      "onchainSymbol": "USDC"
+    }
+  ],
+  "limitations": [
+    "Runtime code presence and binding only; not a new full source/runtime or recipe compatibility certification.",
+    "No broadcast, wallet signing, contract deployment or user funding actions."
+  ],
+  "routerAqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a",
+  "guardRouter": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+  "guardAqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a",
+  "guardSimulationMode": true,
+  "guardVersion": 2,
+  "bindingMatches": true
+}

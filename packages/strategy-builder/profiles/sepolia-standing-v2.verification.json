@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "profileId": "sepolia-standing-v2",
+  "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+  "mode": "live-read",
+  "rpcHost": "ethereum-sepolia-rpc.publicnode.com",
+  "checkedAt": "2026-09-12T18:50:29.523Z",
+  "chainId": 11155111,
+  "blockNumber": "11690690",
+  "blockHash": "0xb7927cda27f1f71b2998ac9b4d55cef4f45d78ed6b04f14ac8355a1fb07b9a12",
+  "blockTimestamp": "1789238112",
+  "contracts": [
+    {
+      "name": "aqua",
+      "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "runtimeBytes": 5619,
+      "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+    },
+    {
+      "name": "router",
+      "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "runtimeBytes": 20541,
+      "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+    },
+    {
+      "name": "guard",
+      "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+      "runtimeBytes": 6687,
+      "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+    },
+    {
+      "name": "forwarder",
+      "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+      "runtimeBytes": 4579,
+      "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+    },
+    {
+      "name": "WETH",
+      "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "runtimeBytes": 3124,
+      "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+    },
+    {
+      "name": "USDC",
+      "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "runtimeBytes": 1798,
+      "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+    }
+  ],
+  "bindings": {
+    "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+    "aqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a",
+    "forwarder": "0x15fC6ae953E024d975e77382eEeC56A9101f9F88",
+    "guardVersion": 2,
+    "reportSchemaVersion": 2,
+    "simulationMode": true,
+    "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "workflowOwner": "0x0000000000000000000000000000000000000000",
+    "routerAqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a"
+  },
+  "opcodeTableHash": "0x19637ab11fe5cb50a23c8ca4defb1f2ea93468fac54e9efc364f9318eea5b12e",
+  "sourceHashes": {
+    "contracts/aqua-executor/artifacts/AquaGuardV2.json": "d6e656f0e74efff6366e8f4efc5dc51e4abb2510941d4d25651b3ec5b8ac1e5d",
+    "contracts/aqua-executor/artifacts/AquaSwapVMRouter.json": "bf8e5ecffe627cb612a226d2a713ad098056165d601b0c7a52e939c5734f1717",
+    "contracts/aqua-executor/contracts/AquaGuardV2.sol": "e8dbf6a908f085f30c978296df377374e05805c5e9768cfffbf3d6bc5b4bf91c",
+    "contracts/aqua-executor/src/guard.ts": "11b8d6fe02324329fa63115cbf3d97790d0f2e0e904ed6254c918d2552177789",
+    "packages/strategy-builder/src/capabilities.ts": "6fcc97bc2a9f958649680991123cf6a6ebd14e98dd927b5004ac7a9e24317d06"
+  },
+  "limits": [
+    "Code presence and immutable bindings verified at one finalized block.",
+    "This read does not independently rebuild deployed runtime bytecode from source.",
+    "No swap transaction or production DON/TEE attestation was performed.",
+    "Recipe execution evidence remains separate from deployment reads."
+  ]
+}

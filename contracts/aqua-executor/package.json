@@ -25,6 +25,7 @@
     "prepare:product-strategies": "node scripts/prepare-product-strategies.ts"
   },
   "dependencies": {
+    "@pintool/strategy-builder": "workspace:*",
     "@1inch/swap-vm-sdk": "0.4.4",
     "viem": "2.56.3"
   },

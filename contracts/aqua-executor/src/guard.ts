@@ -40,7 +40,7 @@ export interface GuardReport extends GuardCaps {
   allowedDirections: number
 }
 export type GuardedCompiled = Compiled & {
-  params: AquaStrategyParams & { executionTemplate: 'guarded-xyc-v1' | 'guarded-pegged-v1' | 'guarded-concentrated-v2' }
+  params: AquaStrategyParams & { executionTemplate: 'guarded-xyc-v1' | 'guarded-pegged-v1' | `guarded-${AquaStrategyParams['program']['kind']}-v2` }
   guard: Hex
   envelope: Hex
 }
@@ -53,14 +53,13 @@ export function compileGuarded(p: AquaStrategyParams, guard: Hex, caps: GuardCap
 
 /** Requires AquaGuardV2; a v1 address rejects the version-2 envelope. */
 export function compileGuardedV2(p: AquaStrategyParams, guard: Hex, caps: GuardCaps): GuardedCompiled {
-  if (p.program.kind !== 'concentrated') throw new Error('v2 template requires concentrated program')
   return guarded(p, guard, caps, 2)
 }
 
 function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 | 2): GuardedCompiled {
   if (p.program.kind === 'concentrated' && version !== 2) throw new Error('concentrated liquidity requires Guard v2 real inventory accounting')
   const base = compile(p)
-  if (p.program.feeBps !== 0) throw new Error('guarded v1 requires zero fee: gross-input accounting is not implemented')
+  if (p.program.feeBps !== 0) throw new Error('guarded recipes require zero fee: gross-input accounting is not implemented')
   for (const address of [p.maker, ...p.tokens, guard]) {
     if (getAddress(address) === zeroAddress) throw new Error('guarded v1 requires nonzero addresses')
   }
@@ -80,7 +79,7 @@ function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 
   const order = S.Order.new({ maker: new S.Address(p.maker), program, traits: S.MakerTraits.default() })
   const strategy: Hex = order.encode().toString()
   // The legacy JSON parser rejects this marker instead of silently recompiling an unguarded XYC order.
-  return { ...base, params: { ...p, executionTemplate: version === 2 ? 'guarded-concentrated-v2' : p.program.kind === 'xyc' ? 'guarded-xyc-v1' : 'guarded-pegged-v1' }, order: order.build(), strategy, strategyHash: keccak256(strategy), guard, envelope }
+  return { ...base, params: { ...p, executionTemplate: version === 2 ? `guarded-${p.program.kind}-v2` : p.program.kind === 'xyc' ? 'guarded-xyc-v1' : 'guarded-pegged-v1' }, order: order.build(), strategy, strategyHash: keccak256(strategy), guard, envelope }
 }
 
 /** Unsigned onReport calldata. Submit via the configured forwarder, never directly from an EOA. */
