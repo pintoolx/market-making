@@ -29,7 +29,8 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 | Web app: role choice, structured Provider Studio, strategy discovery and detail, Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
 | CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
-| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Single-strategy v1 synthetic-report prototype works; atomic A/B mandate switching and actual CRE delivery remain pending |
+| LP templates and automatic controller | `contracts/aqua-executor/` | XYC, PeggedSwap, concentrated LP; bounded range/fee rollover and guarded JSON recovery tested locally |
+| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Guard v1/v2 tested locally; v1 has synthetic-report testnet evidence. Atomic A/B switching and actual CRE delivery remain pending |
 
 ## Getting started
 

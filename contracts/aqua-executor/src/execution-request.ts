@@ -1,5 +1,5 @@
 import { isAddress, keccak256, stringToHex } from 'viem'
-import { compile } from './compile.ts'
+import { compileExecution } from './execution-compile.ts'
 import { validatePolicy, type RiskPolicy } from './risk.ts'
 import type { AquaStrategyParams, Hex } from './types.ts'
 
@@ -44,19 +44,20 @@ export const executionId = (v: unknown): string => {
 /** Validate untrusted JSON before any signing. Freshness is checked later only for new transactions. */
 export function parseStrategy(input: unknown): AquaStrategyParams {
   const p = object(input, 'strategy')
-  keys(p, ['schema', 'chainId', 'maker', 'tokens', 'amounts', 'program', 'meta'])
+  keys(p, ['schema', 'chainId', 'maker', 'tokens', 'amounts', 'program', 'meta', 'guard'])
   if (p.schema !== 'aqua-swapvm-v1.0.2') throw new Error('unsupported strategy schema')
   if (!Array.isArray(p.tokens) || p.tokens.length !== 2 || !Array.isArray(p.amounts) || p.amounts.length !== 2) throw new Error('strategy needs two tokens and amounts')
   const program = object(p.program, 'program'), meta = object(p.meta, 'meta')
-  const extra = program.kind === 'pegged' ? ['linearWidth', 'referenceBalances', 'rates'] : []
+  const extra = program.kind === 'pegged' ? ['linearWidth', 'referenceBalances', 'rates'] : program.kind === 'concentrated' ? ['sqrtPriceMin', 'sqrtPriceMax'] : []
   keys(program, ['kind', 'feeBps', 'deadline', 'salt', ...extra])
   keys(meta, ['producer', 'strategyVersion', 'paramsRevision'])
-  if (program.kind !== 'xyc' && program.kind !== 'pegged') throw new Error('unsupported strategy kind')
+  if (program.kind !== 'xyc' && program.kind !== 'pegged' && program.kind !== 'concentrated') throw new Error('unsupported strategy kind')
   const pair = (v: unknown, name: string): [string, string] => {
     if (!Array.isArray(v) || v.length !== 2) throw new Error(`invalid ${name}`)
     return v.map(n => decimal(n, name, 1n, 2n ** 256n - 1n)) as [string, string]
   }
-  const curve = program.kind === 'xyc' ? { kind: 'xyc' as const } : { kind: 'pegged' as const,
+  const curve = program.kind === 'xyc' ? { kind: 'xyc' as const } : program.kind === 'concentrated' ? { kind: 'concentrated' as const,
+    sqrtPriceMin: decimal(program.sqrtPriceMin, 'sqrtPriceMin', 1n, 2n ** 256n - 1n), sqrtPriceMax: decimal(program.sqrtPriceMax, 'sqrtPriceMax', 1n, 2n ** 256n - 1n) } : { kind: 'pegged' as const,
     linearWidth: decimal(program.linearWidth, 'linearWidth', 0n, 5000n * 10n ** 27n),
     referenceBalances: pair(program.referenceBalances, 'referenceBalances'), rates: pair(program.rates, 'rates') }
   if (meta.producer !== 'tee' && meta.producer !== 'fixed-params') throw new Error('invalid strategy producer')
@@ -66,7 +67,16 @@ export function parseStrategy(input: unknown): AquaStrategyParams {
     program: { ...curve, feeBps: integer(program.feeBps, 'feeBps', 0, 9999), deadline: integer(program.deadline, 'deadline', 1, 2 ** 40 - 1), salt: decimal(program.salt, 'salt', 0n, 2n ** 64n - 1n) },
     meta: { producer: meta.producer, strategyVersion: integer(meta.strategyVersion, 'strategyVersion', 1, Number.MAX_SAFE_INTEGER), paramsRevision: integer(meta.paramsRevision, 'paramsRevision', 1, Number.MAX_SAFE_INTEGER) },
   }
-  compile(result)
+  if ('guard' in p) {
+    const g = object(p.guard, 'guard'); keys(g, ['address', 'version', 'caps'])
+    const c = object(g.caps, 'guard caps'); keys(c, ['maxAmount0PerSwap', 'maxAmount1PerSwap', 'maxPostBalance0', 'maxPostBalance1'])
+    result.guard = { address: address(g.address, 'guard address'), version: integer(g.version, 'guard version', 1, 2) as 1 | 2,
+      caps: { maxAmount0PerSwap: decimal(c.maxAmount0PerSwap, 'maxAmount0PerSwap', 1n, (1n << 128n) - 1n),
+        maxAmount1PerSwap: decimal(c.maxAmount1PerSwap, 'maxAmount1PerSwap', 1n, (1n << 128n) - 1n),
+        maxPostBalance0: decimal(c.maxPostBalance0, 'maxPostBalance0', 1n, (1n << 128n) - 1n),
+        maxPostBalance1: decimal(c.maxPostBalance1, 'maxPostBalance1', 1n, (1n << 128n) - 1n) } }
+  }
+  compileExecution(result)
   return result
 }
 

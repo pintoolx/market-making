@@ -17,9 +17,7 @@
     "demo:risk": "node --env-file-if-exists=.env src/risk-demo.ts",
     "demo:guard": "node --env-file-if-exists=.env src/guard-demo.ts",
     "test": "node --test test/*.test.ts",
-    "typecheck": "tsc",
-    "build:guard:v2": "node scripts/build-guard-v2.ts",
-    "autopilot": "node --env-file-if-exists=.env src/autopilot-cli.ts"
+    "typecheck": "tsc"
   },
   "dependencies": {
     "@1inch/swap-vm-sdk": "0.4.4",
