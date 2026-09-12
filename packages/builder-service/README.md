@@ -52,6 +52,10 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | POST `/drafts/:id/compile` | `{ expectedRevision }`; owned Maker instance only; stores decoded compilation and returns its reference |
 | GET `/drafts/:id/artifacts` | Owned immutable compilation references, newest revision first |
 | GET `/artifacts/:id` | Compiled bytes/decoded public parameters, current/stale flag and explicit `registrationReady: false` |
+| POST `/artifacts/:id/simulations` | `{ expectedRevision }`; returns 202 with an owned background job reference; requires server `simulationEnabled: true` |
+| GET `/drafts/:id/simulations` | Latest 20 owned job summaries, current/stale flag, evidence mode and failed/skipped cases |
+| GET `/simulations/:id` | Owned durable job state and immutable completed evidence; readiness remains false |
+| POST `/simulations/:id/cancel` | `{}` plus idempotency key; cancels pending/running authority and rejects late results |
 | POST `/drafts/:id/patch` | `{ expectedRevision, patch }` |
 | POST `/drafts/:id/restore` | `{ expectedRevision, revision }`; appends a revision |
 | POST `/conversations/:id/messages` | `{ content }`; public user text only |
@@ -61,19 +65,38 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | GET `/turns/:id/events?after=<sequence>` | Replayable public text/tool-status events, 100 per page; numeric cursor |
 | POST `/turns/:id/cancel` | `{}`; idempotently stops queued/running authority; already committed draft edits remain in revision history |
 
-Missing/foreign resources return the same 404. Stale revisions or template permission conflicts return 409. Unknown SQL and driver failures return a generic 503 without input values or credentials. Requests have a 64 KiB byte limit. Signature endpoints have a bounded per-process socket-address limit; no proxy headers are trusted. Design acceptance has a shared database limit of 60 turns per wallet per hour and one active turn per draft. Deployment still needs ingress limits and simulation budgets.
+Missing/foreign resources return the same 404. Stale revisions or template permission conflicts return 409. Unknown SQL and driver failures return a generic 503 without input values or credentials. Requests have a 64 KiB byte limit. Signature endpoints have a bounded per-process socket-address limit; no proxy headers are trusted. Design acceptance has a shared database limit of 60 turns per wallet per hour and one active turn per draft. Simulation acceptance has a shared limit of 12 jobs per wallet per hour, counting failures/cancellations; active identical artifact requests deduplicate. Deployment still needs ingress limits.
 
 ## Public design agent
 
 The provider uses `@ai-sdk/openai` 4.0.66 and `ai` 7.0.99, with `ToolLoopAgent`, eight model steps maximum, 3,000 output tokens per step, bounded recent server history and an authoritative draft read. Default model `gpt-5.6-sol` was verified against the configured account; operators may set `BUILDER_OPENAI_MODEL`. The API key is consumed only in the server provider. Responses storage is disabled with `store: false`; that setting is not a claim of zero data retention. Provider exceptions are redacted before SDK logging.
 
-Seven tools are currently wired: capabilities, token resolution, patch/restore, validation, compilation, inspection and non-executable public draft export. Amount edits use human token units and convert exactly using pinned token decimals. A draft can save one Guard limit or one Maker allocation at a time; validation identifies each missing field and the compiler still requires complete limits and allocations. Untouched settings persist; template tools reject Maker allocation. Pair changes cannot silently relabel existing amounts or price intent. Inventory, scenario preview, lifecycle simulation, registration and cancellation preparation remain to be wired.
+Eight tools are wired: capabilities, token resolution, patch/restore, validation, compilation, background lifecycle simulation, inspection and non-executable public draft export. Enabling simulation requires a configured worker and `runDesignTurn(..., signal, { simulationEnabled: true })`; otherwise the tool returns `simulation-unavailable`. Inspection can read historical/current simulation summaries without enqueueing. Amount edits use human token units and convert exactly using pinned token decimals. A draft can save one Guard limit or one Maker allocation at a time; validation identifies each missing field and the compiler still requires complete limits and allocations. Untouched settings persist; template tools reject Maker allocation. Pair changes cannot silently relabel existing amounts or price intent. Inventory, scenario preview, registration and cancellation preparation remain to be wired.
 
 Compilation uses the `aqua-executor/builder` package entry, which imports the pure Guard compiler, not wallet configuration or contract-artifact loaders. Maker compiles are serialized with the draft revision and any active agent lease; identical revision/profile requests return the same immutable artifact. A durable request receipt retains its original revision after an edit. Read the artifact's current flag before using it; restoring an old specification creates a new revision and does not make its old artifact current. Current compilation does not authorize registration: simulation, user review and current wallet/chain checks remain separate gates. Provider templates are not compiled with invented Maker allocations; template preparation/instantiation is still pending.
 
 Agent work survives HTTP disconnects. A separate process claims queued/expired turns; each attempt has a lease, and a draft mutation checks the current lease and last revision in the same transaction. User edits or new standalone user messages supersede the old turn. Cancellation prevents late events, mutations and assistant completion; it does not erase an already committed revision. A process restart can reclaim an expired turn up to three attempts; graceful shutdown leaves the lease available for recovery. A `started` event resets provisional text for the new attempt. Ordinary model failure is terminal for that turn and leaves the draft reviewable; the user can submit a new turn against its current revision.
 
 Text and allowlisted tool name/success events are persisted for replay. No raw SDK event, reasoning trace, credential, private-policy input or tool output object goes to the client stream. Owner and lease identifiers do not go into model tool context. The chat is explicitly for public strategy goals and public parameters; the private-policy editor is a separate future boundary.
+
+## Background lifecycle worker
+
+Apply additive migration 005 with the migration role, then run a dedicated process:
+
+```bash
+# DATABASE_URL is supplied by the server environment; no .env file is loaded.
+BUILDER_SIMULATION_ENABLED=true pnpm --filter @pintool/builder-service worker:simulation
+```
+
+`ANVIL` optionally selects the executable. `BUILDER_SIMULATION_RPC_URL` configures the upstream Sepolia **read** endpoint, defaulting to publicnode. These are operator settings and cannot be supplied in an HTTP request or model call. The worker checks the applied migration at startup; it does not run DDL. It handles one owned fork at a time, independently of the HTTP server or browser. Cloud deployment/health endpoints and application database roles remain part of the later rollout.
+
+Immutable run inputs reference an owned compiled artifact; completed evidence has its own immutable table and digest. Acceptance locks the draft, checks revision/manifest/agent authority, deduplicates and commits the queue row plus outbox event atomically. Claim/heartbeat/finish use the same draft-before-job lock order, database-clock leases and lease tokens. Before starting a fork, the worker recompiles and compares the entire saved artifact. Before saving its result it rechecks current revision, manifest and authority. Obsolete or cancelled work cannot publish a late result; completed old evidence remains readable with `current: false`.
+
+Infrastructure failure retries with backoff for at most three attempts. Process shutdown aborts the owned fork and leaves an expiring lease that a new process can reclaim. A completed contract-rejection matrix is a terminal failed result with inspectable cases, allowing the agent/user to revise the strategy. Repeating an old accepted request key retrieves that original job; use a new key for an explicit new run after completion/cancellation.
+
+Readiness stays false even when all [fork cases](../../docs/BUILDER-LIFECYCLE-SIMULATION.md) pass. `current` describes the artifact binding, not whether a job passed. `coverageComplete` describes only the cases in this engine's matrix. `mock` queue fixtures and `fork-with-overrides` execution remain distinct; neither proves real wallet funding, CRE delivery or live authorization. There is no endpoint for a client to upload a successful result. The Maker simulation UI, wallet plans and broader scenario previews remain pending.
+
+`test/simulations.test.ts` covers queue/revision/lease/ownership and HTTP/model boundaries with real PostgreSQL. Setting `BUILDER_FORK_RPC_URL` additionally launches a separate worker process, runs actual fork settlement and reads the saved result back. This optional acceptance uses fresh unfunded identities and sends no transaction to the public RPC.
 
 ## Browser workspace
 

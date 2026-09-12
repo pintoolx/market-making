@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { compileBuilderStrategy } from 'aqua-executor/builder'
 import { canonical, contentDigest, decodeGuardedOrder, digestJson, draftSchema, idSchema, revisionSchema, validateStrategy,
@@ -11,6 +11,23 @@ import { mutation, ownerSchema } from './requests.ts'
 const inputSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema }).strict()
 export type CompiledPayload = ReturnType<typeof compileBuilderStrategy>
 export interface CompiledReference { artifactId: string; draftId: string; revision: number; mode: 'compiled-order' }
+
+/** Share the caller's transaction/connection so queue mutations never acquire a second pooled connection. */
+export async function readCompiledArtifact(connection: Pick<PoolClient, 'query'>, profile: DeploymentProfile, owner: string, artifactId: string, lockDraft = false) {
+  ownerSchema.parse(owner); idSchema.parse(artifactId)
+  const row = (await connection.query(`SELECT a.*,d.snapshot AS current_snapshot,d.digest AS current_digest
+    FROM builder.compiled_artifacts a JOIN builder.drafts d ON d.id=a.draft_id AND d.owner=a.owner
+    WHERE a.id=$1 AND a.owner=$2${lockDraft ? ' FOR UPDATE OF d' : ''}`, [artifactId, owner])).rows[0]
+  if (!row) throw notFound()
+  const payload = row.payload as CompiledPayload, draft = draftSchema.parse(row.current_snapshot)
+  if (draft.owner !== owner || draft.id !== row.draft_id || row.current_digest !== contentDigest(draft) ||
+    row.payload_digest !== digestJson(payload) || payload.draftId !== draft.id || payload.revision !== Number(row.revision) ||
+    payload.manifestHash !== row.manifest_hash || payload.contentDigest !== row.content_digest ||
+    canonical(decodeGuardedOrder(payload.strategy)) !== canonical(payload.decoded)) throw new ServiceError('compiled-artifact-integrity', 500)
+  const current = draft.revision === payload.revision && contentDigest(draft) === payload.contentDigest &&
+    digestJson(profile) === payload.manifestHash && validateStrategy(draft, profile, Math.floor(Date.now() / 1000)).ready
+  return { artifactId, mode: 'compiled-order' as const, current, payload, draft, createdAt: (row.created_at as Date).toISOString(), registrationReady: false as const }
+}
 
 /** Public, deterministic compilation only. No RPC, signing, registration or report delivery. */
 export function createArtifacts(pool: Pool, profile: DeploymentProfile, lease?: TurnLease) {
@@ -43,20 +60,8 @@ export function createArtifacts(pool: Pool, profile: DeploymentProfile, lease?: 
       })
     },
     async get(owner: string, artifactId: string) {
-      ownerSchema.parse(owner); idSchema.parse(artifactId)
-      const row = (await pool.query(`SELECT a.*,d.snapshot AS current_snapshot,d.digest AS current_digest
-        FROM builder.compiled_artifacts a JOIN builder.drafts d ON d.id=a.draft_id AND d.owner=a.owner WHERE a.id=$1 AND a.owner=$2`, [artifactId, owner])).rows[0]
-      if (!row) throw notFound()
-      const payload = row.payload as CompiledPayload, draft = draftSchema.parse(row.current_snapshot)
-      if (draft.owner !== owner || draft.id !== row.draft_id || row.current_digest !== contentDigest(draft) ||
-        row.payload_digest !== digestJson(payload) || payload.draftId !== draft.id || payload.revision !== Number(row.revision) ||
-        payload.manifestHash !== row.manifest_hash || payload.contentDigest !== row.content_digest ||
-        canonical(decodeGuardedOrder(payload.strategy)) !== canonical(payload.decoded)) throw new ServiceError('compiled-artifact-integrity', 500)
-      const current = draft.revision === payload.revision && contentDigest(draft) === payload.contentDigest &&
-        digestJson(profile) === payload.manifestHash && validateStrategy(draft, profile, Math.floor(Date.now() / 1000)).ready
-      return { artifactId, mode: 'compiled-order' as const, current, payload, createdAt: (row.created_at as Date).toISOString(),
-        // Compilation does not satisfy the later simulation, signature and chain-state gates.
-        registrationReady: false as const }
+      const { draft: _draft, ...artifact } = await readCompiledArtifact(pool, profile, owner, artifactId)
+      return artifact
     },
     async list(owner: string, draftId: string) {
       ownerSchema.parse(owner); idSchema.parse(draftId)

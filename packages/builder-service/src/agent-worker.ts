@@ -5,10 +5,12 @@ import { createStore } from './store.ts'
 import { createTurns, type ClaimedTurn } from './turns.ts'
 import { createDesignAgent } from './design-agent.ts'
 import { createArtifacts } from './artifacts.ts'
+import { createSimulations } from './simulations.ts'
 
 /** One durable turn; called by a long-lived worker, never owned by an HTTP connection. */
-export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal) {
+export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal, preparation: { simulationEnabled?: boolean } = {}) {
   const turns = createTurns(pool), store = createStore(pool, profile.id, turn), artifacts = createArtifacts(pool, profile, turn), abort = new AbortController()
+  const simulations = createSimulations(pool, profile, turn)
   const combined = AbortSignal.any([abort.signal, AbortSignal.timeout(180000), ...(signal ? [signal] : [])])
   let heartbeatBusy = false
   const heartbeat = setInterval(async () => {
@@ -35,6 +37,9 @@ export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, mode
         history: () => store.history(turn.owner, turn.draftId),
         compile: (requestId, expectedRevision) => artifacts.compile(turn.owner, requestId, { draftId: turn.draftId, expectedRevision }),
         compilations: () => artifacts.list(turn.owner, turn.draftId),
+        ...(preparation.simulationEnabled ? { simulate: (requestId: string, expectedRevision: number, artifactId: string) =>
+          simulations.start(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, artifactId }) } : {}),
+        simulations: () => simulations.list(turn.owner, turn.draftId),
       } })
     const result = await agent.stream({ messages, abortSignal: combined })
     let text = '', pending = '', lastFlush = Date.now()

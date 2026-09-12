@@ -12,7 +12,8 @@
   "scripts": {
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "migrate": "node src/migrate.ts"
+    "migrate": "node src/migrate.ts",
+    "worker:simulation": "node src/simulation-main.ts"
   },
   "dependencies": {
     "@pintool/strategy-builder": "workspace:*",

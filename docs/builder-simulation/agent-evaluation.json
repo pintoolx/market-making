@@ -1,0 +1,841 @@
+{
+  "recordedAt": "2026-09-12T22:24:17.122Z",
+  "modelId": "gpt-5.6-sol",
+  "mode": "authenticated-http-agent-and-separate-fork-worker",
+  "limits": [
+    "Fresh unfunded identities and disposable local PostgreSQL; no production business migration.",
+    "Transactions only on owned Anvil forks, with synthetic funding and forwarder authority.",
+    "Final lease-write expiry conditions were verified separately by PostgreSQL fault injection."
+  ],
+  "turns": [
+    {
+      "turn": 1,
+      "content": "請檢查目前這份已填妥的 Maker 草稿，保留所有設定，編譯並排入背景 lifecycle 模擬。排隊完成先回報，不要把 job ID 當成通過或正式上線。",
+      "reply": "已完成排隊：\n\n- 保留目前 Maker 草稿所有設定，未做修改（revision 2）\n- 草稿驗證通過，可供編譯\n- 已成功編譯為不可變 artifact\n- lifecycle 模擬已排入背景工作\n\n目前僅代表**排隊成功**，不代表模擬通過、已正式上線、已完成錢包授權或已在鏈上成交。待背景工作完成後，需另行查詢 simulations 結果。",
+      "revision": 2,
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789338056,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "5000000000000000",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "tools": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "validateStrategy"
+        },
+        {
+          "ok": true,
+          "name": "compileStrategy"
+        },
+        {
+          "ok": true,
+          "name": "simulateLifecycle"
+        }
+      ],
+      "simulation": {
+        "id": "ffa4380f-70d3-4362-b63f-8278360aa942",
+        "state": "succeeded",
+        "current": true,
+        "registrationReady": false,
+        "mode": "fork-with-overrides",
+        "blockNumber": "11691722",
+        "blockHash": "0xe1fb417092c929612c19149176201e7177c07d4d5e74b06c3031cf9d4c165855",
+        "artifactDigest": "0xab473149d32ce6d51c1cc0ecc349756a1de20712c26493f653c8de4906c4b622",
+        "passed": true,
+        "coverageComplete": true,
+        "cases": [
+          {
+            "name": "registration",
+            "passed": true
+          },
+          {
+            "name": "missing-report",
+            "passed": true
+          },
+          {
+            "name": "bidirectional-and-sequential-settlement",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-0",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-1",
+            "passed": true
+          },
+          {
+            "name": "direction-disabled",
+            "passed": true
+          },
+          {
+            "name": "inventory-cap",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-0",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-1",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-0",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-1",
+            "passed": true
+          },
+          {
+            "name": "report-domain-and-source",
+            "passed": true
+          },
+          {
+            "name": "report-token-pair",
+            "passed": true
+          },
+          {
+            "name": "report-idempotency-and-replay",
+            "passed": true
+          },
+          {
+            "name": "active-strategy-switch",
+            "passed": true
+          },
+          {
+            "name": "schema-one-expiry",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-0",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-1",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-0",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-1",
+            "passed": true
+          },
+          {
+            "name": "standing-after-one-hour",
+            "passed": true
+          },
+          {
+            "name": "deadline-before-and-at",
+            "passed": true
+          },
+          {
+            "name": "deadline-rejected",
+            "passed": true
+          },
+          {
+            "name": "maker-revoke-and-unrevoke",
+            "passed": true
+          },
+          {
+            "name": "dock-rejected",
+            "passed": true
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "artifactId": "f0fcbf45-bd36-47b3-8da9-645128675ee0",
+          "revision": 2,
+          "current": true,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "content": "請讀取剛才的模擬结果。這是不是表示已經正式上線或收到 CRE 授權？先不要改設定或再排一次工作。",
+      "reply": "剛才 revision 2 的 lifecycle 模擬結果：\n\n- **狀態：成功完成**\n- **結果：通過**\n- **模式：fork-with-overrides**\n- **案例範圍：25 個案例，略過 0 個**\n- **目前版本：是**\n- **註冊就緒：否**\n\n**這不表示已正式上線，也不表示已收到真實 CRE 授權。**  \n`fork-with-overrides` 使用本地合成資金／report authority；即使通過，也不代表具備真實錢包資金、CRE delivery、Guard／Standing 授權、註冊或鏈上提交。`coverageComplete` 只表示這份 25 案例矩陣沒有略過項目，不代表所有可能輸入都已驗證。\n\n依照你的要求，我沒有修改設定，也沒有再次排入模擬。",
+      "revision": 2,
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789338056,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "5000000000000000",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "tools": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        }
+      ],
+      "simulation": {
+        "id": "ffa4380f-70d3-4362-b63f-8278360aa942",
+        "state": "succeeded",
+        "current": true,
+        "registrationReady": false,
+        "mode": "fork-with-overrides",
+        "blockNumber": "11691722",
+        "blockHash": "0xe1fb417092c929612c19149176201e7177c07d4d5e74b06c3031cf9d4c165855",
+        "artifactDigest": "0xab473149d32ce6d51c1cc0ecc349756a1de20712c26493f653c8de4906c4b622",
+        "passed": true,
+        "coverageComplete": true,
+        "cases": [
+          {
+            "name": "registration",
+            "passed": true
+          },
+          {
+            "name": "missing-report",
+            "passed": true
+          },
+          {
+            "name": "bidirectional-and-sequential-settlement",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-0",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-1",
+            "passed": true
+          },
+          {
+            "name": "direction-disabled",
+            "passed": true
+          },
+          {
+            "name": "inventory-cap",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-0",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-1",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-0",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-1",
+            "passed": true
+          },
+          {
+            "name": "report-domain-and-source",
+            "passed": true
+          },
+          {
+            "name": "report-token-pair",
+            "passed": true
+          },
+          {
+            "name": "report-idempotency-and-replay",
+            "passed": true
+          },
+          {
+            "name": "active-strategy-switch",
+            "passed": true
+          },
+          {
+            "name": "schema-one-expiry",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-0",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-1",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-0",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-1",
+            "passed": true
+          },
+          {
+            "name": "standing-after-one-hour",
+            "passed": true
+          },
+          {
+            "name": "deadline-before-and-at",
+            "passed": true
+          },
+          {
+            "name": "deadline-rejected",
+            "passed": true
+          },
+          {
+            "name": "maker-revoke-and-unrevoke",
+            "passed": true
+          },
+          {
+            "name": "dock-rejected",
+            "passed": true
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "artifactId": "f0fcbf45-bd36-47b3-8da9-645128675ee0",
+          "revision": 2,
+          "current": true,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "content": "這是本地極小額壓力測試：只把 WETH 單筆上限改成 0.000000000000000001 WETH，其它配置、caps、曲線、零費率與期限保持不變。請保存、重新編譯並排入背景模擬，檢查到底能否成交。",
+      "reply": "已完成保存、驗證、重新編譯並排入背景 lifecycle 模擬：\n\n- WETH 單筆上限改為 **0.000000000000000001 WETH（1 wei）**\n- 其餘配置、Guard caps、XYC 曲線、零費率與期限均保持不變\n- 新草稿版本：**revision 3**\n- 草稿驗證通過並已重新編譯\n- 背景模擬已成功排隊\n\n目前只能確認**排隊成功**，尚不能判定 1 wei 是否能成交或模擬是否通過。完成後需讀取當前 revision 3 的 simulations 結果。",
+      "revision": 3,
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789338056,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "1",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "tools": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "createOrPatchDraft"
+        },
+        {
+          "ok": true,
+          "name": "validateStrategy"
+        },
+        {
+          "ok": true,
+          "name": "compileStrategy"
+        },
+        {
+          "ok": true,
+          "name": "simulateLifecycle"
+        }
+      ],
+      "simulation": {
+        "id": "96b1a825-eedf-4f59-809e-a8f5d0bbe824",
+        "state": "failed",
+        "current": true,
+        "registrationReady": false,
+        "mode": "fork-with-overrides",
+        "blockNumber": "11691722",
+        "blockHash": "0xe1fb417092c929612c19149176201e7177c07d4d5e74b06c3031cf9d4c165855",
+        "artifactDigest": "0xc9057b82beb10c9fa867a1ae3766943084f70cc723a4aca6bd4c3a964896f7d4",
+        "passed": false,
+        "coverageComplete": false,
+        "cases": [
+          {
+            "name": "registration",
+            "passed": true
+          },
+          {
+            "name": "missing-report",
+            "passed": true
+          },
+          {
+            "name": "bidirectional-and-sequential-settlement",
+            "passed": false,
+            "error": "UnsupportedSwap"
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "artifactId": "4d77d054-a1d2-4d94-b5b2-f7633e1355d4",
+          "revision": 3,
+          "current": true,
+          "programHash": "0x5df13416a5b13e92ec47b6a9a9fb86513a7a0126697401b70c4ec462535bede9",
+          "strategyHash": "0xaaa25a582d159c15842d29f0c692340657ce4cd9d5de18e7c94c5dc43ae2f7e3"
+        },
+        {
+          "artifactId": "f0fcbf45-bd36-47b3-8da9-645128675ee0",
+          "revision": 2,
+          "current": false,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "content": "請先看剛才的失敗原因，再把 WETH 單筆上限恢復為 0.005 WETH，其它全部不變。保存、重新編譯並排入新的背景模擬，不要使用過期結果。",
+      "reply": "已先讀取 **revision 3 的當前模擬結果**：\n\n- 模擬失敗於雙向與連續結算案例，錯誤為 `UnsupportedSwap`\n- 已知可能原因包括輸出捨入為零、超過實際 Aqua 庫存，或交換模式不受支援\n- 僅憑此錯誤無法斷定唯一原因；1 wei 的極小額設定可能涉及輸出精度問題\n- 該次只執行 3 個案例、略過 0 個，且未完成整份案例覆蓋\n\n接著已完成：\n\n- 將 WETH 單筆上限恢復為 **0.005 WETH**\n- 其他配置、其餘 caps、XYC 曲線、零費率與期限保持不變\n- 保存為 **revision 4**\n- 驗證通過\n- 重新編譯成功\n- 已排入新的 revision 4 背景 lifecycle 模擬\n\n目前僅確認新工作已排隊，**尚不能判定模擬通過或能否成交**；也不代表正式上線、CRE／Guard 授權或鏈上提交。",
+      "revision": 4,
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789338056,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "5000000000000000",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "tools": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "createOrPatchDraft"
+        },
+        {
+          "ok": true,
+          "name": "validateStrategy"
+        },
+        {
+          "ok": true,
+          "name": "compileStrategy"
+        },
+        {
+          "ok": true,
+          "name": "simulateLifecycle"
+        }
+      ],
+      "simulation": {
+        "id": "cb43d7cb-29e8-4053-b797-de0d55495147",
+        "state": "succeeded",
+        "current": true,
+        "registrationReady": false,
+        "mode": "fork-with-overrides",
+        "blockNumber": "11691722",
+        "blockHash": "0xe1fb417092c929612c19149176201e7177c07d4d5e74b06c3031cf9d4c165855",
+        "artifactDigest": "0x2d5ec1daf4c67826ed549c4ab33100f4aa578644699153d1ed0a5da3dc26ae2d",
+        "passed": true,
+        "coverageComplete": true,
+        "cases": [
+          {
+            "name": "registration",
+            "passed": true
+          },
+          {
+            "name": "missing-report",
+            "passed": true
+          },
+          {
+            "name": "bidirectional-and-sequential-settlement",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-0",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-1",
+            "passed": true
+          },
+          {
+            "name": "direction-disabled",
+            "passed": true
+          },
+          {
+            "name": "inventory-cap",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-0",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-1",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-0",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-1",
+            "passed": true
+          },
+          {
+            "name": "report-domain-and-source",
+            "passed": true
+          },
+          {
+            "name": "report-token-pair",
+            "passed": true
+          },
+          {
+            "name": "report-idempotency-and-replay",
+            "passed": true
+          },
+          {
+            "name": "active-strategy-switch",
+            "passed": true
+          },
+          {
+            "name": "schema-one-expiry",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-0",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-1",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-0",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-1",
+            "passed": true
+          },
+          {
+            "name": "standing-after-one-hour",
+            "passed": true
+          },
+          {
+            "name": "deadline-before-and-at",
+            "passed": true
+          },
+          {
+            "name": "deadline-rejected",
+            "passed": true
+          },
+          {
+            "name": "maker-revoke-and-unrevoke",
+            "passed": true
+          },
+          {
+            "name": "dock-rejected",
+            "passed": true
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "artifactId": "23543f58-353d-4d8c-96dd-e32ef3a7ae48",
+          "revision": 4,
+          "current": true,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        },
+        {
+          "artifactId": "4d77d054-a1d2-4d94-b5b2-f7633e1355d4",
+          "revision": 3,
+          "current": false,
+          "programHash": "0x5df13416a5b13e92ec47b6a9a9fb86513a7a0126697401b70c4ec462535bede9",
+          "strategyHash": "0xaaa25a582d159c15842d29f0c692340657ce4cd9d5de18e7c94c5dc43ae2f7e3"
+        },
+        {
+          "artifactId": "f0fcbf45-bd36-47b3-8da9-645128675ee0",
+          "revision": 2,
+          "current": false,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "content": "讀取最新模擬結果，用容易理解的中文說明這次測試範圍，以及剛才極小上限失敗有哪些可能原因。請區分觀察到的事實與推測，不要列長 ID，不要改設定或再排工作。",
+      "reply": "## 最新模擬結果（目前 revision 4）\n\n### 觀察到的事實\n\n- **模擬已完成並通過**\n- 測試模式是 **fork-with-overrides**，即使用本地分叉環境及合成資金／report authority\n- WETH 單筆上限為 **0.005 WETH**\n- 共執行 **25 個案例，略過 0 個**\n- 這份案例矩陣已完整跑完，沒有回報問題\n- **registration ready 仍為否**\n\n這表示目前 **0.005 WETH 上限的版本能通過這 25 個本地 lifecycle 案例**。但不表示所有可能交易輸入都一定成功，也不表示已正式上線、已取得真實 CRE／Guard 授權、錢包已有資金或已在公開鏈成交。\n\n## 前一版 1 wei 極小上限的失敗\n\n### 觀察到的事實\n\n- 前一版把 WETH 單筆上限設為 **1 wei**\n- 模擬在「雙向與連續結算」測試中失敗\n- 錯誤類型是 **UnsupportedSwap**\n- 當次只執行了 **3 個案例，略過 0 個**\n- 案例矩陣未完整跑完，因此不能把它視為全面測試結果\n\n### 可能原因（推測，未能由結果唯一確認）\n\n1. **金額太小，計算後輸出被捨入為零**  \n   WETH 有 18 位小數，但 USDC 只有 6 位小數。1 wei 的 WETH 換算成 USDC 時，很可能小於 USDC 可表示的最小單位，最終輸出變成零。\n\n2. **交換數量或結算狀態被 Guard 拒絕**  \n   `UnsupportedSwap` 可能表示該數量在當時的庫存或結算狀態下不被接受。\n\n3. **連續交易後超過實際 Aqua 庫存條件**  \n   問題出現在雙向與連續結算案例，也可能是前一筆交易改變庫存後，後續交換不再可執行。\n\n4. **測試所用交換模式不支援該極小額輸入**  \n   某些交換方向或模式可能要求非零、可表示且可結算的輸出。\n\n因此，最合理的首要懷疑是**精度捨入**，但現有錯誤不足以證明它就是唯一原因。依照要求，我沒有修改設定，也沒有再次排入工作。",
+      "revision": 4,
+      "spec": {
+        "title": "Public local fork fixture",
+        "profileId": "sepolia-standing-v2",
+        "baseToken": {
+          "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "symbol": "WETH",
+          "decimals": 18
+        },
+        "quoteToken": {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "symbol": "USDC",
+          "decimals": 6
+        },
+        "model": {
+          "kind": "xyc"
+        },
+        "feeBps": 0,
+        "deadline": 1789338056,
+        "modifiers": [],
+        "guardEnvelope": {
+          "maxAmountBasePerSwap": "5000000000000000",
+          "maxAmountQuotePerSwap": "12500000",
+          "maxPostBalanceBase": "20000000000000000",
+          "maxPostBalanceQuote": "50000000"
+        }
+      },
+      "allocations": {
+        "baseAtomic": "10000000000000000",
+        "quoteAtomic": "25000000"
+      },
+      "tools": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        }
+      ],
+      "simulation": {
+        "id": "cb43d7cb-29e8-4053-b797-de0d55495147",
+        "state": "succeeded",
+        "current": true,
+        "registrationReady": false,
+        "mode": "fork-with-overrides",
+        "blockNumber": "11691722",
+        "blockHash": "0xe1fb417092c929612c19149176201e7177c07d4d5e74b06c3031cf9d4c165855",
+        "artifactDigest": "0x2d5ec1daf4c67826ed549c4ab33100f4aa578644699153d1ed0a5da3dc26ae2d",
+        "passed": true,
+        "coverageComplete": true,
+        "cases": [
+          {
+            "name": "registration",
+            "passed": true
+          },
+          {
+            "name": "missing-report",
+            "passed": true
+          },
+          {
+            "name": "bidirectional-and-sequential-settlement",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-0",
+            "passed": true
+          },
+          {
+            "name": "amount-cap-1",
+            "passed": true
+          },
+          {
+            "name": "direction-disabled",
+            "passed": true
+          },
+          {
+            "name": "inventory-cap",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-0",
+            "passed": true
+          },
+          {
+            "name": "exact-cap-boundaries-1",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-0",
+            "passed": true
+          },
+          {
+            "name": "exact-out-rejected-1",
+            "passed": true
+          },
+          {
+            "name": "report-domain-and-source",
+            "passed": true
+          },
+          {
+            "name": "report-token-pair",
+            "passed": true
+          },
+          {
+            "name": "report-idempotency-and-replay",
+            "passed": true
+          },
+          {
+            "name": "active-strategy-switch",
+            "passed": true
+          },
+          {
+            "name": "schema-one-expiry",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-0",
+            "passed": true
+          },
+          {
+            "name": "maker-wallet-empty-1",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-0",
+            "passed": true
+          },
+          {
+            "name": "virtual-output-exhausted-1",
+            "passed": true
+          },
+          {
+            "name": "standing-after-one-hour",
+            "passed": true
+          },
+          {
+            "name": "deadline-before-and-at",
+            "passed": true
+          },
+          {
+            "name": "deadline-rejected",
+            "passed": true
+          },
+          {
+            "name": "maker-revoke-and-unrevoke",
+            "passed": true
+          },
+          {
+            "name": "dock-rejected",
+            "passed": true
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "artifactId": "23543f58-353d-4d8c-96dd-e32ef3a7ae48",
+          "revision": 4,
+          "current": true,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        },
+        {
+          "artifactId": "4d77d054-a1d2-4d94-b5b2-f7633e1355d4",
+          "revision": 3,
+          "current": false,
+          "programHash": "0x5df13416a5b13e92ec47b6a9a9fb86513a7a0126697401b70c4ec462535bede9",
+          "strategyHash": "0xaaa25a582d159c15842d29f0c692340657ce4cd9d5de18e7c94c5dc43ae2f7e3"
+        },
+        {
+          "artifactId": "f0fcbf45-bd36-47b3-8da9-645128675ee0",
+          "revision": 2,
+          "current": false,
+          "programHash": "0x6b400445409e02378962631b512dd0e4ce68447cb9a2f47e840484aa5b543629",
+          "strategyHash": "0xe0e0a3fb9e6b94debdf37b362db8e1733c057ad454b56978c1933e68a2114e6d"
+        }
+      ]
+    }
+  ]
+}

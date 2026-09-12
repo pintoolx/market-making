@@ -10,6 +10,8 @@ export interface DesignRepository {
   history(): Promise<unknown>
   compile?(requestId: string, expectedRevision: number): Promise<unknown>
   compilations?(): Promise<unknown>
+  simulate?(requestId: string, expectedRevision: number, artifactId: string): Promise<unknown>
+  simulations?(): Promise<unknown>
 }
 const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
   'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
@@ -146,10 +148,18 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         if (!repository.compile) throw new Error('preparation-unavailable')
         return repository.compile('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision)
       }) }),
-    inspectStrategy: tool({ description: 'Read authoritative current strategy state or its revision history. Use at the beginning of a turn and after conflicts; model text cannot establish completion.',
-      strict: true, inputSchema: z.object({ view: z.enum(['current','history','compilations']) }).strict(), execute: ({ view }) => safe(async () => {
+    simulateLifecycle: tool({ description: 'Queue a background lifecycle check for an immutable artifact of this Maker draft and revision. Returns a job reference, not a successful simulation. Inspect simulations in a later turn for the current result. A fork-with-overrides result uses synthetic local funds/report authority and does not authorize or submit public-chain transactions.',
+      strict: true, inputSchema: z.object({ artifactId: z.string(), expectedRevision: z.number().int().positive() }).strict(), execute: ({ artifactId, expectedRevision }, options) => safe(async () => {
+        const draft = await read()
+        if (draft.kind !== 'maker') throw new Error('maker-instance-required')
+        if (!repository.simulate) throw new Error('simulation-unavailable')
+        return repository.simulate('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision, artifactId)
+      }) }),
+    inspectStrategy: tool({ description: 'Read authoritative current state, revision history, compilations or background simulation status. Use at the beginning of a turn and after conflicts. Old or mock simulation results cannot establish current fork verification or wallet readiness.',
+      strict: true, inputSchema: z.object({ view: z.enum(['current','history','compilations','simulations']) }).strict(), execute: ({ view }) => safe(async () => {
         const draft = await read()
         if (view === 'compilations') return { draft: visibleDraft(draft), compilations: await repository.compilations?.() ?? [] }
+        if (view === 'simulations') return { draft: visibleDraft(draft), simulations: await repository.simulations?.() ?? [] }
         return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : visibleDraft(draft)
       }) }),
     exportStrategy: tool({ description: 'Export the current public draft as a portable non-executable specification. No private policy, signature or transaction is included. Executable artifact export requires the later compiler/simulation stage.',

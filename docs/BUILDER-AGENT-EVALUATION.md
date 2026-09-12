@@ -23,7 +23,7 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 
 ## Offline regression checks
 
-`pnpm typecheck:builder-service` passed. `pnpm test:builder-service` passed 28 tests using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
+`pnpm typecheck:builder-service` passed. The expanded `pnpm test:builder-service` suite passed 38 tests (one optional network test skipped) using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
 
 - Atomic/idempotent acceptance, owner isolation, strict client input and one active turn per draft.
 - Multiple workers, expired-lease recovery after a new pool, three-attempt limit, cancellation, and late worker rejection even when it supplies the latest draft revision.
@@ -35,6 +35,8 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 - Owned validation results and active-turn discovery for browser recovery.
 - Deterministic immutable Maker artifacts for all three curves, exact decoder equality, duplicate requests, ownership, edits/restores/manifest invalidation, partial/template rejection and cancelled worker authority.
 - Actual AI SDK compiler tool execution in the durable worker; compilation/list/read through the authenticated HTTP API.
+- Immutable owned simulation runs/results, shared budgets and active-work deduplication, queue claims/restarts/cancellation, stale revision/manifest invalidation, bounded retries, and lease expiry during a result transaction with atomic rollback.
+- Authenticated simulation HTTP endpoints and the eighth AI SDK tool; clients cannot provide RPC settings or upload successful results. Queue fixtures are explicitly `mock`.
 
 ## Incremental design and curve changes
 
@@ -48,12 +50,28 @@ The script asserts exact atomic caps, metadata, model parameters, deadline and a
 
 These Maker allocations are public fixture values; no wallet inventory was read and no chain transaction was sent. This verifies model-to-compiler delivery and revision integrity, not wallet funding, Provider instantiation or simulation success.
 
+## Model-driven simulation and repair
+
+`packages/builder-service/scripts/eval-simulation-agent.ts` passed five real OpenAI turns through signed local HTTP, the durable agent and a separate background fork worker. The initial complete Maker input uses a fresh unfunded identity and public fixture allocations. This builds on the earlier live design evaluations; it does not replace them with a prefilled form.
+
+| Turn | Verified behavior |
+|---|---|
+| 1 | Inspect/compile the current XYC draft and enqueue its actual artifact; the assistant distinguishes acceptance from completion. The separate worker persists a successful 25-case fork report |
+| 2 | Read the current result without editing or queueing again; explain that local fork success is not live CRE delivery or registration |
+| 3 | Change only the WETH swap cap to one atomic unit, preserve all other settings, compile and enqueue a new revision; the actual fork reports `UnsupportedSwap` during the initial settlement case |
+| 4 | Read the failed result, restore the cap to 0.005 WETH, preserve other settings and create fresh compilation/job references; the actual fork passes again |
+| 5 | Read the latest successful result and distinguish observed facts from possible causes of the earlier failure; identify the 25 tested cases rather than claim universal input coverage |
+
+Every turn asserts exact caps, allocations, curve, fee and deadline. Read-only turns preserve the entire draft. New revisions have exactly one current compilation and stale predecessors. The script checks actual job/report state, `fork-with-overrides` mode and `registrationReady: false`, rather than accepting model statements as proof. A first four-turn run also passed; its review led to clearer public error guidance and fewer internal IDs in replies.
+
+Ignored full evidence: `.cache/builder/live-simulation-agent-eval.json`. A compact public [evaluation record](builder-simulation/agent-evaluation.json) includes prompts, replies, revisions, tool status and execution outcomes. Only the local child fork receives transactions. The separate-process PostgreSQL/fork test also passed; final lease-write guards were additionally verified by the database fault-injection suite. No production business migration, live Privy login, funded-user signature, public-chain write or formal CRE delivery is included.
+
 ## Browser checks
 
 Python Playwright/Chromium drove the actual Builder component against a real local HTTP handler, PostgreSQL and durable worker. The identity and model were deterministic fixtures, isolated from application routes. The run passed wallet proof, visible streamed text, CLMM 2200–2800 creation, upper-bound-only change to 2700, all four caps preserved, restoration as new revision 4, cancellation, committed-request/lost-response recovery without duplicate messages, reload/reopen, session-expiry recovery and 390px mobile layout. No browser page errors were observed. Screenshots and the runnable fixture are described in the service README. The Next production build and scoped frontend lint passed.
 
 ## What remains outside this evidence
 
-These checks prove public design conversations, the service data/API path and the initial workspace against fixture identity/model. They do not prove live Privy browser sign-in, Provider publication, private policy handling, full twelve-tool workflow, simulator repair loops, Maker signing, Guard delivery, onchain settlement or deployment. XYC/CLMM/Pegged selection under live model evaluation still needs broader scenarios; a successful CLMM conversation is not complete coverage of the approved goal. No public-chain transaction, CRE upload/activation or Builder production rollout was performed.
+These checks prove public design conversations, the service data/API path, an initial workspace against fixture identity/model, and a real-model simulation/repair loop backed by actual isolated settlement. They do not prove live Privy browser sign-in, Provider publication, private policy handling, the full twelve-tool workflow, Maker signing, real Guard delivery, public-chain settlement or deployment. XYC/CLMM/Pegged selection under live model evaluation still needs broader scenarios; these evaluations are not complete coverage of the approved goal. No public-chain transaction, CRE upload/activation or Builder production rollout was performed.
 
 The API supports app-pinned Privy verification plus EOA wallet proof; production mounting must enable the Privy configuration. Responses `store: false` disables Responses storage; it is not a zero-data-retention guarantee.
