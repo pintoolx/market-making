@@ -14,6 +14,8 @@ PinTool uses ENSv2 on Ethereum Sepolia to discover signed Provider publications 
 
 The standard ENS fee token is distinct from Circle's Sepolia USDC used by Aqua. Platform setup does not approve Maker trading tokens. Public test funds are required for gas. The application does not possess a platform owner key.
 
+Registrar deployment estimates the exact constructor through the application's Sepolia RPC, adds a 20% gas-limit margin, and includes current EIP-1559 fee fields in the wallet confirmation request. This supports wallets whose own contract-creation fee estimation fails. Failed application-side estimation stops before requesting deployment. If a previous attempt was cancelled in the wallet, close that request, reload the updated app, and retry **Enable Provider registration** using the same wallet and browser; completed registration steps remain intact.
+
 ## Verification and data
 
 The ENS value is a single JSON text record, avoiding inconsistent reads across separate version/digest keys:
