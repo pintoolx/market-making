@@ -39,6 +39,7 @@ const makeConfig = (): Config =>
 		schedule: '0 */2 * * * *',
 		authorizedEVMAddress: '0x1111111111111111111111111111111111111111',
 		providerSecretId: 'PROVIDER_STRATEGY',
+		providerStrategies: [{ strategyHash: `0x${'6'.repeat(64)}`, secretId: 'PROVIDER_STRATEGY_DEFENSIVE' }],
 		makerSecretId: 'MAKER_LIMITS',
 		maker: '0x3333333333333333333333333333333333333333',
 		strategyHash: '0x4444444444444444444444444444444444444444444444444444444444444444',
@@ -54,6 +55,7 @@ const makeConfig = (): Config =>
 
 const makeFakeTeeRuntime = (secrets: Record<string, string> = {
 	PROVIDER_STRATEGY: JSON.stringify(PROVIDER),
+	PROVIDER_STRATEGY_DEFENSIVE: JSON.stringify({ ...PROVIDER, strategyId: 'defensive-unit-test-strategy' }),
 	MAKER_LIMITS: JSON.stringify(MAKER),
 }) => {
 	const logs: string[] = []
@@ -101,6 +103,17 @@ describe('onCronTrigger', () => {
 		onCronTrigger(runtime)
 
 		expect(secretCalls).toEqual([['PROVIDER_STRATEGY', 'MAKER_LIMITS']])
+	})
+
+	test('rejects a strategy hash without a configured Provider secret', () => {
+		const { runtime, secretCalls } = makeFakeTeeRuntime()
+		expect(() => onHttpTrigger(runtime, httpPayload({
+			requestId: 'mandate-unknown',
+			maker: '0x5555555555555555555555555555555555555555',
+			strategyHash: `0x${'7'.repeat(64)}`,
+			marketSnapshot: makeConfig().marketSnapshot,
+		}))).toThrow('No Provider secret is configured')
+		expect(secretCalls).toEqual([])
 	})
 
 	test('returns only public report fields and stays inside the enclave in dry-run', () => {
@@ -184,7 +197,7 @@ describe('onHttpTrigger', () => {
 			marketSnapshot: makeConfig().marketSnapshot,
 		}))
 
-		expect(secretCalls).toEqual([['PROVIDER_STRATEGY', 'MAKER_LIMITS']])
+		expect(secretCalls).toEqual([['PROVIDER_STRATEGY_DEFENSIVE', 'MAKER_LIMITS']])
 		expect(summary).toContain('requestId=mandate-01')
 		expect(summary).toContain('allowedDirections=3')
 		const report = logs.find((line) => line.includes('report={'))

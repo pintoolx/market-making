@@ -2,6 +2,12 @@
   "schedule": "0 */2 * * * *",
   "authorizedEVMAddress": "0x1111111111111111111111111111111111111111",
   "providerSecretId": "PROVIDER_STRATEGY",
+  "providerStrategies": [
+    {
+      "strategyHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+      "secretId": "PROVIDER_STRATEGY_DEFENSIVE"
+    }
+  ],
   "makerSecretId": "MAKER_LIMITS",
   "publishMode": "dry-run",
   "maker": "0x3333333333333333333333333333333333333333",

@@ -20,6 +20,11 @@ export const configSchema = z.object({
 	authorizedEVMAddress: hexAddress,
 	/** Logical secret ids declared in ../secrets.yaml. */
 	providerSecretId: z.string(),
+	/** Additional Aqua strategy hashes and their isolated Provider secrets. */
+	providerStrategies: z
+		.array(z.object({ strategyHash: hexBytes32, secretId: z.string().min(1) }))
+		.max(12)
+		.default([]),
 	makerSecretId: z.string(),
 	/** See src/publish.ts. Defaults to dry-run until pengu confirms the Guard. */
 	publishMode: z.enum(['dry-run', 'don-report', 'http-rpc']).default('dry-run'),
@@ -51,6 +56,14 @@ export const httpRequestSchema = z
 export type HTTPRequest = z.infer<typeof httpRequestSchema>
 
 type ExecutionInput = Pick<Config, 'providerSecretId' | 'makerSecretId' | 'maker' | 'strategyHash' | 'marketSnapshot'>
+
+const providerSecretFor = (config: Config, strategyHash: string): string => {
+	const normalized = strategyHash.toLowerCase()
+	const configured = config.providerStrategies.find((item) => item.strategyHash.toLowerCase() === normalized)
+	if (configured) return configured.secretId
+	if (config.strategyHash.toLowerCase() === normalized) return config.providerSecretId
+	throw new Error('No Provider secret is configured for this strategy hash')
+}
 
 /** Zod error → path + code only. Never echo the offending value of a secret. */
 const parseSecretJson = <S extends z.ZodTypeAny>(schema: S, raw: string, label: string): z.infer<S> => {
@@ -135,7 +148,7 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		throw new Error(`HTTP trigger payload failed schema validation (${issues})`)
 	}
 	const result = executeAuthorization(runtime, {
-		providerSecretId: runtime.config.providerSecretId,
+		providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash),
 		makerSecretId: runtime.config.makerSecretId,
 		maker: parsed.data.maker,
 		strategyHash: parsed.data.strategyHash,
