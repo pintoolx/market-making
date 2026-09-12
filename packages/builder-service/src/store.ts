@@ -5,6 +5,7 @@ import { contentDigest, digestJson, draftSchema, patchDraft, patchSchema, restor
   type StrategyDraft, type Diff } from '@pintool/strategy-builder'
 import { transaction } from './database.ts'
 import { conflict, notFound, ServiceError } from './errors.ts'
+import { assertTurnLease, supersedeTurns, type TurnLease } from './turn-lease.ts'
 
 const ownerSchema = z.string().regex(/^wallet:0x[0-9a-f]{40}$/)
 const createSchema = z.object({ title: z.string().min(1).max(120), kind: z.enum(['template', 'maker']) }).strict()
@@ -14,7 +15,7 @@ const messageSchema = z.object({ conversationId: idSchema, content: z.string().t
 interface DraftRow { snapshot: unknown; digest: string }
 
 /** Internal repository: owner is taken from a verified server session, never an HTTP body or model tool argument. */
-export function createStore(pool: Pool, profileId: string) {
+export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
   idSchema.parse(profileId)
 
   async function mutation<T>(owner: string, requestId: string, operation: string, input: unknown, work: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -40,6 +41,7 @@ export function createStore(pool: Pool, profileId: string) {
     if (!row) throw notFound()
     const draft = draftSchema.parse(row.snapshot)
     if (draft.owner !== owner || draft.id !== id || row.digest !== contentDigest(draft)) throw new ServiceError('stored-draft-integrity', 500)
+    if (lease && lock) await assertTurnLease(client as PoolClient, draft, lease)
     return draft
   }
   async function saveRevision(client: PoolClient, draft: StrategyDraft, diff: Diff[]) {
@@ -55,6 +57,9 @@ export function createStore(pool: Pool, profileId: string) {
     [draft.id, draft.owner, before.revision, JSON.stringify(draft), contentDigest(draft), draft.revision])
     if (saved.rowCount !== 1) throw conflict()
     await saveRevision(client, draft, diff)
+    if (lease) {
+      await client.query('UPDATE builder.agent_turns SET last_revision=$2 WHERE id=$1', [lease.turnId, draft.revision])
+    } else await supersedeTurns(client, draft.owner, draft.id)
     await client.query('UPDATE builder.conversations SET title=$3, updated_at=clock_timestamp() WHERE id=$1 AND owner=$2', [saved.rows[0].conversation_id, draft.owner, draft.spec.title])
     // Confirmations must also check their revision. Cancel only work that has not started;
     // running work reconciles its lease and revision before committing a result.
@@ -78,7 +83,9 @@ export function createStore(pool: Pool, profileId: string) {
         return { conversationId, draft }
       })
     },
-    get(owner: string, draftId: string) { return read(pool, owner, draftId) },
+    get(owner: string, draftId: string) {
+      return lease ? transaction(pool, client => read(client, owner, draftId, true)) : read(pool, owner, draftId)
+    },
     async list(owner: string) {
       ownerSchema.parse(owner)
       return (await pool.query(`SELECT c.id AS "conversationId", c.title, c.updated_at AS "updatedAt", d.id AS "draftId", d.revision::text
@@ -107,11 +114,16 @@ export function createStore(pool: Pool, profileId: string) {
     },
     async history(owner: string, draftId: string) {
       await read(pool, owner, draftId)
-      return (await pool.query('SELECT revision::text, digest, diff, created_at AS "createdAt" FROM builder.draft_revisions WHERE draft_id=$1 AND owner=$2 ORDER BY revision DESC LIMIT 100', [draftId, owner])).rows
+      const rows = (await pool.query('SELECT revision::text, digest, diff, created_at AS "createdAt" FROM builder.draft_revisions WHERE draft_id=$1 AND owner=$2 ORDER BY builder.draft_revisions.revision DESC LIMIT 100', [draftId, owner])).rows
+      // PostgreSQL timestamps are Date objects. Model tool results must be JSON values.
+      return rows.map(row => ({ revision: row.revision as string, digest: row.digest as string, diff: row.diff as Diff[], createdAt: (row.createdAt as Date).toISOString() }))
     },
     async appendUserMessage(owner: string, requestId: string, input: unknown) {
       const value = messageSchema.parse(input)
       return mutation(owner, requestId, 'message.user', value, async client => {
+        const draft = (await client.query('SELECT id FROM builder.drafts WHERE conversation_id=$1 AND owner=$2 FOR UPDATE', [value.conversationId, owner])).rows[0]
+        if (!draft) throw notFound()
+        await supersedeTurns(client, owner, draft.id)
         const conversation = (await client.query('SELECT id FROM builder.conversations WHERE id=$1 AND owner=$2 FOR UPDATE', [value.conversationId, owner])).rows[0]
         if (!conversation) throw notFound()
         const messageId = randomUUID()
@@ -128,7 +140,7 @@ export function createStore(pool: Pool, profileId: string) {
       const exists = await pool.query('SELECT id FROM builder.conversations WHERE id=$1 AND owner=$2', [conversationId, owner])
       if (!exists.rowCount) throw notFound()
       const rows = (await pool.query(`SELECT id,role,content,sequence::text,created_at AS "createdAt" FROM builder.messages
-        WHERE conversation_id=$1 AND owner=$2 AND ($3::bigint IS NULL OR sequence<$3::bigint) ORDER BY sequence DESC LIMIT 100`, [conversationId, owner, beforeSequence ?? null])).rows
+        WHERE conversation_id=$1 AND owner=$2 AND ($3::bigint IS NULL OR sequence<$3::bigint) ORDER BY builder.messages.sequence DESC LIMIT 100`, [conversationId, owner, beforeSequence ?? null])).rows
       return rows.reverse()
     },
   }
