@@ -1,29 +1,17 @@
-# Workflow → Guard report v1 (proposal)
+# GuardReportV1 specification
 
-**Status: proposal awaiting agreement between the workflow and contracts owners.** A [Guard prototype and synthetic-report testnet demo](https://github.com/pintoolx/market-making/pull/4) implement these defaults. Merging the proposal and prototype does not establish workflow agreement or prove CRE/TEE delivery. The executor import, interface proposal and prototype have separate commits and PRs.
 
-**2026-09-12 delivery decision:** the project owner selected DON report → forwarder → Guard, keeping this ABI for the first public transport test. The [CRE adapter](../workflow/guard-report/README.md) is implemented and tested offline; account access and actual delivery remain pending. This does not settle the future two-strategy mandate schema. See [version, authentication and privacy boundaries](CRE-GUARD-INTEGRATION.md).
+**Status: implemented.** The workflow encoder and `AquaGuardV2` share a golden 512-byte fixture. Ethereum Sepolia and local integration records verify the receiver and SwapVM enforcement path; production CRE delivery requires a receiver deployed with the final workflow identity.
 
 The confidential workflow produces public execution bounds from private inputs. The Guard receives those bounds through CRE and checks them during each SwapVM invocation. The Maker first approves a fixed strategy program and its public enforcement envelope, then ships that program from their wallet. New reports may vary execution within that envelope without authorizing a new program or another wallet transaction.
 
 Public bounds, envelopes and trades may reveal information about the original inputs when observed over time. Expiry only limits future use of that authorization; it does not remove history or guarantee resistance to inference.
 
-## Scope and pending decisions
+## Scope
 
-Proposed first integration: **Base Sepolia (84532), the pinned AquaSwapVMRouter v1.0.2, two standard mock ERC20s, exact-input swaps, XYC and zero pool fee**. This preserves the existing executor's curve while isolating the new report and Guard behavior. A PeggedSwap stablecoin demonstration can follow as a distinct template.
+The first supported integration uses Ethereum Sepolia, canonical WETH and Circle testnet USDC, the pinned AquaSwapVMRouter v1.0.2, exact-input swaps and zero protocol fees. Direction flags use the taker perspective. Limits apply per swap together with absolute post-swap inventory caps. Reports live for at most 600 seconds and use strictly increasing nonces.
 
-The workflow and contracts owners should resolve these points before connecting the confidential workflow to the prototype ABI:
-
-| Decision | Proposed value |
-|---|---|
-| First curve / pair | XYC with the existing mWETH / mUSDC test deployment; PeggedSwap is a subsequent template |
-| Direction naming | Always from the **taker**: token0 in / token1 out, or token1 in / token0 out |
-| Amount limit | Maximum amount of each token exchanged **per swap**, plus an absolute post-swap inventory cap; no cumulative budget counter in v1 |
-| Report lifetime | `validAfter <= block.timestamp < validUntil`, at most 600 seconds per report |
-| Revision / retry | Strictly increasing per-strategy nonce; identical retry is a no-op |
-| Demo delivery | CRE simulation with its documented mock forwarder, explicitly labelled as simulation; production identity validation uses a separate deployment profile |
-
-The existing prototype demo uses the project's own `GuardTestForwarder`, not Chainlink's mock forwarder or CRE CLI simulation. Its synthetic reports validate on-chain enforcement; the proposed CRE delivery above remains pending.
+`AquaGuardV2` stores reports by `(maker, strategyHash)` and maintains one active strategy hash per Maker. Accepting an enabled report for another strategy atomically switches the active strategy. A paused report clears the active hash only when it targets the currently active strategy.
 
 These choices do not define a percentage exposure rule or a guaranteed maximum loss. A workflow may derive conservative atomic-token caps from a private percentage rule, but that rule's ongoing valuation guarantee would need a separately specified on-chain valuation model. The imported off-chain HODL loss monitor remains a separate reaction mechanism.
 
@@ -38,7 +26,7 @@ The application envelope described by the [current architecture](ARCHITECTURE.md
 
 ## ABI payload
 
-`report` is standard **`abi.encode(GuardReportV1)`**, not JSON and not packed encoding. Every field occupies one 32-byte ABI word: this tuple is exactly **512 bytes**. [`guard-report-v1/abi.json`](guard-report-v1/abi.json) is the machine-readable ABI-parameter array for this proposal; [`guard-report-v1/example.json`](guard-report-v1/example.json) includes one synthetic input and its exact encoding.
+`report` is standard **`abi.encode(GuardReportV1)`**, not JSON and not packed encoding. Every field occupies one 32-byte ABI word: this tuple is exactly **512 bytes**. [`guard-report-v1/abi.json`](guard-report-v1/abi.json) is the machine-readable ABI-parameter array; [`guard-report-v1/example.json`](guard-report-v1/example.json) includes one synthetic input and its exact encoding.
 
 ```solidity
 struct GuardReportV1 {
@@ -96,17 +84,17 @@ Per-swap caps are **not** remaining cumulative budgets. Splitting an order into 
 
 ### Fee and encoding constraints
 
-The existing imported demo uses a 30 bps input-fee instruction. That instruction temporarily reduces `amountIn` while executing its remaining program and restores the gross input afterward. A Guard simply appended after the curve would therefore observe a net input and could undercount the Maker's incoming inventory. The proposed first Guard template uses **zero fee** until gross-amount accounting and rounding have separate tests. Do not append the new Guard to the existing fee-bearing bytecode and assume these formulas remain correct.
+The existing imported demo uses a 30 bps input-fee instruction. That instruction temporarily reduces `amountIn` while executing its remaining program and restores the gross input afterward. A Guard simply appended after the curve would therefore observe a net input and could undercount the Maker's incoming inventory. The first Guard template uses **zero fee** until gross-amount accounting and rounding have separate tests. Do not append the new Guard to the existing fee-bearing bytecode and assume these formulas remain correct.
 
-For the public envelope, proposed packed custom arguments are: version `uint8`, token0 `address`, token1 `address`, then the four `uint128` amount / post-balance caps in the same order as the report. This is 105 bytes, plus the 20-byte Guard target = 125 bytes, within the VM's one-byte instruction-argument length. Reports use the 512-byte ABI tuple; **do not put that whole tuple in an Extruction instruction**. Maker approval binds this public envelope, not a plaintext copy of the original private policy.
+For the public envelope, packed custom arguments are: version `uint8`, token0 `address`, token1 `address`, then the four `uint128` amount / post-balance caps in the same order as the report. This is 105 bytes, plus the 20-byte Guard target = 125 bytes, within the VM's one-byte instruction-argument length. Reports use the 512-byte ABI tuple; **do not put that whole tuple in an Extruction instruction**. Maker approval binds this public envelope, not a plaintext copy of the original private policy.
 
 An intervening report update may invalidate a prior quote. That swap should revert, and the taker must re-quote with its ordinary slippage / deadline protection. Missing data must never be treated as an unlimited report.
 
 These observations were checked against the pinned SwapVM commit `32c687c2b73101fc26549e48fa1ff8a4d73afbac`: [Extruction](https://github.com/1inch/swap-vm/blob/32c687c2b73101fc26549e48fa1ff8a4d73afbac/src/instructions/Extruction.sol), [VM registers / instruction encoding](https://github.com/1inch/swap-vm/blob/32c687c2b73101fc26549e48fa1ff8a4d73afbac/src/libs/VM.sol), [input fee](https://github.com/1inch/swap-vm/blob/32c687c2b73101fc26549e48fa1ff8a4d73afbac/src/instructions/Fee.sol), and [Aqua opcode table](https://github.com/1inch/swap-vm/blob/32c687c2b73101fc26549e48fa1ff8a4d73afbac/src/opcodes/AquaOpcodes.sol). Use `AquaOpcodes`, not the general router's `Opcodes` table.
 
-## Acceptance before the integration demo
+## Verification requirements
 
-- Both owners approve the fields, units, direction names, caps and delivery mode. Solidity decoding and workflow encoding match the shared fixture, and malformed / trailing data is rejected.
+- Solidity decoding and workflow encoding match the shared fixture, and malformed or trailing data is rejected.
 - An authorized fresh report changes Guard state. Wrong caller / identity / chain / Guard / router, bad token pair, nonce reuse with changed payload, older nonce, missing report and expiry all fail without changing valid state.
 - Maker approval binds the complete zero-fee guarded program and envelope. Tests reject unsupported fee-bearing templates; no execution path skips the Guard.
 - Real swaps in both directions transfer tokens. Exact cap equality succeeds; a one-unit amount or resulting inventory excess reverts. Report loosening cannot exceed the envelope.

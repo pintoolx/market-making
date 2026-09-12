@@ -16,9 +16,10 @@ const saltFor = (runId: string, revision: number) => BigInt(keccak256(stringToHe
  * maker approve -> ship -> taker swap -> [rebalance -> taker swap] -> dock -> revoke.
  * Every tx lands in records/<chainId>/<runId>.jsonl.
  */
-export async function runLifecycle(ctx: Ctx, d: Deployment, o: { rebalance?: boolean; runId?: string; recordsDir?: string } = {}) {
+export async function runLifecycle(ctx: Ctx, d: Deployment, o: { rebalance?: boolean; runId?: string; recordsDir?: string; template?: FixedTemplate } = {}) {
+  if (d.chainId !== ctx.chain.id || await ctx.pc.getChainId() !== ctx.chain.id) throw new Error('lifecycle chainId mismatch')
   const runId = o.runId ?? runStamp()
-  const t: FixedTemplate = readJson('params/fixed.json')
+  const t: FixedTemplate = o.template ?? readJson(ctx.chain.id === 11155111 ? 'params/sepolia.json' : 'params/fixed.json')
   const rec = recorder({ dir: o.recordsDir ?? RECORDS_DIR, runId, chainId: d.chainId, explorer: ctx.explorer })
   const started_at = new Date().toISOString()
   const strategies: { hash: string; params: unknown }[] = []

@@ -30,6 +30,9 @@ export const configSchema = z.object({
 	publishMode: z.enum(['dry-run', 'don-report', 'http-rpc']).default('dry-run'),
 	/** Maker wallet the report authorises (funds never leave it). */
 	maker: hexAddress,
+	/** Confirmed Ethereum Sepolia deployment; never reuse Base Sepolia addresses. */
+	guard: hexAddress,
+	router: hexAddress,
 	/** TODO(pengu): router.hash(order) of the Maker-approved guarded program. */
 	strategyHash: hexBytes32,
 	/**
@@ -103,8 +106,8 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 	const nowSec = Math.floor(runtime.now().getTime() / 1000)
 	const identity: ReportIdentity = {
 		chainId: GUARD_CONFIG.chainId,
-		guard: GUARD_CONFIG.guard,
-		router: GUARD_CONFIG.router,
+		guard: runtime.config.guard as `0x${string}`,
+		router: runtime.config.router as `0x${string}`,
 		maker: input.maker as `0x${string}`,
 		strategyHash: input.strategyHash as `0x${string}`,
 		token0: GUARD_CONFIG.token0,

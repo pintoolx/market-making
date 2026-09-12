@@ -86,10 +86,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const { published } = usePublishedListings();
   const { save } = useProposals();
   const [selected, setSelected] = useState<Listing[]>([]);
-  const [budget, setBudget] = useState('1000');
+  const [budget, setBudget] = useState('20');
   const [exposure, setExposure] = useState('60');
-  const [maxWethInventory, setMaxWethInventory] = useState('350');
-  const [maxTrade, setMaxTrade] = useState('100');
+  const [maxWethInventory, setMaxWethInventory] = useState('12');
+  const [maxTrade, setMaxTrade] = useState('1');
   const [validityMinutes, setValidityMinutes] = useState('10');
   const [phase, setPhase] = useState<Phase>('choose');
   const [mandate, setMandate] = useState<MandateState | null>(null);
@@ -235,7 +235,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         </fieldset>
         <Primary type="submit" disabled={!valid}>Review mandate</Primary>
       </form>
-      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>You can add other compatible strategies after activation.</li></ul><h3>Execution pair</h3><p>This strategy uses WETH / USDC liquidity through Aqua.</p></aside>
+      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>You can add other compatible strategies after activation.</li></ul><h3>Execution pair</h3><p>WETH / Circle testnet USDC on Ethereum Sepolia, through Aqua.</p></aside>
     </div>}
 
     {phase === 'review' && <div className={aqua.decisionGrid}>

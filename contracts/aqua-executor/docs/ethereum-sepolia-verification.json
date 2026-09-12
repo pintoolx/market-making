@@ -1,0 +1,347 @@
+{
+  "checkedAt": "2026-09-12T11:40:22.531Z",
+  "chainId": 11155111,
+  "blockNumber": "11688673",
+  "rpc": "https://sepolia.gateway.tenderly.co",
+  "sourceCommit": "170ffd8a595f60dc14f52f451c5e8746f68289bb",
+  "mode": "synthetic reports via project test harness; no CRE delivery or TEE attestation",
+  "verifiedDeploymentInputs": true,
+  "transactions": [
+    {
+      "action": "maker-approve",
+      "hash": "0xed3de8f1ae6891cb3334ef3e0bcd408e22fbd594287580455fb0104bce1c7d07",
+      "blockNumber": "11688631",
+      "status": "success"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0x9a3e5a6b0edb67777002f1bb844e02d4d8b5be53faf9cd69be1d68471614bc20",
+      "blockNumber": "11688632",
+      "status": "success"
+    },
+    {
+      "action": "ship",
+      "hash": "0xc806049106cc6456f57e80f1a989cc8264776804fd90f2980f84985793b9b622",
+      "blockNumber": "11688633",
+      "status": "success"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0x456ec33ce00afcb55a761f138c48576dd775f5d9c6f10db15a4d37385dace075",
+      "blockNumber": "11688634",
+      "status": "success"
+    },
+    {
+      "action": "swap",
+      "hash": "0x04e63db5e770d1f1b79230cca544e379b37e96af76a7264e7ce3aa88b41f3355",
+      "blockNumber": "11688635",
+      "status": "success"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0xa9511d31e2c223212a5c076a4b3f660016ff74a5e3816562990e04288404bf5b",
+      "blockNumber": "11688636",
+      "status": "success"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0x3219721d2c5cd65517696fcd4fdcea5f937115a39ea5967b53b6adba3ec436c1",
+      "blockNumber": "11688637",
+      "status": "success"
+    },
+    {
+      "action": "rebalance",
+      "hash": "0x32511ba7030e9156ffa09bf055e0f10e17856d36d81e006d935832ab6dd7db81",
+      "blockNumber": "11688638",
+      "status": "success"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0xc0411097303fb79992c5ae06b7a52f4f84273857f5e6be73721b25375c0967dc",
+      "blockNumber": "11688639",
+      "status": "success"
+    },
+    {
+      "action": "swap",
+      "hash": "0x633be16fbb86ca511032dfb29021206b39394b25b0d984995ddfe44258e97159",
+      "blockNumber": "11688640",
+      "status": "success"
+    },
+    {
+      "action": "dock",
+      "hash": "0x43ee3f93425cc5c7bd1a5904bd6862d038d42788e74811a054605067ed604619",
+      "blockNumber": "11688641",
+      "status": "success"
+    },
+    {
+      "action": "maker-revoke",
+      "hash": "0x44f4e93f4976ef99937c8dfe85c993789e174f12e1f7d99503b415a9603fae08",
+      "blockNumber": "11688642",
+      "status": "success"
+    },
+    {
+      "action": "maker-revoke",
+      "hash": "0x05d7c80a85ff938ad5ab542301408978970a696f1f271a036db625a99da3fd57",
+      "blockNumber": "11688643",
+      "status": "success"
+    },
+    {
+      "action": "deploy:GuardTestForwarder",
+      "hash": "0xe4ece168c9ac2c20104c5951365fd2ad73d32d2172eabeaeeaed1d48a068a2c5",
+      "blockNumber": "11688645",
+      "status": "success"
+    },
+    {
+      "action": "deploy:AquaGuardV2",
+      "hash": "0x720eef0961b45ed148abb413b0ee597930c48f12fb7087687f6a5c19f6218f87",
+      "blockNumber": "11688646",
+      "status": "success"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0x877e850d966e728449f11b041b6e974a76207b58aba4bec76adf0bc4800d2e6f",
+      "blockNumber": "11688647",
+      "status": "success"
+    },
+    {
+      "action": "maker-approve",
+      "hash": "0x2b7a723ed89aa2c4e27c0d1dfce871f0d1502aa31307265e8b689c26361dd6c2",
+      "blockNumber": "11688648",
+      "status": "success"
+    },
+    {
+      "action": "ship",
+      "hash": "0x4e19be72db2a82b1341ce10a724fbadb6236b4dac79c24cdd52e966a996d7d0c",
+      "blockNumber": "11688649",
+      "status": "success"
+    },
+    {
+      "action": "guard-report",
+      "hash": "0x5819ee9a0bc4267885ee72be9a84cabdd7270934d532a288740e6869f093bce4",
+      "blockNumber": "11688650",
+      "status": "success"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0xaeeb869a55bd1a8c7d4295d861af4d6fc7e3bcaec6bbe38a51e358d877a460ef",
+      "blockNumber": "11688651",
+      "status": "success"
+    },
+    {
+      "action": "swap",
+      "hash": "0x09b2a866a41dfbdccf0730fa07e6c88bd121e6a5b7fc099f8957e8c529b72ea8",
+      "blockNumber": "11688652",
+      "status": "success"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0xbb6ae92e66b371bbdfd3cc9dd00c1612f78e67fbc7a36012720f583976f1b65e",
+      "blockNumber": "11688653",
+      "status": "success"
+    },
+    {
+      "action": "swap",
+      "hash": "0x5604844be8f7c9e302d5afe498b32d1237fa75b6352b405265a26e3e14cb1a6e",
+      "blockNumber": "11688654",
+      "status": "success"
+    },
+    {
+      "action": "guard-report",
+      "hash": "0xe59dd7d834d55487741884cc0e90fa707b5fe51e68caa3c1d24e1e2df8a2be51",
+      "blockNumber": "11688655",
+      "status": "success"
+    },
+    {
+      "action": "taker-approve-for-rejection",
+      "hash": "0x0d1e8b671fc8b53194f3e6047f263079d0c2f271c58fffd56285df3022e44bd1",
+      "blockNumber": "11688656",
+      "status": "success"
+    },
+    {
+      "action": "swap-guard-rejected",
+      "hash": "0x8a91c65378536ef42c80221e4a031476c31fe8bf570f8728fa7feef3d81b6072",
+      "blockNumber": "11688657",
+      "status": "reverted"
+    },
+    {
+      "action": "taker-approve",
+      "hash": "0x4a11fc921a70134d743aeaa08ad8b5fe625bba10e01aa390a9d142f4be07b3d4",
+      "blockNumber": "11688658",
+      "status": "success"
+    },
+    {
+      "action": "swap",
+      "hash": "0x0cb908b3787eabff1e34d79e7244baebcfc2c153003fc00ab78539664492da67",
+      "blockNumber": "11688659",
+      "status": "success"
+    },
+    {
+      "action": "guard-report",
+      "hash": "0x4c58783c8d6f7bf7812993f831b2709a971911f4238c42f27440ddc14e8856f9",
+      "blockNumber": "11688660",
+      "status": "success"
+    },
+    {
+      "action": "dock",
+      "hash": "0xd1bb5599d5c7d81c291efcfdb0a50dba0af8c742de08ec74deee98c3c4bc2747",
+      "blockNumber": "11688661",
+      "status": "success"
+    },
+    {
+      "action": "maker-revoke",
+      "hash": "0x7737193f303ab10c1adcdc61470b1530c220c04c04de6fc6b0370b1238fd3012",
+      "blockNumber": "11688662",
+      "status": "success"
+    },
+    {
+      "action": "taker-revoke",
+      "hash": "0x3505b717e9304b1598b2566846a8f1e4a50eb15257da05581cee02f66ae6fe8e",
+      "blockNumber": "11688663",
+      "status": "success"
+    },
+    {
+      "action": "maker-revoke",
+      "hash": "0xecb5ccf7bbacd95c12d689f3a371924acf4c7c3881ecfc7ce27aa34aefc4de47",
+      "blockNumber": "11688665",
+      "status": "success"
+    },
+    {
+      "action": "taker-revoke",
+      "hash": "0x992538459dca69408ce4db300caf36e258df7bdfa7966e956e55d6fa5f3dfd84",
+      "blockNumber": "11688666",
+      "status": "success"
+    },
+    {
+      "action": "deploy:AquaSwapVMRouter",
+      "hash": "0xaa313cbcb5a6ebd9ac8f589c9caf12cf99c69f21be9d106af25075404d7aa40d",
+      "blockNumber": "11688618",
+      "status": "success"
+    },
+    {
+      "action": "deploy:AquaGuardV2",
+      "hash": "0x47635bddef44ba900f3d68564a75969b3ec049e083c8084f4c69af909f53d046",
+      "blockNumber": "11688619",
+      "status": "success"
+    },
+    {
+      "action": "fund-taker-eth",
+      "hash": "0xa32e37c6d8962d78f0719b0eacd00aa5acd0cc1a7f2a0fe417bdc84511ed11fd",
+      "blockNumber": "11688623",
+      "status": "success"
+    },
+    {
+      "action": "wrap-weth",
+      "hash": "0x1b3d709a32b2a121a060964cc974a3829ab69bdb39ac4593b9ca635d4b8598f5",
+      "blockNumber": "11688624",
+      "status": "success"
+    },
+    {
+      "action": "fund-taker-weth",
+      "hash": "0xd854d78fdfd82fbe01e648297150959068ef6a82d57ae4249ef6f26cde5d0d8d",
+      "blockNumber": "11688626",
+      "status": "success"
+    },
+    {
+      "action": "fund-taker-usdc",
+      "hash": "0xfd9d149ddeadbe16bd2808d36467c8092e043f3508710a3198d433791df7cff7",
+      "blockNumber": "11688628",
+      "status": "success"
+    }
+  ],
+  "gasSpentETH": "0.011059010734139363",
+  "rejection": {
+    "rpc": "https://sepolia.gateway.tenderly.co",
+    "hash": "0x8a91c65378536ef42c80221e4a031476c31fe8bf570f8728fa7feef3d81b6072",
+    "blockNumber": "11688657",
+    "status": "reverted",
+    "logs": 0,
+    "before": {
+      "aqua": [
+        "3897263256102029",
+        "10252769"
+      ],
+      "wallet": [
+        "4533626892465666",
+        "1466373107534334",
+        "36252769",
+        "3747231"
+      ]
+    },
+    "after": {
+      "aqua": [
+        "3897263256102029",
+        "10252769"
+      ],
+      "wallet": [
+        "4533626892465666",
+        "1466373107534334",
+        "36252769",
+        "3747231"
+      ]
+    },
+    "matchedRecordedBalances": true
+  },
+  "finalBalances": {
+    "maker": {
+      "address": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "ETH": "0.079304131147277263",
+      "WETH_atomic": "4633626892465666",
+      "USDC_atomic": "36006718"
+    },
+    "taker": {
+      "address": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "ETH": "0.003636858118583374",
+      "WETH_atomic": "1366373107534334",
+      "USDC_atomic": "3993282"
+    }
+  },
+  "allowances": [
+    {
+      "wallet": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "allowance": "0"
+    },
+    {
+      "wallet": "0x32f79282124eafc681601cdca2883c672c72d340",
+      "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+      "allowance": "0"
+    },
+    {
+      "wallet": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "spender": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "allowance": "0"
+    },
+    {
+      "wallet": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+      "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "spender": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "allowance": "0"
+    }
+  ],
+  "dockedStrategies": [
+    "0x65b50f279542c56b3f9f231051a411b6c4f099015183c58a744902f2e9b82640",
+    "0x0ea95eb84a4bdf455b145db4cd6ae8813569020662a8518cccef9494c01c13fa",
+    "0xf7a8d6b16f49fac2984271bc0d91822a808acddb2ee34067f1450c5634edfd5b"
+  ],
+  "codeHashes": {
+    "router": {
+      "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+      "hash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+    },
+    "creSimulationGuard": {
+      "address": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+      "hash": "0x4ea22c77adc7338a92a3a8a265c6142c3e6002bb2f4bcb58ae2d0a85a1c6613b"
+    },
+    "enforcementGuard": {
+      "address": "0x799782cb42ae0f2803ef3c6fd3a79e50c85177fa",
+      "hash": "0xd0d0d15c5c5df5d00a5ae5729df682ac84dcb21c32617c56e568b296464cb5ac"
+    },
+    "testForwarder": {
+      "address": "0x6326003d7bbc057ef29cdbf0779d0d1bf654711c",
+      "hash": "0xfb475c337d4ae9d8a74829a172a6c5be4f038e49905d29328d92983176aca3f6"
+    }
+  }
+}

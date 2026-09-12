@@ -2,7 +2,7 @@
 
 Status: active integration contract. This is PinTool's orchestration and status service, not an official Chainlink or 1inch endpoint. `NEXT_PUBLIC_MANDATE_API_URL` supplies its base URL.
 
-The implementation lives in `orchestrator/`. Its current defaults verify the existing Base Sepolia contract flow. It connects to the Chainlink and Aqua execution side through the stdin runner protocol and verifies report and activity receipts through an independent RPC. Maker policy is forwarded only to the confidential runner; it is never written to service state or ordinary logs. When the Ethereum Sepolia deployment is ready, the HTTP contract remains unchanged. Update the runner, chain ID, RPC and explorer settings together.
+The implementation lives in `orchestrator/`. It connects to Chainlink and Aqua through the runner protocol and verifies report and activity receipts through an independent Ethereum Sepolia RPC. Maker policy is forwarded only to the confidential runner; it is never written to service state or ordinary logs. Update the runner, chain ID, RPC and Explorer settings together.
 
 The frontend creates mandates and reads confirmed state and activity. Workflow and contract tooling drive market fixtures, CRE delivery and test-taker swaps; these are not exposed as product actions. The service must never present an expected outcome as confirmed evidence.
 
@@ -29,7 +29,7 @@ Raw Provider policy and Maker limits must use a verified confidential input path
 }
 ```
 
-`providerStrategyIds` must contain at least one entry; the product does not require exactly two. Initial onboarding submits the strategy chosen on its detail page. Makers may add compatible strategies later. The filmed ETHOnline flow uses the two fixtures above to demonstrate an authorization switch.
+`providerStrategyIds` must contain at least one entry; the product does not require exactly two. Initial onboarding submits the strategy chosen on its detail page. Makers may add compatible strategies later.
 
 The response must represent an initial report already accepted by the Guard:
 

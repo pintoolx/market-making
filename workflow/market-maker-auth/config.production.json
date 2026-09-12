@@ -13,11 +13,13 @@
   "maker": "0x3333333333333333333333333333333333333333",
   "strategyHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
   "marketSnapshot": {
-    "midPrice": "3000",
+    "midPrice": "2500",
     "volatilityBps": 120,
-    "balance0": "1000000000000000000",
-    "balance1": "4000000000",
+    "balance0": "4000000000000000",
+    "balance1": "10000000",
     "decimals0": 18,
     "decimals1": 6
-  }
+  },
+  "guard": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+  "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092"
 }

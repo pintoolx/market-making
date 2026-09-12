@@ -1,5 +1,17 @@
 # Delivery adapter verification — 2026-09-12
 
+## Ethereum Sepolia update
+
+The adapter now targets chain 11155111 and AquaGuardV2. Typechecks, **10 tests /
+76 assertions**, and WASM build pass. Preparation rejects Base bundles and
+noncanonical tokens. A read-only `setup:guard config` against deployed receiver
+`0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e` passed all immutable checks and generated
+a paused, unshipped probe. No CRE report was broadcast. The [asset migration run](../../contracts/aqua-executor/docs/ethereum-sepolia-demo.md)
+records public-chain deployment and synthetic-report enforcement separately.
+The evidence below describes the original Base adapter increment.
+
+## Original adapter checks
+
 This is local development evidence, not a CRE / TEE execution record.
 
 | Check | Result |

@@ -5,9 +5,9 @@ Everything onchain: the Guard contract, the SwapVM strategy that calls it, and d
 
 ## Available executor
 
-[`aqua-executor/`](aqua-executor/) contains the imported Aqua / SwapVM v1.0.2 executor: approve, ship, quote, swap, atomic rebalance, dock, off-chain loss monitoring and resumable JSON execution. Its Base Sepolia deployment and historical transaction records are included. Node 24 is required; tests use Anvil.
+[`aqua-executor/`](aqua-executor/) contains the imported Aqua / SwapVM v1.0.2 executor: approve, ship, quote, swap, atomic rebalance, dock, off-chain loss monitoring and resumable JSON execution. Its Ethereum Sepolia deployment and verified public transaction records are included. Node 24 is required; tests use Anvil.
 
-From the repository root, run `pnpm install --frozen-lockfile`, `pnpm typecheck:contracts` and `ANVIL=/path/to/anvil pnpm test:contracts`. See the [migration notes](../docs/AQUA-EXECUTOR-MIGRATION.md) for provenance, package commands and validation.
+From the repository root, run `pnpm install --frozen-lockfile`, `pnpm typecheck:contracts` and `ANVIL=/path/to/anvil pnpm test:contracts`. Package-specific commands and verification records are documented in the [executor README](aqua-executor/README.md).
 
 The executor supports **XYC, PeggedSwap and concentrated liquidity**, with zero-fee guarded variants. Guard v2 checks real Aqua inventory for concentrated pricing and enforces one active strategy hash per Maker. Explicit Guard recipes support durable JSON execution and recovery. A local controller previews or executes range/fee changes after strategy expiry, while retaining the original HODL loss benchmark. See [LP programs and automatic rollover](aqua-executor/docs/LP-STRATEGIES.md). New LP tests use local Anvil; public Guard v2 deployment and actual CRE delivery remain pending.
 

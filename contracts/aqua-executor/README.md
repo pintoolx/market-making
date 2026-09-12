@@ -2,7 +2,7 @@
 
 Execution side of the Strategy Provider × Maker market-making flow, built on **1inch Aqua + SwapVM**.
 
-This package now lives in the [PinTool Market Making workspace](../../README.md). Install dependencies with `pnpm install --frozen-lockfile` at the repository root. Run the package commands below from `contracts/aqua-executor/`; `npm run` also works with the workspace-installed dependencies. The original npm lock is retained only as a historical [source snapshot](docs/source-snapshots/risk-monitor-package-lock.json); the root `pnpm-lock.yaml` controls current installs. See [migration and implementation status](../../docs/AQUA-EXECUTOR-MIGRATION.md).
+This package now lives in the [PinTool Market Making workspace](../../README.md). Install dependencies with `pnpm install --frozen-lockfile` at the repository root. Run the package commands below from `contracts/aqua-executor/`; `npm run` also works with the workspace-installed dependencies. The root `pnpm-lock.yaml` controls current installs.
 
 **LP programs:** XYC, PeggedSwap and concentrated liquidity; each has a zero-fee guarded variant. [LP setup, explicit Guard JSON recipes and automatic expiry rollover](docs/LP-STRATEGIES.md) describe the new interfaces and local validation.
 
@@ -12,7 +12,7 @@ A strategy's parameters can arrive through the [TEE JSON request entry](docs/exe
 maker approve(Aqua) → Aqua.ship → taker router.swap → [Aqua.multicall(dock old, ship new)] → Aqua.dock → revoke
 ```
 
-**Base Sepolia verification:** 13 lifecycle transactions succeeded, including two swaps and an atomic rebalance. See the [deployment addresses and transaction evidence](docs/base-sepolia-demo.md) and the [confidential executor interface](docs/confidential-executor-interface.md).
+**Ethereum Sepolia verification:** the public run uses canonical WETH and Circle testnet USDC and includes a full lifecycle, guarded swaps and an expected onchain rejection. See the [deployment runbook](docs/ETHEREUM-SEPOLIA.md), [transaction evidence](docs/ethereum-sepolia-demo.md) and [confidential executor interface](docs/confidential-executor-interface.md).
 
 | Step | Signer | Call | What moves |
 |---|---|---|---|
