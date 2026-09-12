@@ -7,6 +7,7 @@ import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
 import { addMandateStrategy, createMandate, getMandate, type MandateState } from './mandateClient';
+import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
 import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
@@ -98,15 +99,37 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [error, setError] = useState('');
   const heading = useRef<HTMLHeadingElement>(null);
   const didNavigate = useRef(false);
+  const restoredMaker = useRef('');
+  const openingLinkedStrategy = useRef(false);
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('strategy');
     if (!id) return;
+    openingLinkedStrategy.current = true;
     const listing = [...readPublished(), ...FEATURED].find(item => item.id === id);
     if (listing) { setSelected([listing]); setPhase('detail'); }
     window.history.replaceState(null, '', '/maker');
   }, []);
+  useEffect(() => {
+    if (!account.address || restoredMaker.current === account.address.toLowerCase()
+      || openingLinkedStrategy.current) return;
+    restoredMaker.current = account.address.toLowerCase();
+    const reference = readMandateReference(account.address);
+    if (!reference) return;
+    let current = true;
+    setRefreshing(true);
+    getMandate(reference.mandateId)
+      .then(state => {
+        if (!current || state.maker.toLowerCase() !== account.address?.toLowerCase()) return;
+        setMandate(state);
+        setSelected([]);
+        setPhase('monitor');
+      })
+      .catch(() => { /* Keep the marketplace usable while the service is unavailable. */ })
+      .finally(() => { if (current) setRefreshing(false); });
+    return () => { current = false; };
+  }, [account.address]);
 
   const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))];
   const go = (next: Phase) => {
@@ -146,6 +169,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         },
       });
       setMandate(state);
+      saveMandateReference(state.maker, state.mandateId);
       selected.forEach(item => save({
         id: item.id,
         strategyName: item.name,
@@ -181,7 +205,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     if (!mandate || !selected[0]) return;
     go('submitting');
     try {
-      setMandate(await addMandateStrategy(mandate.mandateId, selected[0].id));
+      const state = await addMandateStrategy(mandate.mandateId, selected[0].id);
+      setMandate(state);
+      saveMandateReference(state.maker, state.mandateId);
       setExpanding(false);
       go('monitor');
     } catch (reason) {
