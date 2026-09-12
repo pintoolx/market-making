@@ -10,7 +10,7 @@ Everything onchain: the Guard contract, the SwapVM strategy that calls it, and d
 
 From the repository root, run `pnpm install --frozen-lockfile`, `pnpm typecheck:contracts` and `ANVIL=/path/to/anvil pnpm test:contracts`. See the [migration notes](../docs/AQUA-EXECUTOR-MIGRATION.md) for provenance, package commands and validation.
 
-The imported XYC program has no Guard instruction. Its JSON execution requests are local controller commands, not authenticated CRE reports. The Guard, workflow delivery and per-swap rejection demo described below remain to be implemented after agreeing the report format.
+The original XYC program remains available. A separate [Guard prototype](aqua-executor/docs/guard.md) adds report validation and a zero-fee XYC program with per-swap enforcement. Its tests and demo use a project-owned report harness. Workflow agreement and actual CRE delivery remain pending; the legacy JSON controller does not yet compile guarded orders.
 
 ## Scope
 
