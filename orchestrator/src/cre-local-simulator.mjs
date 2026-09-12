@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, resolve } from 'node:path';
+import { keccak256, stringToHex } from 'viem';
 
 function run(child, timeoutMs) {
   return new Promise((resolvePromise, reject) => {
@@ -44,14 +45,25 @@ export async function simulateCREWorkflow(config, payload, dependencies = {}) {
     const output = await (dependencies.runImpl ?? run)(makeChild(config.executable, args, {
       cwd: config.projectDir, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
     }), config.timeoutMs);
-    const unchanged = String(output ?? '').split('\n').map(line => {
+    const markers = String(output ?? '').split('\n').map(line => {
       const start = line.indexOf('{');
       if (start < 0) return null;
       try { return JSON.parse(line.slice(start)); } catch { return null; }
-    }).find(value => value?.kind === 'cre-authorization-unchanged');
+    });
+    const unchanged = markers.find(value => value?.kind === 'cre-authorization-unchanged');
     if (unchanged && (!/^0x[0-9a-f]{64}$/i.test(unchanged.reportDigest ?? '')
       || unchanged.strategyHash?.toLowerCase() !== payload.strategyHash.toLowerCase())) throw new Error('Invalid unchanged-authorization result');
-    return { workflowExecutionId: `local-simulation-${id}`, ...(unchanged ? { unchanged: true, reportDigest: unchanged.reportDigest } : {}) };
+    const scenario = markers.filter(value => value?.kind === 'cre-market-scenario');
+    if (config.scenarioId) {
+      const value = scenario[0], o = value?.observation;
+      if (scenario.length !== 1 || value.requestId !== payload.requestId
+        || value.strategyHash?.toLowerCase() !== payload.strategyHash.toLowerCase()
+        || o?.source !== 'synthetic-scenario' || o.scenarioId !== config.scenarioId
+        || o.maker !== payload.maker.toLowerCase() || o.chainId !== 11155111
+        || value.inputDigest !== keccak256(stringToHex(JSON.stringify(o)))) throw new Error('Missing or mismatched market scenario evidence');
+    } else if (scenario.length) throw new Error('Unexpected synthetic scenario in the live simulator');
+    return { workflowExecutionId: `local-simulation-${id}`, ...(unchanged ? { unchanged: true, reportDigest: unchanged.reportDigest } : {}),
+      ...(config.scenarioId ? { marketEvaluation: { ...scenario[0], kind: undefined } } : {}) };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

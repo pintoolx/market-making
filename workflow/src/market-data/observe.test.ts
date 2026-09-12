@@ -174,3 +174,19 @@ test("wrong token decimals and malformed contract return data cannot produce a s
   t.evm.callContract = () => ({ data: "" });
   expect(() => onCronTrigger(t.runtime)).toThrow();
 });
+
+test('named scenarios replace only market conditions and preserve real EVM balance acquisition', async () => {
+  const { acquireScenarioMarket } = await import('../market-scenarios');
+  const t = setup();
+  HttpActionsMock.testInstance().sendRequest = () => { throw new Error('Scenario must not impersonate a live HTTP feed'); };
+  const normal = acquireScenarioMarket(t.runtime, config.maker, 'normal-v1');
+  const stress = acquireScenarioMarket(t.runtime, config.maker, 'stress-v1');
+  expect(normal.market.volatilityBps).toBe(20);
+  expect(stress.market.volatilityBps).toBe(400);
+  expect(stress.market.balance0).toBe('4000000000000000');
+  expect(stress.market.balance1).toBe('10000000');
+  expect(stress.evidence.observation.blockNumber).toBe(HEIGHT.toString());
+  expect(stress.evidence.observation.source).toBe('synthetic-scenario');
+  expect(normal.evidence.inputDigest).not.toBe(stress.evidence.inputDigest);
+  expect(() => acquireScenarioMarket(t.runtime, config.maker, 'caller-custom')).toThrow();
+});

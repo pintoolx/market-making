@@ -15,3 +15,14 @@ production-settings:
       url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: ethereum-mainnet
       url: https://ethereum-rpc.publicnode.com
+
+# Operator-invoked synthetic scenarios; never a production target.
+normal-scenario-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+
+stress-scenario-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com

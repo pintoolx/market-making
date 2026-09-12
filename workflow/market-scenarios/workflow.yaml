@@ -1,0 +1,15 @@
+normal-scenario-settings:
+  user-workflow:
+    workflow-name: "pintool-sepolia-normal-scenario"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.normal.json"
+    secrets-path: "../secrets.yaml"
+
+stress-scenario-settings:
+  user-workflow:
+    workflow-name: "pintool-sepolia-stress-scenario"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.stress.json"
+    secrets-path: "../secrets.yaml"

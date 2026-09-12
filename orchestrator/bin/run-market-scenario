@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+import { runMarketScenario } from '../src/market-scenario-runner.mjs';
+
+const [mandateId, listingId, scenarioId, ...extra] = process.argv.slice(2);
+if (extra.length || !scenarioId) {
+  console.error('Usage: run-market-scenario <mandate-id> <listing-id> <normal-v1|stress-v1>');
+  process.exitCode = 1;
+} else {
+  runMarketScenario({ mandateId, listingId, scenarioId }).then(state => {
+    process.stdout.write(`${JSON.stringify(state)}\n`);
+  }).catch(() => {
+    // Underlying storage and workflow errors may contain confidential input; never print them.
+    console.error('Scenario execution or evidence verification failed. No success is claimed.');
+    process.exitCode = 1;
+  });
+}
