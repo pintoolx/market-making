@@ -41,7 +41,7 @@ Everything below was generated or substantially edited with the tools above, the
 
 ## Guard interface proposal
 
-OpenAI Codex assisted with `docs/GUARD-REPORT-V1.md`, the ABI and synthetic encoding fixture in `docs/guard-report-v1/`, and links from the contracts / workflow READMEs. The proposal was checked against the pinned SwapVM source and Chainlink consumer-contract documentation. It remains subject to the two owners' review; it is not an implemented Guard or evidence of confidential execution.
+OpenAI Codex assisted with `docs/GUARD-REPORT-V1.md`, the ABI and synthetic encoding fixture in `docs/guard-report-v1/`, and links from the contracts / workflow READMEs. The proposal was checked against the pinned SwapVM source and Chainlink consumer-contract documentation. It remains subject to the two owners' agreement; the separate Guard prototype implements the proposed defaults, and neither the proposal nor its synthetic demo establishes confidential execution.
 
 ## Existing code
 

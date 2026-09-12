@@ -1,6 +1,6 @@
 # Workflow → Guard report v1 (proposal)
 
-**Status: draft for the workflow and contracts owners to agree. This is not an implemented or approved protocol.** No Guard is deployed by this PR. The initial executor migration and this interface proposal are separate changes.
+**Status: proposal awaiting agreement between the workflow and contracts owners.** A [Guard prototype and synthetic-report testnet demo](https://github.com/pintoolx/market-making/pull/4) implement these defaults. Merging the proposal and prototype does not establish workflow agreement or prove CRE/TEE delivery. The executor import, interface proposal and prototype have separate commits and PRs.
 
 The confidential workflow produces public execution bounds from private inputs. The Guard receives those bounds through CRE and checks them during each SwapVM invocation. The Maker first approves a fixed strategy program and its public enforcement envelope, then ships that program from their wallet. New reports may vary execution within that envelope without authorizing a new program or another wallet transaction.
 
@@ -8,7 +8,7 @@ The confidential workflow produces public execution bounds from private inputs. 
 
 Proposed first integration: **Base Sepolia (84532), the pinned AquaSwapVMRouter v1.0.2, two standard mock ERC20s, exact-input swaps, XYC and zero pool fee**. This preserves the existing executor's curve while isolating the new report and Guard behavior. A PeggedSwap stablecoin demonstration can follow as a distinct template.
 
-The workflow and contracts owners should resolve these points before implementing the ABI:
+The workflow and contracts owners should resolve these points before connecting the confidential workflow to the prototype ABI:
 
 | Decision | Proposed value |
 |---|---|
@@ -18,6 +18,8 @@ The workflow and contracts owners should resolve these points before implementin
 | Report lifetime | `validAfter <= block.timestamp < validUntil`, at most 600 seconds per report |
 | Revision / retry | Strictly increasing per-strategy nonce; identical retry is a no-op |
 | Demo delivery | CRE simulation with its documented mock forwarder, explicitly labelled as simulation; production identity validation uses a separate deployment profile |
+
+The existing prototype demo uses the project's own `GuardTestForwarder`, not Chainlink's mock forwarder or CRE CLI simulation. Its synthetic reports validate on-chain enforcement; the proposed CRE delivery above remains pending.
 
 These choices do not define a percentage exposure rule or a guaranteed maximum loss. A workflow may derive conservative atomic-token caps from a private percentage rule, but that rule's ongoing valuation guarantee would need a separately specified on-chain valuation model. The imported off-chain HODL loss monitor remains a separate reaction mechanism.
 
