@@ -10,5 +10,8 @@
   },
   "bin": {
     "pintool-confidential-runner": "bin/confidential-http-runner"
+  },
+  "dependencies": {
+    "viem": "2.34.0"
   }
 }
