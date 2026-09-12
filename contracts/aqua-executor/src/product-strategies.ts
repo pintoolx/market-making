@@ -16,6 +16,12 @@ export interface ProductStrategy {
   strategy: Hex
 }
 
+export interface ProductSwap {
+  file: string
+  expected: 'success' | 'guard-rejection'
+  request: ExecutionRequest & { action: 'swap' }
+}
+
 type Recipe = {
   listingId: string
   name: string
@@ -66,9 +72,24 @@ export function buildProductStrategies(deployment: Deployment, maker: Hex): Prod
     const request: ProductStrategy['request'] = {
       schema: 'aqua-execution-v1', requestId: `ship-${MAKER_STRATEGY_RELEASE}-${index + 1}`,
       sessionId: `${MAKER_STRATEGY_RELEASE}-${index + 1}`, action: 'ship', strategy,
-      policy: { tokens: typedTokens, baselineAmounts: amounts, maxDrawdownBps: 500, maxPriceAgeSec: 3600 },
+      policy: { tokens: typedTokens, baselineAmounts: amounts, maxDrawdownBps: 500, maxPriceAgeSec: 86520 },
     }
     return { listingId: recipe.listingId, name: recipe.name, provider: 'PinTool Strategies', range: recipe.range,
       request, strategyHash: compiled.strategyHash, strategy: compiled.strategy }
   })
+}
+
+export function buildProductSwaps(strategies: ProductStrategy[]): ProductSwap[] {
+  const tight = strategies.find(item => item.listingId === 'featured-tight-market')
+  const defensive = strategies.find(item => item.listingId === 'featured-defensive-market')
+  if (!tight || !defensive) throw new Error('product swap plan requires Tight Market and Defensive Market')
+  const request = (item: ProductStrategy, requestId: string): ProductSwap['request'] => ({
+    schema: 'aqua-execution-v1', requestId, sessionId: item.request.sessionId, action: 'swap',
+    expectedStrategyHash: item.strategyHash, tokenIn: item.request.strategy.tokens[1]!, amountIn: '250000', slippageBps: 50,
+  })
+  return [
+    { file: '01-tight-market-active.swap.json', expected: 'success', request: request(tight, 'swap-tight-before-switch') },
+    { file: '02-defensive-market-active.swap.json', expected: 'success', request: request(defensive, 'swap-defensive-after-switch') },
+    { file: '03-tight-market-inactive.swap.json', expected: 'guard-rejection', request: request(tight, 'swap-tight-after-switch') },
+  ]
 }

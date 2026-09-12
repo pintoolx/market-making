@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadDeployment } from '../src/config.ts'
-import { buildProductStrategies, MAKER_STRATEGY_DEADLINE, MAKER_STRATEGY_RELEASE } from '../src/product-strategies.ts'
+import { buildProductStrategies, buildProductSwaps, MAKER_STRATEGY_DEADLINE, MAKER_STRATEGY_RELEASE } from '../src/product-strategies.ts'
 import { DEMO_ACCOUNTS, SEPOLIA } from '../src/sepolia.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -12,6 +12,9 @@ mkdirSync(output, { recursive: true })
 
 for (const item of strategies) {
   writeFileSync(join(output, `${item.listingId}.ship.json`), `${JSON.stringify(item.request, null, 2)}\n`)
+}
+for (const item of buildProductSwaps(strategies)) {
+  writeFileSync(join(output, item.file), `${JSON.stringify(item.request, null, 2)}\n`)
 }
 writeFileSync(join(output, 'catalog.json'), `${JSON.stringify({
   schema: 'pintool-aqua-strategy-catalog-v1', release: MAKER_STRATEGY_RELEASE,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { loadDeployment } from '../src/config.ts'
 import { parseExecutionRequest } from '../src/execution-request.ts'
-import { buildProductStrategies, MAKER_STRATEGY_DEADLINE } from '../src/product-strategies.ts'
+import { buildProductStrategies, buildProductSwaps, MAKER_STRATEGY_DEADLINE } from '../src/product-strategies.ts'
 import { DEMO_ACCOUNTS, SEPOLIA } from '../src/sepolia.ts'
 
 test('the Sepolia product catalog pins two guarded strategies sharing one Maker balance', () => {
@@ -18,4 +18,7 @@ test('the Sepolia product catalog pins two guarded strategies sharing one Maker 
   assert.ok(items.every(item => parseExecutionRequest(item.request).action === 'ship'))
   assert.ok(Number(items[0]!.range.min) > Number(items[1]!.range.min))
   assert.ok(Number(items[0]!.range.max) < Number(items[1]!.range.max))
+  const swaps = buildProductSwaps(items)
+  assert.deepEqual(swaps.map(item => item.expected), ['success', 'success', 'guard-rejection'])
+  assert.ok(swaps.every(item => parseExecutionRequest(item.request).action === 'swap'))
 })
