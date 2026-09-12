@@ -173,8 +173,8 @@ flowchart LR
 ### 固定情境
 
 - Pair：WETH／USDC。
-- Strategy A：Provider A 的 tight-spread、normal-market execution envelope。
-- Strategy B：Provider B 的 wide-spread、defensive execution envelope；Toxic-Flow Shield 是 B 的內部判斷內容。
+- Strategy A：Provider A 的 narrow-range WETH／USDC concentrated execution envelope。
+- Strategy B：Provider B 的 wide-range、lower-cap WETH／USDC concentrated execution envelope；Toxic-Flow Shield 只作為 B 的內部 regime 判斷內容。
 - Maker mandate：max single fill、max WETH inventory、max aggregate exposure、expiry。
 - Normal market：A active，B blocked；A 的真實 Aqua swap 成功，B 被 Guard revert。
 - Volatility rises：同一個 confidential workflow 產生新 sequence；A blocked，B active。

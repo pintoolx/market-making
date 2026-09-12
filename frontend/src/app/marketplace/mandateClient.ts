@@ -95,3 +95,10 @@ export async function getMandate(mandateId: string): Promise<MandateState> {
   const state = await request<MandateState>('/v1/mandates/' + encodeURIComponent(mandateId));
   return validateState(state);
 }
+
+export async function addMandateStrategy(mandateId: string, providerStrategyId: string): Promise<MandateState> {
+  const state = await request<MandateState>('/v1/mandates/' + encodeURIComponent(mandateId) + '/strategies', {
+    method: 'POST', body: JSON.stringify({ providerStrategyId }),
+  });
+  return validateState(state);
+}

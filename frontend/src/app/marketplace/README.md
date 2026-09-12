@@ -14,7 +14,7 @@
 Browser storage until a backend or the TEE takes over:
 
 - `publishedStore.ts` (`localStorage`): published strategies with author name, photo and performance fee. Private logic is never stored.
-- `proposalStore.ts` (`localStorage`): Maker proposals shown in Profile → Making.
+- `proposalStore.ts` (`localStorage`): local index written only after mandate creation succeeds, shown in Profile → Making. Durable mandate state still comes from the configured service.
 - Provider drafts (`sessionStorage`, this tab only): dropped once published.
 - `../profile/profileStore.ts` (`localStorage`): photo, name, bio and X handle per Privy user.
 

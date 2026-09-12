@@ -21,8 +21,10 @@ MVP 若只能使用 workflow owner 預先配置的 Vault DON secrets，必須如
 
 - Network：Ethereum Sepolia。
 - Pair：WETH／Circle testnet USDC。
-- Strategy A — Tight Market：Provider A 的窄 spread、normal-market execution envelope。
-- Strategy B — Defensive Market：Provider B 的寬 spread、低曝險 execution envelope。
+- Strategy A — Tight Market：WETH／USDC concentrated program；Provider A 在低波動狀態採較窄 price range，提高區間內資金效率。
+- Strategy B — Defensive Market：相同 pair 與 compiler 的 concentrated program；Provider B 採較寬 price range、較低 per-fill 與 inventory caps，承受較大價格移動時降低單筆曝險。
+
+兩套 definition 都使用 pinned SwapVM v1.0.2 的 Concentrate → XYC program、AquaGuardV2、零 LP fee 與同一個 Maker wallet。實際 sqrtPrice bounds 必須由錄影 market fixture 透過 `concentrationBounds()` 產生，不在前端手填。Guarded concentrated template 目前要求零 fee；Provider performance fee 不得混入 SwapVM LP fee。
 - Maker mandate：capital budget、maximum WETH exposure、maximum WETH inventory、maximum fill、expiry。
 - Base Sepolia 的 mWETH／mUSDC 部署只保留為歷史回歸證據與 fallback，不作 final filmed run。
 
@@ -80,7 +82,7 @@ MVP 若只能使用 workflow owner 預先配置的 Vault DON secrets，必須如
 
 ### 為什麼不能直接沿用 GuardReportV1
 
-目前 GuardReportV1 以 (maker, strategyHash) 分別更新策略。它可證明單一策略的方向與額度 enforcement，但無法用一筆狀態更新原子地切換 A／B。主 demo 需要 Maker-scoped activeStrategyHash，或一個可原子更新兩套狀態的 batch report。不得用兩筆彼此獨立的 report delivery 假裝沒有中間狀態。
+目前 AquaGuardV2／GuardReportV1 仍以 (maker, strategyHash) 分別更新 concentrated strategy。它可證明單一策略的方向與額度 enforcement，但無法用一筆狀態更新原子地切換 A／B。主 demo 需要 Maker-scoped activeStrategyHash，或一個可原子更新兩套狀態的 batch report。不得用兩筆彼此獨立的 report delivery 假裝沒有中間狀態。
 
 ## 前端狀態機
 
