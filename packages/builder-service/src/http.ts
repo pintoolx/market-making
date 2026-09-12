@@ -8,6 +8,7 @@ import { ServiceError } from './errors.ts'
 import { createTurns } from './turns.ts'
 import { createPrivyVerifier } from './privy.ts'
 import { createArtifacts } from './artifacts.ts'
+import { createSimulations } from './simulations.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -25,11 +26,12 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 })
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
-export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; privyAppId?: string },
+export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string },
   dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier> } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
+  const simulations = artifacts ? createSimulations(pool, sepoliaStandingProfile) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -89,14 +91,34 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
           return send(await turns.cancel(actor.owner, turn[1]!))
         }
       }
-      const artifact = route.match(/^\/artifacts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})$/)
+      const simulation = route.match(/^\/simulations\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/cancel)?$/)
+      if (simulation) {
+        if (!simulations) throw new ServiceError('profile-unavailable', 503)
+        if (!post && !simulation[2]) return send(await simulations.get(actor.owner, simulation[1]!))
+        if (post && simulation[2]) {
+          z.object({}).strict().parse(await readJson(request))
+          return send(await simulations.cancel(actor.owner, requestId as string, simulation[1]!))
+        }
+      }
+      const artifact = route.match(/^\/artifacts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/simulations)?$/)
       if (artifact && !post) {
         if (!artifacts) throw new ServiceError('profile-unavailable', 503)
-        return send(await artifacts.get(actor.owner, artifact[1]!))
+        if (!artifact[2]) return send(await artifacts.get(actor.owner, artifact[1]!))
       }
-      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts))?$/)
+      if (artifact?.[2] && post) {
+        if (!artifacts || !simulations) throw new ServiceError('profile-unavailable', 503)
+        if (!config.simulationEnabled) throw new ServiceError('simulation-unavailable', 503)
+        const body = z.object({ expectedRevision: z.number().int().positive() }).strict().parse(await readJson(request))
+        const owned = await artifacts.get(actor.owner, artifact[1]!)
+        return send(await simulations.start(actor.owner, requestId as string, { artifactId: artifact[1], draftId: owned.payload.draftId, ...body }), 202)
+      }
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if (!post && draft[3] === 'simulations') {
+          if (!simulations) throw new ServiceError('profile-unavailable', 503)
+          return send({ simulations: await simulations.list(actor.owner, draft[1]!) })
+        }
         if ((post && draft[3] === 'compile') || (!post && draft[3] === 'artifacts')) {
           if (!artifacts) throw new ServiceError('profile-unavailable', 503)
           if (!post) return send({ artifacts: await artifacts.list(actor.owner, draft[1]!) })

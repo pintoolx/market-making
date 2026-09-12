@@ -4,7 +4,7 @@ The Node adapter `aqua-executor/builder-simulation` recompiles the exact saved M
 
 This is **`fork-with-overrides` evidence**, with `registrationReady: false`. The upstream RPC is read-only. The child forks the deployed Aqua/router/Guard and canonical WETH/USDC; local impersonation provides synthetic funds, Maker/Taker signatures and forwarder authority. No real wallet funding, signed CRE report, DON/TEE attestation or public transaction is proven. Two virtual-inventory stress cases also impersonate the router locally to exhaust an Aqua balance through `pull`; they do not claim the deployed router exposes that action to a user.
 
-The user-controlled public draft supplies the pair, curve, allocation, deadline, salt and immutable caps. RPC URL, Anvil executable, profile and historical block selection are trusted worker configuration, never model or HTTP request fields. The adapter is not yet mounted in the API, durable job queue or agent tools.
+The user-controlled public draft supplies the pair, curve, allocation, deadline, salt and immutable caps. RPC URL, Anvil executable, profile and historical block selection are trusted worker configuration, never model or HTTP request fields. The [service adapter](../packages/builder-service/README.md#background-lifecycle-worker) now provides durable jobs, authenticated API, an agent tool and a dedicated process; production mounting and the Maker simulation UI remain pending.
 
 ## Current matrix
 
@@ -49,6 +49,6 @@ Every fork has a five-minute abort budget. Completion, failure and cancellation 
 
 ## Evidence and remaining work
 
-The committed [acceptance records](builder-simulation/) preserve public fixture inputs and complete results. These run deployed Sepolia bytecode on a local fork. Source-to-runtime rebuilding, full curve/range/extreme-input coverage, real-context funding/allowances and live Sepolia delivery remain separate gates. Durable simulation leases/results/API/tools/UI, previews, wallet plans and cloud worker rollout are still pending; successful standalone evaluation does not complete those items.
+The committed [acceptance records](builder-simulation/) preserve public fixture inputs and complete results. These run deployed Sepolia bytecode on a local fork. Source-to-runtime rebuilding, full curve/range/extreme-input coverage, real-context funding/allowances and live Sepolia delivery remain separate gates. Durable simulation leases/results/API/tool/process integration is implemented and tested; Maker simulation UI, previews, wallet plans and cloud worker rollout remain pending.
 
 The time-control RPC is documented in [Foundry's API](https://foundry-rs.github.io/foundry/anvil/eth/api/struct.EthApi.html#method.evm_set_block_timestamp_interval). Circle's [UpgradeabilityProxy source](https://github.com/circlefin/stablecoin-evm/blob/master/contracts/upgradeability/UpgradeabilityProxy.sol) defines the legacy implementation slot used by the verifier. The pinned Aqua source defines `ship`, `dock` and `pull`; the pinned SwapVM Controls source accepts timestamps equal to the deadline. Runtime acceptance, source pins and synthetic setup are recorded separately.
