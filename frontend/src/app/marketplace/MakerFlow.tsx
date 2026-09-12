@@ -22,7 +22,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[0],
     mine: false,
     provider: 'PinTool Strategies',
-    providerAvatar: '/logo.svg',
+    providerAvatar: '/pintoolAvatar.svg',
   },
   {
     id: 'featured-defensive-market',
@@ -31,7 +31,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[0],
     mine: false,
     provider: 'PinTool Strategies',
-    providerAvatar: '/logo.svg',
+    providerAvatar: '/pintoolAvatar.svg',
   },
   {
     id: 'featured-adaptive-range',
@@ -40,7 +40,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[1],
     mine: false,
     provider: 'PinTool Strategies',
-    providerAvatar: '/logo.svg',
+    providerAvatar: '/pintoolAvatar.svg',
   },
   {
     id: 'featured-wide-range',
@@ -49,7 +49,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[1],
     mine: false,
     provider: 'PinTool Strategies',
-    providerAvatar: '/logo.svg',
+    providerAvatar: '/pintoolAvatar.svg',
   },
   {
     id: 'featured-inventory-recovery',
@@ -58,7 +58,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[4],
     mine: false,
     provider: 'PinTool Strategies',
-    providerAvatar: '/logo.svg',
+    providerAvatar: '/pintoolAvatar.svg',
   },
   {
     id: 'featured-flow-decay',
@@ -67,7 +67,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[3],
     mine: false,
     provider: 'PinTool Strategies',
-    providerAvatar: '/logo.svg',
+    providerAvatar: '/pintoolAvatar.svg',
   },
 ];
 
@@ -253,7 +253,7 @@ function StrategyDetail({ listing, onUse }: { listing: Listing; onUse: () => voi
         <div><span>Pair</span><strong>WETH / USDC</strong></div>
         <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
         <div><span>Custody</span><strong>Maker wallet</strong></div>
-        <div><span>Private input</span><strong>{listing.template.privateInputs}</strong></div>
+        <div><span>Proprietary model</span><strong>{listing.template.privateInputs}</strong></div>
       </div>
       <h3>Risk to understand</h3>
       <p>{listing.template.risk}</p>
