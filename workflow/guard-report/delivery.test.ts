@@ -23,12 +23,13 @@ function setup(transport: typeof simulation | typeof production = simulation, pa
   const evm = EvmMock.testInstance(chainSelector)
   // JSON artifacts cannot retain literal ABI names in TypeScript. The mock still dispatches against the real artifact ABI.
   const guard = addContractMock(evm, { address: config.publicReport.guard, abi: receiverAbi }) as ReturnType<typeof addContractMock> &
-    Partial<Record<'forwarder' | 'router' | 'simulationMode' | 'workflowId' | 'workflowOwner' | 'getReport', (...args: readonly unknown[]) => unknown>>
+    Partial<Record<'forwarder' | 'router' | 'simulationMode' | 'workflowId' | 'workflowOwner' | 'getReport' | 'activeStrategyHash', (...args: readonly unknown[]) => unknown>>
   guard.forwarder = () => config.transport.forwarder
   guard.router = () => config.publicReport.router
   guard.simulationMode = () => config.transport.profile === 'cre-simulation'
   guard.workflowId = () => config.transport.workflowId
   guard.workflowOwner = () => config.transport.workflowOwner
+  guard.activeStrategyHash = () => zeroHash
   const encoded = encodePublicReport(config.publicReport)
   guard.getReport = () => [Object.fromEntries(Object.entries(encoded.report).map(([key, value]) => [key,
     ['schemaVersion', 'chainId', 'nonce', 'validAfter', 'validUntil', 'allowedDirections'].includes(key) || key.startsWith('max') ? BigInt(value) : value])), encoded.digest]
@@ -94,6 +95,13 @@ test('expired, future and wrong-chain reports fail before report delivery', () =
     expect(() => onCron(t.runtime)).toThrow('not current')
   }
   expect(() => submitPublicReport(t.runtime, { ...report, chainId: '84532' }, simulation)).toThrow('Ethereum Sepolia only')
+  expect(t.writes()).toBe(0)
+})
+
+test('older V2 receivers without active strategy enforcement fail before any write', () => {
+  const t = setup()
+  t.guard.activeStrategyHash = () => { throw new Error('unknown selector') }
+  expect(() => onCron(t.runtime)).toThrow('Maker-scoped active strategies')
   expect(t.writes()).toBe(0)
 })
 

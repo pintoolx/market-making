@@ -5,7 +5,7 @@
  * `config/guard.ts`; nothing else in workflow/ needs to change when the
  * delivery path is finalised.
  *
- * Facts this file is built on (see docs/authorization-format.md §Delivery):
+ * Facts this file is built on (see docs/AUTHORIZATION-FORMAT.md §Delivery):
  *  - `EVMClient.writeReport()` accepts only a DON `Runtime`, never a
  *    `TeeRuntime` (SDK 1.18.0 type signatures) → the enclave cannot write to the
  *    chain directly; it must cross back with `runtime.usingTheDons()`.
@@ -15,7 +15,9 @@
  *    interface and trusts the Keystone forwarder by address, which is exactly
  *    what `writeReport()` delivers through (option B below).
  */
-import { bytesToHex, EVMClient, getNetwork, hexToBase64, TxStatus, type TeeRuntime } from '@chainlink/cre-sdk'
+import { bytesToHex, encodeCallMsg, EVMClient, getNetwork, hexToBase64, LATEST_BLOCK_NUMBER, TxStatus, type TeeRuntime } from '@chainlink/cre-sdk'
+import { EVM_PB } from '@chainlink/cre-sdk/pb'
+import { decodeFunctionResult, encodeFunctionData, parseAbi, zeroAddress } from 'viem'
 import { GUARD_CONFIG } from './config/guard'
 import { encodeGuardReportV1, guardReportV1Hash, guardReportV1ToJson } from './encode'
 import type { Authorization } from './types'
@@ -28,6 +30,10 @@ export type PublishResult = {
 }
 
 type PublishConfig = { publishMode?: PublishMode }
+export const receiverCapabilitiesAbi = parseAbi([
+	'function router() view returns (address)',
+	'function activeStrategyHash(address maker) view returns (bytes32)',
+])
 
 /**
  * Deliver an authorization to the Guard. Returns `{ txHash }` when something
@@ -73,6 +79,17 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 			//   3. GUARD_CONFIG.writeReportGasLimit covers onReport's storage writes.
 			//   4. Which private key funds the broadcast (CRE_ETH_PRIVATE_KEY in .env).
 			const donRuntime = runtime.usingTheDons()
+			const network = getNetwork({ chainFamily: 'evm', chainSelectorName: GUARD_CONFIG.chainSelectorName, isTestnet: true })
+			if (!network) throw new Error(`unknown network ${GUARD_CONFIG.chainSelectorName}`)
+			const evm = new EVMClient(network.chainSelector.selector)
+			const read = (functionName: 'router' | 'activeStrategyHash', args: readonly [] | readonly [`0x${string}`]) => {
+				const reply = evm.callContract(donRuntime, { call: encodeCallMsg({ from: zeroAddress, to: result.report.guard,
+					data: encodeFunctionData({ abi: receiverCapabilitiesAbi, functionName, args }) }), blockNumber: LATEST_BLOCK_NUMBER }).result()
+				return decodeFunctionResult({ abi: receiverCapabilitiesAbi, functionName, data: bytesToHex(reply.data) })
+			}
+			if (read('router', []).toLowerCase() !== result.report.router.toLowerCase()) throw new Error('Guard router does not match the report domain')
+			try { read('activeStrategyHash', [result.report.maker]) }
+			catch { throw new Error('Guard must support Maker-scoped active strategies; replace the earlier V2 receiver') }
 			const signed = donRuntime
 				.report({
 					encodedPayload: hexToBase64(encoded),
@@ -82,14 +99,7 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 				})
 				.result()
 
-			const network = getNetwork({
-				chainFamily: 'evm',
-				chainSelectorName: GUARD_CONFIG.chainSelectorName,
-				isTestnet: true,
-			})
-			if (!network) throw new Error(`unknown network ${GUARD_CONFIG.chainSelectorName}`)
-
-			const write = new EVMClient(network.chainSelector.selector)
+			const write = evm
 				.writeReport(donRuntime, {
 					receiver: result.report.guard,
 					report: signed,
@@ -97,10 +107,11 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 				})
 				.result()
 
-			if (write.txStatus !== TxStatus.SUCCESS) {
-				throw new Error(`writeReport failed: status=${write.txStatus} ${write.errorMessage ?? ''}`)
+			if (write.txStatus !== TxStatus.SUCCESS || write.receiverContractExecutionStatus !== EVM_PB.ReceiverContractExecutionStatus.SUCCESS ||
+				write.txHash?.length !== 32 || write.txHash.every(n => n === 0)) {
+				throw new Error('writeReport lacks a successful receiver receipt; inspect the transaction before retrying')
 			}
-			return { txHash: write.txHash ? bytesToHex(write.txHash) : undefined }
+			return { txHash: bytesToHex(write.txHash) }
 		}
 
 		case 'http-rpc': {

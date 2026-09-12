@@ -69,6 +69,8 @@ async function prepare() {
     throw new Error('Guard must use the pinned router and official CRE simulation forwarder with zero workflow identity')
   }
   const [oldReport] = stored[5] as [{ nonce: bigint }, Hex]
+  try { await read('activeStrategyHash', [config.publicReport.maker]) }
+  catch { throw new Error('Guard must support Maker-scoped active strategies; replace the earlier V2 receiver') }
   if (oldReport.nonce >= BigInt(values.nonce)) throw new Error('Nonce is already used; inspect the prior delivery and retain its original config for retry')
   config = smokeConfig(deployment, values.guard, values.maker, values.nonce, Number((block as { timestamp: bigint }).timestamp))
   requireCurrent(config.publicReport, Math.floor(Date.now() / 1000))

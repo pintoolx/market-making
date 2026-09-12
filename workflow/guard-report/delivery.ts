@@ -34,6 +34,9 @@ export function submitPublicReport(runtime: Runtime<unknown>, publicInput: unkno
   if (configured.some((value, i) => typeof value === 'string' ? value.toLowerCase() !== wanted[i] : value !== wanted[i])) {
     throw new Error('Guard immutable configuration does not match the requested delivery profile')
   }
+  // Older V2 deployments share the report ABI but cannot enforce one active strategy per Maker.
+  try { read('activeStrategyHash', [report.maker]) }
+  catch { throw new Error('Guard must support Maker-scoped active strategies; replace the earlier V2 receiver before delivery') }
   const signed = runtime.report({ encodedPayload: hexToBase64(payload), encoderName: 'evm', signingAlgo: 'ecdsa', hashingAlgo: 'keccak256' }).result()
   const receipt = evm.writeReport(runtime, {
     receiver: report.guard, report: signed, gasConfig: { gasLimit: expected.gasLimit },

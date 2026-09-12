@@ -12,5 +12,9 @@
     "revision": "maker-active-v1",
     "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
     "profile": "cre-simulation"
-  }
+  },
+  "guardRelease": "guard-v2-3c333717f347",
+  "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "workflowOwner": "0x0000000000000000000000000000000000000000",
+  "sourceCommit": "c15642de33a87d97042a88b4311642a7204fab6c"
 }

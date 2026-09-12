@@ -29,7 +29,7 @@ An accepted report is only an authorization. It cannot transfer Maker assets or 
 
 Receiver identity is immutable. Each profile requires its own Guard deployment. Never configure a simulation forwarder as a production trust root.
 
-The checked-in [Ethereum Sepolia deployment](../contracts/aqua-executor/deployments/11155111.json) uses canonical WETH, Circle testnet USDC and the CRE simulation forwarder. Its [public run](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md) proves the Aqua lifecycle, successful guarded swaps and an onchain rejection. That receiver was deployed before Maker-scoped atomic strategy switching was added and did not receive a CRE report; it is execution evidence rather than production confidential-workflow evidence. Deploy the current `AquaGuardV2` artifact for the integrated product flow.
+The checked-in [Ethereum Sepolia deployment](../contracts/aqua-executor/deployments/11155111.json) uses canonical WETH, Circle testnet USDC and the CRE simulation forwarder. The [historical public run](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md) proves the Aqua lifecycle, successful guarded swaps and an onchain rejection with an earlier receiver. The current simulation receiver is `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`, with Maker-scoped active strategies. Its [separate replacement proof](../contracts/aqua-executor/docs/ethereum-sepolia-guard-revision.json) verifies creation input, immutable identity and empty active-strategy state through two RPCs. Neither run delivered a real CRE report. Production requires its own assigned workflow identity.
 
 ## Version compatibility
 

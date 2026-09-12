@@ -23,7 +23,10 @@ The build writes `.cache/guard-report.wasm`. The SDK downloads a checksum-verifi
 
 The team currently has no CRE account / Confidential Workflows access. These are instructions for a future run, **not completed chain evidence**. Start with [account creation](https://docs.chain.link/cre/account/creating-account), install [CRE CLI](https://docs.chain.link/cre/getting-started/cli-installation/macos-linux) v1.33.0, log in with `cre login`, and confirm `cre whoami`. Real confidential execution separately needs [Confidential Workflows access](https://docs.chain.link/cre/account/confidential-workflows-access).
 
-1. Build the WASM before preparing the short-lived report. The [Sepolia setup](../../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) writes `deployments/11155111.json` and already deploys a simulation AquaGuardV2. Use its `guard.address` in step 2. If preparing an additional receiver instead, generate a reviewable unsigned Guard V2 creation:
+1. Build the WASM before preparing the short-lived report. The [Sepolia setup](../../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) writes `deployments/11155111.json` and already deploys a simulation AquaGuardV2. Use its current `guard.address` in step 2; earlier V2 receivers without
+Maker-scoped active-strategy support are rejected. Existing installations can
+replace only the receiver with `pnpm sepolia upgrade-guard --execute`, retaining
+the original state directory. If preparing an additional receiver instead, generate a reviewable unsigned Guard V2 creation:
 
    ```bash
    bun run setup:guard deployment

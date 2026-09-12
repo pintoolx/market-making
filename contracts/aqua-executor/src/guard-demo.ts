@@ -65,9 +65,11 @@ export async function runGuardDemo(ctx: Ctx, d: Deployment, recordsDir = RECORDS
     const digest = keccak256(encodeGuardReport(report))
     const stored = await ctx.pc.readContract({ address: guard, abi: receiver.abi, functionName: 'getReport', args: [s.params.maker, s.strategyHash] }) as [GuardReport, Hex]
     assert.equal(stored[1], digest)
-    const log = receipt.logs.find(l => l.address.toLowerCase() === guard.toLowerCase())!
-    const event = decodeEventLog({ abi: receiver.abi, data: log.data, topics: log.topics })
-    assert.equal(event.eventName, 'ReportAccepted')
+    // V2 can emit ActiveStrategyChanged before ReportAccepted on activation/pause.
+    const event = receipt.logs.filter(l => l.address.toLowerCase() === guard.toLowerCase())
+      .map(l => decodeEventLog({ abi: receiver.abi, data: l.data, topics: l.topics }))
+      .find(e => e.eventName === 'ReportAccepted')
+    assert.ok(event, 'missing ReportAccepted event')
     rec.write({ kind: 'guard-report', mode, report, digest, tx_hash: receipt.transactionHash, event })
     reportHashes.push(receipt.transactionHash)
   }
