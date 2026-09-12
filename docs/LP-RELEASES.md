@@ -1,6 +1,6 @@
 # Versioned CLMM publication and readiness
 
-This is the first integration stage from [GUARD-REPORT-V1.md](GUARD-REPORT-V1.md), not completion of all six templates or automatic Maker onboarding. It adds a signed publication registry, a shared executable envelope, a compiler adapter, approved policy/version bindings, and live readiness checks. The existing executor journal still owns approvals, ship, swap, recovery, monitoring and dock.
+Signed Provider releases connect to Maker wallet activation, confidential authorization and live readiness checks. The browser supports token approvals and Aqua registration for the configured Maker wallet. The executor also supports swap, recovery, monitoring and dock; activating a range does not imply that every template or all Maker wallets are supported.
 
 ## Provider publication
 
@@ -18,11 +18,14 @@ Public list/history responses omit the ciphertext, signature and private rule. R
 | `GET /v1/provider-strategies` | Latest public versions, including withdrawal state |
 | `GET /v1/provider-strategies/:id/versions/:version` | An immutable public version |
 | `POST /v1/provider-strategies` | `{release, envelope, signature}`; publish/update/withdraw by signed next version |
-| `GET /v1/strategies` | Operator-provisioned Maker programs; saving a publication does not add one |
+| `GET /v1/strategies` | Configured programs plus chain-confirmed Maker activations; publication alone does not add one |
+| `POST /v1/activations` | Prepare unsigned execution bytes for a selected release and allocation |
+| `GET /v1/activations/:id` | Restore the public activation and current funding/approval state |
+| `POST /v1/activations/:id/confirm` | Verify the Maker-signed ship transaction and register its execution binding |
 
 Withdrawal removes that version and all preceding versions from new provisioning/evaluation. Publishing a later version does not revive those older approvals. It **does not send a transaction**, revoke an already accepted report or dock assets. Standing onchain permissions persist until an explicit Guard update, revocation or dock; bounded legacy permissions also stop at report expiry. Registry withdrawal alone does not revoke standing authorization. An existing Maker stays pinned to a version; updating a Provider listing cannot retarget that Maker's program silently.
 
-Encryption here protects browser-to-service policy transport/storage, but does not prove enclave custody. The configured local CRE simulator's operator can access decrypted inputs. Real DON/TEE deployment and enrollment remain separate; no workflow deployment or secret upload was performed for this change. The mandate service is operator-managed; permissionless automated provisioning is not implemented.
+Encryption here protects browser-to-service policy transport/storage, but does not prove enclave custody. The configured local CRE simulator's operator can access decrypted inputs. Real DON/TEE deployment and enrollment remain separate; no workflow deployment or secret upload was performed for this change. The mandate service is operator-managed. Wallet activation currently supports the configured `MANDATE_STRATEGY_MAKER`, one confirmed program per immutable release version, and the CRE staging simulation runtime. It is not permissionless multi-Maker infrastructure.
 
 ## Compile and provision a Maker program
 
@@ -37,14 +40,17 @@ node scripts/prepare-lp-release.ts <plan-input.json> <new-plan.json>
 
 `plan-input.json` has `{publication:{release,envelope,signature,digest}, maker, amounts, salt, deadline, reference:{price,observedAt}, policy}`. Preserve the output alongside the existing private executor state; do not publish Maker risk inputs as public evidence. The output includes `request`, `strategyHash`, `catalogEntry` and `workflowBinding`.
 
-The operator must review the concrete program and Maker limits, then provision:
+## Maker wallet activation
 
-1. Catalog key `<release.id>.v<release.version>` → the generated `catalogEntry` in `MANDATE_STRATEGY_CATALOG`.
-2. The generated `workflowBinding` in the workflow's `providerBindings`. It pins program hash, Provider, decrypted `strategyId` and ciphertext hash.
-3. The same persistent `MANDATE_STATE_DIR` for service and runner. The runner resolves the exact saved envelope, rejects a withdrawn release and passes ciphertext to the HTTP trigger. The workflow checks the binding before fetching secrets and checks the policy version after decryption.
-4. Execute the generated `request` through the existing executor, preserving its journal and original HODL baseline. The Maker wallet signatures, funding/approvals and valid Guard report are still required. A compilation or saved listing is not an executed ship.
+Select a published version in the Maker marketplace and choose **Enable this strategy**. Enter WETH and USDC allocation amounts. The service verifies the saved Provider signature and compiles a Guard V2 range using a fresh Kraken ETH/USDC top-of-book midpoint. The browser displays the resulting range, reference, allocation, immutable strategy hash and 30-day program deadline before any wallet transaction. The compiler's legacy HODL risk metadata is not a Maker mandate or an active loss-protection monitor; private Maker limits are supplied separately to CRE.
 
-These are **manual provisioning steps**, not automatic publishing of a workflow or signing of Maker asset transactions. The browser does not yet fund and ship a newly published range on its own. There is no browser test claiming that complete path has run on Sepolia.
+Approval buttons appear only when the existing Aqua allowance is insufficient. They request the exact allocation amount. **Sign and enable strategy** simulates and submits `Aqua.ship` through the connected Maker wallet. No Maker private key is loaded by the activation service. The browser retains the public activation ID and pending transaction hash for confirmation retries; reloading does not intentionally send a second transaction.
+
+Confirmation verifies Ethereum Sepolia, successful receipt, Maker sender, Aqua target, zero native value, exact calldata, original registered token amounts and current registration/funding/approval state. Prepared records are not executable catalog entries. A valid confirmation persists the catalog entry and program-to-policy binding under the shared persistent volume. The local CRE runner restores confirmed bindings into its staging config after deployments and resolves the original version's ciphertext from the registry. Withdrawal and publication digest checks still apply.
+
+After Aqua registration, the Maker proceeds to private limits and creates a confidential mandate for that exact version. Aqua registration is not Guard authorization. Trading requires both, along with a fresh quote and sufficient wallet balances. A new Provider version cannot silently replace a confirmed program already pinned in a mandate.
+
+The CLI compiler and executor remain available for operator workflows. An operator-managed catalog entry must not conflict with a wallet-confirmed version's strategy hash. The filesystem service and staging configuration require a single shared persistent volume and one service replica.
 
 ## Readiness
 

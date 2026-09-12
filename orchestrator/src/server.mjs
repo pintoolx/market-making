@@ -5,6 +5,9 @@ import { createProviderRegistry } from './provider-registry.mjs';
 import { LP_CAPABILITIES } from '../../shared/lp-release.mjs';
 import { createEnsService } from './ens-service.mjs';
 import { normalizeRoot } from '../../shared/ens/schema.mjs';
+import { createActivationService } from './activation-service.mjs';
+import { activationCatalog } from './activation-store.mjs';
+import { resolve } from 'node:path';
 
 const integer = (value, fallback) => value === undefined ? fallback : Number(value);
 
@@ -42,6 +45,7 @@ export function configFromEnv(env = process.env) {
     strategies: strategyCatalog(env.MANDATE_STRATEGY_CATALOG),
     strategyMaker: env.MANDATE_STRATEGY_MAKER?.toLowerCase(),
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
+    activationConfigPath: env.CRE_PROJECT_DIR ? resolve(env.CRE_PROJECT_DIR, 'market-maker-auth/config.staging.json') : undefined,
     ensRootName: normalizeRoot(env.ENS_ROOT_NAME ?? 'pintool.eth'),
     ensRpcUrl: env.ENS_SEPOLIA_RPC_URL ?? env.MANDATE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
   };
@@ -65,6 +69,7 @@ const readJson = request => new Promise((resolve, reject) => {
 
 export function makeServer(config, dependencies = {}) {
   const registry = createProviderRegistry(config.stateDir);
+  const activation = createActivationService(config, registry, dependencies);
   const ens = createEnsService(config, registry, dependencies);
   const service = createService(config, { ...dependencies, validateEnsSelections: (...args) => ens.validateSelections(...args) });
   return createServer(async (request, response) => {
@@ -79,6 +84,24 @@ export function makeServer(config, dependencies = {}) {
     }
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (url.pathname === '/v1/activations' || url.pathname.startsWith('/v1/activations/')) {
+        let result;
+        try {
+          if (request.method === 'POST' && url.pathname === '/v1/activations') result = await activation.prepare(await readJson(request));
+          else {
+            const match = url.pathname.match(/^\/v1\/activations\/([0-9a-f-]{36})(\/confirm)?$/);
+            if (!match) throw new HttpError(404, 'Activation not found.');
+            if (request.method === 'GET' && !match[2]) result = await activation.get(match[1]);
+            else if (request.method === 'POST' && match[2]) result = await activation.confirm(match[1], await readJson(request));
+            else throw new HttpError(405, 'Method not allowed.');
+          }
+        } catch (e) {
+          if (e instanceof HttpError) throw e;
+          throw new HttpError(409, e?.code || e?.shortMessage ? 'Activation could not be verified. Keep this page open and retry confirmation.' : e.message);
+        }
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(result));
+      }
       if (url.pathname.startsWith('/v1/ens/')) {
         let result;
         try {
@@ -138,7 +161,14 @@ export function makeServer(config, dependencies = {}) {
       }
       if (request.method === 'GET' && url.pathname === '/v1/strategies') {
         const available = [];
-        for (const item of config.strategies) {
+        const activated = await activationCatalog(config.stateDir);
+        const combined = new Map(config.strategies.map(item => [item.id, item]));
+        for (const [id, item] of Object.entries(activated)) {
+          if (item.maker !== config.strategyMaker) continue;
+          if (combined.has(id) && combined.get(id).strategyHash !== item.strategyHash) throw new Error('Configured activation conflicts with confirmed strategy');
+          combined.set(id, { ...item, id });
+        }
+        for (const item of combined.values()) {
           if (item.release) {
             try {
               const [record, latest] = await Promise.all([registry.read(item.release.id, item.release.version), registry.latest(item.release.id)]);

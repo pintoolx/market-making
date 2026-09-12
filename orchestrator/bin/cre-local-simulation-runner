@@ -2,6 +2,8 @@
 import { pathToFileURL } from 'node:url';
 import { mandateRunnerConfig, runDirectMandate } from '../src/cre-mandate-runner.mjs';
 import { localSimulatorConfig, simulateCREWorkflow } from '../src/cre-local-simulator.mjs';
+import { syncActivationBindings } from '../src/activation-store.mjs';
+import { resolve } from 'node:path';
 
 async function readStdin() {
   let body = '';
@@ -14,7 +16,9 @@ async function readStdin() {
 
 export async function main() {
   const simulation = localSimulatorConfig();
-  const result = await runDirectMandate(await readStdin(), mandateRunnerConfig(), {
+  const config = mandateRunnerConfig();
+  await syncActivationBindings(config.stateDir, resolve(simulation.projectDir, simulation.workflowDir, 'config.staging.json'));
+  const result = await runDirectMandate(await readStdin(), config, {
     triggerConfig: simulation,
     trigger: simulateCREWorkflow,
   });

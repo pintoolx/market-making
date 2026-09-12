@@ -10,6 +10,8 @@ import aqua from './aqua.module.css';
 import styles from './page.module.css';
 import Link from 'next/link';
 
+const PUBLISHABLE_TEMPLATES = AQUA_TEMPLATES.filter(template => LP_CAPABILITIES[template.id]?.publication);
+
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -21,20 +23,17 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   if (editing) return <ClmmPublisher onBack={() => { setEditing(false); scrollTop(); }} />;
   return <section className={aqua.flow}>
     <PageHead eyebrow="Provider Studio" title="Choose an LP template.">
-      CLMM supports signed, versioned publication. A Maker-specific program and a valid Guard report are required before a strategy can quote.
+      Publish a version of your CLMM strategy for Makers to review. CLMM is currently the available template.
     </PageHead>
     <p><Link href="/ens">Manage your ENS strategy names and publishers →</Link></p>
     <div className={`${styles.grid} ${aqua.grid}`}>
-      {AQUA_TEMPLATES.map(template => {
-        const capability = LP_CAPABILITIES[template.id];
-        return <article key={template.id} className={aqua.panel}>
+      {PUBLISHABLE_TEMPLATES.map(template => <article key={template.id} className={aqua.panel}>
           <span className={aqua.eyebrow}>{template.label}</span>
           <h2>{template.name}</h2><p>{template.summary}</p>
-          <p className={aqua.muted}>{capability.publication ? 'Single range, asymmetric bounds, zero swap fee, fixed 30-minute volatility signal. New publications require Maker provisioning.' : capability.reason}</p>
-          <Primary disabled={!capability.publication} onClick={() => { setEditing(true); scrollTop(); }}>{capability.publication ? 'Open CLMM editor' : 'Publication pending'}</Primary>
-        </article>;
-      })}
+          <p className={aqua.muted}>Set your price range and trading limits, then sign a version to publish it.</p>
+          <Primary onClick={() => { setEditing(true); scrollTop(); }}>Open CLMM editor</Primary>
+        </article>)}
     </div>
-    <p className={aqua.muted}>Revenue sharing, automatic inventory conversion and simultaneous multi-strategy authorization are not enabled. Existing legacy listings are browser previews; this editor does not submit their saved parameters.</p>
+    <p className={aqua.muted}>Publishing makes a strategy available for review. Makers complete activation before it can quote trades.</p>
   </section>;
 }

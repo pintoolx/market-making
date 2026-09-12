@@ -16,6 +16,7 @@
     "pintool-cre-local-simulation-runner": "bin/cre-local-simulation-runner"
   },
   "dependencies": {
+    "@1inch/swap-vm-sdk": "0.4.4",
     "viem": "2.56.3"
   }
 }

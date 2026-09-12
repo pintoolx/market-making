@@ -109,7 +109,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
     <form className={aqua.panel} onSubmit={event => { event.preventDefault(); void publish('published'); }}>
       <fieldset disabled={busy}>
         <legend>Public execution envelope</legend>
-        <label>Name<FormInput required maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
+        <label>Strategy name<FormInput required maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
         <label>Description<textarea required maxLength={600} value={summary} onChange={e => setSummary(e.target.value)} /></label>
         <div className={aqua.structuredFields}>
           {[

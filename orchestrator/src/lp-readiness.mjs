@@ -1,4 +1,5 @@
 import { createPublicClient, http, parseAbi } from 'viem';
+import { activationCatalog } from './activation-store.mjs';
 
 const guardAbi = parseAbi([
   'function activeStrategyHash(address maker) view returns (bytes32)',
@@ -42,7 +43,9 @@ export async function readLpReadiness(config, maker, strategy, dependencies = {}
     call(config.aqua, aquaAbi, 'rawBalances', [maker, config.router, strategy.strategyHash, token]),
     call(token, tokenAbi, 'balanceOf', [maker]), call(token, tokenAbi, 'allowance', [maker, config.aqua]),
   ])));
-  const catalog = config.strategies?.find(item => item.id === strategy.listingId && same(item.strategyHash, strategy.strategyHash));
+  const activated = config.stateDir ? (await activationCatalog(config.stateDir))[strategy.listingId] : undefined;
+  const catalog = activated && same(activated.maker, maker) && same(activated.strategyHash, strategy.strategyHash)
+    ? activated : config.strategies?.find(item => item.id === strategy.listingId && same(item.strategyHash, strategy.strategyHash));
   const result = assessReadiness({ report, activeHash, now, strategyHash: strategy.strategyHash,
     raw: rows.map(row => row[0]), wallets: rows.map(row => row[1]), allowances: rows.map(row => row[2]), programDeadline: catalog?.programDeadline });
   // A public snapshot expires quickly; neither persisted state nor a stalled browser can keep it ready forever.
