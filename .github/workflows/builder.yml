@@ -1,0 +1,45 @@
+name: Builder and guarded execution
+
+on:
+  pull_request:
+    paths:
+      - 'packages/strategy-builder/**'
+      - 'contracts/aqua-executor/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/builder.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/strategy-builder/**'
+      - 'contracts/aqua-executor/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/builder.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  builder-and-guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.14.0'
+          cache: pnpm
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09
+        with:
+          version: v1.8.1
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter aqua-executor --filter @pintool/strategy-builder
+      - run: pnpm typecheck:builder
+      - run: pnpm test:builder
+      - run: pnpm --filter aqua-executor typecheck
+      - run: pnpm --filter aqua-executor test

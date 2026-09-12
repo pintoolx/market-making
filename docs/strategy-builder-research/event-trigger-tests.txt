@@ -1,0 +1,126 @@
+Builder event-trigger review verification
+Date: 2026-09-13 Asia/Taipei
+Source: main 1d7f6a2257f27193d7faf070498cd3a54184ca0f
+Worktree: /home/kuoba123/eth-glo/market-making-builder-review
+Scope: existing workflow / orchestrator / local Anvil integration; no public-chain writes.
+Dependencies: reused existing local node_modules; no lockfile/install changes.
+Final result: 77 passed, 0 failed.
+
+
+Workflow: Bun, 45 tests across 3 existing test files
+
+bun test v1.4.2 (744846f84)
+
+guard-report/delivery.test.ts:
+(pass) public report matches the shared 16-field ABI fixture exactly [6.32ms]
+(pass) public boundary rejects private/unknown fields, malformed integers and invalid Guard bounds [7.79ms]
+(pass) public cron entry sends ABI bytes through SDK report/writeReport and verifies Guard readback [45.98ms]
+(pass) production profile requires matching workflow identity and forwarder before any write [39.47ms]
+(pass) expired, future and wrong-chain reports fail before report delivery [2.20ms]
+(pass) older V2 receivers without active strategy enforcement fail before any write [5.12ms]
+(pass) receiver revert, absent status, failed transaction and missing hash cannot be reported as success [29.68ms]
+(pass) TEE adapter validates public output before crossing to DON and uses the same delivery path [5.87ms]
+(pass) standing authorization compares every effective term, not nonce or issuance time [0.93ms]
+(pass) unchanged standing evaluation performs no writeReport and preserves original receipt identity [5.99ms]
+(pass) changed terms and reactivation issue a report with a nonce above the saved report [7.20ms]
+
+market-maker-auth/workflow.test.ts:
+(pass) onCronTrigger > fetches both confidential inputs in a single getSecrets() call [4.00ms]
+(pass) onCronTrigger > rejects a strategy hash without a configured Provider secret [0.70ms]
+(pass) onCronTrigger > returns only public report fields and stays inside the enclave in dry-run [1.06ms]
+(pass) onCronTrigger > dry-run logs the full payload the Guard would receive [1.07ms]
+(pass) onCronTrigger > never logs or returns private inputs (rule ids, thresholds, share, TTL preferences) [0.67ms]
+(pass) onCronTrigger > rejects a malformed secret without echoing its contents [0.48ms]
+(pass) onCronTrigger > rejects a secret that is not JSON [0.30ms]
+(pass) initWorkflow > registers cron and authorized HTTP handlers with Nitro TEE constraints [1.23ms]
+(pass) onHttpTrigger > opens a Provider-submitted strategy and Maker limits only inside the TEE [8.78ms]
+(pass) onHttpTrigger > requires Provider identity and encrypted policy together [0.41ms]
+(pass) onHttpTrigger > a sealed policy cannot move to another approved publication version or replace its ciphertext [7.89ms]
+(pass) onHttpTrigger > decrypts dynamic Maker limits only after entering the TEE [11.20ms]
+(pass) onHttpTrigger > uses public request identity while fetching both private inputs inside the TEE [3.95ms]
+(pass) onHttpTrigger > rejects private fields and malformed payloads without echoing their values [0.58ms]
+(pass) real delivery rejects fixed fixtures and requires explicit transport [0.54ms]
+(pass) HTTP cannot reuse the provisioned Maker policy for another wallet [0.39ms]
+(pass) live HTTP acquisition rejects injected market data before private inputs are fetched [0.36ms]
+
+src/intersect.test.ts:
+(pass) computeAuthorization — happy path > value-denominated v2 limits are converted to token amounts inside the TEE [0.37ms]
+(pass) computeAuthorization — happy path > calm market: both directions, each cap taken from the stricter side [0.34ms]
+(pass) computeAuthorization — happy path > Maker stricter than Provider on every axis → every cap is the Maker number [0.22ms]
+(pass) computeAuthorization — happy path > first matching rule wins and regime change flips directions [0.11ms]
+(pass) computeAuthorization — incompatibility → everything forbidden > Maker per-swap cap of zero on one token disables both directions and zeroes all caps [0.10ms]
+(pass) computeAuthorization — incompatibility → everything forbidden > no rule matches the market → paused, no rule id, still a valid window [0.09ms]
+(pass) computeAuthorization — incompatibility → everything forbidden > rule that allows neither direction → paused with its own reason [0.14ms]
+(pass) computeAuthorization — inventory exhausted > both inventories at/over cap → paused, zero caps [0.06ms]
+(pass) computeAuthorization — inventory exhausted > only token0 inventory exhausted → Maker may still sell token0 (taker 1→0) [0.05ms]
+(pass) computeAuthorization — inventory exhausted > only token1 inventory exhausted → Maker may still buy token0 (taker 0→1) [0.04ms]
+(pass) computeAuthorization — expiry > validity = min(rule TTL, Maker TTL) and never exceeds the Guard maximum [0.10ms]
+(pass) computeAuthorization — expiry > rejects a non-positive nonce and a bad clock [0.07ms]
+(pass) helpers > parsePrice keeps 8 decimals and truncates beyond [0.09ms]
+(pass) helpers > makerToken0Ceiling: 60% of 10 000 USDC at 2 500 USDC/WETH = 2.4 WETH [0.08ms]
+(pass) helpers > makerToken0Ceiling throws on a zero price instead of dividing by zero [0.04ms]
+(pass) helpers > matchRule respects inclusive bounds [0.08ms]
+(pass) standing Maker consent produces schema 2 while old envelopes retain their bounded lifetime [0.13ms]
+
+ 45 pass
+ 0 fail
+ 216 expect() calls
+Ran 45 tests across 3 files. [766.00ms]
+
+
+Orchestrator: Node, 26 tests across 5 files
+
+✔ local simulator always runs the HTTP TEE handler with a Sepolia broadcast (17.931641ms)
+✔ local simulator requires an absolute CRE project directory (1.004109ms)
+✔ local simulator exposes only a validated public unchanged marker (6.8369ms)
+✔ direct CRE runner turns an accepted trigger and matching Guard event into public mandate state (3.8983ms)
+✔ direct CRE runner rejects unprovisioned strategies and missing sealed limits (0.886243ms)
+✔ a paused candidate does not replace the currently active strategy in public state (0.521687ms)
+✔ runner delegates acquisition to CRE and never injects legacy snapshots (0.478884ms)
+✔ versioned catalog resolves the stored policy and rejects withdrawn or retargeted releases before delivery (1.199636ms)
+✔ unchanged standing decisions reuse evidence without inventing a delivery or activation (0.682035ms)
+✔ reads the current block and filters ReportAccepted by Guard, Maker and strategy (57.099676ms)
+✔ reads and decodes the stored Guard report (3.083633ms)
+✔ waits for an event before accepting matching stored evidence (2.982532ms)
+✔ a later report cannot be attached to an earlier transaction (2.391244ms)
+✔ standing evidence recovers one exact historical block and verifies its current digest (5.039534ms)
+✔ only ship, current authorization, available funding and unexpired program together permit quoting (1.516775ms)
+✔ RPC reads share one block and reject wrong-domain or stale data (2.135705ms)
+✔ standing reports stay authorized while freshness and program checks remain bounded (0.280127ms)
+✔ sealed Maker limits are validated without exposing their contents (3.071541ms)
+✔ state accepts one active strategy and exact configured chain evidence (0.854595ms)
+✔ receipt verification requires a matching successful transaction (0.718529ms)
+✔ Aqua evidence is bound to the Router calldata strategy hash and a matching swap event (7.971239ms)
+✔ service forwards secrets only to runner, verifies receipt, and persists public state (29.513814ms)
+✔ service rejects evidence for a different strategy than the user selected (3.291665ms)
+✔ get is read-only during a runner outage; add still requires the runner (8.959138ms)
+✔ get stays read-only and add passes only previously verified public state to the runner (8.671458ms)
+✔ service records only verified Aqua settlement and Guard rejection receipts (10.177637ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 509.099661
+
+
+Contracts: Node + local Anvil, 6 tests in concentrated.test.ts
+
+(node:11392) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ range conversion handles inverted addresses and 18/6 decimals using integer rounding (1383.183983ms)
+✔ Guard v2 uses real Aqua inventory despite virtual pricing reserves; both directions and exact inventory boundaries work (1564.137787ms)
+✔ range exhaustion cannot spend virtual inventory and v1 addresses reject the v2 envelope (974.128704ms)
+✔ Guard v2 atomically switches the single active strategy for one Maker balance (1118.53432ms)
+✔ explicit guarded JSON recipe survives an interrupted range replacement without dropping the Guard (2127.327088ms)
+✔ standing reports survive time passage, preserve caps, and support durable Maker revocation (1204.08145ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9640.189558

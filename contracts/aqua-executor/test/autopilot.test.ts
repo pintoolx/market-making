@@ -70,11 +70,12 @@ test('default dry run sends nothing; expired rollover recovers the persisted tra
   await assert.rejects(autopilotTick(f.ctx, f.d, id, policy, { ...opts, execute: true, onTransaction: e => {
     if (e.phase === 'broadcast' && e.step === 'primary') throw new Error('interrupt auto after broadcast')
   } }), /interrupt auto/)
-  const sent = await f.ctx.pc.getTransactionCount({ address: f.ctx.maker.account.address })
+  // The interrupted broadcast can still be in Anvil's mempool on a slower CI runner.
+  const sent = await f.ctx.pc.getTransactionCount({ address: f.ctx.maker.account.address, blockTag: 'pending' })
   // A newer price cannot regenerate the already persisted decision/transaction.
   const resumed = await autopilotTick(f.ctx, f.d, id, policy, { ...opts, execute: true, getPrices: async () => prices('260000000000') })
   assert.equal(resumed.action, 'rebalance')
-  assert.equal(await f.ctx.pc.getTransactionCount({ address: f.ctx.maker.account.address }), sent)
+  assert.equal(await f.ctx.pc.getTransactionCount({ address: f.ctx.maker.account.address, blockTag: 'pending' }), sent)
   const status = await executionStatus(f.ctx, f.d, opts.stateDir, id), next = status.session.plan.rebalances!.at(-1)!.strategy
   assert.deepEqual(status.session.plan.policy.baselineAmounts, p.amounts)
   assert.equal(next.program.feeBps, 30)

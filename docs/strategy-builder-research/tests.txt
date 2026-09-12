@@ -1,0 +1,36 @@
+✔ program bytes follow the v1.0.2 AquaOpcodes table (golden) (6.83777ms)
+✔ strategy bytes = abi.encode(Order) and strategyHash = keccak256(strategy) (2.026515ms)
+✔ rejects params the executor must never ship (0.856828ms)
+(node:30310) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ range conversion handles inverted addresses and 18/6 decimals using integer rounding (1050.646737ms)
+✔ Guard v2 uses real Aqua inventory despite virtual pricing reserves; both directions and exact inventory boundaries work (1496.982803ms)
+✔ range exhaustion cannot spend virtual inventory and v1 addresses reject the v2 envelope (1071.11505ms)
+✔ Guard v2 atomically switches the single active strategy for one Maker balance (1202.768163ms)
+✔ explicit guarded JSON recipe survives an interrupted range replacement without dropping the Guard (2440.647197ms)
+(node:30317) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Guard report encoding matches the shared fixture and the Solidity tuple (755.939589ms)
+✔ Guard compiler pins the complete v1.0.2 program, binds caps, and excludes fees (8.86612ms)
+✔ Guard authenticates forwarder/production identity, rejects malformed reports, and implements ERC165 (179.076953ms)
+✔ Guard accepts identical retry once and preserves current state on replay or bad lifetime (59.667325ms)
+✔ actual Aqua swaps honor reports in both directions; report updates invalidate previous quotes (1527.318147ms)
+✔ Guard checks exact per-token amount and inventory boundaries and clamps report loosening (1198.72603ms)
+✔ Guard isolates makers/hashes and rejects incorrect report pair and exact-output swaps (831.674769ms)
+✔ Guard clamps both post-inventory envelope limits even if the report permits more (585.882754ms)
+✔ Guard rejects direct callers and malformed envelopes; valid checks preserve all VM registers (125.412867ms)
+✔ simulation uses a separate immutable profile; expiry stops both directions and retry cannot revive it (693.51929ms)
+✔ complete synthetic-report demo records successful transfers and one mined Guard rejection, then cleans up (2734.744036ms)
+(node:30322) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Pegged opcode 31 pins all five arguments; address reversal preserves references and decimal rates (925.29266ms)
+✔ Pegged Guard executes both decimal directions, enforces a tighter inventory report and atomically reverts disabled trades (1207.343112ms)
+✔ fee-bearing Pegged JSON ships, retries idempotently, swaps, atomically rebalances and preserves the original HODL baseline (3286.323405ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10268.671628
