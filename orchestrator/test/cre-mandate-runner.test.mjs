@@ -115,3 +115,21 @@ test('runner delegates acquisition to CRE and never injects legacy snapshots', a
   assert.equal(state.regime, 'unknown');
   assert.equal('marketSnapshot' in payload, false);
 });
+
+test('versioned catalog resolves the stored policy and rejects withdrawn or retargeted releases before delivery', async () => {
+  const id = '11'.repeat(20) + '-clmm', reference = { id, version: 1, digest };
+  const listingId = `${id}.v1`;
+  const local = { ...config, catalog: { [listingId]: { name: 'Versioned', provider: maker, strategyHash, release: reference } } };
+  const record = { release: { provider: maker, state: 'published' }, envelope: makerLimitsEnvelope, digest };
+  const dependencies = {
+    registry: { read: async () => record, latest: async () => record }, currentBlock: async () => 1n,
+    trigger: async (_config, payload) => { assert.equal(payload.provider, maker); assert.deepEqual(payload.providerStrategyEnvelope, makerLimitsEnvelope); return { workflowExecutionId: 'v1' }; },
+    observe: async () => ({ transactionHash: txHash, digest, report: { maker, strategyHash, nonce: 1n, validUntil: 1900000000, allowedDirections: 3, maxAmount1PerSwap: 1n } }),
+  };
+  const request = { action: 'create', input: { maker, providerStrategyIds: [listingId], makerLimitsEnvelope } };
+  const state = await runDirectMandate(request, local, dependencies);
+  record.release.state = 'withdrawn';
+  await assert.rejects(runDirectMandate(request, local, dependencies), /withdrawn/);
+  local.catalog[listingId].strategyHash = defensiveHash;
+  await assert.rejects(runDirectMandate({ action: 'get', current: state, mandateId: state.mandateId, makerLimitsEnvelope }, local, dependencies), /Catalog changed/);
+});

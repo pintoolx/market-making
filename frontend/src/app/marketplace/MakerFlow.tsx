@@ -352,7 +352,10 @@ function RuntimePanel({ expanding }: { expanding: boolean }) {
 }
 
 function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: MandateState; refreshing: boolean; onRefresh: () => void; onAdd: () => void }) {
-  const active = mandate.strategies.find(item => item.status === 'active');
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const fresh = (item: MandateState['strategies'][number]) => !!item.readiness?.validUntil && Date.parse(item.readiness.validUntil) > now;
+  const active = mandate.strategies.find(item => fresh(item) && item.readiness?.authorized);
   const expires = new Date(mandate.evidence.expiresAt);
   return <div className={aqua.monitorLayout}>
     <section className={aqua.panel}>
@@ -366,7 +369,11 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: Ma
       <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Strategy set</h2><span className={aqua.muted}>One shared balance</span></div>
       {mandate.strategies.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
         <div><span className={aqua.eyebrow}>{strategy.provider ?? 'Strategy Provider'}</span><strong>{strategy.name}</strong></div>
-        <div className={aqua.rosterStatus}><span>{strategy.status}</span><code>{shortHash(strategy.strategyHash)}</code></div>
+        <div className={aqua.rosterStatus}>
+          <span>{!fresh(strategy) ? 'Refresh to verify' : strategy.readiness?.phase === 'ready-for-quote' ? 'Ready to quote' : 'Not ready to quote'}</span>
+          <small>Guard: {fresh(strategy) && strategy.readiness?.authorized ? 'authorized' : 'unverified / inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'unverified / unavailable'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'unverified / insufficient'}</small>
+          <code>{shortHash(strategy.strategyHash)}</code>
+        </div>
       </article>)}
     </section>
 
@@ -375,6 +382,7 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: Ma
       {mandate.events.length ? <ol className={aqua.activityList}>{mandate.events.map(event => <li key={event.id}><div><strong>{event.title}</strong><span>{event.detail}</span></div><div><time dateTime={event.occurredAt}>{new Date(event.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>{event.explorerUrl && <a href={event.explorerUrl} target="_blank" rel="noreferrer">Transaction ↗</a>}</div></li>)}</ol> : <p className={aqua.muted}>Confirmed mandate activity will appear here.</p>}
     </section>
 
-    <div className={aqua.evidence}><div><span>Confidential report</span><strong>{shortHash(mandate.evidence.reportDigest)}</strong></div><div><span>Aqua strategies</span><strong>{mandate.strategies.length} sharing one balance</strong></div><div><span>Currently authorized</span><strong>{active?.name ?? 'None'}</strong></div></div>
+    <p className={aqua.muted}>Readiness is a short-lived chain snapshot. Each trade still requires a fresh quote and Guard checks. A saved listing or accepted report alone does not mean liquidity can trade.</p>
+    <div className={aqua.evidence}><div><span>Guard report</span><strong>{shortHash(mandate.evidence.reportDigest)}</strong></div><div><span>Aqua strategies</span><strong>{mandate.strategies.length} sharing one balance</strong></div><div><span>Currently authorized</span><strong>{active?.name ?? 'Unverified / none'}</strong></div></div>
   </div>;
 }

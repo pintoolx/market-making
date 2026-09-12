@@ -1,5 +1,6 @@
 import { cre, decodeJson, type HTTPPayload, type TeeRuntime } from '@chainlink/cre-sdk'
 import { z } from 'zod'
+import { keccak256, stringToHex } from 'viem'
 import { GUARD_CONFIG } from '../src/config/guard'
 import { confidentialEnvelopeSchema, openConfidentialEnvelope, type ConfidentialEnvelope } from '../src/confidential-envelope'
 import { computeAuthorization } from '../src/intersect'
@@ -28,6 +29,8 @@ export const configSchema = z.object({
 		.array(z.object({ strategyHash: hexBytes32, secretId: z.string().min(1) }))
 		.max(12)
 		.default([]),
+	/** Operator-approved publication versions, bound to the exact Maker program and ciphertext. */
+	providerBindings: z.array(z.object({ strategyHash: hexBytes32, provider: hexAddress, strategyId: z.string().min(1), envelopeHash: hexBytes32 }).strict()).default([]),
 	makerSecretId: z.string(),
 	/** X25519 private key stored in Vault DON; its public half is embedded in the web app. */
 	envelopePrivateKeySecretId: z.string().default('ENVELOPE_PRIVATE_KEY'),
@@ -87,6 +90,7 @@ type ExecutionInput = Pick<Config, 'maker' | 'strategyHash' | 'marketSnapshot'> 
 	providerSecretId?: string
 	provider?: string
 	providerStrategyEnvelope?: ConfidentialEnvelope
+	expectedStrategyId?: string
 	makerSecretId?: string
 	envelopePrivateKeySecretId?: string
 	makerLimitsEnvelope?: ConfidentialEnvelope
@@ -146,6 +150,7 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 		? openConfidentialEnvelope(input.providerStrategyEnvelope, secrets[makerSecretId].value, input.provider!, 'provider')
 		: secrets[input.providerSecretId!].value
 	const strategy = parseSecretJson(providerStrategySchema, rawStrategy, 'PROVIDER_STRATEGY')
+	if (input.expectedStrategyId && strategy.strategyId !== input.expectedStrategyId) throw new Error('Provider policy version mismatch')
 	const rawLimits = input.makerLimitsEnvelope
 		? openConfidentialEnvelope(input.makerLimitsEnvelope, secrets[makerSecretId].value, input.maker)
 		: secrets[makerSecretId].value
@@ -201,11 +206,19 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '<root>'}:${i.code}`).join(', ')
 		throw new Error(`HTTP trigger payload failed schema validation (${issues})`)
 	}
+	let expectedStrategyId: string | undefined
+	if (parsed.data.providerStrategyEnvelope) {
+		const binding = runtime.config.providerBindings.find(item => item.strategyHash.toLowerCase() === parsed.data.strategyHash.toLowerCase())
+		if (!binding || binding.provider.toLowerCase() !== parsed.data.provider!.toLowerCase()
+			|| binding.envelopeHash.toLowerCase() !== keccak256(stringToHex(JSON.stringify(parsed.data.providerStrategyEnvelope)))) throw new Error('Provider publication is not bound to this program')
+		expectedStrategyId = binding.strategyId
+	}
 	const result = executeAuthorization(runtime, {
 		...(parsed.data.providerStrategyEnvelope
 			? { provider: parsed.data.provider, providerStrategyEnvelope: parsed.data.providerStrategyEnvelope }
 			: { providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash) }),
 		envelopePrivateKeySecretId: runtime.config.envelopePrivateKeySecretId,
+		expectedStrategyId,
 		makerLimitsEnvelope: parsed.data.makerLimitsEnvelope,
 		maker: parsed.data.maker,
 		strategyHash: parsed.data.strategyHash,

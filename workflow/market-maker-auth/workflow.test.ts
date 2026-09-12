@@ -1,3 +1,4 @@
+import { keccak256, stringToHex } from 'viem'
 import { describe, expect, test } from 'bun:test'
 import type { HTTPPayload, TeeRuntime } from '@chainlink/cre-sdk'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha'
@@ -229,6 +230,7 @@ describe('onHttpTrigger', () => {
 		const provider = '0x7777777777777777777777777777777777777777'
 		const providerEnvelope = seal(PROVIDER, provider, 'provider')
 		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
+		runtime.config.providerBindings = [{ strategyHash: runtime.config.strategyHash, provider, strategyId: PROVIDER.strategyId, envelopeHash: keccak256(stringToHex(JSON.stringify(providerEnvelope))) }]
 		const summary = onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-dynamic-provider',
 			maker: SEALED_MAKER_ADDRESS,
@@ -250,7 +252,7 @@ describe('onHttpTrigger', () => {
 			makerLimitsEnvelope: SEALED_MAKER,
 			provider: '0x8888888888888888888888888888888888888888',
 			providerStrategyEnvelope: providerEnvelope,
-		}))).toThrow('confidential envelope could not be opened')
+		}))).toThrow('Provider publication is not bound')
 	})
 
 	test('requires Provider identity and encrypted policy together', () => {
@@ -263,6 +265,19 @@ describe('onHttpTrigger', () => {
 			makerLimitsEnvelope: SEALED_MAKER,
 			provider: '0x7777777777777777777777777777777777777777',
 		}))).toThrow('providerStrategyEnvelope')
+	})
+
+	test('a sealed policy cannot move to another approved publication version or replace its ciphertext', () => {
+		const provider = '0x7777777777777777777777777777777777777777'
+		const providerStrategyEnvelope = seal(PROVIDER, provider, 'provider')
+		const { runtime, secretCalls } = makeFakeTeeRuntime()
+		runtime.config.providerBindings = [{ strategyHash: runtime.config.strategyHash, provider, strategyId: 'another-version', envelopeHash: keccak256(stringToHex(JSON.stringify(providerStrategyEnvelope))) }]
+		const payload = { requestId: 'version-check', maker: SEALED_MAKER_ADDRESS, strategyHash: runtime.config.strategyHash,
+			marketSnapshot: runtime.config.marketSnapshot, makerLimitsEnvelope: SEALED_MAKER, provider, providerStrategyEnvelope }
+		expect(() => onHttpTrigger(runtime, httpPayload(payload))).toThrow('Provider policy version mismatch')
+		secretCalls.length = 0
+		expect(() => onHttpTrigger(runtime, httpPayload({ ...payload, providerStrategyEnvelope: seal({ ...PROVIDER, strategyId: 'another-version' }, provider, 'provider') }))).toThrow('Provider publication is not bound')
+		expect(secretCalls).toEqual([])
 	})
 
 	test('decrypts dynamic Maker limits only after entering the TEE', () => {

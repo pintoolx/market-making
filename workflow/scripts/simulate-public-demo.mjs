@@ -18,7 +18,9 @@ const fixture = JSON.parse(readFileSync(new URL('../fixtures/public-live-demo.js
 if (values.mode !== 'both') fixture.strategy.rules[0].allowMakerSellToken0 = false;
 if (values.mode === 'paused') fixture.strategy.rules[0].allowMakerBuyToken0 = false;
 const env = { ...process.env, TZ: 'UTC', SECRET_PROVIDER_STRATEGY: JSON.stringify(fixture.strategy),
-  SECRET_PROVIDER_STRATEGY_DEFENSIVE: JSON.stringify(fixture.strategy), SECRET_MAKER_LIMITS: JSON.stringify(fixture.limits) };
+  SECRET_PROVIDER_STRATEGY_DEFENSIVE: JSON.stringify(fixture.strategy), SECRET_MAKER_LIMITS: JSON.stringify(fixture.limits),
+  // Public, unused by the cron handler; the CLI resolves all declared names before running.
+  SECRET_ENVELOPE_PRIVATE_KEY: '07'.repeat(32) };
 if (values.broadcast) {
   env.CRE_ETH_PRIVATE_KEY = process.env.MAKER_PK ?? process.env.CRE_ETH_PRIVATE_KEY;
   if (!env.CRE_ETH_PRIVATE_KEY) throw new Error('Authorized broadcast signer must be supplied by the parent process');

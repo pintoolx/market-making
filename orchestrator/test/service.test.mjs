@@ -123,7 +123,7 @@ test('get and add pass only previously verified public state to the runner', asy
   await service.create(input);
   await service.get(state.mandateId);
   await service.add(state.mandateId, { providerStrategyId: 'featured-defensive-market' });
-  assert.deepEqual(calls[1], { action: 'get', mandateId: state.mandateId, current: state, makerLimitsEnvelope });
+  assert.deepEqual(calls[1], { action: 'get', mandateId: state.mandateId, current: { ...state, strategies: state.strategies.map(item => ({ ...item, readiness: { phase: 'unverified', reasons: ['readiness-not-configured'] } })) }, makerLimitsEnvelope });
   assert.equal(calls[2].current.mandateId, state.mandateId);
   assert.equal(calls[2].providerStrategyId, 'featured-defensive-market');
   assert.deepEqual(calls[2].makerLimitsEnvelope, makerLimitsEnvelope);

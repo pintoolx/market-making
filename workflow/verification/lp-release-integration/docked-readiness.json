@@ -1,0 +1,15 @@
+{
+  "phase": "not-ready",
+  "authorized": false,
+  "shipped": false,
+  "funded": false,
+  "programValid": true,
+  "reasons": [
+    "authorization-missing-inactive-or-expired",
+    "docked",
+    "wallet-or-allowance-insufficient"
+  ],
+  "blockNumber": "11689763",
+  "checkedAt": "2026-09-12T15:24:18.000Z",
+  "validUntil": "2026-09-12T15:24:48.000Z"
+}

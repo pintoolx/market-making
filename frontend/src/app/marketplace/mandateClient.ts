@@ -10,6 +10,7 @@ export type MandateStrategy = {
   strategyHash: `0x${string}`;
   status: StrategyStatus;
   maxAmountPerSwapAtomic: string;
+  readiness?: { phase: 'unverified' | 'not-ready' | 'ready-for-quote'; authorized?: boolean; shipped?: boolean; funded?: boolean; programValid?: boolean; reasons: string[]; blockNumber?: string; checkedAt?: string; validUntil?: string };
 };
 
 export type ChainEvidence = {
@@ -69,7 +70,7 @@ function getApiBase(): string {
   return API_BASE;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(getApiBase() + path, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },

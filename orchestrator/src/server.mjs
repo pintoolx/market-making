@@ -1,6 +1,8 @@
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createService, HttpError } from './service.mjs';
+import { createProviderRegistry } from './provider-registry.mjs';
+import { LP_CAPABILITIES } from '../../shared/lp-release.mjs';
 
 const integer = (value, fallback) => value === undefined ? fallback : Number(value);
 
@@ -12,7 +14,13 @@ function strategyCatalog(value) {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(id) || !item || typeof item !== 'object'
       || typeof item.name !== 'string' || !item.name.trim() || typeof item.provider !== 'string' || !item.provider.trim()
       || !/^0x[0-9a-f]{64}$/i.test(item.strategyHash ?? '')) throw new Error('MANDATE_STRATEGY_CATALOG contains an invalid strategy');
-    return { id, name: item.name, provider: item.provider, strategyHash: item.strategyHash.toLowerCase() };
+    if (item.programDeadline !== undefined && (!Number.isSafeInteger(item.programDeadline) || item.programDeadline < 1)) throw new Error('Invalid program deadline');
+    if (item.release !== undefined && (!item.release || Object.keys(item.release).some(k => !['id', 'version', 'digest'].includes(k))
+      || !/^[0-9a-f]{40}-clmm$/.test(item.release.id ?? '') || !Number.isSafeInteger(item.release.version) || item.release.version < 1
+      || !/^0x[0-9a-f]{64}$/i.test(item.release.digest ?? '') || id !== `${item.release.id}.v${item.release.version}`)) throw new Error('Invalid publication binding');
+    return { id, name: item.name, provider: item.provider, strategyHash: item.strategyHash.toLowerCase(),
+      ...(item.programDeadline !== undefined ? { programDeadline: item.programDeadline } : {}),
+      ...(item.release !== undefined ? { release: item.release } : {}) };
   });
 }
 
@@ -27,6 +35,8 @@ export function configFromEnv(env = process.env) {
     rpcUrl: env.MANDATE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
     explorerUrl: (env.MANDATE_EXPLORER_URL ?? 'https://sepolia.etherscan.io').replace(/\/$/, ''),
     router: env.MANDATE_ROUTER_ADDRESS,
+    guard: env.MANDATE_GUARD_ADDRESS,
+    aqua: env.MANDATE_AQUA_ADDRESS,
     strategies: strategyCatalog(env.MANDATE_STRATEGY_CATALOG),
     strategyMaker: env.MANDATE_STRATEGY_MAKER?.toLowerCase(),
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
@@ -51,6 +61,7 @@ const readJson = request => new Promise((resolve, reject) => {
 
 export function makeServer(config, dependencies) {
   const service = createService(config, dependencies);
+  const registry = createProviderRegistry(config.stateDir);
   return createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', config.allowedOrigin);
     response.setHeader('Vary', 'Origin');
@@ -63,13 +74,45 @@ export function makeServer(config, dependencies) {
     }
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
+      const releaseVersion = url.pathname.match(/^\/v1\/provider-strategies\/([0-9a-f]{40}-clmm)\/versions\/([1-9][0-9]{0,6})$/);
+      if (request.method === 'GET' && releaseVersion) {
+        let record;
+        try { record = await registry.read(releaseVersion[1], Number(releaseVersion[2])); } catch { throw new HttpError(404, 'Release version not found.'); }
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify({ ...record.release, digest: record.digest }));
+      }
+      if (request.method === 'GET' && url.pathname === '/v1/lp-capabilities') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(LP_CAPABILITIES));
+      }
+      if (url.pathname === '/v1/provider-strategies') {
+        let result;
+        if (request.method === 'GET') result = { strategies: await registry.list() };
+        else if (request.method === 'POST') {
+          const body = await readJson(request);
+          try { result = await registry.publish(body); }
+          catch { throw new HttpError(400, 'Publication failed. Check the signature and reload the latest version before retrying.'); }
+        } else throw new HttpError(405, 'Method not allowed.');
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(result));
+      }
       if (request.method === 'GET' && url.pathname === '/health') {
         response.writeHead(200, { 'content-type': 'application/json' });
         return response.end(JSON.stringify({ status: 'ok', chainId: config.chainId, network: config.networkName }));
       }
       if (request.method === 'GET' && url.pathname === '/v1/strategies') {
+        const available = [];
+        for (const item of config.strategies) {
+          if (item.release) {
+            try {
+              const [record, latest] = await Promise.all([registry.read(item.release.id, item.release.version), registry.latest(item.release.id)]);
+              if (record.digest !== item.release.digest || record.release.state !== 'published' || latest?.release.state !== 'published') continue;
+            } catch { continue; }
+          }
+          available.push(item);
+        }
         response.writeHead(200, { 'content-type': 'application/json' });
-        return response.end(JSON.stringify({ maker: config.strategyMaker, strategies: config.strategies }));
+        return response.end(JSON.stringify({ maker: config.strategyMaker, strategies: available }));
       }
       let result;
       if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));
