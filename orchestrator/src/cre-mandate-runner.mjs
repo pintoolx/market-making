@@ -1,0 +1,150 @@
+#!/usr/bin/env node
+import { createHash, randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+import { currentBlock, waitForAcceptedReport } from './guard-observer.mjs';
+import { stableStringify, triggerCREWorkflow } from './cre-gateway.mjs';
+
+const ADDRESS = /^0x[0-9a-f]{40}$/i;
+const HEX32 = /^0x[0-9a-f]{64}$/i;
+
+function required(env, name) {
+  const value = env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+export function policyDigest(policy) {
+  return createHash('sha256').update(stableStringify(policy)).digest('hex');
+}
+
+export function directRunnerConfig(env = process.env) {
+  const catalog = JSON.parse(required(env, 'MANDATE_STRATEGY_CATALOG'));
+  const marketSnapshot = JSON.parse(required(env, 'MANDATE_MARKET_SNAPSHOT'));
+  if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw new Error('MANDATE_STRATEGY_CATALOG must be an object');
+  for (const [id, item] of Object.entries(catalog)) {
+    if (!id || !item?.name || !HEX32.test(item?.strategyHash ?? '')) throw new Error('MANDATE_STRATEGY_CATALOG contains an invalid strategy');
+  }
+  const guard = required(env, 'MANDATE_GUARD_ADDRESS');
+  if (!ADDRESS.test(guard)) throw new Error('MANDATE_GUARD_ADDRESS is invalid');
+  const chainId = Number(required(env, 'MANDATE_CHAIN_ID'));
+  if (!Number.isSafeInteger(chainId) || chainId < 1) throw new Error('MANDATE_CHAIN_ID is invalid');
+  const expectedPolicyDigest = required(env, 'MANDATE_POLICY_SHA256').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(expectedPolicyDigest)) throw new Error('MANDATE_POLICY_SHA256 is invalid');
+  return {
+    gatewayUrl: required(env, 'CRE_GATEWAY_URL'),
+    workflowId: required(env, 'CRE_WORKFLOW_ID'),
+    privateKey: required(env, 'CRE_HTTP_TRIGGER_PRIVATE_KEY'),
+    rpcUrl: required(env, 'MANDATE_RPC_URL'),
+    explorerUrl: required(env, 'MANDATE_EXPLORER_URL').replace(/\/$/, ''),
+    networkName: required(env, 'MANDATE_NETWORK_NAME'),
+    chainId,
+    guard,
+    catalog,
+    marketSnapshot,
+    expectedPolicyDigest,
+    timeoutMs: Number(env.MANDATE_RUNNER_TIMEOUT_MS ?? 120_000),
+  };
+}
+
+function iso(seconds) {
+  return new Date(Number(seconds) * 1000).toISOString();
+}
+
+export async function runDirectMandate(request, config, dependencies = {}) {
+  if (request?.action !== 'create') throw new Error('Direct CRE runner currently supports mandate creation only');
+  const input = request.input;
+  if (!input || !ADDRESS.test(input.maker ?? '') || !Array.isArray(input.providerStrategyIds)
+    || input.providerStrategyIds.length !== 1) throw new Error('Direct CRE runner requires one valid Maker strategy');
+  if (policyDigest(input.policy) !== config.expectedPolicyDigest) {
+    throw new Error('Maker limits do not match the confidential policy provisioned for this workflow');
+  }
+  const listingId = input.providerStrategyIds[0];
+  const listing = config.catalog[listingId];
+  if (!listing) throw new Error('Selected strategy is not provisioned for this workflow');
+
+  const mandateId = `mandate-${randomUUID()}`;
+  const fromBlock = await (dependencies.currentBlock ?? currentBlock)(config.rpcUrl, dependencies.fetchImpl);
+  const trigger = dependencies.trigger ?? triggerCREWorkflow;
+  const accepted = await trigger({
+    gatewayUrl: config.gatewayUrl,
+    workflowId: config.workflowId,
+    privateKey: config.privateKey,
+  }, {
+    requestId: mandateId,
+    maker: input.maker,
+    strategyHash: listing.strategyHash,
+    marketSnapshot: config.marketSnapshot,
+  }, { fetchImpl: dependencies.fetchImpl });
+
+  const observe = dependencies.observe ?? waitForAcceptedReport;
+  const evidence = await observe({
+    rpcUrl: config.rpcUrl,
+    guard: config.guard,
+    maker: input.maker,
+    strategyHash: listing.strategyHash,
+    fromBlock,
+  }, { fetchImpl: dependencies.fetchImpl, timeoutMs: config.timeoutMs });
+  const active = evidence.report.allowedDirections > 0;
+  const transactionUrl = `${config.explorerUrl}/tx/${evidence.transactionHash}`;
+  const events = [{
+    id: `${evidence.transactionHash}-report`,
+    type: 'report-accepted',
+    title: 'Guard authorization confirmed',
+    detail: `CRE execution ${accepted.workflowExecutionId} delivered mandate sequence ${evidence.report.nonce}.`,
+    occurredAt: new Date().toISOString(),
+    transactionHash: evidence.transactionHash,
+    explorerUrl: transactionUrl,
+  }];
+  if (active) events.push({
+    id: `${evidence.transactionHash}-active`,
+    type: 'strategy-activated',
+    title: `${listing.name} authorized`,
+    detail: 'The strategy may execute within the confirmed Guard limits.',
+    occurredAt: new Date().toISOString(),
+    transactionHash: evidence.transactionHash,
+    explorerUrl: transactionUrl,
+  });
+  return {
+    mandateId,
+    regime: Number(config.marketSnapshot.volatilityBps) >= 1000 ? 'high-volatility' : 'normal',
+    strategies: [{
+      listingId,
+      name: listing.name,
+      provider: listing.provider,
+      strategyHash: listing.strategyHash,
+      status: active ? 'active' : 'paused',
+      maxAmountPerSwapAtomic: evidence.report.maxAmount1PerSwap.toString(),
+    }],
+    evidence: {
+      chainId: config.chainId,
+      networkName: config.networkName,
+      reportDigest: evidence.digest,
+      reportTransactionHash: evidence.transactionHash,
+      reportExplorerUrl: transactionUrl,
+      sequence: evidence.report.nonce.toString(),
+      expiresAt: iso(evidence.report.validUntil),
+    },
+    events,
+  };
+}
+
+async function readStdin() {
+  let body = '';
+  for await (const chunk of process.stdin) {
+    body += chunk;
+    if (Buffer.byteLength(body) > 64_000) throw new Error('runner input exceeded limit');
+  }
+  return JSON.parse(body);
+}
+
+export async function main() {
+  const result = await runDirectMandate(await readStdin(), directRunnerConfig());
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch(error => {
+    process.stderr.write(`${error instanceof Error ? error.message : 'direct CRE runner failed'}\n`);
+    process.exitCode = 1;
+  });
+}

@@ -9,7 +9,8 @@
     "test": "node --test test/*.test.mjs"
   },
   "bin": {
-    "pintool-confidential-runner": "bin/confidential-http-runner"
+    "pintool-confidential-runner": "bin/confidential-http-runner",
+    "pintool-cre-mandate-runner": "bin/cre-mandate-runner"
   },
   "dependencies": {
     "viem": "2.34.0"
