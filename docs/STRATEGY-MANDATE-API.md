@@ -128,8 +128,10 @@ event. Only this verified evidence is appended to the activity shown by the fron
 The wallet trading page normally stops when a quote is rejected. For an explicitly
 reviewed enforcement check, a decoded `StrategyNotActive` error exposes a separate
 submission form. It requires a positive minimum output, sufficient Taker balance
-and allowance, and another inactive-strategy preflight before asking the wallet
-to sign. The user pays Sepolia gas; authorization changing before mining can still
+and another inactive-strategy preflight before asking the wallet to sign. If
+allowance is insufficient, the user can separately approve exactly the input
+amount; approval confirmation never submits the verification swap automatically.
+The user pays Sepolia gas; authorization changing before mining can still
 allow a trade at that minimum. The browser verifies the submitted calldata and
 failed receipt and never treats a successful transaction as rejection evidence.
 A failed receipt proves a revert, not its precise cause; the decoded preflight
