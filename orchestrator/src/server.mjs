@@ -28,12 +28,14 @@ export function configFromEnv(env = process.env) {
     explorerUrl: (env.MANDATE_EXPLORER_URL ?? 'https://sepolia.etherscan.io').replace(/\/$/, ''),
     router: env.MANDATE_ROUTER_ADDRESS,
     strategies: strategyCatalog(env.MANDATE_STRATEGY_CATALOG),
+    strategyMaker: env.MANDATE_STRATEGY_MAKER?.toLowerCase(),
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
   };
   if (!Number.isSafeInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('invalid PORT');
   if (!Number.isSafeInteger(config.chainId) || config.chainId < 1) throw new Error('invalid MANDATE_CHAIN_ID');
   if (!config.runner) throw new Error('MANDATE_RUNNER is required; the service will not fabricate mandate evidence');
   if (!/^0x[0-9a-f]{40}$/i.test(config.router ?? '')) throw new Error('MANDATE_ROUTER_ADDRESS is required');
+  if (!/^0x[0-9a-f]{40}$/i.test(config.strategyMaker ?? '')) throw new Error('MANDATE_STRATEGY_MAKER is required');
   return config;
 }
 
@@ -67,7 +69,7 @@ export function makeServer(config, dependencies) {
       }
       if (request.method === 'GET' && url.pathname === '/v1/strategies') {
         response.writeHead(200, { 'content-type': 'application/json' });
-        return response.end(JSON.stringify({ strategies: config.strategies }));
+        return response.end(JSON.stringify({ maker: config.strategyMaker, strategies: config.strategies }));
       }
       let result;
       if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));

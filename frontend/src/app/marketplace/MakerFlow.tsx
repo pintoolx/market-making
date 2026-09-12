@@ -108,7 +108,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [refreshing, setRefreshing] = useState(false);
   const [expanding, setExpanding] = useState(false);
   const [error, setError] = useState('');
-  const [executableIds, setExecutableIds] = useState<Set<string> | null>(null);
+  const [executableCatalog, setExecutableCatalog] = useState<{ maker: string; ids: Set<string> } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
@@ -118,8 +118,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   useEffect(() => {
     let current = true;
     getExecutableStrategies()
-      .then(items => { if (current) setExecutableIds(new Set(items.map(item => item.id))); })
-      .catch(() => { if (current) setExecutableIds(new Set()); });
+      .then(catalog => { if (current) setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids: new Set(catalog.strategies.map(item => item.id)) }); })
+      .catch(() => { if (current) setExecutableCatalog({ maker: '', ids: new Set() }); });
     return () => { current = false; };
   }, []);
   useEffect(() => {
@@ -150,8 +150,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => { current = false; };
   }, [account.address]);
 
+  const catalogMatchesWallet = !!account.address && executableCatalog?.maker === account.address.toLowerCase();
   const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))]
-    .map(item => ({ ...item, executionReady: executableIds?.has(item.id) ?? false }));
+    .map(item => ({ ...item, executionReady: catalogMatchesWallet && executableCatalog?.ids.has(item.id) }));
   const go = (next: Phase) => {
     didNavigate.current = true;
     scrollTop();
@@ -279,7 +280,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       </div>
     </>}
 
-    {phase === 'detail' && selected[0] && <StrategyDetail listing={{ ...selected[0], executionReady: executableIds?.has(selected[0].id) ?? false }} availabilityKnown={executableIds !== null} actionLabel={expanding ? 'Add to mandate' : 'Use this strategy'} onUse={expanding ? addSelectedStrategy : () => go('limits')} />}
+    {phase === 'detail' && selected[0] && <StrategyDetail listing={{ ...selected[0], executionReady: catalogMatchesWallet && executableCatalog?.ids.has(selected[0].id) }} availabilityKnown={executableCatalog !== null && !!account.address} actionLabel={expanding ? 'Add to mandate' : 'Use this strategy'} onUse={expanding ? addSelectedStrategy : () => go('limits')} />}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>

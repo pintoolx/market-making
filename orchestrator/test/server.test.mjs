@@ -16,7 +16,7 @@ const input = { maker: '0x1111111111111111111111111111111111111111', providerStr
 test('HTTP API serves the frontend contract and rejects other origins', async t => {
   const config = { port: 0, allowedOrigin: 'http://localhost:3200', runner: '/unused', runnerTimeoutMs: 1000,
     chainId: 84532, networkName: 'Base Sepolia', rpcUrl: 'http://unused', explorerUrl: 'https://sepolia.basescan.org', router: '0x2222222222222222222222222222222222222222',
-    strategies: [{ id: 'featured-tight-market', name: 'Tight Market', provider: 'PinTool Strategies', strategyHash: h('b') }], stateDir: await mkdtemp(join(tmpdir(), 'pintool-http-')) };
+    strategyMaker: '0x1111111111111111111111111111111111111111', strategies: [{ id: 'featured-tight-market', name: 'Tight Market', provider: 'PinTool Strategies', strategyHash: h('b') }], stateDir: await mkdtemp(join(tmpdir(), 'pintool-http-')) };
   const server = makeServer(config, { runner: async () => structuredClone(state), verifyReceipt: async () => ({ chainId: 84532 }),
     verifyAquaSwap: async () => ({ chainId: 84532, occurredAt: '2026-09-12T12:01:00.000Z' }) });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -27,7 +27,7 @@ test('HTTP API serves the frontend contract and rejects other origins', async t 
   assert.deepEqual(await health.json(), { status: 'ok', chainId: 84532, network: 'Base Sepolia' });
   const catalog = await fetch(`${base}/v1/strategies`);
   assert.equal(catalog.status, 200);
-  assert.deepEqual(await catalog.json(), { strategies: config.strategies });
+  assert.deepEqual(await catalog.json(), { maker: config.strategyMaker, strategies: config.strategies });
   const created = await fetch(`${base}/v1/mandates`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3200' }, body: JSON.stringify(input) });
   assert.equal(created.status, 200);
   assert.equal((await created.json()).mandateId, state.mandateId);

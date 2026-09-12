@@ -18,6 +18,7 @@ Returns the public catalog entries that have both a provisioned Provider policy 
 
 ```json
 {
+  "maker": "0x...",
   "strategies": [
     {
       "id": "featured-tight-market",
@@ -29,7 +30,7 @@ Returns the public catalog entries that have both a provisioned Provider policy 
 }
 ```
 
-The Maker application uses this catalog as the authority for whether a listing is currently accepting liquidity. A listing may remain discoverable without appearing in this response, but it cannot create or join a mandate until its Provider policy and Maker-specific Aqua execution have been provisioned.
+The `maker` is the wallet encoded into every returned Aqua strategy. The Maker application requires the connected wallet to match it before showing a listing as accepting liquidity. It also uses this catalog as the authority for whether a listing is currently executable. A listing may remain discoverable without appearing in this response, but it cannot create or join a mandate until its Provider policy and Maker-specific Aqua execution have been provisioned.
 
 ## Create a mandate
 
