@@ -2,19 +2,26 @@
 
 PinTool uses ENSv2 on Ethereum Sepolia to discover signed Provider publications and delegate updates to their public version pointer. A Maker selects a specific immutable release. Updating the ENS entry never silently changes an existing mandate's publication or Aqua program hash.
 
-## Product flow
+## Platform maintenance (local development only)
 
-1. Open `/ens/setup` with the platform owner wallet. The default namespace is `pintool.eth`; set `ENS_ROOT_NAME` on the mandate service to use a different available 3–32 character ASCII `.eth` name.
+The production `/ens/setup` route returns 404. The initialization UI is separate from the Provider workspace and only available with `pnpm dev`, at `http://localhost:3200/ens/setup`. Configure the local frontend's public Privy app ID and allow the localhost origin in that app to connect the platform owner wallet. Registration state is saved per browser origin; the old production origin's saved plan is not available on localhost. Check the live namespace before starting a new setup.
+
+1. Open the local setup page with the platform owner wallet. The default namespace is `pintool.eth`; set `ENS_ROOT_NAME` on the mandate service to use a different available 3–32 character ASCII `.eth` name.
 2. Prepare registration: deploy official UserRegistry and PermissionedResolver proxies through the ENS VerifiableFactory, obtain the free ENS MockUSDC fee token, approve the registrar's quoted fee, and submit the commitment. The browser saves only this public registration plan and reveal secret, keyed by chain, root and wallet, so the remaining steps can resume after a reload.
 3. After the registrar's commitment waiting period, register the name. Then enable Provider names: deploy PinToolNamespaceRegistrar, grant it only `ROLE_REGISTRAR` on the platform registry, and publish its address in the root's `fun.pintool.registrar` record. These steps require the platform owner wallet's confirmations. Merely opening a page sends no transactions.
-4. A Provider opens `/ens` or the ENS panel below the CLMM editor, claims `alice.pintool.eth`, and receives a separate UserRegistry and PermissionedResolver. The registrar supports one Provider label per wallet. Names expire with the platform's current registration; the standard claim does not grant transfer rights. The platform retains parent administration.
-5. Publish a CLMM version using the existing signed, encrypted publication flow. In the ENS panel, choose a strategy label such as `eth-usdc`, then **Approve version for ENS**. This registers the strategy subname if needed and signs a separate public manifest.
-6. **Publish approved version** writes the record onchain and reads it back. Maker search and the `/maker?ens=eth-usdc.alice.pintool.eth` link resolve and verify that name.
-7. Optionally authorize a separate publisher wallet for the one `fun.pintool.release` text key. That wallet can use **Publish as delegate** on `/ens`, or run the standalone publisher service. Revoke it in the Provider panel; the UI verifies that no broader grant still permits updates.
 
 The standard ENS fee token is distinct from Circle's Sepolia USDC used by Aqua. Platform setup does not approve Maker trading tokens. Public test funds are required for gas. The application does not possess a platform owner key.
 
 Registrar deployment estimates the exact constructor through the application's Sepolia RPC, adds a 20% gas-limit margin, and includes current EIP-1559 fee fields in the wallet confirmation request. This supports wallets whose own contract-creation fee estimation fails. Failed application-side estimation stops before requesting deployment. If a previous attempt was cancelled in the wallet, close that request, reload the updated app, and retry **Enable Provider registration** using the same wallet and browser; completed registration steps remain intact.
+
+## Provider flow
+
+1. A Provider opens `/ens` or the ENS panel below the CLMM editor, claims `alice.pintool.eth`, and receives a separate UserRegistry and PermissionedResolver. The registrar supports one Provider label per wallet. Names expire with the platform's current registration; the standard claim does not grant transfer rights. The platform retains parent administration.
+2. Publish a CLMM version using the existing signed, encrypted publication flow. Provider Studio shows templates with publication support in `LP_CAPABILITIES`; unsupported templates are omitted. In the ENS panel, choose a strategy label such as `eth-usdc`, then **Approve version for ENS**. This registers the strategy subname if needed and signs a separate public manifest.
+3. **Publish approved version** writes the record onchain and reads it back. Maker search and the `/maker?ens=eth-usdc.alice.pintool.eth` link resolve and verify that name.
+4. Optionally authorize a separate publisher wallet for the one `fun.pintool.release` text key. That wallet can use **Publish as delegate** on `/ens`, or run the standalone publisher service. Revoke it in the Provider panel; the UI verifies that no broader grant still permits updates.
+
+If ENS status cannot be loaded, Providers can retry with **Refresh ENS**. The public workspace does not link to platform initialization.
 
 ## Verification and data
 
@@ -113,7 +120,7 @@ Then run `python scripts/ens/browser-test.py --api-pid <printed-pid>`. Python Pl
 
 Verified on 2026-09-13: after integrating the current standing-authorization Maker flow, the orchestrator suite passed 43 tests (the optional fork test was skipped in that run and passed separately against Anvil); the registrar artifact matched a fresh compiler output; Next production build and type checks passed. The fork-backed browser flow passed v1→v2 publication, delegation/revocation, retained Maker selection and three viewport sizes. The production static routes were checked separately with mocked unconfigured API responses. Existing unrelated frontend lint warnings remain.
 
-Implementation and local Sepolia-fork verification are complete. Public Sepolia registration and deployment have not been performed by these tests. To activate the namespace, deploy the updated frontend and mandate service, then open `/ens/setup` using the intended platform owner wallet with Sepolia gas funds. Complete **Prepare registration**, **Register platform name**, and **Enable Provider registration**. The name remains subject to availability until registration succeeds; change `ENS_ROOT_NAME` if another account registers it first.
+The platform owner completed public Sepolia activation of `pintool.eth`. On 2026-09-13, the production `/v1/ens/status` endpoint verified registry `0x69746116D58757e6b466Bb807cB909570944B7A9` and registrar `0x77ef534d24177d4b1e32be85392e7239f2c70559`. Providers can proceed directly to `/ens`. Future namespace initialization uses the local maintenance flow above.
 
 ## Sources
 
