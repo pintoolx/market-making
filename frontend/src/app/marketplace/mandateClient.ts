@@ -20,12 +20,12 @@ export type ChainEvidence = {
   reportTransactionHash: `0x${string}`;
   reportExplorerUrl: string;
   sequence: string;
-  expiresAt: string;
+  expiresAt: string | null;
 };
 
 export type MandateEvent = {
   id: string;
-  type: 'report-accepted' | 'strategy-activated' | 'swap-settled' | 'swap-rejected';
+  type: 'authorization-unchanged' | 'report-accepted' | 'strategy-activated' | 'swap-settled' | 'swap-rejected';
   title: string;
   detail: string;
   occurredAt: string;
@@ -92,7 +92,8 @@ function validateState(value: MandateState): MandateState {
     || !value.strategies.every(item => item?.listingId && item?.name && isHex(item.strategyHash))
     || !value.evidence || !isHex(value.evidence.reportDigest)
     || !isHex(value.evidence.reportTransactionHash) || !value.evidence.reportExplorerUrl
-    || !value.evidence.networkName || !value.evidence.sequence || !value.evidence.expiresAt
+    || !value.evidence.networkName || !value.evidence.sequence
+    || (value.evidence.expiresAt !== null && (typeof value.evidence.expiresAt !== 'string' || Number.isNaN(Date.parse(value.evidence.expiresAt))))
     || !Array.isArray(value.events)) {
     throw new Error('The mandate service returned incomplete or inconsistent onchain evidence.');
   }

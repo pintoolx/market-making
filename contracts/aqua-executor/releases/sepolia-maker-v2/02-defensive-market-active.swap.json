@@ -1,0 +1,10 @@
+{
+  "schema": "aqua-execution-v1",
+  "requestId": "swap-defensive-after-switch",
+  "sessionId": "sepolia-maker-v2-2",
+  "action": "swap",
+  "expectedStrategyHash": "0x7767a30f308311da63a47e530443d8c525267601ee63c8065a3d954a4a900c97",
+  "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+  "amountIn": "250000",
+  "slippageBps": 50
+}

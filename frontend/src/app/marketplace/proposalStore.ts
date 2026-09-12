@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 // Local index of mandates accepted by the configured mandate service, used by the current Profile screen.
-export type Proposal = { id: string; strategyName: string; mechanism: string; budget: string; maxExposure: string; maxWeakAsset: string; maxTrade: string; validityMinutes: string; feePct?: number; createdAt: number };
+export type Proposal = { id: string; strategyName: string; mechanism: string; budget: string; maxExposure: string; maxWeakAsset: string; maxTrade: string; validityMinutes?: string; authorization?: 'until-changed'; feePct?: number; createdAt: number };
 
 const KEY = 'pintool.aqua.proposals';
 const CHANGED = 'pintool:proposals-changed';

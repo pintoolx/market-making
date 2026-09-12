@@ -47,14 +47,14 @@ The workflow source and compiled binary are public. Confidential Workflows prote
 
 - Assets remain in the Maker wallet and are made available to Aqua through virtual balances and token approvals.
 - A report is bound to one chain, Guard, router, Maker, strategy hash and token pair.
-- A Guard authorization expires, uses a strictly increasing nonce and cannot exceed the Maker-approved public envelope.
+- A standing Guard authorization remains effective until changed or revoked, uses a strictly increasing nonce and cannot exceed the Maker-approved public envelope.
 - A strategy product contains at least one Aqua execution profile. AquaGuardV2 maintains one active profile hash per Maker; accepting another active report atomically replaces it, while a paused report clears only that same profile if it is active.
 - The service reports an accepted authorization or swap only after an independent RPC confirms its receipt and status.
 - Risk limits constrain execution; they do not guarantee profit or a maximum loss.
 
 ## Deployment state
 
-The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. The current Guard V2 `maker-active-v1` receiver is `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`. Public records verify two execution profiles sharing one Maker balance, successful guarded swaps, Maker-scoped atomic profile switching and rejection of an inactive profile. The separate [live acquisition run](../workflow/verification/live-market-guard/README.md) verifies CRE CLI reports, a CLMM trade and a mined direction rejection with public synthetic policies. These are local simulations with testnet delivery; real DON/TEE execution remains unverified.
+The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. The current Guard V2 `maker-active-v1` receiver is `0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f`. Public records verify two execution profiles sharing one Maker balance, successful guarded swaps, Maker-scoped atomic profile switching and rejection of an inactive profile. The separate [live acquisition run](../workflow/verification/live-market-guard/README.md) verifies CRE CLI reports, a CLMM trade and a mined direction rejection with public synthetic policies. These are local simulations with testnet delivery; real DON/TEE execution remains unverified.
 
 A production Chainlink deployment also requires Confidential Workflows access, Vault DON secrets, an authorized HTTP trigger signing key and a Guard configured for the official forwarder and workflow identity. Network, contract and Explorer evidence must always resolve to the same chain.
 

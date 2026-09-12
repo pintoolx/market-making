@@ -1,7 +1,7 @@
 {
   "requestId": "mandate-01",
   "maker": "0x24f93609de41a839f411d18f3ee242c5089caad7",
-  "strategyHash": "0x23b5f02fe3e0bd1079059341d55d45d0cbcb8f992ebf742d82962ec40ff3af4f",
+  "strategyHash": "0x404b5695e6733ad52c2402a43991c4a3d50181adb1ed94d8c1f404d319899a85",
   "marketSnapshot": {
     "midPrice": "2500",
     "volatilityBps": 120,

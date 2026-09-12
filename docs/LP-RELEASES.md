@@ -1,6 +1,6 @@
 # Versioned CLMM publication and readiness
 
-This is the first integration stage from [FRONTEND-LP-COMPLETION.md](FRONTEND-LP-COMPLETION.md), not completion of all six templates or automatic Maker onboarding. It adds a signed publication registry, a shared executable envelope, a compiler adapter, approved policy/version bindings, and live readiness checks. The existing executor journal still owns approvals, ship, swap, recovery, monitoring and dock.
+This is the first integration stage from [GUARD-REPORT-V1.md](GUARD-REPORT-V1.md), not completion of all six templates or automatic Maker onboarding. It adds a signed publication registry, a shared executable envelope, a compiler adapter, approved policy/version bindings, and live readiness checks. The existing executor journal still owns approvals, ship, swap, recovery, monitoring and dock.
 
 ## Provider publication
 
@@ -52,7 +52,7 @@ Set `MANDATE_GUARD_ADDRESS`, `MANDATE_AQUA_ADDRESS`, the existing router/network
 
 The [reader](../orchestrator/src/lp-readiness.mjs) checks chain ID and block freshness, then reads Guard report/active hash, both Aqua raw balances, Maker wallet balances and Maker→Aqua allowances at **one block**. The conservative funding check requires wallet/allowance coverage of both current raw balances. Both token balances must be positive. Only all conditions together yield `ready-for-quote`; each actual trade still needs a fresh quote, slippage checks, taker funding and Guard execution.
 
-The public readiness snapshot expires after at most 30 seconds, earlier at report/program expiry. The frontend stops displaying a cached ready state when it expires. Historical report acceptance, ship status and current funding appear separately. The reader and mandate `GET` path send no transactions; reevaluation is an explicit write path.
+The public readiness snapshot expires after at most 30 seconds, earlier at report/program expiry. The frontend stops displaying a cached ready state when it expires. Historical report acceptance, ship status and current funding appear separately. The reader and mandate `GET` path send no transactions; reevaluation publishes only when the derived execution terms change.
 
 Report evidence now reads Guard state at the accepted event's block and matches nonce/digest, preventing a later report from being attached to an older transaction. This does not add a durable concurrent CRE nonce allocator or correlate simultaneous requests to separate report IDs; serialize executions for a Maker.
 

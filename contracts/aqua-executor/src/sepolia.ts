@@ -199,7 +199,7 @@ export async function deployCurrentSepoliaGuard(ctx: Ctx, base: Deployment, iden
     if (aqua.toLowerCase() !== SEPOLIA.aqua) throw new Error('base router AQUA does not match canonical registry')
     const address = await deployOne(ctx, sender, 'AquaGuardV2', [identity.forwarder, base.router, identity.workflowId, identity.workflowOwner, identity.simulation])
     await ctx.pc.readContract({ address, abi: activeStrategyAbi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] })
-    return { ...base, guard: { address, version: 2, revision: 'maker-active-v1', forwarder: identity.forwarder,
+    return { ...base, guard: { address, version: 2, revision: 'standing-v2', forwarder: identity.forwarder,
       profile: identity.simulation ? 'cre-simulation' : 'cre-production' } } as Deployment
   })
 }
