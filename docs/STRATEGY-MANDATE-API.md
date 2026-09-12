@@ -79,6 +79,16 @@ Response 必須代表 initial report 已由 Guard 接受：
 
 每個 event 包含 `id`、`type`、`title`、`detail`、`occurredAt`，有鏈上交易時再附 `transactionHash` 與 `explorerUrl`。
 
+## Add a strategy
+
+`POST /v1/mandates/:mandateId/strategies`
+
+```json
+{ "providerStrategyId": "featured-defensive-market" }
+```
+
+Service 以既有 Maker policy 重新評估 strategy set，並在新 report 已被 Guard 接受後回傳更新後的 `MandateState`。資產不因加入策略而離開 Maker wallet，且任一時間最多一套 strategy 為 `active`。
+
 ## Required invariants
 
 - Strategy set 至少一套，任一狀態最多一套 `active`。
