@@ -93,6 +93,24 @@ Each event contains `id`, `type`, `title`, `detail` and `occurredAt`. Events bac
 
 The service reevaluates the strategy set against the existing Maker policy and returns an updated `MandateState` only after the Guard accepts the new report. Adding a strategy does not move assets out of the Maker wallet, and at most one strategy may be `active` at a time.
 
+## Record an Aqua execution
+
+`POST /v1/mandates/:mandateId/executions`
+
+```json
+{
+  "providerStrategyId": "featured-defensive-market",
+  "transactionHash": "0x...",
+  "outcome": "settled"
+}
+```
+
+`outcome` is `settled` or `rejected`. The service fetches both the transaction and receipt
+from Ethereum Sepolia, requires the configured Aqua Router as the target, decodes the swap
+order, recomputes its strategy hash and checks it against the mandate. A settlement must
+contain the matching `Swapped` event; a rejection must have a failed receipt and no such
+event. Only this verified evidence is appended to the activity shown by the frontend.
+
 ## Required invariants
 
 - A strategy set contains at least one strategy and at most one `active` strategy.

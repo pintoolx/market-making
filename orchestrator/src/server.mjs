@@ -14,11 +14,13 @@ export function configFromEnv(env = process.env) {
     networkName: env.MANDATE_NETWORK_NAME ?? 'Ethereum Sepolia',
     rpcUrl: env.MANDATE_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com',
     explorerUrl: (env.MANDATE_EXPLORER_URL ?? 'https://sepolia.etherscan.io').replace(/\/$/, ''),
+    router: env.MANDATE_ROUTER_ADDRESS,
     stateDir: env.MANDATE_STATE_DIR ?? '.state/mandates',
   };
   if (!Number.isSafeInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('invalid PORT');
   if (!Number.isSafeInteger(config.chainId) || config.chainId < 1) throw new Error('invalid MANDATE_CHAIN_ID');
   if (!config.runner) throw new Error('MANDATE_RUNNER is required; the service will not fabricate mandate evidence');
+  if (!/^0x[0-9a-f]{40}$/i.test(config.router ?? '')) throw new Error('MANDATE_ROUTER_ADDRESS is required');
   return config;
 }
 
@@ -53,10 +55,11 @@ export function makeServer(config, dependencies) {
       let result;
       if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));
       else {
-        const match = url.pathname.match(/^\/v1\/mandates\/([A-Za-z0-9][A-Za-z0-9._-]{0,95})(\/strategies)?$/);
+        const match = url.pathname.match(/^\/v1\/mandates\/([A-Za-z0-9][A-Za-z0-9._-]{0,95})(\/(strategies|executions))?$/);
         if (!match) throw new HttpError(404, 'Route not found.');
         result = request.method === 'GET' && !match[2] ? await service.get(match[1])
-          : request.method === 'POST' && match[2] ? await service.add(match[1], await readJson(request))
+          : request.method === 'POST' && match[3] === 'strategies' ? await service.add(match[1], await readJson(request))
+            : request.method === 'POST' && match[3] === 'executions' ? await service.recordExecution(match[1], await readJson(request))
             : (() => { throw new HttpError(405, 'Method not allowed.'); })();
       }
       response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify(result));

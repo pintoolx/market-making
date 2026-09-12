@@ -15,8 +15,9 @@ const input = { maker: '0x1111111111111111111111111111111111111111', providerStr
 
 test('HTTP API serves the frontend contract and rejects other origins', async t => {
   const config = { port: 0, allowedOrigin: 'http://localhost:3200', runner: '/unused', runnerTimeoutMs: 1000,
-    chainId: 84532, networkName: 'Base Sepolia', rpcUrl: 'http://unused', explorerUrl: 'https://sepolia.basescan.org', stateDir: await mkdtemp(join(tmpdir(), 'pintool-http-')) };
-  const server = makeServer(config, { runner: async () => structuredClone(state), verifyReceipt: async () => ({ chainId: 84532 }) });
+    chainId: 84532, networkName: 'Base Sepolia', rpcUrl: 'http://unused', explorerUrl: 'https://sepolia.basescan.org', router: '0x2222222222222222222222222222222222222222', stateDir: await mkdtemp(join(tmpdir(), 'pintool-http-')) };
+  const server = makeServer(config, { runner: async () => structuredClone(state), verifyReceipt: async () => ({ chainId: 84532 }),
+    verifyAquaSwap: async () => ({ chainId: 84532, occurredAt: '2026-09-12T12:01:00.000Z' }) });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -27,6 +28,10 @@ test('HTTP API serves the frontend contract and rejects other origins', async t 
   assert.equal(created.status, 200);
   assert.equal((await created.json()).mandateId, state.mandateId);
   assert.equal(created.headers.get('cache-control'), 'no-store');
+  const execution = await fetch(`${base}/v1/mandates/${state.mandateId}/executions`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3200' },
+    body: JSON.stringify({ providerStrategyId: 'featured-tight-market', transactionHash: h('d'), outcome: 'settled' }) });
+  assert.equal(execution.status, 200);
+  assert.equal((await execution.json()).events[0].type, 'swap-settled');
   const denied = await fetch(`${base}/v1/mandates/${state.mandateId}`, { headers: { origin: 'https://evil.example' } });
   assert.equal(denied.status, 403);
 });
