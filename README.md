@@ -2,14 +2,14 @@
 
 Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
 
-The intended design lets Strategy Providers offer strategies while keeping their raw logic private. Makers use their own funds and private limits, with a Provider fee only when there is profit. Confidential execution and profit sharing are not implemented end to end yet.
+The intended design lets two Strategy Providers compete for one Maker balance while keeping their raw logic private. The Maker supplies one private capital mandate. A confidential workflow authorizes one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. Confidential execution and profit sharing are not implemented end to end yet.
 
 ## Intended flow
 
-1. **A Provider publishes a strategy.** They start from an Aqua template, write the logic only they know, and set a performance fee. Makers only see the name, a description and the fee.
-2. **A Maker sets private limits.** They pick a strategy and set a budget and a maximum exposure. The Provider never sees these.
-3. **A confidential workflow combines both.** A Chainlink workflow running in a TEE checks the Provider's logic against the Maker's limits and only produces a plan that fits both.
-4. **The Maker signs, and the strategy runs on Aqua.** Funds stay in the Maker's wallet the whole time. Limits are enforced on every swap, and the Provider's fee applies only to profit.
+1. **Two Providers publish private policies.** Each policy decides when its public Aqua execution envelope should be active.
+2. **A Maker sets one private mandate.** Capital, WETH inventory, fill and expiry limits remain hidden from both Providers.
+3. **A confidential workflow selects the permitted strategy.** A deterministic validator applies the Maker's hard limits before emitting a short-lived mandate.
+4. **PinTool Guard enforces the mandate on Aqua.** Market regime changes switch the active strategy hash without moving the Maker's underlying wallet balance.
 
 ## What stays private
 
@@ -26,16 +26,16 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 
 | Part | Folder | Status |
 |---|---|---|
-| Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
-| CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; account access, actual delivery and TEE evaluator pending |
+| Web app: role choice, Provider Studio, two-Provider Maker mandate, profile | `frontend/` | Working; live execution requires the mandate service configured below |
+| CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
-| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Prototype with synthetic-report testnet swaps / rejection evidence; actual CRE delivery pending |
+| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Single-strategy v1 synthetic-report prototype works; atomic A/B mandate switching and actual CRE delivery remain pending |
 
 ## Getting started
 
 ```bash
 pnpm install
-cp frontend/.env.example frontend/.env.local   # set NEXT_PUBLIC_PRIVY_APP_ID
+cp frontend/.env.example frontend/.env.local   # set Privy and mandate service values
 pnpm dev                                        # http://localhost:3000
 ```
 
@@ -51,13 +51,15 @@ The web app is exported as a static site (`output: "export"`).
 
 - Build command: `pnpm install --frozen-lockfile && pnpm build`
 - Build output directory: `frontend/out`
-- Environment variables: `NEXT_PUBLIC_PRIVY_APP_ID` (inlined at build time) and `NODE_VERSION=22`
+- Environment variables: `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_MANDATE_API_URL` (inlined at build time) and `NODE_VERSION=22`
+- The Maker flow does not fabricate workflow or transaction success when the mandate service is absent.
 - Add the Pages domain to the Privy app's allowed origins.
 
 ## Docs
 
 - [Product spec and interfaces](docs/PRODUCT-HANDOFF.md)
 - [Winning integration and video flow](docs/WINNING-FLOW.md)
+- [Frontend mandate service contract](docs/STRATEGY-MANDATE-API.md)
 - [ETHOnline topic diligence and prior-art analysis](docs/TOPIC-DILIGENCE.md)
 - [Aqua maker strategy research](docs/AQUA-MAKER-RESEARCH.md)
 - [What Aqua can enforce per swap, and the Guard design](docs/AQUA-STRATEGY-DEEP-DIVE.md)
