@@ -6,7 +6,7 @@
   "strategy": {
     "schema": "aqua-swapvm-v1.0.2",
     "chainId": 11155111,
-    "maker": "0x32f79282124eafc681601cdca2883c672c72d340",
+    "maker": "0x24f93609de41a839f411d18f3ee242c5089caad7",
     "tokens": [
       "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
       "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"

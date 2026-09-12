@@ -3,7 +3,7 @@
   "requestId": "swap-tight-before-switch",
   "sessionId": "sepolia-maker-v1-1",
   "action": "swap",
-  "expectedStrategyHash": "0x99dad96884c19410b5d92c805de6a515f57a2d019848ccfd2676067a383ba9f6",
+  "expectedStrategyHash": "0x23b5f02fe3e0bd1079059341d55d45d0cbcb8f992ebf742d82962ec40ff3af4f",
   "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
   "amountIn": "250000",
   "slippageBps": 50
