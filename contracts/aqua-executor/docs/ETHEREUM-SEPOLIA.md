@@ -89,10 +89,7 @@ deployment and current guarded strategy hash before broadcasting. The
 orchestrator defaults to Sepolia RPC/explorer/chain ID. The UI shows WETH / USDC
 with Ethereum Sepolia identification and small suggested limits.
 
-Real CRE account access, confidential execution, atomic A/B mandate switching,
-and frontend evidence integration are separate acceptance items in
-[`WINNING-FLOW.md`](../../../docs/WINNING-FLOW.md). A successful asset migration
-does not establish those milestones. Existing `demo:risk` intentionally remains
+Production CRE account access, confidential execution, Maker-scoped atomic strategy switching and frontend evidence integration require the current Guard artifact and final workflow identity. The recorded deployment predates those additions. Existing `demo:risk` intentionally remains
 restricted to the old mock fixture; the generic monitor/controller can use the
 new assets and deployment with an explicit price source.
 

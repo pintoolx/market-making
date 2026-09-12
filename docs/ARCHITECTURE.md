@@ -53,6 +53,6 @@ The workflow source and compiled binary are public. Confidential Workflows prote
 
 ## Deployment state
 
-The checked-in Base Sepolia deployment provides the currently verified Aqua, SwapVM and Guard transaction evidence. Ethereum Sepolia with WETH and Circle test USDC is the target deployment. Network migration must update the deployment manifest, workflow domain, runner, RPC, explorer and frontend-visible evidence together. Mixed-network evidence is rejected.
+The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. Its public records verify the Aqua lifecycle, successful guarded swaps and an expected rejected swap. The deployed receiver predates Maker-scoped atomic strategy switching, so the current Guard artifact requires a fresh deployment before that capability is enabled.
 
-Production Chainlink deployment also requires Confidential Workflows access, Vault DON secrets, an authorized HTTP trigger signing key and a Guard configured for the official forwarder and workflow identity.
+A production Chainlink deployment also requires Confidential Workflows access, Vault DON secrets, an authorized HTTP trigger signing key and a Guard configured for the official forwarder and workflow identity. Network, contract and Explorer evidence must always resolve to the same chain.
