@@ -1,3 +1,9 @@
+# Shared CRE project targets. Each workflow selects its own profile in workflow.yaml.
+staging-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
+
 simulation-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia-base-1
@@ -7,3 +13,7 @@ production-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia-base-1
       url: https://base-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-mainnet
+      url: https://ethereum-rpc.publicnode.com

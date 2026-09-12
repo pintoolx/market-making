@@ -1,29 +1,89 @@
-# Confidential workflow (Chainlink TEE)
+# Confidential workflow (Chainlink CRE, TEE)
 
-Owner: ㄍㄨㄢ材
+Owner: Henry (workflow). Counterpart: pengu (`contracts/`, the Aqua Guard).
 
-The target is a Chainlink CRE workflow that combines Provider logic and Maker limits inside a TEE, then writes public derived bounds to the Guard in [`contracts/`](../contracts/). The confidential evaluator is still pending.
+A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It reads two confidential inputs — the Provider's strategy and the Maker's risk limits — as Vault DON secrets, intersects them at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). The TEE never handles Maker funds.
 
-## Available delivery adapter
+The evaluator and report delivery are currently separate integration stages:
 
-[`guard-report/`](guard-report/) implements public report encoding, `runtime.report()` → `EVMClient.writeReport()`, Guard identity checks and receipt / state verification. A separate integration function accepts public output from `TeeRuntime.usingTheDons()`. The current entry point is an ordinary public cron fixture, with SDK mock tests and a WASM build; it is not proof of DON or TEE execution.
+- [`market-maker-auth/`](market-maker-auth/) runs the Provider × Maker intersection through `handlerInTee` and produces the 16-field report in simulation.
+- [`guard-report/`](guard-report/) encodes and delivers public report output through `runtime.report()` → `EVMClient.writeReport()`, then verifies Guard state and receipts.
 
-Use Bun in that package; it is intentionally outside the pnpm workspace. The [runbook](guard-report/README.md) includes unsigned simulation Guard deployment data and a paused-report preparation command. The team currently has no CRE account or Confidential Workflows access, so CLI simulation / broadcast and production confidential execution remain pending. See the [selected B transport and verification boundary](../docs/CRE-GUARD-INTEGRATION.md).
+Both stages have tests, but the confidential evaluator is not yet wired to the delivery adapter in one deployed workflow. CLI simulation is not production DON or TEE attestation. See the [transport and verification boundary](../docs/CRE-GUARD-INTEGRATION.md) and [`docs/authorization-format.md`](../docs/authorization-format.md).
 
-## Target scope
+## Layout
 
-- Take encrypted inputs from the Provider (strategy logic) and the Maker (budget, exposure limits), plus market data.
-- Decide inside the enclave; output only derived values the Guard needs: swap directions, per-swap amount caps, absolute inventory caps and expiry. The current v1 has no remaining cumulative budget counter. Raw Provider logic and original Maker limits must not be published.
-- Deliver the report through the Keystone forwarder to the Guard's `onReport(bytes metadata, bytes report)`.
-- A CLI simulation (`cre workflow simulate --broadcast`) milestone must change state onchain and be labelled as simulation. The full confidential product needs separate real TEE evidence.
+```
+workflow/
+├── project.yaml                 CRE project settings (RPCs per target)
+├── secrets.yaml                 logical secret ids → env vars (PROVIDER_STRATEGY, MAKER_LIMITS)
+├── .env.example                 synthetic demo secrets (copy to .env — gitignored)
+├── market-maker-auth/           the CRE workflow (cre init --template hello-confidential-workflows-ts)
+│   ├── workflow.ts              handlerInTee cron callback: getSecrets → intersect → publish
+│   ├── workflow.test.ts         handler tests with a fake TeeRuntime
+│   ├── config.staging.json      public config: schedule, maker, strategyHash, market snapshot, publishMode
+│   └── workflow.yaml
+├── src/
+│   ├── types.ts                 zod schemas for both secrets, the snapshot and GuardReportV1
+│   ├── intersect.ts             pure computeAuthorization() — no runtime, no clock, no I/O
+│   ├── intersect.test.ts        15 cases: incompatible sides, exhausted inventory, expiry, rule order
+│   ├── encode.ts                ABI encoder, golden-tested against docs/guard-report-v1/example.json
+│   ├── publish.ts               THE seam to the Guard: publishAuthorization(runtime, result)
+│   └── config/guard.ts          Guard / router / token / forwarder constants (TODO(pengu) marks)
+└── scripts/check-no-leak.sh     simulate, then assert no private value appears in the output
+```
 
-## Agree first
+## Run
 
-The [Guard report v1 proposal](../docs/GUARD-REPORT-V1.md) provides a draft ABI and shared encoding fixture for review with the contracts owner. Its fields and initial template are not yet agreed.
+Requires the [CRE CLI](https://docs.chain.link/cre) (tested with v1.33.0) and Bun.
 
-The report format between this workflow and the Guard contract. Keep the agreed schema in [`docs/`](../docs/) so both sides build against the same thing.
+```bash
+cd workflow
+bun install
+cp .env.example .env          # synthetic values; real policies go here, never committed
 
-## Background
+bun test                      # 25 unit tests (src/ + market-maker-auth/)
+bun run typecheck
+bun run simulate              # = cre workflow simulate market-maker-auth --non-interactive --trigger-index 0
+bun run check:leak            # simulate + leak scan
+```
 
-- [What Aqua can enforce per swap, and the Guard design](../docs/AQUA-STRATEGY-DEEP-DIVE.md)
-- [Product spec and interfaces](../docs/PRODUCT-HANDOFF.md)
+`simulate` prints the TEE notice box, the complete `GuardReportV1` payload the Guard would
+receive (dry-run), its 512-byte ABI encoding and `keccak256` hash, and a public one-line
+result. No deployment access is needed to simulate; deploying needs `cre account access`
+and Confidential Workflows private-beta enrollment.
+
+## Confidentiality boundary
+
+| Stays in the enclave | Leaves the enclave |
+|---|---|
+| Provider rules, thresholds, TTL preferences, inventory ceilings | the 16-field `GuardReportV1` (public by design) |
+| Maker budget, token0 share, per-swap tolerances, TTL | `allowedDirections`, nonce, validity window in the result string |
+| matched rule id, which side bound each cap (`DecisionTrace`) | — |
+
+Enforcement: `scripts/check-no-leak.sh` runs the simulation and fails if any scalar from the
+two secrets appears in the output, except the caps the report publishes as `min(provider,
+maker)` — those are listed explicitly so reviewers see exactly what is revealed.
+`runtime.log()` calls inside the TEE handler are simulation-only and marked
+`TODO(remove-before-deploy)`.
+
+## Facts this is built on (verified, not remembered)
+
+- `cre.handlerInTee(trigger, fn, [{ tee: 'nitro', regions: ['us-west-2'] }])`,
+  `runtime.getSecrets([{ id }]).result()`, `runtime.now()`, `runtime.usingTheDons()` — from
+  the official template and SDK 1.18.0 type definitions.
+- `EVMClient.writeReport()` and every other `EVMClient` method accept only a DON `Runtime`
+  (no `TeeRuntime` overload) → on-chain delivery must cross back with `usingTheDons()`.
+- `HTTPClient.sendRequest()` is the only capability with a `TeeRuntime` overload.
+- Quotas: 2 KB per secret, 27 KB per workflow, 5 secret calls per execution.
+- Base Sepolia chain-selector name `ethereum-testnet-sepolia-base-1`; CRE mock forwarder
+  `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5`.
+
+## Status
+
+- [x] Scaffold from the official confidential template; baseline simulate passes
+- [x] Pure intersection + GuardReportV1 encoding, golden-matched to the contracts fixture
+- [x] TEE handler end-to-end in `cre workflow simulate` (dry-run publish)
+- [x] Leak check script
+- [ ] `publishMode: don-report` against a Guard deployed with the CRE forwarder (waiting on pengu — see `docs/authorization-format.md` §9)
+- [ ] Market snapshot fetched inside the enclave via `HTTPClient` instead of config
