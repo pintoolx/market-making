@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createPublicClient, createWalletClient, http, type Chain, type PublicClient, type Transport, type WalletClient } from 'viem'
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
-import { baseSepolia, foundry } from 'viem/chains'
+import { baseSepolia, foundry, sepolia } from 'viem/chains'
 import type { Deployment, Hex } from './types.ts'
 
 export type Wallet = WalletClient<Transport, Chain, PrivateKeyAccount>
@@ -16,6 +16,7 @@ export interface Ctx {
 
 export const NETWORKS = {
   local: { chain: foundry, rpcEnv: 'LOCAL_RPC_URL', rpc: 'http://127.0.0.1:8545', explorer: null },
+  'ethereum-sepolia': { chain: sepolia, rpcEnv: 'ETHEREUM_SEPOLIA_RPC_URL', rpc: 'https://ethereum-sepolia-rpc.publicnode.com', explorer: 'https://sepolia.etherscan.io' },
   'base-sepolia': { chain: baseSepolia, rpcEnv: 'BASE_SEPOLIA_RPC_URL', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org' },
 } as const
 

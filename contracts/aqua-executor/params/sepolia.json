@@ -1,0 +1,9 @@
+{
+  "tokens": ["WETH", "USDC"],
+  "amounts": ["0.004", "10"],
+  "feeBps": 0,
+  "ttlSec": 3600,
+  "strategyVersion": 1,
+  "rebalanceFeeBps": 0,
+  "demoSwap": { "tokenIn": "USDC", "amountIn": "0.5", "slippageBps": 50 }
+}

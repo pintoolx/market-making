@@ -78,7 +78,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     constructor(address forwarder_, address router_, bytes32 workflowId_, address workflowOwner_, bool simulationMode_) {
         if (forwarder_.code.length == 0 || router_.code.length == 0) revert InvalidConfiguration();
         if (simulationMode_) {
-            if ((block.chainid != 31337 && block.chainid != 84532) || workflowId_ != bytes32(0) || workflowOwner_ != address(0)) {
+            if ((block.chainid != 31337 && block.chainid != 84532 && block.chainid != 11155111) || workflowId_ != bytes32(0) || workflowOwner_ != address(0)) {
                 revert InvalidConfiguration();
             }
         } else if (workflowId_ == bytes32(0) || workflowOwner_ == address(0)) {

@@ -1,3 +1,5 @@
+> Current demo network: **Ethereum Sepolia / WETH / Circle testnet USDC**. See [setup and migration](../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md). Set `guard` and `router` in `market-maker-auth` public config from the confirmed Sepolia bundle. Older Base references below describe historical validation.
+
 # Confidential workflow (Chainlink CRE, TEE)
 
 A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It reads two confidential inputs — the Provider's strategy and the Maker's risk limits — as Vault DON secrets, intersects them at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). The TEE never handles Maker funds.

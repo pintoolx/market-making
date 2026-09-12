@@ -1,0 +1,38 @@
+{
+  "mode": "synthetic reports via project test harness; no CRE delivery or TEE attestation",
+  "chainId": 11155111,
+  "aqua": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+  "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+  "forwarder": "0x6326003d7bbc057ef29cdbf0779d0d1bf654711c",
+  "guard": "0x799782cb42ae0f2803ef3c6fd3a79e50c85177fa",
+  "guardVersion": 2,
+  "tokens": [
+    "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+    "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+  ],
+  "strategyHash": "0xf7a8d6b16f49fac2984271bc0d91822a808acddb2ee34067f1450c5634edfd5b",
+  "reportHashes": [
+    "0x5819ee9a0bc4267885ee72be9a84cabdd7270934d532a288740e6869f093bce4",
+    "0xe59dd7d834d55487741884cc0e90fa707b5fe51e68caa3c1d24e1e2df8a2be51",
+    "0x4c58783c8d6f7bf7812993f831b2709a971911f4238c42f27440ddc14e8856f9"
+  ],
+  "swaps": [
+    "0x09b2a866a41dfbdccf0730fa07e6c88bd121e6a5b7fc099f8957e8c529b72ea8",
+    "0x5604844be8f7c9e302d5afe498b32d1237fa75b6352b405265a26e3e14cb1a6e",
+    "0x0cb908b3787eabff1e34d79e7244baebcfc2c153003fc00ab78539664492da67"
+  ],
+  "rejectedSwap": "0x8a91c65378536ef42c80221e4a031476c31fe8bf570f8728fa7feef3d81b6072",
+  "finalState": [
+    {
+      "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "balance": "0",
+      "tokensCount": 255
+    },
+    {
+      "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "balance": "0",
+      "tokensCount": 255
+    }
+  ],
+  "file": "/home/kuoba123/eth-glo/market-making/contracts/aqua-executor/records/11155111/guard-demo-2026-09-12T11-34-16-038Z.jsonl"
+}

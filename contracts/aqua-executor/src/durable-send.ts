@@ -1,10 +1,12 @@
 import { TransactionReceiptNotFoundError, keccak256, type TransactionReceipt } from 'viem'
 import type { Ctx, Wallet } from './config.ts'
-import { revertReason, waitMined, type TxRequest } from './executor.ts'
+import { revertReason, waitMined } from './executor.ts'
 import { ExecutionStore } from './execution-store.ts'
 import type { Recorder } from './records.ts'
 import type { Hex } from './types.ts'
 
+/** Decimal-string value survives journal JSON round trips; absent to means contract creation. */
+export interface DurableRequest { to?: Hex; data: Hex; value?: string }
 export interface SavedTransaction {
   requestId: string
   step: string
@@ -12,7 +14,7 @@ export interface SavedTransaction {
   strategyHash: Hex
   sender: Hex
   nonce: number
-  request: TxRequest
+  request: DurableRequest
   raw: Hex
   hash: Hex
   receipt?: { status: 'success' | 'reverted'; blockHash: Hex; blockNumber: string }
@@ -42,15 +44,17 @@ export function durableSender(ctx: Ctx, store: ExecutionStore, requestId: string
   const audit = async () => {
     for (const tx of store.all<SavedTransaction>('txs').filter(t => t.requestId === requestId && t.receipt)) await receipt(tx)
   }
-  const send = async (step: string, w: Wallet, action: string, strategyHash: Hex, prepare: () => Promise<TxRequest>) => {
+  const send = async (step: string, w: Wallet, action: string, strategyHash: Hex, prepare: () => Promise<DurableRequest>) => {
     let tx = get(step)
     if (!tx) {
       signal?.throwIfAborted()
       const request = await prepare()
-      try { await ctx.pc.call({ account: w.account.address, ...request }) }
+      if (request.value !== undefined && !/^(0|[1-9]\d*)$/.test(request.value)) throw new Error('invalid transaction value')
+      const transaction = { ...request, value: request.value === undefined ? undefined : BigInt(request.value) }
+      try { await ctx.pc.call({ account: w.account.address, ...transaction }) }
       catch (e) { throw new Error(`${action} simulation failed: ${revertReason(e)}`) }
       const nonce = await ctx.pc.getTransactionCount({ address: w.account.address, blockTag: 'pending' })
-      const prepared = await w.prepareTransactionRequest({ ...request, nonce, account: w.account, chain: ctx.chain })
+      const prepared = await w.prepareTransactionRequest({ ...transaction, nonce, account: w.account, chain: ctx.chain })
       const raw = await w.signTransaction(prepared)
       tx = { requestId, step, action, strategyHash, sender: w.account.address, nonce, request, raw, hash: keccak256(raw) }
       signal?.throwIfAborted()

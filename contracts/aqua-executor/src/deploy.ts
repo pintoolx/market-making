@@ -19,6 +19,9 @@ const artifact = (name: string): { abi: Abi; bytecode: Hex } =>
  * plus two mintable mock tokens, and fund maker + taker.
  */
 export async function deploy(ctx: Ctx, rec: Recorder): Promise<Deployment> {
+  if (![31337, 84532].includes(ctx.chain.id) || await ctx.pc.getChainId() !== ctx.chain.id) {
+    throw new Error('mock deployment requires local or Base Sepolia; use sepolia deploy --execute for Ethereum Sepolia assets')
+  }
   const owner = ctx.maker.account.address
   const taker = ctx.taker.account.address
   const dep = async (name: string, label: string, args: unknown[]) => {

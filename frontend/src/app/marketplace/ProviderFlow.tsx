@@ -35,28 +35,28 @@ type ParameterField = { key: string; label: string; defaultValue: string; suffix
 const TEMPLATE_FIELDS: Record<string, ParameterField[]> = {
   xyc: [
     { key: 'baseFeeBps', label: 'Base fee', defaultValue: '30', suffix: 'bps' },
-    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '1', suffix: 'USDC' },
     { key: 'directions', label: 'Quote direction', defaultValue: 'both', options: [{ value: 'both', label: 'Both directions' }, { value: 'buy-weth', label: 'Buy WETH only' }, { value: 'sell-weth', label: 'Sell WETH only' }] },
   ],
   clmm: [
     { key: 'rangeBelowPct', label: 'Range below reference', defaultValue: '5', suffix: '%' },
     { key: 'rangeAbovePct', label: 'Range above reference', defaultValue: '5', suffix: '%' },
-    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '1', suffix: 'USDC' },
   ],
   pegged: [
     { key: 'reference', label: 'Reference price', defaultValue: 'chainlink', options: [{ value: 'chainlink', label: 'Chainlink price feed' }, { value: 'market-mid', label: 'Verified market midpoint' }] },
     { key: 'spreadBps', label: 'Quote spread', defaultValue: '10', suffix: 'bps' },
-    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '1', suffix: 'USDC' },
   ],
   decay: [
     { key: 'adjustmentBps', label: 'Post-fill adjustment', defaultValue: '20', suffix: 'bps' },
     { key: 'decaySeconds', label: 'Decay duration', defaultValue: '300', suffix: 'seconds' },
-    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '1', suffix: 'USDC' },
   ],
   inventory: [
     { key: 'targetWethPct', label: 'Target WETH inventory', defaultValue: '50', suffix: '%' },
     { key: 'tolerancePct', label: 'Inventory tolerance', defaultValue: '10', suffix: '%' },
-    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '1', suffix: 'USDC' },
   ],
   shared: [
     { key: 'strategyBudgetUsdc', label: 'Requested virtual balance', defaultValue: '1000', suffix: 'USDC' },

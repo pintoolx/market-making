@@ -93,7 +93,7 @@ test('expired, future and wrong-chain reports fail before report delivery', () =
     t.runtime.setTimeProvider(() => time * 1000)
     expect(() => onCron(t.runtime)).toThrow('not current')
   }
-  expect(() => submitPublicReport(t.runtime, { ...report, chainId: '11155111' }, simulation)).toThrow('Base Sepolia only')
+  expect(() => submitPublicReport(t.runtime, { ...report, chainId: '84532' }, simulation)).toThrow('Ethereum Sepolia only')
   expect(t.writes()).toBe(0)
 })
 
