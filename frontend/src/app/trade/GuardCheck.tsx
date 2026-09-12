@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useWallets } from '@privy-io/react-auth';
 import { createPublicClient, createWalletClient, custom, encodeFunctionData, erc20Abi, http, parseUnits, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
-import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
+import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletErrorMessage, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
 import deployment from '../../../../contracts/aqua-executor/deployments/11155111.json';
 import { request, type ExecutableStrategy } from '../marketplace/mandateClient';
 import Secondary from '../components/shared/Secondary';
@@ -29,7 +29,7 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
   useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(pendingKey) || 'null'); if (/^0x[0-9a-f]{64}$/i.test(saved?.hash ?? '')) setPending(saved); } catch { /* No saved check. */ } }, []);
   const act = async (fn: () => Promise<void>) => {
     setBusy(true); setMessage('');
-    try { await fn(); } catch (e) { setMessage(e instanceof Error ? e.message.slice(0, 350) : 'Unable to verify this request.'); }
+    try { await fn(); } catch (e) { setMessage(walletErrorMessage(e)); }
     finally { setBusy(false); }
   };
   const confirm = async (item: PendingCheck) => {

@@ -1,5 +1,6 @@
 import type { Hex, Address, PublicClient, ParseAbi } from 'viem';
 export declare function isInactiveStrategyError(error: unknown): boolean;
+export declare function walletErrorMessage(error: unknown): string;
 
 export declare const tradeAbi: ParseAbi<[
   'struct Order { address maker; uint256 traits; bytes data; }',
