@@ -39,3 +39,12 @@ test('wallet trade recovers the shipped order and rejects substituted receipts, 
   tx.input = encodeFunctionData({ abi: aquaAbi, functionName: 'ship', args: [router, custom, tokens, [1n, 1n]] })
   await assert.rejects(verifiedTradeOrder(client, deployment, { ...selected, strategyHash: keccak256(custom) }), /settlement/)
 })
+
+test('Guard verification recognizes decoded inactive-strategy errors, not incidental text', async () => {
+  const { isInactiveStrategyError } = await import('../../../shared/wallet-trade.mjs');
+  assert.equal(isInactiveStrategyError({ cause: { data: { errorName: 'StrategyNotActive' } } }), true);
+  assert.equal(isInactiveStrategyError(new Error('StrategyNotActive')), false);
+  assert.equal(isInactiveStrategyError({ data: { errorName: 'AmountLimitExceeded' } }), false);
+  const cycle: { cause?: unknown } = {}; cycle.cause = cycle;
+  assert.equal(isInactiveStrategyError(cycle), false);
+});
