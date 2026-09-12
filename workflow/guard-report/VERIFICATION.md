@@ -10,6 +10,12 @@ noncanonical tokens. Before that capability check was added, a read-only `setup:
 a paused, unshipped probe. That earlier receiver is now rejected by the current
 preflight. No CRE report was broadcast. The [asset migration run](../../contracts/aqua-executor/docs/ethereum-sepolia-demo.md)
 records public-chain deployment and synthetic-report enforcement separately.
+The replacement at `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70` passed the current
+read-only preparation check, including the active-strategy getter. The earlier
+receiver was explicitly rejected and no output config was written for it.
+[Replacement proof](../../contracts/aqua-executor/docs/ethereum-sepolia-guard-revision.json)
+is separate from the original 40 receipts.
+
 The evidence below describes the original Base adapter increment.
 
 ## Original adapter checks

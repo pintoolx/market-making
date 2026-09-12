@@ -2,7 +2,7 @@
 
 Execution side of the Strategy Provider × Maker market-making flow, built on **1inch Aqua + SwapVM**.
 
-This package now lives in the [PinTool Market Making workspace](../../README.md). Install dependencies with `pnpm install --frozen-lockfile` at the repository root. Run the package commands below from `contracts/aqua-executor/`; `npm run` also works with the workspace-installed dependencies. The original npm lock is retained only as a historical [source snapshot](docs/source-snapshots/risk-monitor-package-lock.json); the root `pnpm-lock.yaml` controls current installs. See [migration and implementation status](../../docs/AQUA-EXECUTOR-MIGRATION.md).
+This package now lives in the [PinTool Market Making workspace](../../README.md). Install dependencies with `pnpm install --frozen-lockfile` at the repository root. Run the package commands below from `contracts/aqua-executor/`; `npm run` also works with the workspace-installed dependencies. The root `pnpm-lock.yaml` controls current installs.
 
 **LP programs:** XYC, PeggedSwap and concentrated liquidity; each has a zero-fee guarded variant. [LP setup, explicit Guard JSON recipes and automatic expiry rollover](docs/LP-STRATEGIES.md) describe the new interfaces and local validation.
 
@@ -12,10 +12,7 @@ A strategy's parameters can arrive through the [TEE JSON request entry](docs/exe
 maker approve(Aqua) → Aqua.ship → taker router.swap → [Aqua.multicall(dock old, ship new)] → Aqua.dock → revoke
 ```
 
-**Current route: Ethereum Sepolia WETH / Circle testnet USDC.** See [funding, deployment, small demos and verification](docs/ETHEREUM-SEPOLIA.md). [Public run: 39 successful transactions and one expected Guard revert](docs/ethereum-sepolia-demo.md). Run `pnpm sepolia status` before deployment.
-
-**Historical Base Sepolia demo completed:** 13 successful lifecycle transactions, including two swaps and atomic rebalance. See [deployment addresses and transaction evidence](docs/base-sepolia-demo.md), or forward the [confidential executor interface](docs/confidential-executor-interface.md) to the integration team.
-
+**Ethereum Sepolia verification:** the public run uses canonical WETH and Circle testnet USDC and includes a full lifecycle, guarded swaps and an expected onchain rejection. See the [deployment runbook](docs/ETHEREUM-SEPOLIA.md), [transaction evidence](docs/ethereum-sepolia-demo.md) and [confidential executor interface](docs/confidential-executor-interface.md).
 
 | Step | Signer | Call | What moves |
 |---|---|---|---|

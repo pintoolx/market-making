@@ -1,8 +1,9 @@
+import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { createPublicClient, encodeDeployData, encodeFunctionData, erc20Abi, formatEther, formatUnits, http, isAddress, parseAbi, parseEther, parseUnits, zeroAddress, zeroHash, type Abi, type PublicClient } from 'viem'
+import { createPublicClient, encodeDeployData, encodeFunctionData, erc20Abi, formatEther, formatUnits, http, isAddress, isHex, parseAbi, parseEther, parseUnits, zeroAddress, zeroHash, type Abi, type PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
 import { deploymentFile, fromEnv, NETWORKS, readJson, type Ctx } from './config.ts'
 import { durableSender, type DurableRequest, type TransactionHook } from './durable-send.ts'
@@ -30,7 +31,17 @@ export const FUNDING_TARGET = {
 const wethAbi = parseAbi(['function deposit() payable'])
 const routerIdentityAbi = parseAbi(['function AQUA() view returns (address)'])
 const activeStrategyAbi = parseAbi(['function activeStrategyHash(address maker) view returns (bytes32)'])
-const artifact = (name: string) => readJson(`artifacts/${name}.json`) as { abi: Abi; bytecode: Hex }
+type ContractArtifact = { abi: Abi; bytecode: Hex; sourceHashes?: Record<string, string> }
+const artifact = (name: string) => readJson(`artifacts/${name}.json`) as ContractArtifact
+
+export const guardReleaseId = (guardArtifact: ContractArtifact = artifact('AquaGuardV2')) => {
+  const digest = createHash('sha256').update(guardArtifact.bytecode).digest('hex')
+  return `guard-v2-${digest.slice(0, 12)}`
+}
+
+export const versionedGuardDeploymentFile = (address: Hex) =>
+  new URL(`deployments/11155111.guard-${address.toLowerCase()}.json`, new URL('../', import.meta.url))
+
 
 export async function checkSepoliaAssets(pc: PublicClient) {
   if (await pc.getChainId() !== SEPOLIA.chainId) throw new Error('expected Ethereum Sepolia chainId 11155111')
@@ -112,7 +123,7 @@ async function deployOne(ctx: Ctx, sender: ReturnType<typeof durableSender>, nam
   const a = artifact(name)
   const data = encodeDeployData({ abi: a.abi, bytecode: a.bytecode, args })
   const previous = sender.get(name)
-  if (previous && previous.request.data !== data) throw new Error(`saved ${name} deployment uses different bytecode or constructor arguments; retain its journal and use upgrade-guard for the maker-active-v1 revision`)
+  if (previous && previous.request.data !== data) throw new Error(`saved ${name} deployment uses different bytecode or constructor arguments; retain its journal and inspect the receiver revision before deploying again`)
   const receipt = await sender.send(name, ctx.maker, `deploy:${name}`, zeroHash, async () => ({ data }))
   if (!receipt.contractAddress) throw new Error(`missing deployed ${name}`)
   const code = await ctx.pc.getCode({ address: receipt.contractAddress })
@@ -155,6 +166,44 @@ export async function upgradeSepoliaGuard(ctx: Ctx, deployment: Deployment, opti
   })
 }
 
+export interface GuardIdentity {
+  forwarder: Hex
+  workflowId: Hex
+  workflowOwner: Hex
+  simulation: boolean
+}
+
+export function guardIdentity(input: { forwarder?: string; workflowId?: string; workflowOwner?: string; production?: boolean }): GuardIdentity {
+  const simulation = !input.production
+  const forwarder = (input.forwarder ?? (simulation ? SEPOLIA.simulationForwarder : '')) as Hex
+  const workflowId = (input.workflowId ?? zeroHash) as Hex
+  const workflowOwner = (input.workflowOwner ?? zeroAddress) as Hex
+  if (!isAddress(forwarder, { strict: false }) || forwarder.toLowerCase() === zeroAddress) throw new Error('a nonzero --forwarder is required')
+  if (!isHex(workflowId) || workflowId.length !== 66 || !isAddress(workflowOwner, { strict: false })) throw new Error('invalid workflow identity')
+  if (simulation && (workflowId !== zeroHash || workflowOwner.toLowerCase() !== zeroAddress)) throw new Error('simulation requires zero workflow identity')
+  if (!simulation && (workflowId === zeroHash || workflowOwner.toLowerCase() === zeroAddress)) throw new Error('production requires --workflow-id and --workflow-owner')
+  return { forwarder, workflowId, workflowOwner, simulation }
+}
+
+/** Deploys only the current Guard artifact while reusing the verified Aqua and router. */
+export async function deployCurrentSepoliaGuard(ctx: Ctx, base: Deployment, identity: GuardIdentity, options: Options): Promise<Deployment> {
+  if (base.chainId !== SEPOLIA.chainId || base.aqua.toLowerCase() !== SEPOLIA.aqua ||
+      base.tokens.WETH?.toLowerCase() !== SEPOLIA.WETH || base.tokens.USDC?.toLowerCase() !== SEPOLIA.USDC) {
+    throw new Error('base deployment does not match canonical Ethereum Sepolia assets')
+  }
+  const requestId = `${guardReleaseId()}-${identity.simulation ? 'simulation' : 'production'}`
+  return withStore(ctx, options, requestId, async (_store, sender) => {
+    const routerCode = await ctx.pc.getCode({ address: base.router })
+    if (!routerCode || routerCode === '0x') throw new Error('base router has no code')
+    const aqua = await ctx.pc.readContract({ address: base.router, abi: routerIdentityAbi, functionName: 'AQUA' })
+    if (aqua.toLowerCase() !== SEPOLIA.aqua) throw new Error('base router AQUA does not match canonical registry')
+    const address = await deployOne(ctx, sender, 'AquaGuardV2', [identity.forwarder, base.router, identity.workflowId, identity.workflowOwner, identity.simulation])
+    await ctx.pc.readContract({ address, abi: activeStrategyAbi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] })
+    return { ...base, guard: { address, version: 2, revision: 'maker-active-v1', forwarder: identity.forwarder,
+      profile: identity.simulation ? 'cre-simulation' : 'cre-production' } } as Deployment
+  })
+}
+
 export async function fundSepolia(ctx: Ctx, options: Options) {
   return withStore(ctx, options, 'sepolia-fund-v1', async (store, sender) => {
     let steps = store.get<FundingStep[]>('sepolia', 'funding-plan')
@@ -173,10 +222,15 @@ export async function fundSepolia(ctx: Ctx, options: Options) {
 async function main() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
     execute: { type: 'boolean', default: false }, maker: { type: 'string' }, taker: { type: 'string' },
-    'state-dir': { type: 'string' }, rpc: { type: 'string' },
+    'state-dir': { type: 'string' }, rpc: { type: 'string' }, forwarder: { type: 'string' },
+    'workflow-id': { type: 'string' }, 'workflow-owner': { type: 'string' }, production: { type: 'boolean', default: false },
   } })
   const action = positionals[0] ?? 'status'
-  if (positionals.length > 1 || !['status', 'deploy', 'fund', 'upgrade-guard'].includes(action)) throw new Error('Usage: sepolia status | deploy --execute | upgrade-guard --execute | fund --execute [--state-dir PATH]')
+  if (positionals.length > 1 || !['status', 'deploy', 'deploy-guard', 'upgrade-guard', 'fund'].includes(action)) throw new Error('Usage: sepolia status | deploy --execute | deploy-guard --execute [identity options] | upgrade-guard --execute | fund --execute [--state-dir PATH]')
+  if (action !== 'deploy-guard' && (values.production || values.forwarder || values['workflow-id'] || values['workflow-owner'])) {
+    throw new Error('receiver identity options require deploy-guard; deploy and upgrade-guard create simulation receivers only')
+  }
+
   const network = NETWORKS['ethereum-sepolia']
   const rpc = values.rpc ?? process.env[network.rpcEnv] ?? network.rpc
   if (!values.execute || action === 'status') {
@@ -197,6 +251,13 @@ async function main() {
     mkdirSync(new URL('.', deploymentFile(d.chainId)), { recursive: true })
     writeFileSync(deploymentFile(d.chainId), json(d) + '\n')
     console.log(json(d))
+  } else if (action === 'deploy-guard') {
+    const base = readJson('deployments/11155111.json') as Deployment
+    const identity = guardIdentity({ forwarder: values.forwarder, workflowId: values['workflow-id'], workflowOwner: values['workflow-owner'], production: values.production })
+    const d = await deployCurrentSepoliaGuard(ctx, base, identity, options)
+    const output = versionedGuardDeploymentFile(d.guard!.address)
+    writeFileSync(output, json({ ...d, guardRelease: guardReleaseId(), workflowId: identity.workflowId, workflowOwner: identity.workflowOwner }) + '\n')
+    console.log(json({ deployment: d, manifest: fileURLToPath(output), next: 'Compile fresh guarded strategies against this Guard, then update product configuration after end-to-end verification.' }))
   } else console.log(json(await fundSepolia(ctx, options)))
   console.log(`records: ${join(options.stateDir, 'records')}`)
 }

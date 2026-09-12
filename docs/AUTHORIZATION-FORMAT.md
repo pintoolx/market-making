@@ -29,11 +29,11 @@ budget and share, and which side "won" each cap stay inside the TEE.
 | # | Field | Solidity | Unit / range | Set by | Why it is needed |
 |---|---|---|---|---|---|
 | 1 | `schemaVersion` | `uint16` | always `1` | workflow constant | Lets the Guard reject a payload from an older/newer encoder instead of mis-decoding it. |
-| 2 | `chainId` | `uint256` | `84532` (Base Sepolia) | `config/guard.ts` | Prevents replaying a Base Sepolia report on another chain where the same Guard bytecode may exist. |
-| 3 | `guard` | `address` | 20 bytes | `config/guard.ts` | Binds the report to one receiver so a report signed for Guard A cannot be replayed into Guard B. |
+| 2 | `chainId` | `uint256` | `11155111` (Ethereum Sepolia) | `config/guard.ts` | Prevents replaying an Ethereum Sepolia report on another chain where the same Guard bytecode may exist. |
+| 3 | `guard` | `address` | 20 bytes | workflow config | Binds the report to one receiver so a report signed for Guard A cannot be replayed into Guard B. |
 | 4 | `router` | `address` | 20 bytes | `config/guard.ts` | The Guard only accepts `extruction()` calls from this router; the report must name the same one. |
-| 5 | `maker` | `address` | 20 bytes | `config.staging.json` | Storage key #1 — the Guard keys state by `(maker, strategyHash)`; funds never leave this wallet. |
-| 6 | `strategyHash` | `bytes32` | `router.hash(order)` | `config.staging.json` | Storage key #2 — ties the authorization to one Maker-approved guarded program. |
+| 5 | `maker` | `address` | 20 bytes | HTTP request or workflow config | Storage key #1 — the Guard keys state by `(maker, strategyHash)`; funds never leave this wallet. |
+| 6 | `strategyHash` | `bytes32` | `router.hash(order)` | HTTP request or workflow config | Storage key #2 — ties the authorization to one Maker-approved guarded program. |
 | 7 | `token0` | `address` | 20 bytes | `config/guard.ts` | With `token1`, lets the Guard reject a swap on the wrong pair; order = the approved program's order, never sorted. |
 | 8 | `token1` | `address` | 20 bytes | `config/guard.ts` | See `token0`. |
 | 9 | `nonce` | `uint64` | `> 0`, strictly increasing per `(maker, strategyHash)` | TEE (unix seconds, see §5) | Ordering + replay protection: older or reused nonces revert; a byte-identical retry is a no-op. |
@@ -73,8 +73,7 @@ snapshot wins, none matching = paused.
 | `maxAmount0PerSwap` / `maxAmount1PerSwap` | Per-fill ceilings the Maker tolerates. |
 | `maxTtlSec` | Maker's upper bound on report lifetime. |
 
-**Market snapshot** (public, currently from `config.staging.json`; a verified live
-data adapter is planned): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
+**Market snapshot** (public, supplied by the authorized trigger or scheduled workflow configuration): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
 `balance0` / `balance1`, and the two token decimals.
 
 ## 4. Derivation rules (the "intersection")
@@ -128,12 +127,9 @@ stricter than Provider on every axis; rule ordering; expiry never exceeding 600 
   enclave could sign a raw transaction with a secret key and POST `eth_sendRawTransaction`.
   That would require a Guard that trusts a plain EOA instead of the forwarder — a different
   contract. Kept only as a documented stub in `publish.ts`.
-- **Forwarder addresses (Base Sepolia, from the Chainlink CRE docs):** simulation Mock
-  Forwarder `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5`. The prototype Guard
-  `0x41fde9f1f257fc65a40eb519d22ca9bfb1d2dbeb` was deployed with the project's own
-  `GuardTestForwarder`, so a CRE-delivered report will currently be rejected.
+- **Ethereum Sepolia simulation forwarder:** `0x15fc6ae953e024d975e77382eeec56a9101f9f88`, sourced from the Chainlink CRE forwarder directory. Confirm the current tenant-specific supported-chain output before broadcasting. Production uses a separately deployed Guard bound to the assigned workflow identity.
 
-## 7. Known information-leakage surface (answer for judges)
+## 7. Information leakage
 
 Each report publishes `min(provider, maker)` for four caps plus a window length. An
 observer collecting many reports can infer the *stricter* side's numbers and the regime
@@ -160,8 +156,7 @@ other.
 3. Configure the guarded Aqua program's `strategyHash` and Maker address.
 4. Verify the `onReport` gas limit against the deployed Guard.
 5. Confirm that simulation and production enforce their intended metadata checks.
-6. Update chain selector, contracts, token pair, RPC and explorer together when migrating
-   from the archived Base Sepolia deployment to Ethereum Sepolia.
+6. Update chain selector, contracts, token pair, RPC and explorer together for every deployment.
 
 ## 10. Configuration map
 

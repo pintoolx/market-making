@@ -40,17 +40,31 @@ public chain. Status requires no keys and accepts public address overrides:
 pnpm sepolia status
 pnpm sepolia status --maker 0x... --taker 0x...
 pnpm sepolia deploy --execute
+pnpm sepolia deploy-guard --execute
 pnpm sepolia fund --execute
 pnpm lifecycle --network ethereum-sepolia --rebalance
 pnpm demo:guard --network ethereum-sepolia
 ```
 
-Without `--execute`, `sepolia deploy`, `sepolia upgrade-guard` and `sepolia fund` are read-only preflights.
-The old `deploy --network ethereum-sepolia` command refuses to create mocks.
-The new deployment command reuses Aqua/WETH/USDC, deploys pinned SwapVM v1.0.2
-and AquaGuardV2, and writes `deployments/11155111.json`. The bundle includes the
-CRE simulation receiver identity. Guard V2 allows simulation only on local,
-Base Sepolia and Ethereum Sepolia; its production identity checks are unchanged.
+Without `--execute`, Sepolia commands are read-only preflights. `sepolia deploy`
+initializes the complete environment and writes `deployments/11155111.json`.
+
+After Guard source changes, use `sepolia deploy-guard --execute` to reuse the verified
+Aqua and router while deploying only the current Guard artifact. The command derives a
+durable request ID from the bytecode and writes a versioned manifest named
+`deployments/11155111.guard-<address>.json`; it never overwrites the public record of an
+earlier run. Simulation uses the directory-listed forwarder and a zero workflow identity.
+For a production receiver, provide all immutable identity fields explicitly:
+
+```bash
+pnpm sepolia deploy-guard --execute --production \
+  --forwarder 0x... --workflow-id 0x... --workflow-owner 0x...
+```
+
+The old `deploy --network ethereum-sepolia` command refuses to create mocks. Guard V2
+allows simulation only on local, Base Sepolia and Ethereum Sepolia; its production
+identity checks are unchanged.
+
 
 Deployment and funding save signed bytes **before broadcast** in
 `.state/sepolia/<maker>/`. Retry the same command and state directory after an
@@ -68,6 +82,12 @@ and allowances before restarting an interrupted run. The JSON execution entry
 remains the supported strategy-operation recovery interface.
 
 ## Receiver revision and recovery
+
+`upgrade-guard` is the fixed, recoverable operation used for the recorded
+Maker-active replacement below; it updates the current bundle. For future
+artifact or production identity changes, use `deploy-guard` and its versioned
+manifest. These are separate journal requests; do not run both expecting the
+same creation transaction.
 
 The current artifact includes Maker-scoped `activeStrategyHash` enforcement.
 The simulation receiver was replaced at [`0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`](https://sepolia.etherscan.io/address/0xfadc3165abeb127a0815d5ea4e2862ed430e1f70)
@@ -118,6 +138,7 @@ verification and frontend evidence integration remain separate acceptance items
 in the [architecture](../../../docs/ARCHITECTURE.md). Local contract tests cover
 atomic A/B switching. A successful asset migration
 does not establish those milestones. Existing `demo:risk` intentionally remains
+
 restricted to the old mock fixture; the generic monitor/controller can use the
 new assets and deployment with an explicit price source.
 

@@ -13,7 +13,7 @@ import { generatePrivateKey } from 'viem/accounts'
 import { connect } from '../src/config.ts'
 import { deploy } from '../src/deploy.ts'
 import { waitMined } from '../src/executor.ts'
-import { deploySepolia, fundSepolia, upgradeSepoliaGuard, SEPOLIA } from '../src/sepolia.ts'
+import { deploySepolia, deployCurrentSepoliaGuard, fundSepolia, guardIdentity, upgradeSepoliaGuard, SEPOLIA } from '../src/sepolia.ts'
 import { runLifecycle } from '../src/lifecycle.ts'
 import { runGuardDemo } from '../src/guard-demo.ts'
 import { recorder } from '../src/records.ts'
@@ -85,6 +85,12 @@ test('Sepolia fork: canonical assets, durable deployment/funding, lifecycle and 
     assert.equal((await ctx.pc.getTransactionReceipt({ hash: original! })).contractAddress?.toLowerCase(), upgraded.guard?.address.toLowerCase())
     assert.deepEqual(await upgradeSepoliaGuard(ctx, upgraded, options), upgraded)
     assert.equal(await ctx.pc.getTransactionCount({ address: ctx.maker.account.address }), nonceAfterGuard)
+    const current = await deployCurrentSepoliaGuard(ctx, upgraded, guardIdentity({}), options)
+    const nonceAfterCurrent = await ctx.pc.getTransactionCount({ address: ctx.maker.account.address })
+    assert.deepEqual(await deployCurrentSepoliaGuard(ctx, current, guardIdentity({}), options), current)
+    // A reused release ID must not relabel an earlier receiver with new constructor identity.
+    await assert.rejects(deployCurrentSepoliaGuard(ctx, current, guardIdentity({ forwarder: SEPOLIA.aqua }), options), /different bytecode or constructor arguments/)
+    assert.equal(await ctx.pc.getTransactionCount({ address: ctx.maker.account.address }), nonceAfterCurrent)
     await assert.rejects(fundSepolia(ctx, { ...options, onTransaction: e => {
       if (e.phase === 'broadcast' && e.step === 'wrap-weth') throw new Error('interrupt wrap')
     } }), /interrupt wrap/)

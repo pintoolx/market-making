@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { decodeFunctionData, erc20Abi, parseEther, parseUnits, type PublicClient } from 'viem'
-import { checkSepoliaAssets, DEMO_ACCOUNTS, fundingPlan, FUNDING_TARGET, SEPOLIA } from '../src/sepolia.ts'
+import { checkSepoliaAssets, DEMO_ACCOUNTS, fundingPlan, FUNDING_TARGET, guardIdentity, guardReleaseId, SEPOLIA, versionedGuardDeploymentFile } from '../src/sepolia.ts'
 
 const balances = () => ({
   maker: { address: DEMO_ACCOUNTS.maker, eth: parseEther('0.05'), weth: 0n, usdc: parseUnits('20', 6) },
@@ -43,4 +45,42 @@ test('wrong chain, empty code and wrong decimals fail asset preflight', async ()
   await assert.rejects(checkSepoliaAssets(pc), /metadata/)
   decimals = 18
   await checkSepoliaAssets(pc)
+})
+
+test('Guard deployment identity fails closed between simulation and production', () => {
+  const { forwarder, workflowId, workflowOwner, simulation } = guardIdentity({})
+  assert.equal(forwarder, SEPOLIA.simulationForwarder)
+  assert.equal(workflowId, `0x${'0'.repeat(64)}`)
+  assert.equal(workflowOwner, `0x${'0'.repeat(40)}`)
+  assert.equal(simulation, true)
+  assert.throws(() => guardIdentity({ production: true }), /forwarder/)
+  assert.throws(() => guardIdentity({ forwarder: SEPOLIA.simulationForwarder, production: true }), /workflow-id/)
+  assert.throws(() => guardIdentity({ workflowId: `0x${'1'.repeat(64)}` }), /simulation requires zero/)
+  assert.deepEqual(guardIdentity({
+    production: true,
+    forwarder: '0x1111111111111111111111111111111111111111',
+    workflowId: `0x${'2'.repeat(64)}`,
+    workflowOwner: '0x3333333333333333333333333333333333333333',
+  }), {
+    simulation: false,
+    forwarder: '0x1111111111111111111111111111111111111111',
+    workflowId: `0x${'2'.repeat(64)}`,
+    workflowOwner: '0x3333333333333333333333333333333333333333',
+  })
+})
+
+test('current Guard release and versioned manifest names are deterministic', () => {
+  const fake = { abi: [], bytecode: '0x1234' as const }
+  assert.match(guardReleaseId(fake), /^guard-v2-[0-9a-f]{12}$/)
+  assert.equal(guardReleaseId(fake), guardReleaseId(fake))
+  assert.match(versionedGuardDeploymentFile('0x1111111111111111111111111111111111111111').pathname,
+    /deployments\/11155111\.guard-0x1111111111111111111111111111111111111111\.json$/)
+})
+
+test('simulation-only setup commands cannot silently ignore production identity flags', () => {
+  for (const action of ['deploy', 'upgrade-guard']) {
+    const run = spawnSync(process.execPath, [fileURLToPath(new URL('../src/sepolia.ts', import.meta.url)), action, '--execute', '--production'], { encoding: 'utf8' })
+    assert.equal(run.status, 1)
+    assert.match(run.stderr, /receiver identity options require deploy-guard/)
+  }
 })

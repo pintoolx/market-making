@@ -2,9 +2,6 @@
 
 **Private strategy intelligence for self-custodial market making.**
 
-Current demo assets: [Ethereum Sepolia WETH / Circle testnet USDC](contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md).
-
-
 PinTool connects Strategy Providers with Makers on [1inch Aqua](https://1inch.com/aqua/). Providers contribute proprietary market-making policies, Makers define private risk limits, and a [Chainlink Confidential Workflow](https://chain.link/confidential-compute) combines both inside a TEE. The resulting short-lived authorization is enforced on every swap by PinTool Guard.
 
 ## How it works
@@ -85,11 +82,11 @@ The frontend is a static Next.js export deployed at [mm.pintool.fun](https://mm.
 - Output directory: `frontend/out`
 - Runtime variables: `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_MANDATE_API_URL`, `NODE_VERSION=22`
 
-Ethereum Sepolia is the target network for the integrated WETH/USDC flow. The repository also contains earlier Base Sepolia execution receipts used to validate the imported Aqua executor. A network migration must update the deployment manifest, workflow domain, RPC, explorer and frontend configuration together; the mandate service rejects mixed-network evidence.
+The integrated execution environment uses Ethereum Sepolia with canonical WETH and Circle testnet USDC. The checked-in deployment bundle and public transaction records document a complete Aqua lifecycle, guarded swaps and an expected onchain rejection. See the [Ethereum Sepolia deployment](contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) and [verified public run](contracts/aqua-executor/docs/ethereum-sepolia-demo.md).
 
 ## Integration status
 
-The web product, mandate API, Aqua executor, Guard contracts and confidential evaluation workflow are implemented and tested independently. The mandate service includes the complete signed CRE HTTP trigger and Guard-event verification path. End-to-end deployment requires the Ethereum Sepolia contract addresses, a deployed Confidential Workflow ID and the corresponding authorized signer. Until those values are configured, the product does not present planned actions as confirmed transactions.
+The web application, mandate API, Aqua executor, Guard contracts and confidential workflow are implemented and tested. Ethereum Sepolia execution is verified. The current Sepolia simulation receiver includes Maker-scoped atomic strategy switching; its [replacement proof](contracts/aqua-executor/docs/ethereum-sepolia-guard-revision.json) is separate from the earlier swap demo. Real CRE delivery and a production receiver with assigned workflow identity remain pending. The mandate service accepts only independently verified Guard events and transaction receipts.
 
 Provider policies and Maker limits are intended to remain confidential. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
 

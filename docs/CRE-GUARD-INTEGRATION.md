@@ -1,72 +1,68 @@
-# CRE → Guard: delivery decision and verification boundary
+# Chainlink CRE and PinTool Guard
 
-Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested SwapVM v1.0.2 compiler and 16-field Guard report ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
+PinTool uses Chainlink Confidential Workflows to derive a public, short-lived execution authorization from a private Strategy Provider policy and private Maker limits. The DON signs that authorization, the configured Chainlink forwarder delivers it, and `AquaGuardV2` enforces it during every Aqua quote and swap.
 
-The product flow supports multiple Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is deployed; see [asset setup](../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) and [historical enforcement receipts](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md). Base Sepolia remains historical evidence. The 16-field report remains bound to one strategy, while AquaGuardV2 maintains the Maker-scoped active strategy hash. Accepting an active report for strategy B atomically prevents strategy A from executing, even while A's earlier report remains unexpired.
+## Delivery path
 
+```text
+Provider policy ─┐
+                 ├─ TEE evaluation ─ public GuardReportV1 ─ DON signature
+Maker limits ────┘                                            │
+                                                              ▼
+Market state ───────────────────────────────────── Keystone forwarder
+                                                              │
+                                                              ▼
+Maker wallet ─ Aqua strategy ─ SwapVM Extruction ─ AquaGuardV2
+```
 
-## What is implemented
+The evaluator calls `runtime.usingTheDons()` only after private computation is complete. `EVMClient.writeReport()` sends the signed report through the forwarder to `onReport(bytes,bytes)`. The Guard authenticates the forwarder and, in production mode, the workflow ID and owner encoded in CRE metadata. It then validates the report domain, nonce, validity window and execution bounds.
 
-[`workflow/guard-report`](../workflow/guard-report/) contains a public report delivery workflow, a `TeeRuntime.usingTheDons()` integration hook, SDK tests and an unsigned Guard deployment / configuration tool. It uses the existing 16-field, 512-byte [v1 report](GUARD-REPORT-V1.md). The separate `market-maker-auth` workflow implements Provider/Maker secret intersection and confidential cron/HTTP handlers. Real TEE execution remains unverified.
+An accepted report is only an authorization. It cannot transfer Maker assets or activate an Aqua strategy by itself. The Maker must approve and ship the complete SwapVM program.
 
-| Evidence | Status | What it establishes |
+## Deployment profiles
+
+| Profile | Identity | Purpose |
 |---|---|---|
-| Ethereum Sepolia assets / Guard V2 | Deployed; lifecycle and synthetic-report enforcement verified | WETH9 / Circle USDC transfers and Guard veto; not CRE delivery |
-| Existing Base Sepolia Guard demo | Complete; [receipts and checks](../contracts/aqua-executor/docs/guard-sepolia-demo.md) | Actual token transfers and a Guard-reverted swap with unchanged balances, delivered through our own test harness |
-| CRE adapter tests | Local SDK mocks | Payload encoding, identity preflight, receipt checks, readback and public-output validation |
-| Workflow compilation | Local SDK / Javy WASM build | The public entry point compiles; no execution or attestation claim |
-| CRE CLI simulation / broadcast | Pending account authentication | No new Chainlink delivery receipt exists yet |
-| Production DON delivery | Pending deployment access and assigned identity | No production workflow ID / owner has been provisioned |
-| Confidential workflow execution | Evaluator implemented; pending real access | No real TEE execution or attestation evidence exists yet |
+| Local test | Project test forwarder | Contract and executor integration tests |
+| CRE simulation | Directory-listed simulation forwarder, zero workflow ID and owner | CLI broadcast validation |
+| Production | Official forwarder, assigned workflow ID and owner | DON-authenticated execution |
 
-The owner confirmed that neither a CRE account nor Confidential Workflows access is currently available. CLI v1.33.0 `cre whoami --non-interactive` exits 1 with `authentication required: no credentials found`. Build and SDK mocks work without that login. The original adapter increment did not broadcast transactions or redeploy contracts. The subsequent Sepolia asset migration deploys Router / Guard V2 and runs synthetic-report swaps; it still does not establish CRE delivery. Once an account exists, follow the [delivery runbook](../workflow/guard-report/README.md).
+Receiver identity is immutable. Each profile requires its own Guard deployment. Never configure a simulation forwarder as a production trust root.
 
-## Why B
+The checked-in [Ethereum Sepolia deployment](../contracts/aqua-executor/deployments/11155111.json) uses canonical WETH, Circle testnet USDC and the CRE simulation forwarder. The [historical public run](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md) proves the Aqua lifecycle, successful guarded swaps and an onchain rejection with an earlier receiver. The current simulation receiver is `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`, with Maker-scoped active strategies. Its [separate replacement proof](../contracts/aqua-executor/docs/ethereum-sepolia-guard-revision.json) verifies creation input, immutable identity and empty active-strategy state through two RPCs. Neither run delivered a real CRE report. Production requires its own assigned workflow identity.
 
-The SDK exposes `usingTheDons()` for capabilities requiring DON consensus. A confidential evaluator can explicitly pass only its public output to that runtime; those values leave the enclave. See the [Confidential Workflows SDK reference](https://docs.chain.link/cre/reference/sdk/confidential-workflows-client-ts).
+## Version compatibility
 
-In production, the **forwarder verifies the DON signatures**. `AquaGuard` authenticates the configured forwarder and workflow ID / owner from metadata, then validates the report domain, nonce, expiry and bounds. The Guard is not a separate DON signature verifier. See the [consumer contract guide](https://docs.chain.link/cre/guides/workflow/using-evm-client/onchain-write/building-consumer-contracts).
+The executor pins AquaSwapVM v1.0.2 at commit `32c687c2b73101fc26549e48fa1ff8a4d73afbac`. Its Aqua opcode table assigns Extruction to `0x20` and its `SwapRegisters` contains five `uint256` fields. The compiler appends the tested Extruction instruction explicitly because the SDK builder does not expose it.
 
-A self-signed JSON-RPC transaction from an enclave remains a deferred alternative. It would need a separate authenticated sender path plus key, gas, nonce and retry handling. The current Guard has no EOA setter and no switch to disable forwarder validation. Missing CRE access is not resolved by changing the delivery transport.
+A router upgrade must update the vendor interfaces, opcode encoding, contract artifact, compiler and real-router tests together. Do not combine interfaces or opcodes from another SwapVM version.
 
-The CLI simulator is a distinct environment: its own source says it is **not a real TEE** ([v1.33.0 implementation](https://github.com/smartcontractkit/cre-cli/blob/v1.33.0/cmd/workflow/simulate/simulate.go)). A successful `--broadcast` run can prove a simulated report changed chain state, not production DON consensus or confidential execution.
+## Verification boundary
 
-## Keep the deployed VM version consistent
+The repository verifies these properties independently:
 
-| Target | Extruction opcode | SwapRegisters | Selector |
-|---|---|---|---|
-| This repository's AquaSwapVM v1.0.2, commit `32c687c2b73101fc26549e48fa1ff8a4d73afbac` | `0x20` | Five `uint256` fields, including `amountNetPulled` | `0xb77cc3e2` |
-| Upstream `contracts/` main inspected on 2026-09-12 | `0x04` | Four `uint256` fields | `0xccd435ec` |
+- workflow schema validation, deterministic policy intersection and no-secret output tests;
+- byte-for-byte `GuardReportV1` encoding;
+- report authentication, replay protection, expiry and domain separation;
+- Maker-scoped active strategy switching;
+- successful Aqua swaps and atomic Guard reverts with unchanged balances;
+- mandate-service correlation and independent receipt verification.
 
-Use the pinned [Aqua opcode table](https://github.com/1inch/swap-vm/blob/32c687c2b73101fc26549e48fa1ff8a4d73afbac/src/opcodes/AquaOpcodes.sol) and [VM interfaces](https://github.com/1inch/swap-vm/blob/32c687c2b73101fc26549e48fa1ff8a4d73afbac/src/libs/VM.sol). Upstream [current opcode table](https://github.com/1inch/swap-vm/blob/main/contracts/libs/OpcodeList.sol) and [interfaces](https://github.com/1inch/swap-vm/blob/main/contracts/libs/VM.sol) belong to another version; `main` links may change. A future router upgrade must update interfaces, artifact, compiler and real-router tests together.
+A local workflow simulation does not prove production TEE execution or DON consensus. A public transaction from a project-owned forwarder proves contract behavior, not Chainlink authentication. Production evidence requires a registered workflow, its assigned identity, a matching Guard deployment and a confirmed forwarder transaction.
 
-SDK v0.4.4's Regular table puts Extruction at `0x21`; the Aqua table uses `0x20`. The imported Aqua builder lacks the public Extruction helper, so `compileGuarded()` appends the tested instruction explicitly. Our bytes begin `0x20 0x7d`, followed by the 20-byte Guard and 105-byte envelope. There is no gas-limit field in that instruction.
+## Confidentiality boundary
 
-The Guard's `view extruction()` returns the unchanged registers and `(nextPC, 0)` when accepted, and reverts to reject. The pinned router uses CALL for swaps and STATICCALL for quotes. Returning `false` is not a veto mechanism. Our existing mined rejection already supplies the real-swap evidence missing from the upstream example set; no claim of being the first Guard / veto use is made.
+Provider rules and Maker limits are confidential inputs. The report intentionally publishes direction flags, caps, validity, Maker, strategy hash and token pair. Aqua programs and completed trades are also public. Repeated outputs may reveal information about the original policies over time; expiry limits future use of an authorization but does not erase prior reports.
 
-The historical deployment uses **Base Sepolia, chain ID 84532**, in [`deployments/84532.json`](../contracts/aqua-executor/deployments/84532.json). Current commands use **Ethereum Sepolia, 11155111**, canonical Aqua / WETH / Circle USDC and a newly deployed pinned router in [`deployments/11155111.json`](../contracts/aqua-executor/deployments/11155111.json). Do not mix the two domains or their records.
+HTTP trigger payloads are visible to Workflow DON nodes and therefore contain only public request identity and market observations. Private inputs are fetched from Vault DON after execution enters the TEE. No secret value may be logged, returned or embedded in a report.
 
-## Distinct receiver configurations
+## Configuration
 
-| Profile | Forwarder | Identity | Use |
-|---|---|---|---|
-| Historical Base project harness | `0xf79ffa7f200220f564b91f20db39d357aa50a8c4` | Fabricated / simulation | Historical Guard enforcement evidence only |
-| Historical Base CLI simulation | `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5` | Zero workflow ID and owner; `simulationMode=true` | Requires a **new** simulation Guard |
-| Current Ethereum Sepolia CLI simulation | `0x15fc6ae953e024d975e77382eeec56a9101f9f88` | Zero workflow ID / owner, simulation mode | Guard V2 deployed at `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`; delivery pending |
-| Production CRE | Obtain and verify the official forwarder for the chosen network | Assigned nonzero workflow ID / owner; `simulationMode=false` | Requires a separate deployment and actual delivery verification |
-
-The historical CLI address comes from its [pinned supported-chains source](https://github.com/smartcontractkit/cre-cli/blob/v1.33.0/cmd/workflow/simulate/chain/evm/supported_chains.go). The current Sepolia address is in the [official directory](https://docs.chain.link/cre/guides/workflow/using-evm-client/forwarder-directory-ts). Confirm tenant-specific supported chains after login and recheck on CLI upgrades. Do not configure the CLI forwarder as production trust. Guard immutables cannot be changed after deployment. A new Guard also changes the Maker-approved program and its hash if later used for trading; the first paused transport probe deliberately does not ship a program.
-
-## Public output leaks information
-
-The intended confidential boundary protects the raw Provider policy and Maker inputs during evaluation. Public direction flags, caps, validity windows, Maker-approved program envelopes and trades can reveal information about those inputs over time. The prototype makes no quantified resistance-to-inference guarantee.
-
-**A short expiry limits how long an authorization can be used; it does not erase historical reports or prevent strategy inference.** We currently disclose that limitation. Lower update frequency and bounded noise are research options, not implemented protections; they would need separate analysis of safety, usefulness and leakage. No noise is added to financial limits.
-
-The current browser stores drafts locally, and the delivery smoke test processes public fixture data. Neither is evidence that real confidential inputs were stored or executed in a TEE.
-
-## Relationship to the product mandate
-
-The [current architecture](ARCHITECTURE.md) and [mandate API](STRATEGY-MANDATE-API.md) define the product integration. The historical Base test retains zero-fee XYC and mock assets; the Ethereum Sepolia run uses WETH / Circle USDC and concentrated Guard V2. The current Guard implements `activeStrategyHash`, with local atomic-switch tests. Taker `expectedSequence`, cumulative quotas, combined wallet exposure and Provider profit sharing remain outside this contract.
-
-The v1 nonce rejects stale report writes; it does **not** bind a taker to a quoted report revision. The Guard uses whichever valid report is current during the swap. Product JSON and Maker-facing direction labels require an explicit conversion into the existing taker-oriented ABI. Those changes need a new agreed contract / compiler interface and tests before the full mandate demo; adding them to JSON alone would not enforce them.
+| Concern | Source |
+|---|---|
+| Chain and canonical assets | `workflow/src/config/guard.ts` |
+| Guard, router, Maker and strategy hashes | `workflow/market-maker-auth/config.*.json` |
+| Workflow identity and trigger authorization | CRE deployment configuration |
+| Report ABI and derivation | `docs/GUARD-REPORT-V1.md`, `workflow/src/` |
+| Receiver and execution enforcement | `contracts/aqua-executor/contracts/AquaGuardV2.sol` |
+| Product API and receipt validation | `orchestrator/` |

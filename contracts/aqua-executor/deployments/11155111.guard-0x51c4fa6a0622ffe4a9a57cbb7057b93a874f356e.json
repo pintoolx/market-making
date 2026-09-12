@@ -1,0 +1,17 @@
+{
+  "chainId": 11155111,
+  "aqua": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+  "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+  "tokens": {
+    "WETH": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+    "USDC": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+  },
+  "guard": {
+    "address": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+    "version": 2,
+    "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+    "profile": "cre-simulation"
+  },
+  "sourceCommit": "170ffd8a595f60dc14f52f451c5e8746f68289bb",
+  "status": "historical receiver without Maker-scoped active strategies"
+}

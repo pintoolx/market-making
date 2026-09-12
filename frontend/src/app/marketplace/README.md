@@ -1,36 +1,37 @@
-# ETHOnline Aqua flow
+# Market Making web application
 
-`AquaApp.tsx` serves three routes and reuses the original marketplace styles, logo and shared controls:
+The application exposes the two sides of the PinTool market:
 
-| Route | Screen |
+| Route | Purpose |
 |---|---|
-| `/` | Role choice and architecture diagram (visitors without a Solana session; signed-in Solana users still get the workflow canvas) |
-| `/studio` | Provider Studio: choose one of six templates, configure mechanism parameters and a private activation policy, then publish |
-| `/maker` | Maker Marketplace: browse strategies, inspect one strategy, apply private limits, and monitor confirmed authorization and execution activity |
-| `/profile` | Providing / Making / Account tabs: your strategies, your proposals, photo and profile details |
+| `/` | Product entry and role selection |
+| `/studio` | Create and publish a Strategy Provider listing |
+| `/maker` | Discover strategies, configure a Maker mandate and monitor verified activity |
+| `/profile` | Manage strategies, mandates and account details |
 
-`/marketplace` redirects to `/`. Steps inside `/studio` and `/maker` are page state, shown by the step bar. `AquaApp.tsx` is the shell and home screen; `ProviderFlow.tsx` and `MakerFlow.tsx` hold each flow; `ui.tsx` has the shared step bar, heading and listing card.
+`AquaApp.tsx` provides the application shell. `ProviderFlow.tsx` and `MakerFlow.tsx` implement the role-specific journeys, while `ui.tsx` contains shared product components.
 
-Browser storage until a backend or the TEE takes over:
+## Data ownership
 
-- `publishedStore.ts` (`localStorage`): published strategies with author name, photo and performance fee. Private logic is never stored.
-- `proposalStore.ts` (`localStorage`): local index written only after mandate creation succeeds, shown in Profile → Making. Durable mandate state still comes from the configured service.
-- Provider drafts (`sessionStorage`, this tab only): dropped once published.
-- `../profile/profileStore.ts` (`localStorage`): photo, name, bio and X handle per Privy user.
+- Published listing metadata and profile preferences currently persist in browser storage.
+- Provider drafts remain in session storage until publication.
+- Private Provider policy and Maker limits must cross the confidential service boundary; browser storage is not a confidentiality mechanism.
+- Confirmed mandate state comes from `NEXT_PUBLIC_MANDATE_API_URL`. The UI never generates transaction receipts or treats requested actions as confirmed.
 
-Publishing needs a Privy login when `NEXT_PUBLIC_PRIVY_APP_ID` is set. Browser storage is not the confidential boundary. The Maker flow reaches the mandate service only when `NEXT_PUBLIC_MANDATE_API_URL` is configured; confirmed workflow and transaction state comes back through that service.
+## Integration points
 
-## Integration boundary
+- `aquaTemplates.ts` defines supported strategy templates and their structured parameters.
+- `mandateClient.ts` implements the product-facing mandate API.
+- `publishedStore.ts` can be replaced by a durable Provider registry without changing the mandate contract.
+- Aqua programs, authorization bounds and completed trades are public even when the source policies remain private.
 
-- `aquaTemplates.ts` is the example catalog, not a list of deployed providers.
-- Base strategies, strategy modifiers and capital policies are distinct categories.
-- Provider rules and Maker boundaries must be separate inputs to the future confidential evaluation service.
-- Provider Studio separates template-specific execution parameters from structured private activation conditions. Confidential submission, durable commitments and compilation into a validated SwapVM program remain integration boundaries.
-- Replace `publishedStore.ts` with the durable Provider registry when ready. The Maker flow already calls the service contract in `mandateClient.ts`; it never fabricates approval, report delivery, swap settlement or Guard rejection.
-- A Maker starts with one strategy. The mandate model and monitor accept a larger strategy set so additional strategies can be added later without making first-use onboarding depend on portfolio construction.
-- Recorded market transitions and test-taker swaps belong to workflow and contract tooling. The product UI reads confirmed mandate state and activity instead of exposing test controls.
-- Onchain execution parameters are public; neither privacy nor loss protection is guaranteed by this UI.
+## Development
 
-## Local development
+From the repository root:
 
-From the frontend directory run `npm run dev`, set `NEXT_PUBLIC_PRIVY_APP_ID` in `.env.local`, then open `/` on port 3200.
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Set `NEXT_PUBLIC_PRIVY_APP_ID` and `NEXT_PUBLIC_MANDATE_API_URL` in `frontend/.env.local`. The application runs on port 3200.
