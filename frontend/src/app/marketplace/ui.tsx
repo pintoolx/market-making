@@ -30,7 +30,7 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
         {listing.mine && <span className={`${styles.tag} ${aqua.chip} ${aqua.mineTag}`}>Your strategy</span>}
       </div>
       <h3 className={styles.cardTitle}>{listing.name}</h3>
-      {listing.provider && <p className={aqua.byline}><Avatar name={listing.provider} src={listing.providerAvatar} size={24} brand={listing.provider === 'PinTool Strategies'} />by <span>{listing.provider}</span></p>}
+      {listing.provider && <p className={aqua.byline}><Avatar name={listing.provider} src={listing.providerAvatar} size={28} brand={listing.provider === 'PinTool Strategies'} />by <span>{listing.provider}</span></p>}
       {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Fee: ${listing.feePct}% of profit`}</p>}
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
     </div>
