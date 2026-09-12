@@ -30,6 +30,7 @@ export async function verifyManifest(manifest: PublicManifest, root: string) {
 export async function resolveEnsStrategy(input: string): Promise<EnsResolution> {
   const { rootName } = await getEnsConfig(), name = strategyName(input, rootName);
   const result = await request<EnsResolution>(`/v1/ens/resolve?name=${encodeURIComponent(name)}`);
+  if (result.manifest.name !== name || result.manifest.release.state !== 'published') throw new Error('The public manifest does not approve this ENS name and published version.');
   await verifyManifest(result.manifest, rootName);
   // Browser verifies canonical ENS independently of the API's public projection.
   const onchain = await createEnsReader({ rootName, client: ensClient }).resolve(name);

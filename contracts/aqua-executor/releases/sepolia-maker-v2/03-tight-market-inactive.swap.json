@@ -1,0 +1,10 @@
+{
+  "schema": "aqua-execution-v1",
+  "requestId": "swap-tight-after-switch",
+  "sessionId": "sepolia-maker-v2-1",
+  "action": "swap",
+  "expectedStrategyHash": "0x404b5695e6733ad52c2402a43991c4a3d50181adb1ed94d8c1f404d319899a85",
+  "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+  "amountIn": "250000",
+  "slippageBps": 50
+}

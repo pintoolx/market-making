@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { createTestClient, erc20Abi, http } from 'viem'
+import { ContractFunctionRevertedError, createTestClient, erc20Abi, http } from 'viem'
 import { foundry } from 'viem/chains'
 import { compile } from '../src/compile.ts'
 import { ANVIL_KEYS, connect, readJson, type Ctx } from '../src/config.ts'
@@ -161,6 +161,35 @@ test('JSON requests survive SIGKILL across ship, swap, rebalance and risk-dock w
   rmSync(swapped.records)
   await executeRequest(ctx, d, swap, opts)
   assert.ok(readFileSync(swapped.records, 'utf8').includes(savedSwap.hash), 'lost JSONL is regenerated from SQLite')
+})
+
+test('rejected quotes release the request queue while failed RPC reads remain resumable', { timeout: 30000 }, async () => {
+  const stateDir = join(dir, 'quote-rejection'), ship = await shipRequest('quote-rejection', 1800n)
+  const opts = { stateDir, getPrices: async () => prices() }
+  const shipped = await executeRequest(ctx, d, ship, opts)
+  const swap = { schema: 'aqua-execution-v1', requestId: 'rejected-quote', sessionId: ship.sessionId,
+    action: 'swap', expectedStrategyHash: shipped.strategyHash, tokenIn: ship.strategy.tokens[1], amountIn: '250000', slippageBps: 50 }
+  const quoteFailure = (error: Error): Ctx => ({ ...ctx, pc: new Proxy(ctx.pc, {
+    get(target, key) {
+      if (key !== 'readContract') return Reflect.get(target, key)
+      return (input: { functionName: string }) => input.functionName === 'quote'
+        ? Promise.reject(error) : target.readContract(input as never)
+    },
+  }) })
+  const rejected = await executeRequest(quoteFailure(new ContractFunctionRevertedError({
+    abi: [], functionName: 'quote', data: '0xdc974a98',
+  })), d, swap, opts)
+  assert.equal(rejected.status, 'failed')
+  assert.match(rejected.outcome, /swap quote rejected/)
+  assert.equal(rejected.transactions.some(t => t.step === 'primary'), false, 'no swap was signed')
+  assert.deepEqual(await executeRequest(ctx, d, swap, opts), rejected, 'same request cannot silently become a trade later')
+
+  const retry = { ...swap, requestId: 'transport-interrupted-quote' }
+  await assert.rejects(executeRequest(quoteFailure(new Error('RPC connection lost')), d, retry, opts), /RPC connection lost/)
+  await assert.rejects(executeRequest(ctx, d, { ...swap, requestId: 'competing-quote' }, opts), /resume pending request/)
+  const completed = await executeRequest(ctx, d, retry, opts)
+  assert.equal(completed.outcome, 'swapped')
+  assert.equal(completed.transactions.filter(t => t.step === 'primary').length, 1)
 })
 
 test('a cross-process lock prevents competing senders and is released after SIGKILL', { timeout: 30000 }, async () => {

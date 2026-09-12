@@ -76,7 +76,7 @@ const token1ValueToToken0 = (value1: bigint, market: MarketSnapshot): bigint => 
 
 export function makerToken0Ceiling(limits: MakerLimits, market: MarketSnapshot): bigint {
 	const shareValue1 = (BigInt(limits.maxBudget1) * BigInt(limits.maxToken0ShareBps)) / BPS
-	const value1 = limits.schemaVersion === 2 ? min(shareValue1, BigInt(limits.maxToken0Value1)) : shareValue1
+	const value1 = limits.schemaVersion !== 1 ? min(shareValue1, BigInt(limits.maxToken0Value1)) : shareValue1
 	return token1ValueToToken0(value1, market)
 }
 
@@ -99,10 +99,10 @@ export function computeAuthorization(input: IntersectInput): Authorization {
 	// ── 2. Per-swap caps: the stricter side wins ──
 	const providerCap0 = rule ? BigInt(rule.maxAmount0PerSwap) : 0n
 	const providerCap1 = rule ? BigInt(rule.maxAmount1PerSwap) : 0n
-	const makerCap0 = limits.schemaVersion === 2
+	const makerCap0 = limits.schemaVersion !== 1
 		? token1ValueToToken0(BigInt(limits.maxSwapValue1), market)
 		: BigInt(limits.maxAmount0PerSwap)
-	const makerCap1 = limits.schemaVersion === 2 ? BigInt(limits.maxSwapValue1) : BigInt(limits.maxAmount1PerSwap)
+	const makerCap1 = limits.schemaVersion !== 1 ? BigInt(limits.maxSwapValue1) : BigInt(limits.maxAmount1PerSwap)
 	let maxAmount0PerSwap = clampU128(min(providerCap0, makerCap0))
 	let maxAmount1PerSwap = clampU128(min(providerCap1, makerCap1))
 
@@ -151,12 +151,13 @@ export function computeAuthorization(input: IntersectInput): Authorization {
 	}
 
 	// ── 5. Validity window: the shortest of rule TTL, Maker TTL, Guard maximum ──
-	const ttlSec = Math.min(rule?.ttlSec ?? MAX_REPORT_LIFETIME_SEC, limits.maxTtlSec, MAX_REPORT_LIFETIME_SEC)
+	const standing = limits.schemaVersion === 3
+	const ttlSec = standing ? 0 : Math.min(rule?.ttlSec ?? MAX_REPORT_LIFETIME_SEC, limits.maxTtlSec, MAX_REPORT_LIFETIME_SEC)
 	const validAfter = nowSec
-	const validUntil = nowSec + ttlSec
+	const validUntil = standing ? 0 : nowSec + ttlSec
 
 	const report: GuardReportV1 = {
-		schemaVersion: 1,
+		schemaVersion: standing ? 2 : 1,
 		chainId: identity.chainId,
 		guard: identity.guard,
 		router: identity.router,

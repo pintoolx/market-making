@@ -53,7 +53,11 @@ The default evidence network is Ethereum Sepolia (11155111), with `sepolia.ether
 
 ## Railway deployment
 
-The root `railway.json` builds `orchestrator/Dockerfile` and checks `/health`. Create a Railway service from this repository and mount a persistent volume at `/data`; the container stores verified public mandate state under `/data/mandates`.
+The production `mandate-service` is connected to `pintoolx/market-making`, branch `main`. Pushes and merged PRs on that branch trigger Railway deployment automatically. The repository root is the build context; `railway.json` selects `orchestrator/Dockerfile` and checks `/health`.
+
+Mount persistent storage at `/data` so verified mandate state and sealed Maker input sidecars under `/data/mandates` survive deployments. Startup initializes the mounted directory and then drops to the `node` user before creating CRE credentials or starting the server. Keep this filesystem-backed service at one replica.
+
+The image includes the report ABI, test fixture and Sepolia deployment JSON imported by the workflow. Workflow typechecking runs during the image build, preventing missing compile inputs from reaching the live service. A successful health check alone is not end-to-end verification.
 
 The image runs CRE CLI local simulation and broadcasts through Chainlink's official
 simulation forwarder. It pins CRE v1.33.0, installs Bun, and writes credentials and

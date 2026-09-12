@@ -12,5 +12,8 @@
     "revision": "standing-v2",
     "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
     "profile": "cre-simulation"
-  }
+  },
+  "guardRelease": "guard-v2-0ac9899e485f",
+  "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "workflowOwner": "0x0000000000000000000000000000000000000000"
 }

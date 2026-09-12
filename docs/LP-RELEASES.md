@@ -1,10 +1,10 @@
 # Versioned CLMM publication and readiness
 
-This is the first integration stage from [FRONTEND-LP-COMPLETION.md](FRONTEND-LP-COMPLETION.md), not completion of all six templates or automatic Maker onboarding. It adds a signed publication registry, a shared executable envelope, a compiler adapter, approved policy/version bindings, and live readiness checks. The existing executor journal still owns approvals, ship, swap, recovery, monitoring and dock.
+This is the first integration stage from [GUARD-REPORT-V1.md](GUARD-REPORT-V1.md), not completion of all six templates or automatic Maker onboarding. It adds a signed publication registry, a shared executable envelope, a compiler adapter, approved policy/version bindings, and live readiness checks. The existing executor journal still owns approvals, ship, swap, recovery, monitoring and dock.
 
 ## Provider publication
 
-`/studio` accepts CLMM publication for Ethereum Sepolia WETH/USDC only. The [shared schema](../shared/lp-release.mjs) defines an asymmetric range, zero swap fee, atomic per-token fill/inventory ceilings and a report lifetime up to 600 seconds. Percentages have at most two decimal places; the browser rejects excess token precision before unit conversion. XYC, Pegged, Decay, Inventory and Shared-capital publication stay disabled until their specific mappings are implemented. Revenue sharing is disabled.
+`/studio` accepts CLMM publication for Ethereum Sepolia WETH/USDC only. The [shared schema](../shared/lp-release.mjs) defines an asymmetric range, zero swap fee, atomic per-token fill/inventory ceilings and a legacy lifetime field for bounded reports. The Studio does not ask for a lifetime: current Maker mandates explicitly request standing authorization. Legacy schema-1/2 Maker inputs continue to use the stored bounded TTL. Percentages have at most two decimal places; the browser rejects excess token precision before unit conversion. XYC, Pegged, Decay, Inventory and Shared-capital publication stay disabled until their specific mappings are implemented. Revenue sharing is disabled.
 
 The private rule allows both Maker directions when `rss-simple-returns-30m-v1` volatility is at or below the entered threshold. It has a fixed 30-minute window, explicit percentage-to-bps conversion and independent evaluation on each observation. There is no recovery threshold, hysteresis, natural-language execution or automatic range renewal in this editor.
 
@@ -52,7 +52,7 @@ Set `MANDATE_GUARD_ADDRESS`, `MANDATE_AQUA_ADDRESS`, the existing router/network
 
 The [reader](../orchestrator/src/lp-readiness.mjs) checks chain ID and block freshness, then reads Guard report/active hash, both Aqua raw balances, Maker wallet balances and Maker→Aqua allowances at **one block**. The conservative funding check requires wallet/allowance coverage of both current raw balances. Both token balances must be positive. Only all conditions together yield `ready-for-quote`; each actual trade still needs a fresh quote, slippage checks, taker funding and Guard execution.
 
-The public readiness snapshot expires after at most 30 seconds, earlier at report/program expiry. The frontend stops displaying a cached ready state when it expires. Historical report acceptance, ship status and current funding appear separately. The new reader itself sends no transactions; the existing mandate `GET` path still invokes its runner to re-evaluate policy before refreshing the readiness snapshot.
+The public readiness snapshot expires after at most 30 seconds, earlier at report/program expiry. The frontend stops displaying a cached ready state when it expires. Historical report acceptance, ship status and current funding appear separately. The reader and mandate `GET` path send no transactions; reevaluation publishes only when the derived execution terms change.
 
 Report evidence now reads Guard state at the accepted event's block and matches nonce/digest, preventing a later report from being attached to an older transaction. This does not add a durable concurrent CRE nonce allocator or correlate simultaneous requests to separate report IDs; serialize executions for a Maker.
 

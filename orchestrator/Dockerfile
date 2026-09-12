@@ -32,12 +32,16 @@ RUN cd /workspace/orchestrator \
 COPY orchestrator orchestrator
 COPY shared shared
 COPY contracts/aqua-executor/artifacts/AquaGuardV2.json contracts/aqua-executor/artifacts/AquaGuardV2.json
+COPY contracts/aqua-executor/deployments/11155111.json contracts/aqua-executor/deployments/11155111.json
+COPY docs/guard-report-v1 docs/guard-report-v1
 COPY workflow workflow
 RUN cd /workspace/workflow && bun install --frozen-lockfile
+RUN cd /workspace/workflow && bun run typecheck
 RUN mkdir -p /data/mandates /home/node/.cre \
     && touch /workspace/workflow/.env \
     && chown -R node:node /data /home/node/.cre \
     && chown -R node:node /workspace/workflow
 WORKDIR /workspace/orchestrator
-USER node
+# Initialize the mounted data directory, then drop privileges in the entrypoint.
+USER root
 ENTRYPOINT ["./docker-entrypoint.sh"]

@@ -61,7 +61,7 @@ export function validateState(value, expected) {
   const evidence = object(state.evidence, 'Evidence');
   if (evidence.chainId !== expected.chainId || evidence.networkName !== expected.networkName || !HEX32.test(evidence.reportDigest)
     || !HEX32.test(evidence.reportTransactionHash) || !/^[1-9][0-9]*$/.test(evidence.sequence)
-    || Number.isNaN(Date.parse(evidence.expiresAt))) throw new Error('runner returned invalid or wrong-network evidence');
+    || (evidence.expiresAt !== null && (typeof evidence.expiresAt !== 'string' || Number.isNaN(Date.parse(evidence.expiresAt))))) throw new Error('runner returned invalid or wrong-network evidence');
   const canonicalExplorer = `${expected.explorerUrl}/tx/${evidence.reportTransactionHash}`;
   if (evidence.reportExplorerUrl !== canonicalExplorer) throw new Error('runner returned a non-canonical report explorer URL');
   if (!Array.isArray(state.events)) throw new Error('runner returned invalid events');
@@ -195,13 +195,12 @@ export function createService(config, dependencies = {}) {
     async get(id) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
       let current;
-      try { current = await load(id); } catch {}
-      const sealed = current ? await loadEnvelope(id) : null;
-      let output;
-      try { output = await runner({ action: 'get', mandateId: id, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) }); }
-      catch (error) { if (current) output = current; else throw error; }
-      if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [], current?.maker, sealed, current?.ensSelections ?? []);
+      try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
+      if (current.mandateId !== id) throw new Error('stored mandate ID does not match its file');
+      // Reading product state must never trigger a new confidential evaluation or
+      // broadcast another Guard report. Re-verify the stored public evidence and
+      // refresh short-lived chain readiness only.
+      return accept(current, [], current.maker, undefined, current.ensSelections ?? []);
     },
     async add(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');

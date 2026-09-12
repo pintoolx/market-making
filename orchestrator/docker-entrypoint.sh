@@ -1,6 +1,14 @@
 #!/bin/sh
 set -eu
 
+# Railway mounts persistent storage as root. Only directory initialization runs
+# privileged; CRE credentials and the HTTP server always belong to node.
+if [ "$(id -u)" -eq 0 ]; then
+  mkdir -p "${MANDATE_STATE_DIR:-/data/mandates}"
+  chown -R node:node "${MANDATE_STATE_DIR:-/data/mandates}"
+  exec su -s /bin/sh node -c 'exec ./docker-entrypoint.sh'
+fi
+
 required_vars="CRE_AUTH_CONFIG_B64 CRE_ETH_PRIVATE_KEY SECRET_PROVIDER_STRATEGY SECRET_PROVIDER_STRATEGY_DEFENSIVE SECRET_MAKER_LIMITS SECRET_ENVELOPE_PRIVATE_KEY"
 for name in $required_vars; do
   eval "value=\${$name:-}"

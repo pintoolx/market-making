@@ -135,3 +135,18 @@ test('versioned catalog resolves the stored policy and rejects withdrawn or reta
   local.catalog[listingId].strategyHash = defensiveHash;
   await assert.rejects(runDirectMandate({ action: 'get', current: state, mandateId: state.mandateId, makerLimitsEnvelope }, local, dependencies), /Catalog changed/);
 });
+
+
+test('unchanged standing decisions reuse evidence without inventing a delivery or activation', async () => {
+  const state = await runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope } }, config, {
+    currentBlock: async () => 50n,
+    trigger: async () => ({ workflowExecutionId: 'unchanged-evaluation', unchanged: true, reportDigest: digest }),
+    observe: async (_config, options) => {
+      assert.equal(options.expectedDigest, digest);
+      return { transactionHash: txHash, digest, report: { schemaVersion: 2, nonce: 7n, validUntil: 0, allowedDirections: 3, maxAmount1PerSwap: 100n } };
+    },
+  });
+  assert.equal(state.evidence.expiresAt, null);
+  assert.equal(state.evidence.reportTransactionHash, txHash);
+  assert.deepEqual(state.events.map(event => event.type), ['authorization-unchanged']);
+});

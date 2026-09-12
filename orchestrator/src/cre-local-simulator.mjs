@@ -41,10 +41,17 @@ export async function simulateCREWorkflow(config, payload, dependencies = {}) {
       '--http-payload', payloadPath, '--target', config.target, '--broadcast'];
     const makeChild = dependencies.spawnImpl ?? spawn;
     const env = config.toolPath ? { ...process.env, PATH: `${config.toolPath}:${process.env.PATH ?? ''}` } : process.env;
-    await (dependencies.runImpl ?? run)(makeChild(config.executable, args, {
+    const output = await (dependencies.runImpl ?? run)(makeChild(config.executable, args, {
       cwd: config.projectDir, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
     }), config.timeoutMs);
-    return { workflowExecutionId: `local-simulation-${id}` };
+    const unchanged = String(output ?? '').split('\n').map(line => {
+      const start = line.indexOf('{');
+      if (start < 0) return null;
+      try { return JSON.parse(line.slice(start)); } catch { return null; }
+    }).find(value => value?.kind === 'cre-authorization-unchanged');
+    if (unchanged && (!/^0x[0-9a-f]{64}$/i.test(unchanged.reportDigest ?? '')
+      || unchanged.strategyHash?.toLowerCase() !== payload.strategyHash.toLowerCase())) throw new Error('Invalid unchanged-authorization result');
+    return { workflowExecutionId: `local-simulation-${id}`, ...(unchanged ? { unchanged: true, reportDigest: unchanged.reportDigest } : {}) };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

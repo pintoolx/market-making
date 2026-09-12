@@ -95,7 +95,8 @@ test('Maker selection is rechecked before runner execution and remains pinned af
   const service = createService(config, { validateEnsSelections: (...args) => f.ens.validateSelections(...args),
     runner: async input => { runnerInputs.push(input); return {
       mandateId: 'ens-mandate', maker: stranger.address, regime: 'normal', ensSelections: [{ name: 'forged.eth' }],
-      strategies: input.action === 'add-strategy' ? [...input.current.strategies, { ...input.current.strategies[0], listingId: input.providerStrategyId, status: 'standby' }]
+      strategies: input.action === 'add-strategy' ? input.current.strategies.some(s => s.listingId === input.providerStrategyId) ? input.current.strategies
+        : [...input.current.strategies, { ...input.current.strategies[0], listingId: input.providerStrategyId, status: 'standby' }]
         : input.current?.strategies ?? [{ listingId: id, name: 'Strategy 1', strategyHash: hash('b'), status: 'active', maxAmountPerSwapAtomic: '1000' }],
       evidence: { chainId: 11155111, networkName: 'Ethereum Sepolia', reportDigest: hash('c'), reportTransactionHash: hash('d'), reportExplorerUrl: `https://sepolia.etherscan.io/tx/${hash('d')}`, sequence: '1', expiresAt: new Date().toISOString() }, events: [],
     }; }, verifyReceipt: async () => ({ chainId: 11155111 }), readLpReadiness: async () => ({ phase: 'unverified', reasons: [] }) });
@@ -106,9 +107,13 @@ test('Maker selection is rechecked before runner execution and remains pinned af
   await assert.rejects(create(), /ENS strategy changed/);
   assert.equal(runnerInputs.length, 1);
   const resumed = await service.get('ens-mandate'); assert.equal(resumed.ensSelections[0].pointer.version, 1);
+  assert.equal(runnerInputs.length, 1, 'A status refresh must not evaluate or broadcast a new report.');
   assert.equal(JSON.stringify(resumed).includes('forged.eth'), false);
   const persisted = JSON.parse(await readFile(join(f.dir, 'ens-mandate.json'), 'utf8'));
   assert.deepEqual(persisted.ensSelections, created.ensSelections);
+  const reevaluated = await service.add('ens-mandate', { providerStrategyId: id });
+  assert.deepEqual(reevaluated.ensSelections, created.ensSelections, 'Re-evaluating a standing mandate retains its ENS version after ENS advances.');
+  assert.equal(runnerInputs.length, 2);
   await assert.rejects(f.ens.validateSelections([selection], ['different-id'], stranger.address), /differs/);
   const nextPointer = releasePointer(second.saved, second.saved.digest), nextId = `${nextPointer.releaseId}.v2`;
   const nextSelection = { name, node: namehash(name), pointer: nextPointer };

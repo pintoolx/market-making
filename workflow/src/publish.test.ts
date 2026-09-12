@@ -35,7 +35,7 @@ function setup() {
 
 test('confidential publisher accepts a successful receiver on the configured Sepolia domain', () => {
   const t = setup()
-  expect(publishAuthorization(t.tee, t.result)).toEqual({ txHash: t.txHash })
+  expect(publishAuthorization(t.tee, t.result)).toEqual({ txHash: t.txHash, changed: true, nonce: '1' })
   expect(t.writes()).toBe(1)
 })
 

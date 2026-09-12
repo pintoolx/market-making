@@ -9,11 +9,29 @@ Public bounds, envelopes and trades may reveal information about the original in
 
 ## Scope
 
-The first supported integration uses Ethereum Sepolia, canonical WETH and Circle testnet USDC, the pinned AquaSwapVMRouter v1.0.2, exact-input swaps and zero protocol fees. Direction flags use the taker perspective. Limits apply per swap together with absolute post-swap inventory caps. Reports live for at most 600 seconds and use strictly increasing nonces.
+The first supported integration uses Ethereum Sepolia, canonical WETH and Circle testnet USDC, the pinned AquaSwapVMRouter v1.0.2, exact-input swaps and zero protocol fees. Direction flags use the taker perspective. Limits apply per swap together with absolute post-swap inventory caps. Schema 1 reports live for at most 600 seconds. Schema 2 reports are standing authorizations with `validUntil = 0`; both versions use strictly increasing nonces.
 
 `AquaGuardV2` stores reports by `(maker, strategyHash)` and maintains one active strategy hash per Maker. Accepting an enabled report for another strategy atomically switches the active strategy. A paused report clears the active hash only when it targets the currently active strategy.
 
 These choices do not define a percentage exposure rule or a guaranteed maximum loss. A workflow may derive conservative atomic-token caps from a private percentage rule, but that rule's ongoing valuation guarantee would need a separately specified on-chain valuation model. The imported off-chain HODL loss monitor remains a separate reaction mechanism.
+
+## Standing authorization (schema 2)
+
+The updated `AquaGuardV2` accepts the same 512-byte tuple with `schemaVersion = 2` and `validUntil = 0`. Other schema-2 deadlines are rejected. The valid-after check, replay protection, active-profile gate, per-swap limits and inventory envelope still apply. Schema 1 retains its bounded lifetime for compatibility.
+
+Standing authorization remains usable until replaced, paused, revoked by the Maker, or made unavailable by docking the Aqua strategy. If the workflow is unavailable, the last authorization remains effective; market freshness is not an on-chain guarantee. `setStrategyRevoked(hash, true)` is scoped to the caller's Maker account and prevents subsequent enabled reports for that hash. Clearing revocation does not reactivate an old report: a fresh report is required.
+
+`latestReportBlock(maker, hash)` identifies the accepted report's block so clients can recover its original receipt without publishing a renewal. It changes only when a new report is accepted. Consumers must verify the receipt, digest and current Guard state before reusing evidence.
+
+Existing deployed receivers do not gain these features through a source update. Deploy a new receiver and rebuild/re-ship its bound strategy programs before sending schema-2 reports.
+
+## Evaluation and publication
+
+Maker envelope schema 3 explicitly requests `authorization: "until-changed"` and omits the legacy TTL. Existing Maker schemas 1 and 2 retain their bounded consent; they are not silently extended. Standing evaluations continue to intersect both parties' trading and inventory limits. Provider rule TTLs apply only to bounded authorizations.
+
+For standing reports, CRE reads the stored report and active strategy before delivery. Equal effective terms reuse the existing authorization without signing or writing another report. A changed direction, cap or active profile requires a new report; changed nonce/time alone does not. Reactivating an inactive profile also requires a new report, even when its stored caps match. The publisher advances the nonce against stored state before writing.
+
+The local simulation adapter recognizes a public unchanged result. The mandate service then retrieves the original acceptance block and checks its event against current Guard state and the digest returned by CRE. The activity entry says the conditions were unchanged and links the original transaction. Refreshing status remains read-only. Readiness snapshots still expire quickly because wallet balances, allowances and Aqua availability can change independently of standing authorization.
 
 ## Two interfaces with different purposes
 

@@ -103,7 +103,6 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
             ['Range below reference (%)', below, setBelow], ['Range above reference (%)', above, setAbove],
             ['Maximum WETH per fill', fill0, setFill0], ['Maximum USDC per fill', fill1, setFill1],
             ['Maximum WETH inventory', inventory0, setInventory0], ['Maximum USDC inventory', inventory1, setInventory1],
-            ['Report lifetime (seconds, at most 600)', ttl, setTtl],
           ].map(([label, value, setter]) => <label key={label as string}>{label as string}<FormInput required inputMode="decimal" value={value as string} onChange={e => (setter as (v: string) => void)(e.target.value)} /></label>)}
         </div>
       </fieldset>
@@ -114,7 +113,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
         <p className={aqua.hint}>The limit is encrypted in this browser before submission and cleared after success. Unsubmitted inputs stay in memory only and are lost on leaving this editor. Re-enter the limit when creating a new version; the service cannot return its plaintext. The current runtime is a local CRE simulator, whose operator can access decrypted inputs; TEE confidentiality has not been verified.</p>
       </fieldset>
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
-      {saved && <p role="status">Version {latest?.version} {latest?.state === 'withdrawn' ? 'withdrawn from new provisioning. Existing onchain authorizations must expire or be docked.' : 'saved. The Maker-specific program must be provisioned, shipped and authorized before it can quote.'}</p>}
+      {saved && <p role="status">Version {latest?.version} {latest?.state === 'withdrawn' ? 'withdrawn from new provisioning. To stop an existing strategy, its Maker must revoke its Guard authorization or dock it in Aqua.' : 'saved. The Maker-specific program must be provisioned, shipped and authorized before it can quote.'}</p>}
       <div className={aqua.actionRow}>
         {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect Provider wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? 'Saving…' : `Sign and publish version ${(latest?.version ?? 0) + 1}`}</Primary>}
         {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Withdraw listing</Secondary>}

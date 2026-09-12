@@ -11,7 +11,7 @@ import { encodeGuardReportV1, guardReportV1Hash, guardReportV1ToJson } from './e
 import type { Authorization } from './types'
 
 export type PublishMode = 'dry-run' | 'don-report' | 'http-rpc'
-export type PublishResult = { txHash?: string }
+export type PublishResult = { txHash?: string; changed?: boolean; nonce?: string }
 type PublishConfig = { publishMode?: PublishMode; transport?: z.infer<typeof transportSchema> }
 
 export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result: Authorization): PublishResult {
@@ -32,5 +32,5 @@ export function publishAuthorization(runtime: TeeRuntime<PublishConfig>, result:
 	const transport = transportSchema.safeParse(runtime.config.transport)
 	if (!transport.success) throw new Error('Report delivery requires a valid explicit transport profile')
 	const delivered = submitPublicReportFromTee(runtime, report, transport.data)
-	return { txHash: delivered.transactionHash }
+	return { txHash: delivered.transactionHash, changed: delivered.changed, nonce: delivered.nonce }
 }

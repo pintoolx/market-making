@@ -14,4 +14,7 @@ contracts/aqua-executor/*
 !contracts/aqua-executor/artifacts
 contracts/aqua-executor/artifacts/*
 !contracts/aqua-executor/artifacts/AquaGuardV2.json
+!contracts/aqua-executor/deployments
+contracts/aqua-executor/deployments/*
+!contracts/aqua-executor/deployments/11155111.json
 frontend

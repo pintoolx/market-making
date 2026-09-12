@@ -189,9 +189,9 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 	// Only public report fields cross out of the enclave in this summary.
 	const r = authorization.report
 	return (
-		`allowedDirections=${r.allowedDirections} nonce=${r.nonce} ` +
+		`allowedDirections=${r.allowedDirections} nonce=${published.nonce ?? r.nonce} ` +
 		`validAfter=${r.validAfter} validUntil=${r.validUntil} ` +
-		`txHash=${published.txHash ?? 'none (dry-run)'}`
+		`txHash=${published.txHash ?? (published.changed === false ? 'unchanged' : 'none (dry-run)')}`
 	)
 }
 

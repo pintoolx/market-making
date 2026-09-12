@@ -5,7 +5,7 @@ import { EVM_PB } from '@chainlink/cre-sdk/pb'
 import { zeroAddress, zeroHash, type Hex } from 'viem'
 import fixture from '../../docs/guard-report-v1/example.json'
 import { CHAIN_ID, SIMULATION_FORWARDER, chainSelector, receiverAbi, submitPublicReport, submitPublicReportFromTee } from './delivery'
-import { encodePublicReport, publicReportSchema } from './report'
+import { encodePublicReport, publicReportSchema, sameStandingAuthorization } from './report'
 import { configSchema, onCron } from './workflow'
 
 const now = Number(fixture.report.validAfter)
@@ -23,7 +23,7 @@ function setup(transport: typeof simulation | typeof production = simulation, pa
   const evm = EvmMock.testInstance(chainSelector)
   // JSON artifacts cannot retain literal ABI names in TypeScript. The mock still dispatches against the real artifact ABI.
   const guard = addContractMock(evm, { address: config.publicReport.guard, abi: receiverAbi }) as ReturnType<typeof addContractMock> &
-    Partial<Record<'forwarder' | 'router' | 'simulationMode' | 'workflowId' | 'workflowOwner' | 'getReport' | 'activeStrategyHash', (...args: readonly unknown[]) => unknown>>
+    Partial<Record<'forwarder' | 'router' | 'simulationMode' | 'workflowId' | 'workflowOwner' | 'getReport' | 'activeStrategyHash' | 'reportSchemaVersion', (...args: readonly unknown[]) => unknown>>
   guard.forwarder = () => config.transport.forwarder
   guard.router = () => config.publicReport.router
   guard.simulationMode = () => config.transport.profile === 'cre-simulation'
@@ -134,4 +134,50 @@ test('TEE adapter validates public output before crossing to DON and uses the sa
   expect(crossings).toBe(1)
   expect(t.writes()).toBe(1)
   expect(t.runtime.getLogs().join('\n')).not.toContain('PRIVATE_CANARY')
+})
+
+
+unitTest('standing authorization compares every effective term, not nonce or issuance time', () => {
+  const r = encodePublicReport({ ...report, schemaVersion: '2', validUntil: '0' }).report
+  expect(sameStandingAuthorization({ ...r, nonce: '999', validAfter: String(now + 3600) }, r, r.strategyHash)).toBe(true)
+  expect(sameStandingAuthorization(r, r, zeroHash)).toBe(false)
+  for (const key of ['maxAmount0PerSwap', 'maxAmount1PerSwap', 'maxPostBalance0', 'maxPostBalance1', 'allowedDirections'] as const) {
+    expect(sameStandingAuthorization({ ...r, [key]: String(BigInt(r[key]) + 1n) }, r, r.strategyHash)).toBe(false)
+  }
+  const pause = { ...r, allowedDirections: '0', maxAmount0PerSwap: '0', maxAmount1PerSwap: '0', maxPostBalance0: '0', maxPostBalance1: '0' }
+  expect(sameStandingAuthorization(pause, pause, zeroHash)).toBe(true)
+  expect(sameStandingAuthorization(pause, pause, r.strategyHash)).toBe(false)
+  expect(() => encodePublicReport({ ...r, validUntil: String(now + 600) })).toThrow()
+})
+
+test('unchanged standing evaluation performs no writeReport and preserves original receipt identity', () => {
+  const t = setup(simulation, { schemaVersion: '2', validUntil: '0' })
+  t.guard.reportSchemaVersion = () => 2
+  t.guard.activeStrategyHash = () => t.config.publicReport.strategyHash
+  const later = { ...t.config.publicReport, nonce: '999', validAfter: String(now + 3600) }
+  t.runtime.setTimeProvider(() => (now + 3600) * 1000)
+  const result = submitPublicReport(t.runtime, later, simulation)
+  expect(result).toMatchObject({ changed: false, nonce: t.config.publicReport.nonce, reportDigest: t.encoded.digest })
+  expect(result.transactionHash).toBeUndefined()
+  expect(t.writes()).toBe(0)
+})
+
+test('changed terms and reactivation issue a report with a nonce above the saved report', () => {
+  const t = setup(simulation, { schemaVersion: '2', validUntil: '0' })
+  t.guard.reportSchemaVersion = () => 2
+  let stored = t.encoded
+  t.guard.getReport = () => [Object.fromEntries(Object.entries(stored.report).map(([key, value]) => [key,
+    ['schemaVersion', 'chainId', 'nonce', 'validAfter', 'validUntil', 'allowedDirections'].includes(key) || key.startsWith('max') ? BigInt(value) : value])), stored.digest]
+  const next = { ...t.config.publicReport, nonce: String(BigInt(t.config.publicReport.nonce) + 1n) }
+  const expected = encodePublicReport(next)
+  let writes = 0
+  t.guard.writeReport = input => {
+    writes++
+    expect(bytesToHex(input.report.rawReport.slice(REPORT_METADATA_HEADER_LENGTH))).toBe(expected.payload)
+    stored = expected
+    return success
+  }
+  // Same terms but currently inactive: a new report must reactivate it.
+  expect(submitPublicReport(t.runtime, t.config.publicReport, simulation).changed).toBe(true)
+  expect(writes).toBe(1)
 })
