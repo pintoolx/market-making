@@ -4,7 +4,7 @@ This is the first integration stage from [GUARD-REPORT-V1.md](GUARD-REPORT-V1.md
 
 ## Provider publication
 
-`/studio` accepts CLMM publication for Ethereum Sepolia WETH/USDC only. The [shared schema](../shared/lp-release.mjs) defines an asymmetric range, zero swap fee, atomic per-token fill/inventory ceilings and a report lifetime up to 600 seconds. Percentages have at most two decimal places; the browser rejects excess token precision before unit conversion. XYC, Pegged, Decay, Inventory and Shared-capital publication stay disabled until their specific mappings are implemented. Revenue sharing is disabled.
+`/studio` accepts CLMM publication for Ethereum Sepolia WETH/USDC only. The [shared schema](../shared/lp-release.mjs) defines an asymmetric range, zero swap fee, atomic per-token fill/inventory ceilings and a legacy lifetime field for bounded reports. The Studio does not ask for a lifetime: current Maker mandates explicitly request standing authorization. Legacy schema-1/2 Maker inputs continue to use the stored bounded TTL. Percentages have at most two decimal places; the browser rejects excess token precision before unit conversion. XYC, Pegged, Decay, Inventory and Shared-capital publication stay disabled until their specific mappings are implemented. Revenue sharing is disabled.
 
 The private rule allows both Maker directions when `rss-simple-returns-30m-v1` volatility is at or below the entered threshold. It has a fixed 30-minute window, explicit percentage-to-bps conversion and independent evaluation on each observation. There is no recovery threshold, hysteresis, natural-language execution or automatic range renewal in this editor.
 

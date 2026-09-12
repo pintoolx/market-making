@@ -102,7 +102,6 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
             ['Range below reference (%)', below, setBelow], ['Range above reference (%)', above, setAbove],
             ['Maximum WETH per fill', fill0, setFill0], ['Maximum USDC per fill', fill1, setFill1],
             ['Maximum WETH inventory', inventory0, setInventory0], ['Maximum USDC inventory', inventory1, setInventory1],
-            ['Report lifetime (seconds, at most 600)', ttl, setTtl],
           ].map(([label, value, setter]) => <label key={label as string}>{label as string}<FormInput required inputMode="decimal" value={value as string} onChange={e => (setter as (v: string) => void)(e.target.value)} /></label>)}
         </div>
       </fieldset>
