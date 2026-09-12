@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "170ffd8a595f60dc14f52f451c5e8746f68289bb",
+  "chainId": 11155111,
+  "mode": "public Ethereum Sepolia assets; Guard enforcement uses synthetic reports, no CRE/TEE delivery",
+  "sourceHashes": {
+    "contracts/aqua-executor/src/config.ts": "7e2ce7df99d105ed30a63f1cd9bcbed35571a14b46360035fda3d89d659df5ab",
+    "contracts/aqua-executor/src/sepolia.ts": "707074bbff3842ab38d92ce260e50199ee067f699a29d1411836a81fd59d5721",
+    "contracts/aqua-executor/src/durable-send.ts": "488131d5e313293655b01ff2f62c87c156f27c3448f2115afe72916f0981a89a",
+    "contracts/aqua-executor/src/lifecycle.ts": "7d07fb6ece1ea7a51b30daa5c769bc1bf6c183cf3d385c1efa3b93fa1b9cc969",
+    "contracts/aqua-executor/src/guard-demo.ts": "5e4789f7051a5ddbe12131fcf939eec63c7c08c1398f2fce100ef204de1e8c3d",
+    "contracts/aqua-executor/src/guard.ts": "75522f7a7d612aa253ff24f41eff9d39f2fbebac3550395ee4cd51db3cd475a8",
+    "contracts/aqua-executor/src/compile.ts": "d3320b20e8ca082a29df41522feb296542c9ff3ca9202ca638f5d98bc2a4caea",
+    "contracts/aqua-executor/src/concentrated.ts": "f3b075d2fb740f4a47dc17bc3735292608e237f974f3f49457d9c042331b9b8b",
+    "contracts/aqua-executor/src/curves.ts": "1a4a7da743655d61cdb5932e841d26ab7d49cc269b7def2c3bef5ad003c15717",
+    "contracts/aqua-executor/src/executor.ts": "a391a3c3fd0e9bf4d1057b21dfe9e8124861dc7b62359f870f2540a0e175ec07",
+    "contracts/aqua-executor/src/records.ts": "23eac5b294f5f714ba8ccb2130c3d6931cdc87c915df7e307859a2eea40e4ee4",
+    "contracts/aqua-executor/src/types.ts": "8214a78234da7072614b969593d89000ee95e68b67881db68e09f5cb467f101d",
+    "contracts/aqua-executor/src/fixed-params.ts": "5f7bffe50230de54e2565535d7fc4a3f24fdb36d2ac4f108a12cfa59c2f1fc50",
+    "contracts/aqua-executor/src/abi.ts": "69399e4de9ce30f41e492578350d229e844887df42eb33b1fabd337ff1d15817",
+    "contracts/aqua-executor/params/sepolia.json": "0cc7a5eda722de317f32130e358fa5a74c5d34fd3312217866bf3666e495c505",
+    "contracts/aqua-executor/contracts/AquaGuardV2.sol": "9f1ae23b46bb3435ba6f7b1e1726c3d1a859781f3768bdd6a8555e870283a167",
+    "contracts/aqua-executor/artifacts/AquaGuardV2.json": "5d63f31b2c87bd8ce0180c6a77669ea96f1184b9be2d07d19a6b7f0821757327",
+    "contracts/aqua-executor/artifacts/AquaSwapVMRouter.json": "bf8e5ecffe627cb612a226d2a713ad098056165d601b0c7a52e939c5734f1717",
+    "contracts/aqua-executor/artifacts/GuardTestForwarder.json": "984a6c18420d6caee7413b3d8db53bd0be86a1133568bb327312ce108609620b",
+    "pnpm-lock.yaml": "5a4f0486fc74471fb964c998ce7f497b9156ebb366fc0e888821822b3933a174"
+  }
+}

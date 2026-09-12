@@ -1,8 +1,8 @@
 # CRE → Guard: delivery decision and verification boundary
 
-Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested Base Sepolia router and Guard ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
+Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested SwapVM v1.0.2 compiler and 16-field Guard report ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
 
-**Mainline update, 2026-09-12:** the final product flow now targets two Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is the intended filmed deployment; the Base Sepolia setup below remains the tested transport fallback. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement the Maker-scoped activeStrategyHash required by [WINNING-FLOW.md](WINNING-FLOW.md).
+**Mainline update, 2026-09-12:** the final product flow now targets two Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is now deployed; see [asset setup](../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) and [public transaction evidence](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md). The Base Sepolia setup remains historical enforcement evidence. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement the Maker-scoped activeStrategyHash required by [WINNING-FLOW.md](WINNING-FLOW.md).
 
 ## What is implemented
 
@@ -10,6 +10,7 @@ Updated 2026-09-12. The project owner selected **B: public derived report → DO
 
 | Evidence | Status | What it establishes |
 |---|---|---|
+| Ethereum Sepolia assets / Guard V2 | Deployed; lifecycle and synthetic-report enforcement verified | WETH9 / Circle USDC transfers and Guard veto; not CRE delivery |
 | Existing Base Sepolia Guard demo | Complete; [receipts and checks](../contracts/aqua-executor/docs/guard-sepolia-demo.md) | Actual token transfers and a Guard-reverted swap with unchanged balances, delivered through our own test harness |
 | CRE adapter tests | Local SDK mocks | Payload encoding, identity preflight, receipt checks, readback and public-output validation |
 | Workflow compilation | Local SDK / Javy WASM build | The public entry point compiles; no execution or attestation claim |
@@ -17,7 +18,7 @@ Updated 2026-09-12. The project owner selected **B: public derived report → DO
 | Production DON delivery | Pending deployment access and assigned identity | No production workflow ID / owner has been provisioned |
 | Confidential workflow execution | Pending access and evaluator integration | No real TEE execution or attestation evidence exists yet |
 
-The owner confirmed that neither a CRE account nor Confidential Workflows access is currently available. CLI v1.33.0 `cre whoami --non-interactive` exits 1 with `authentication required: no credentials found`. Build and SDK mocks work without that login. We did not bypass authentication, broadcast a new transaction or redeploy contracts in this increment. Once an account exists, follow the [delivery runbook](../workflow/guard-report/README.md).
+The owner confirmed that neither a CRE account nor Confidential Workflows access is currently available. CLI v1.33.0 `cre whoami --non-interactive` exits 1 with `authentication required: no credentials found`. Build and SDK mocks work without that login. The original adapter increment did not broadcast transactions or redeploy contracts. The subsequent Sepolia asset migration deploys Router / Guard V2 and runs synthetic-report swaps; it still does not establish CRE delivery. Once an account exists, follow the [delivery runbook](../workflow/guard-report/README.md).
 
 ## Why B
 
@@ -42,17 +43,18 @@ SDK v0.4.4's Regular table puts Extruction at `0x21`; the Aqua table uses `0x20`
 
 The Guard's `view extruction()` returns the unchanged registers and `(nextPC, 0)` when accepted, and reverts to reject. The pinned router uses CALL for swaps and STATICCALL for quotes. Returning `false` is not a veto mechanism. Our existing mined rejection already supplies the real-swap evidence missing from the upstream example set; no claim of being the first Guard / veto use is made.
 
-This deployment is **Base Sepolia, chain ID 84532**, not Ethereum Sepolia 11155111. The existing Aqua, router and token addresses are in [`deployments/84532.json`](../contracts/aqua-executor/deployments/84532.json). We do not need another Aqua or router deployment merely to test CRE delivery.
+The historical deployment uses **Base Sepolia, chain ID 84532**, in [`deployments/84532.json`](../contracts/aqua-executor/deployments/84532.json). Current commands use **Ethereum Sepolia, 11155111**, canonical Aqua / WETH / Circle USDC and a newly deployed pinned router in [`deployments/11155111.json`](../contracts/aqua-executor/deployments/11155111.json). Do not mix the two domains or their records.
 
 ## Three distinct receiver configurations
 
 | Profile | Forwarder | Identity | Use |
 |---|---|---|---|
-| Existing project harness | `0xf79ffa7f200220f564b91f20db39d357aa50a8c4` | Fabricated / simulation | Historical Guard enforcement evidence only |
-| CRE CLI v1.33.0 simulation | `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5` | Zero workflow ID and owner; `simulationMode=true` | Requires a **new** simulation Guard |
+| Historical Base project harness | `0xf79ffa7f200220f564b91f20db39d357aa50a8c4` | Fabricated / simulation | Historical Guard enforcement evidence only |
+| Historical Base CLI simulation | `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5` | Zero workflow ID and owner; `simulationMode=true` | Requires a **new** simulation Guard |
+| Current Ethereum Sepolia CLI simulation | `0x15fc6ae953e024d975e77382eeec56a9101f9f88` | Zero workflow ID / owner, simulation mode | Guard V2 deployed at `0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e`; delivery pending |
 | Production CRE | Obtain and verify the official forwarder for the chosen network | Assigned nonzero workflow ID / owner; `simulationMode=false` | Requires a separate deployment and actual delivery verification |
 
-The CLI address comes from its [pinned supported-chains source](https://github.com/smartcontractkit/cre-cli/blob/v1.33.0/cmd/workflow/simulate/chain/evm/supported_chains.go). Recheck it when upgrading the CLI. Do not configure the CLI forwarder as production trust. Guard immutables cannot be changed after deployment. A new Guard also changes the Maker-approved program and its hash if later used for trading; the first paused transport probe deliberately does not ship a program.
+The historical CLI address comes from its [pinned supported-chains source](https://github.com/smartcontractkit/cre-cli/blob/v1.33.0/cmd/workflow/simulate/chain/evm/supported_chains.go). The current Sepolia address is in the [official directory](https://docs.chain.link/cre/guides/workflow/using-evm-client/forwarder-directory-ts). Confirm tenant-specific supported chains after login and recheck on CLI upgrades. Do not configure the CLI forwarder as production trust. Guard immutables cannot be changed after deployment. A new Guard also changes the Maker-approved program and its hash if later used for trading; the first paused transport probe deliberately does not ship a program.
 
 ## Public output leaks information
 

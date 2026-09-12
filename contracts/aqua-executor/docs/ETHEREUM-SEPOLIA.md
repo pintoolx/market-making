@@ -1,6 +1,6 @@
 # Ethereum Sepolia: WETH / Circle testnet USDC
 
-This is the current demo asset route (chain ID **11155111**). Base Sepolia mock
+This is the current demo asset route (chain ID **11155111**). The [public run](ethereum-sepolia-demo.md) is complete: 39 successful transactions and one expected Guard revert. Base Sepolia mock
 records remain historical regression evidence. There is no token renaming or
 minting in the Ethereum Sepolia deployment/funding path.
 

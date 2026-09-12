@@ -76,8 +76,8 @@ export const onCronTrigger = (runtime: TeeRuntime<Config>): string => {
 	const nowSec = Math.floor(runtime.now().getTime() / 1000)
 	const identity: ReportIdentity = {
 		chainId: GUARD_CONFIG.chainId,
-		guard: config.guard as `0x${string}`,
-		router: config.router as `0x${string}`,
+		guard: runtime.config.guard as `0x${string}`,
+		router: runtime.config.router as `0x${string}`,
 		maker: config.maker as `0x${string}`,
 		strategyHash: config.strategyHash as `0x${string}`,
 		token0: GUARD_CONFIG.token0,

@@ -17,7 +17,7 @@ The build writes `.cache/guard-report.wasm`. The SDK downloads a checksum-verifi
 
 `report.ts` validates the shared [v1 ABI](../../docs/guard-report-v1/abi.json), requiring decimal strings for integers. `runtime.report()` receives exactly `abi.encode(GuardReportV1)` without a function selector. Delivery checks the Guard's forwarder, router, simulation flag and workflow identity before writing. Success requires both transaction and receiver success, a nonzero transaction hash and a matching `getReport()` digest. The [EVM response reference](https://docs.chain.link/cre/reference/sdk/evm-client-ts) distinguishes receiver execution from the outer transaction result.
 
-`config.example.json` illustrates the strict public schema with a placeholder Guard and expired timestamps. It is not an executable authorization. Never put a raw private policy, secret or original Maker budget in config or the public output. Structural validation cannot detect a secret deliberately encoded into an otherwise valid public field; choosing the derived output remains the evaluator's responsibility.
+`config.example.json` illustrates the strict public schema with the deployed Sepolia simulation Guard, a placeholder Maker / program hash and expired timestamps. It is not an executable authorization. Never put a raw private policy, secret or original Maker budget in config or the public output. Structural validation cannot detect a secret deliberately encoded into an otherwise valid public field; choosing the derived output remains the evaluator's responsibility.
 
 ## Prepare the first simulated chain write
 
