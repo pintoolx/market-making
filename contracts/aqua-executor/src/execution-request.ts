@@ -48,14 +48,22 @@ export function parseStrategy(input: unknown): AquaStrategyParams {
   if (p.schema !== 'aqua-swapvm-v1.0.2') throw new Error('unsupported strategy schema')
   if (!Array.isArray(p.tokens) || p.tokens.length !== 2 || !Array.isArray(p.amounts) || p.amounts.length !== 2) throw new Error('strategy needs two tokens and amounts')
   const program = object(p.program, 'program'), meta = object(p.meta, 'meta')
-  keys(program, ['kind', 'feeBps', 'deadline', 'salt'])
+  const extra = program.kind === 'pegged' ? ['linearWidth', 'referenceBalances', 'rates'] : []
+  keys(program, ['kind', 'feeBps', 'deadline', 'salt', ...extra])
   keys(meta, ['producer', 'strategyVersion', 'paramsRevision'])
-  if (program.kind !== 'xyc') throw new Error('unsupported strategy kind')
+  if (program.kind !== 'xyc' && program.kind !== 'pegged') throw new Error('unsupported strategy kind')
+  const pair = (v: unknown, name: string): [string, string] => {
+    if (!Array.isArray(v) || v.length !== 2) throw new Error(`invalid ${name}`)
+    return v.map(n => decimal(n, name, 1n, 2n ** 256n - 1n)) as [string, string]
+  }
+  const curve = program.kind === 'xyc' ? { kind: 'xyc' as const } : { kind: 'pegged' as const,
+    linearWidth: decimal(program.linearWidth, 'linearWidth', 0n, 5000n * 10n ** 27n),
+    referenceBalances: pair(program.referenceBalances, 'referenceBalances'), rates: pair(program.rates, 'rates') }
   if (meta.producer !== 'tee' && meta.producer !== 'fixed-params') throw new Error('invalid strategy producer')
   const result: AquaStrategyParams = {
     schema: p.schema, chainId: integer(p.chainId, 'chainId', 1, Number.MAX_SAFE_INTEGER), maker: address(p.maker, 'maker'),
     tokens: p.tokens.map(t => address(t, 'token')), amounts: p.amounts.map(a => decimal(a, 'amount', 1n, 2n ** 256n - 1n)),
-    program: { kind: 'xyc', feeBps: integer(program.feeBps, 'feeBps', 0, 9999), deadline: integer(program.deadline, 'deadline', 1, 2 ** 40 - 1), salt: decimal(program.salt, 'salt', 0n, 2n ** 64n - 1n) },
+    program: { ...curve, feeBps: integer(program.feeBps, 'feeBps', 0, 9999), deadline: integer(program.deadline, 'deadline', 1, 2 ** 40 - 1), salt: decimal(program.salt, 'salt', 0n, 2n ** 64n - 1n) },
     meta: { producer: meta.producer, strategyVersion: integer(meta.strategyVersion, 'strategyVersion', 1, Number.MAX_SAFE_INTEGER), paramsRevision: integer(meta.paramsRevision, 'paramsRevision', 1, Number.MAX_SAFE_INTEGER) },
   }
   compile(result)

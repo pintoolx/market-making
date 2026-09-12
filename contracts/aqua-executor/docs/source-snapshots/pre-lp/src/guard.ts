@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module'
 import { concatHex, encodeAbiParameters, encodeFunctionData, encodePacked, getAddress, keccak256, zeroAddress, type Abi } from 'viem'
-import { appendCurve } from './curves.ts'
 import { compile, type Compiled } from './compile.ts'
 import { readJson } from './config.ts'
 import type { AquaStrategyParams, Hex } from './types.ts'
@@ -40,7 +39,7 @@ export interface GuardReport extends GuardCaps {
   allowedDirections: number
 }
 export type GuardedCompiled = Compiled & {
-  params: AquaStrategyParams & { executionTemplate: 'guarded-xyc-v1' | 'guarded-pegged-v1' }
+  params: AquaStrategyParams & { executionTemplate: 'guarded-xyc-v1' }
   guard: Hex
   envelope: Hex
 }
@@ -61,15 +60,15 @@ export function compileGuarded(p: AquaStrategyParams, guard: Hex, caps: GuardCap
   if (base.amounts[0]! > caps.maxPostBalance0 || base.amounts[1]! > caps.maxPostBalance1) throw new Error('initial inventory exceeds guard envelope')
   const envelope = encodePacked(['uint8', 'address', 'address', 'uint128', 'uint128', 'uint128', 'uint128'],
     [1, p.tokens[0]!, p.tokens[1]!, ...limits])
-  const prefix = appendCurve(new S.AquaProgramBuilder().deadline({ deadline: BigInt(p.program.deadline) }), p)
-    .salt({ salt: BigInt(p.program.salt) }).build()
+  const prefix = new S.AquaProgramBuilder()
+    .deadline({ deadline: BigInt(p.program.deadline) }).xycSwapXD().salt({ salt: BigInt(p.program.salt) }).build()
   // SDK 0.4.4's Aqua builder has no Extruction method. Append the pinned router's
   // opcode 32, with 125 argument bytes (target + envelope); golden and real-router tests bind it.
   const program = new S.SwapVmProgram(concatHex([prefix.toString(), '0x207d', guard, envelope]))
   const order = S.Order.new({ maker: new S.Address(p.maker), program, traits: S.MakerTraits.default() })
   const strategy: Hex = order.encode().toString()
   // The legacy JSON parser rejects this marker instead of silently recompiling an unguarded XYC order.
-  return { ...base, params: { ...p, executionTemplate: p.program.kind === 'xyc' ? 'guarded-xyc-v1' : 'guarded-pegged-v1' }, order: order.build(), strategy, strategyHash: keccak256(strategy), guard, envelope }
+  return { ...base, params: { ...p, executionTemplate: 'guarded-xyc-v1' }, order: order.build(), strategy, strategyHash: keccak256(strategy), guard, envelope }
 }
 
 /** Unsigned onReport calldata. Submit via the configured forwarder, never directly from an EOA. */

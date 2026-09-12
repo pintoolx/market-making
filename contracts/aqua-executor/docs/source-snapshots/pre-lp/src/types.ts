@@ -19,7 +19,15 @@ export interface AquaStrategyParams {
   tokens: Hex[]
   /** Raw units, same order as `tokens`. */
   amounts: string[]
-  program: StrategyProgram
+  program: {
+    /** Constant product x*y=k with a flat fee taken from amountIn. */
+    kind: 'xyc'
+    feeBps: number
+    /** Unix seconds. */
+    deadline: number
+    /** uint64. A new salt gives a new strategyHash, which is required to ship again after a dock. */
+    salt: string
+  }
   meta: { producer: 'fixed-params' | 'tee'; strategyVersion: number; paramsRevision: number }
 }
 
@@ -31,22 +39,3 @@ export interface Deployment {
   /** symbol -> address */
   tokens: Record<string, Hex>
 }
-
-export interface ProgramCommon {
-  feeBps: number
-  /** Unix seconds. */
-  deadline: number
-  /** uint64; never reuse after docking. */
-  salt: string
-}
-export type StrategyProgram = ProgramCommon & (
-  | { kind: 'xyc' }
-  | {
-    kind: 'pegged'
-    /** A in 1e27 fixed point, between 0 and 5000e27. */
-    linearWidth: string
-    /** Raw reference balances and normalization multipliers, in tokens[] order. */
-    referenceBalances: [string, string]
-    rates: [string, string]
-  }
-)
