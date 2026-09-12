@@ -24,7 +24,7 @@ maker approve(Aqua) → Aqua.ship → taker router.swap → [Aqua.multicall(dock
 
 ## Contracts
 
-The Base Sepolia demo deploys the **official, unmodified** Aqua / SwapVM sources using `pnpm run deploy`. The pinned versions below were compared against the canonical mainnet contracts during the original work. It also deploys two mintable mock tokens (`mWETH`, `mUSDC`).
+The Ethereum Sepolia release uses the canonical Aqua address, canonical WETH and Circle test USDC. PinTool deploys its SwapVM Router and Guard while retaining the official Aqua custody and shared-liquidity model. Local tests deploy the pinned upstream contracts and mock assets on an isolated Anvil chain.
 
 | Contract | Source | Canonical mainnet address |
 |---|---|---|
@@ -56,10 +56,15 @@ anvil &
 npm run deploy -- --network local
 npm run lifecycle -- --network local --rebalance
 
-# Base Sepolia: fill .env from .env.example and fund MAKER with >= 0.001 Base Sepolia ETH
-# (deploy ≈ 7.1M gas ≈ 0.00005 ETH at 0.006 gwei; deploy also sends the taker 0.0005 ETH for gas)
-npm run deploy -- --network base-sepolia      # writes deployments/84532.json
-npm run lifecycle -- --network base-sepolia --rebalance
+# Ethereum Sepolia: configure MAKER_PK, TAKER_PK and ETHEREUM_SEPOLIA_RPC_URL.
+npm run sepolia -- status
+npm run sepolia -- fund --execute
+
+# Ship both strategies against the same Maker wallet balance.
+npm run execute -- --network ethereum-sepolia --state-dir .state/executor/11155111-maker \
+  --request releases/sepolia-maker-v1/featured-tight-market.ship.json
+npm run execute -- --network ethereum-sepolia --state-dir .state/executor/11155111-maker \
+  --request releases/sepolia-maker-v1/featured-defensive-market.ship.json
 ```
 
 ## Strategy params: the TEE hand-off
@@ -83,26 +88,35 @@ Lifecycle signing goes through `send()` in `src/executor.ts`. Lifecycle transact
 npm run execute -- --request examples/ship-request.json --validate
 
 # Submit an actual request from the TEE/controller; retry with the same JSON and ID.
-npm run execute -- --network base-sepolia --request /path/to/request.json
-npm run execute -- --network base-sepolia --session session-123 --status
-npm run execute -- --network base-sepolia --session session-123 --watch
+npm run execute -- --network ethereum-sepolia --request /path/to/request.json
+npm run execute -- --network ethereum-sepolia --session session-123 --status
+npm run execute -- --network ethereum-sepolia --session session-123 --watch
 ```
 
 Requests support ship, swap, rebalance, monitor and dock. The controller stores its journal in `.state/executor/<chainId>/`, binds each request ID to its content, and resumes confirmed or pending transactions using their original hash and nonce. It keeps the HODL benchmark through rebalance and process restarts. A local SQLite lock coordinates processes sharing that directory. Do not run the legacy demos or another signing controller concurrently with these accounts. See [request fields, failure handling and recovery tests](docs/execution-recovery.md).
 
-## Per-swap Guard prototype
+## Per-swap Guard
 
-The [Guard prototype](docs/guard.md) adds an `onReport` receiver and a fixed zero-fee XYC program that calls the Guard on each quote / swap. It checks report freshness, direction, per-token trade amounts and resulting inventory against the Maker-approved envelope. This is separate from the off-chain loss monitor. The included demo uses synthetic reports through a project-owned test harness; CRE delivery and workflow agreement remain pending.
+The [Guard](docs/guard.md) is an `onReport` receiver called by the SwapVM program on every quote and swap. It checks workflow identity, active strategy, report freshness, direction, per-token trade amounts and resulting inventory against the Maker-approved immutable envelope. It is separate from the off-chain loss monitor.
 
-Run `pnpm demo:guard --network local` after local deployment, or use the existing Base Sepolia deployment with isolated demo accounts. See [build instructions, supported APIs and limitations](docs/guard.md) and [completed Base Sepolia evidence](docs/guard-sepolia-demo.md).
+The local test harness validates all boundaries with synthetic reports. On Ethereum Sepolia, the Chainlink local simulator broadcasts reports through its official simulation forwarder. After a strategy switch, create an independently verifiable failed receipt with:
+
+```bash
+npm run verify:guard-rejection -- \
+  --strategy releases/sepolia-maker-v1/featured-tight-market.ship.json \
+  --request releases/sepolia-maker-v1/03-tight-market-inactive.swap.json \
+  --mandate-api http://localhost:8787 \
+  --mandate-id <mandate-id> \
+  --provider-strategy-id featured-tight-market
+```
+
+The verifier first requires the exact `StrategyNotActive` Guard error, then broadcasts once and proves the reverted receipt emitted no swap and changed no token or Aqua balances.
 
 ## Risk monitor
 
-For persistent TEE-controlled execution, use [the JSON controller and its watcher](docs/execution-recovery.md). It saves signed transactions before broadcasting, resumes the same request without duplicate operations, and retains the original risk benchmark. The commands below describe the earlier standalone monitor/demo path.
+For persistent confidential execution, use [the JSON controller and its watcher](docs/execution-recovery.md). It saves signed transactions before broadcasting, resumes the same request without duplicate operations, and retains the original risk benchmark.
 
-The monitor reads Chainlink ETH/USD and USDC/USD, retries data failures, and follows confirmed rebalances while retaining the original HODL benchmark. For an active strategy, run `npm run monitor -- --network base-sepolia --plan /path/to/plan.json`. See [risk policy, session API and limitations](docs/risk-monitor.md).
-
-Run `npm run demo:risk -- --network base-sepolia --price-source chainlink` for real reference prices with an intentionally mispriced mock pool, or `--price-source simulated` for a clearly labelled fabricated-price scenario. Both execute swaps, a monitored rebalance and automatic risk-dock. For an offline local demo, use `--network local --price-source simulated` after deployment. [Testnet evidence](docs/risk-monitor-sepolia.md) distinguishes both scenarios.
+The monitor reads Chainlink Ethereum mainnet ETH/USD and USDC/USD as reference prices, retries data failures, and follows confirmed rebalances while retaining the original HODL benchmark. Sepolia WETH and Circle test USDC are mapped explicitly to those reference feeds. See [risk policy, session API and limitations](docs/risk-monitor.md).
 
 ## Records
 
