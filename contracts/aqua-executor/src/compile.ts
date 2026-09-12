@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import { keccak256 } from 'viem'
+import { appendCurve } from './curves.ts'
 import type { AquaStrategyParams, Hex } from './types.ts'
 
 // ponytail: the SDK's ESM build fails on Node 24 (ERR_MODULE_NOT_FOUND inside @1inch/byte-utils); its CJS build works.
@@ -19,22 +20,20 @@ export interface Compiled {
 }
 
 export function compile(p: AquaStrategyParams): Compiled {
+  if ('guard' in p) throw new Error('guard recipe requires compileExecution')
   if ('executionTemplate' in p) throw new Error('specialized strategy: retain its compiled order; legacy compile cannot reconstruct its guard')
   if (p.schema !== 'aqua-swapvm-v1.0.2') throw new Error(`unsupported schema: ${p.schema}`)
-  if (p.program.kind !== 'xyc') throw new Error(`unsupported program: ${p.program.kind}`)
-  if (p.tokens.length !== 2 || p.amounts.length !== 2) throw new Error('xyc needs exactly 2 tokens and 2 amounts')
+  if (p.tokens.length !== 2 || p.amounts.length !== 2) throw new Error('strategy needs exactly 2 tokens and 2 amounts')
   if (p.tokens[0]!.toLowerCase() === p.tokens[1]!.toLowerCase()) throw new Error('duplicate token')
   const amounts = p.amounts.map(a => BigInt(a))
   if (amounts.some(a => a <= 0n)) throw new Error('amounts must be > 0')
   const { feeBps, deadline, salt } = p.program
   if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps >= 10_000) throw new Error(`bad feeBps: ${feeBps}`)
 
-  const program = new S.AquaProgramBuilder()
+  const builder = new S.AquaProgramBuilder()
     .deadline({ deadline: BigInt(deadline) })
     .flatFeeAmountInXD({ fee: BigInt(feeBps) * 100_000n }) // v1.0.2 fee scale: 1e9 = 100%
-    .xycSwapXD()
-    .salt({ salt: BigInt(salt) })
-    .build()
+  const program = appendCurve(builder, p).salt({ salt: BigInt(salt) }).build()
   // MakerTraits.default() = useAquaInsteadOfSignature only (no hooks, custom receiver or unwrap)
   const order = S.Order.new({ maker: new S.Address(p.maker), program, traits: S.MakerTraits.default() })
   const strategy: Hex = order.encode().toString()

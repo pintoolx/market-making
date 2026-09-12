@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-// A Maker's proposal waiting for execution. Kept in this browser only; nothing is sent anywhere yet.
+// Local index of mandates accepted by the configured mandate service, used by the current Profile screen.
 export type Proposal = { id: string; strategyName: string; mechanism: string; budget: string; maxExposure: string; maxWeakAsset: string; maxTrade: string; validityMinutes: string; feePct?: number; createdAt: number };
 
 const KEY = 'pintool.aqua.proposals';

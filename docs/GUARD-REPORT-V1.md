@@ -2,7 +2,11 @@
 
 **Status: proposal awaiting agreement between the workflow and contracts owners.** A [Guard prototype and synthetic-report testnet demo](https://github.com/pintoolx/market-making/pull/4) implement these defaults. Merging the proposal and prototype does not establish workflow agreement or prove CRE/TEE delivery. The executor import, interface proposal and prototype have separate commits and PRs.
 
+**2026-09-12 delivery decision:** the project owner selected DON report → forwarder → Guard, keeping this ABI for the first public transport test. The [CRE adapter](../workflow/guard-report/README.md) is implemented and tested offline; account access and actual delivery remain pending. This does not settle the future two-strategy mandate schema. See [version, authentication and privacy boundaries](CRE-GUARD-INTEGRATION.md).
+
 The confidential workflow produces public execution bounds from private inputs. The Guard receives those bounds through CRE and checks them during each SwapVM invocation. The Maker first approves a fixed strategy program and its public enforcement envelope, then ships that program from their wallet. New reports may vary execution within that envelope without authorizing a new program or another wallet transaction.
+
+Public bounds, envelopes and trades may reveal information about the original inputs when observed over time. Expiry only limits future use of that authorization; it does not remove history or guarantee resistance to inference.
 
 ## Scope and pending decisions
 

@@ -2,14 +2,14 @@
 
 Owner: Henry (workflow). Counterpart: pengu (`contracts/`, the Aqua Guard).
 
-A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It
-reads two confidential inputs — the Provider's strategy and the Maker's risk limits — as
-Vault DON secrets, intersects them at the current market snapshot, and emits a public
-[`GuardReportV1`](../docs/GUARD-REPORT-V1.md) that the Guard contract enforces on every
-1inch Aqua fill through the SwapVM Extruction opcode. Neither private input ever leaves the
-enclave; funds never leave the Maker's wallet.
+A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It reads two confidential inputs — the Provider's strategy and the Maker's risk limits — as Vault DON secrets, intersects them at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). The TEE never handles Maker funds.
 
-Format and delivery proposal for the contracts owner: [`docs/authorization-format.md`](../docs/authorization-format.md).
+The evaluator and report delivery are currently separate integration stages:
+
+- [`market-maker-auth/`](market-maker-auth/) runs the Provider × Maker intersection through `handlerInTee` and produces the 16-field report in simulation.
+- [`guard-report/`](guard-report/) encodes and delivers public report output through `runtime.report()` → `EVMClient.writeReport()`, then verifies Guard state and receipts.
+
+Both stages have tests, but the confidential evaluator is not yet wired to the delivery adapter in one deployed workflow. CLI simulation is not production DON or TEE attestation. See the [transport and verification boundary](../docs/CRE-GUARD-INTEGRATION.md) and [`docs/authorization-format.md`](../docs/authorization-format.md).
 
 ## Layout
 

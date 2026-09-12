@@ -45,6 +45,12 @@ The original frontend work listed below was generated or substantially edited wi
 - Guard artifacts and demo records are generated outputs. The report harness and fabricated workflow metadata are labelled as tests; no TEE attestation is claimed.
 - `contracts/aqua-executor/contracts/vendor/SwapVMInterfaces.sol` contains extracted upstream interfaces under the included upstream license; these interfaces are not authored by Codex.
 
+## CRE delivery adapter assisted by Codex
+
+- `workflow/guard-report/` source, configuration, local preparation tools, tests and runbook; `workflow/project.yaml`; `docs/CRE-GUARD-INTEGRATION.md`; and related README / interface status updates were developed with OpenAI Codex.
+- The package uses the official CRE SDK test runtime and EVM mocks. The TEE crossover test uses a stub; the WASM build is local compilation. Neither supplies real DON / TEE execution evidence. The account and access blocker is recorded in `workflow/guard-report/VERIFICATION.md`.
+- No private policy, private key, generated credentials or new public-chain transaction was produced or published by this increment. The preparation tool writes unsigned deployment data and public paused-report configuration only.
+
 ## What the team did
 
 - Defined the product: the Provider and Maker roles, combining both sides' private inputs in a TEE, and the fee paid only on profit.

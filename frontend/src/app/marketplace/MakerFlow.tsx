@@ -6,178 +6,314 @@ import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
+import { addMandateStrategy, createMandate, getMandate, type MandateState } from './mandateClient';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
-import { readProposals, useProposals } from './proposalStore';
+import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
 
-const STEPS = ['Choose strategy', 'Set private limits', 'Evaluate', 'Execute'];
-const FEATURED: Listing[] = AQUA_TEMPLATES.slice(0, 3).map(template => ({ id: `featured-${template.id}`, name: template.name, summary: template.summary, template, mine: false }));
-type Phase = 'limits' | 'review' | 'evaluating' | 'approved' | 'rejected' | 'executing' | 'active';
-type SwapState = 'idle' | 'settling' | 'settled' | 'checking' | 'blocked';
+const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
+const FEATURED: Listing[] = [
+  {
+    id: 'featured-tight-market',
+    name: 'Tight Market',
+    summary: 'Concentrates WETH / USDC liquidity in a narrower range when price movement is contained.',
+    template: AQUA_TEMPLATES[1],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/pintoolAvatar.svg',
+  },
+  {
+    id: 'featured-defensive-market',
+    name: 'Defensive Market',
+    summary: 'Uses a wider WETH / USDC range with lower fill and inventory caps when market risk increases.',
+    template: AQUA_TEMPLATES[1],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/pintoolAvatar.svg',
+  },
+  {
+    id: 'featured-adaptive-range',
+    name: 'Adaptive Range',
+    summary: 'Concentrates WETH / USDC liquidity around a private reference range and recenters when conditions change.',
+    template: AQUA_TEMPLATES[1],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/pintoolAvatar.svg',
+  },
+  {
+    id: 'featured-wide-range',
+    name: 'Wide Range Reserve',
+    summary: 'Uses a wider WETH / USDC range to remain available through larger price moves.',
+    template: AQUA_TEMPLATES[1],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/pintoolAvatar.svg',
+  },
+  {
+    id: 'featured-inventory-recovery',
+    name: 'Inventory Recovery',
+    summary: 'Adjusts WETH / USDC quoting to move inventory back toward the Maker’s target allocation.',
+    template: AQUA_TEMPLATES[4],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/pintoolAvatar.svg',
+  },
+  {
+    id: 'featured-flow-decay',
+    name: 'Flow Decay',
+    summary: 'Temporarily changes WETH / USDC pricing after a fill, then decays toward its baseline quote.',
+    template: AQUA_TEMPLATES[3],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/pintoolAvatar.svg',
+  },
+];
+
+type Phase = 'choose' | 'detail' | 'limits' | 'review' | 'submitting' | 'monitor';
 
 const toNumber = (value: string) => Number(value.replace(/,/g, '').trim());
 const positiveError = (value: string) => !value.trim() ? '' : !(toNumber(value) > 0) ? 'Enter an amount above 0.' : '';
-const percentageError = (value: string) => { const n = toNumber(value); return !value.trim() ? '' : !(n > 0 && n <= 100) ? 'Enter a percentage between 1 and 100.' : ''; };
+const percentageError = (value: string) => {
+  const n = toNumber(value);
+  return !value.trim() ? '' : !(n > 0 && n <= 100) ? 'Enter a percentage between 1 and 100.' : '';
+};
+const shortHash = (value: string) => `${value.slice(0, 8)}…${value.slice(-6)}`;
 
 export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const account = useAccount();
   const { published } = usePublishedListings();
-  const { proposals, save } = useProposals();
-  const [selected, setSelected] = useState<Listing | null>(null);
+  const { save } = useProposals();
+  const [selected, setSelected] = useState<Listing[]>([]);
   const [budget, setBudget] = useState('1000');
   const [exposure, setExposure] = useState('60');
-  const [maxWeakAsset, setMaxWeakAsset] = useState('350');
+  const [maxWethInventory, setMaxWethInventory] = useState('350');
   const [maxTrade, setMaxTrade] = useState('100');
-  const [validityMinutes, setValidityMinutes] = useState('15');
-  const [phase, setPhase] = useState<Phase>('limits');
-  const [swapState, setSwapState] = useState<SwapState>('idle');
+  const [validityMinutes, setValidityMinutes] = useState('10');
+  const [phase, setPhase] = useState<Phase>('choose');
+  const [mandate, setMandate] = useState<MandateState | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [expanding, setExpanding] = useState(false);
+  const [error, setError] = useState('');
   const heading = useRef<HTMLHeadingElement>(null);
   const didNavigate = useRef(false);
 
-  useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [selected, phase]);
+  useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('strategy');
     if (!id) return;
     const listing = [...readPublished(), ...FEATURED].find(item => item.id === id);
-    const saved = readProposals().find(item => item.id === id);
-    if (listing) {
-      setSelected(listing);
-      setBudget(saved?.budget ?? '1000');
-      setExposure(saved?.maxExposure ?? '60');
-      setMaxWeakAsset(saved?.maxWeakAsset ?? '350');
-      setMaxTrade(saved?.maxTrade ?? '100');
-      setValidityMinutes(saved?.validityMinutes ?? '15');
-      setPhase(saved ? 'review' : 'limits');
-    }
+    if (listing) { setSelected([listing]); setPhase('detail'); }
     window.history.replaceState(null, '', '/maker');
   }, []);
 
-  const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.template.id === sample.template.id))];
-  const go = (fn: () => void) => { didNavigate.current = true; scrollTop(); fn(); };
-  const choose = (listing: Listing) => go(() => {
-    const saved = proposals.find(item => item.id === listing.id);
-    setBudget(saved?.budget ?? '1000');
-    setExposure(saved?.maxExposure ?? '60');
-    setMaxWeakAsset(saved?.maxWeakAsset ?? '350');
-    setMaxTrade(saved?.maxTrade ?? '100');
-    setValidityMinutes(saved?.validityMinutes ?? '15');
-    setSelected(listing);
-    setPhase('limits');
-    setSwapState('idle');
-  });
+  const listings = [...published, ...FEATURED.filter(sample => !published.some(item => item.id === sample.id))];
+  const go = (next: Phase) => {
+    didNavigate.current = true;
+    scrollTop();
+    setError('');
+    setPhase(next);
+  };
+  const openStrategy = (listing: Listing) => { setSelected([listing]); go('detail'); };
 
-  const valid = [budget, maxWeakAsset, maxTrade, validityMinutes].every(value => value.trim() && !positiveError(value))
+  const valid = [budget, maxWethInventory, maxTrade, validityMinutes].every(value => value.trim() && !positiveError(value))
     && !!exposure.trim() && !percentageError(exposure)
-    && toNumber(maxWeakAsset) <= toNumber(budget)
+    && toNumber(maxWethInventory) <= toNumber(budget)
     && toNumber(maxTrade) <= toNumber(budget);
-  const compatible = toNumber(exposure) <= 70 && toNumber(maxWeakAsset) <= toNumber(budget) * .5;
 
   const savePolicy = () => {
-    if (!selected || !valid) return;
-    save({ id: selected.id, strategyName: selected.name, mechanism: selected.template.label, budget: budget.trim(), maxExposure: exposure.trim(), maxWeakAsset: maxWeakAsset.trim(), maxTrade: maxTrade.trim(), validityMinutes: validityMinutes.trim(), feePct: selected.feePct });
-    go(() => setPhase('review'));
-  };
-  const evaluate = () => {
-    go(() => setPhase('evaluating'));
-    window.setTimeout(() => go(() => setPhase(compatible ? 'approved' : 'rejected')), 1050);
-  };
-  const activate = () => {
-    go(() => setPhase('executing'));
-    window.setTimeout(() => go(() => setPhase('active')), 1100);
-  };
-  const runSwap = (protectedDirection: boolean) => {
-    setSwapState(protectedDirection ? 'checking' : 'settling');
-    window.setTimeout(() => setSwapState(protectedDirection ? 'blocked' : 'settled'), 800);
+    if (!valid || selected.length === 0) return;
+    go('review');
   };
 
-  if (!selected) return <section className={aqua.flow}>
-    <PageHead eyebrow="Maker Marketplace" title="Choose a strategy." accent="Keep your limits private." headingRef={heading}>
-      Each listing explains the public mandate. Your capital and inventory policy stay between you and the confidential workflow.
-    </PageHead>
-    <Steps steps={STEPS} current={0} />
-    <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
-    <div className={`${styles.grid} ${aqua.grid}`}>
-      {listings.map(item => {
-        const saved = proposals.some(p => p.id === item.id);
-        return <ListingCard key={item.id} listing={item} action={<Primary onClick={() => choose(item)}>{saved ? 'Review policy' : 'Use strategy'}</Primary>} />;
-      })}
-    </div>
-  </section>;
+  const submit = async () => {
+    if (!account.address || selected.length === 0) {
+      setError('Log in with the Maker wallet before creating the mandate.');
+      return;
+    }
+    go('submitting');
+    try {
+      const state = await createMandate({
+        maker: account.address,
+        providerStrategyIds: selected.map(item => item.id),
+        policy: {
+          capitalBudgetUsdc: budget.trim(),
+          maxWethExposurePct: exposure.trim(),
+          maxWethInventoryUsdc: maxWethInventory.trim(),
+          maxSwapUsdc: maxTrade.trim(),
+          validityMinutes: validityMinutes.trim(),
+        },
+      });
+      setMandate(state);
+      selected.forEach(item => save({
+        id: item.id,
+        strategyName: item.name,
+        mechanism: item.template.label,
+        budget: budget.trim(),
+        maxExposure: exposure.trim(),
+        maxWeakAsset: maxWethInventory.trim(),
+        maxTrade: maxTrade.trim(),
+        validityMinutes: validityMinutes.trim(),
+        feePct: item.feePct,
+      }));
+      go('monitor');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The mandate could not be created.');
+      setPhase('review');
+    }
+  };
 
-  const currentStep = phase === 'limits' ? 1 : ['review', 'evaluating', 'approved', 'rejected'].includes(phase) ? 2 : 3;
-  const title = phase === 'limits' ? selected.name : phase === 'review' ? 'Review your private policy.' : phase === 'evaluating' ? 'Evaluating compatibility.' : phase === 'approved' ? 'Strategy approved.' : phase === 'rejected' ? 'Policy conflict.' : phase === 'executing' ? 'Activating on Aqua.' : 'Strategy active.';
+  const refresh = async () => {
+    if (!mandate) return;
+    setRefreshing(true);
+    setError('');
+    try {
+      setMandate(await getMandate(mandate.mandateId));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The mandate status could not be refreshed.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const addSelectedStrategy = async () => {
+    if (!mandate || !selected[0]) return;
+    go('submitting');
+    try {
+      setMandate(await addMandateStrategy(mandate.mandateId, selected[0].id));
+      setExpanding(false);
+      go('monitor');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The strategy could not be added to this mandate.');
+      setPhase('detail');
+    }
+  };
+  const startAdding = () => { setExpanding(true); setSelected([]); go('choose'); };
+
+  const currentStep = ['choose', 'detail'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
+  const title = phase === 'choose' ? expanding ? 'Add a strategy to your mandate.' : 'Find a strategy for your liquidity.'
+    : phase === 'detail' ? selected[0]?.name ?? 'Strategy details.'
+      : phase === 'limits' ? 'Set your capital boundaries.'
+      : phase === 'review' ? 'Review your mandate.'
+        : phase === 'submitting' ? 'Creating your mandate.'
+          : 'Your liquidity mandate.';
 
   return <section className={aqua.flow}>
-    <button type="button" className={aqua.backLink} onClick={() => go(() => setSelected(null))}>← All strategies</button>
-    <PageHead eyebrow={`${selected.template.label} strategy`} title={title} accent={phase === 'approved' ? 'Your limits are preserved.' : phase === 'active' ? 'Guarded on every swap.' : undefined} headingRef={heading}>
-      {phase === 'limits' && selected.summary}
-      {phase === 'review' && 'Confirm what the confidential workflow may use before sending your encrypted policy.'}
-      {phase === 'evaluating' && 'Chainlink combines the Provider logic, your policy and the current market state inside the TEE.'}
-      {phase === 'approved' && 'The workflow produced a restricted execution intent without revealing either side’s private inputs.'}
-      {phase === 'rejected' && 'The Provider strategy cannot operate inside your current limits.'}
-      {phase === 'executing' && 'Your wallet authorizes the approved strategy and virtual balances.'}
-      {phase === 'active' && 'Aqua settles permitted flow from your wallet while PinTool Guard rejects policy violations.'}
+    {phase === 'choose' && expanding && <button type="button" className={aqua.backLink} onClick={() => { setExpanding(false); go('monitor'); }}>← Your mandate</button>}
+    {phase !== 'choose' && phase !== 'monitor' && <button type="button" className={aqua.backLink} onClick={() => go(phase === 'limits' ? 'detail' : 'choose')}>← {phase === 'limits' ? 'Strategy details' : 'Strategy marketplace'}</button>}
+    <PageHead eyebrow="Maker Marketplace" title={title} accent={phase === 'monitor' ? 'One balance, guarded continuously.' : undefined} headingRef={heading}>
+      {phase === 'choose' && (expanding ? 'Choose another compatible WETH / USDC strategy. Your existing private limits continue to apply.' : 'Explore strategies built for self-custodial liquidity on Aqua.')}
+      {phase === 'detail' && 'Review what the strategy does, how it executes and what can go wrong before using it.'}
+      {phase === 'limits' && 'The Provider never receives your original WETH exposure, inventory or fill limits.'}
+      {phase === 'review' && 'The confidential workflow will check whether this strategy fits your private limits.'}
+      {phase === 'submitting' && (expanding ? 'Checking the new strategy against your existing mandate and waiting for Guard confirmation.' : 'Checking Provider policies against your limits and waiting for the Guard report to be confirmed.')}
+      {phase === 'monitor' && 'Track the currently authorized strategy and every confirmed execution decision.'}
     </PageHead>
-    <Steps steps={STEPS} current={currentStep} />
+    {!expanding && <Steps steps={STEPS} current={currentStep} />}
+    {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
+
+    {phase === 'choose' && <>
+      <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
+      <div className={`${styles.grid} ${aqua.grid}`}>
+        {listings.filter(item => !expanding || !mandate?.strategies.some(strategy => strategy.listingId === item.id)).map(item => <ListingCard key={item.id} listing={item} action={<Secondary onClick={() => openStrategy(item)}>View strategy</Secondary>} />)}
+      </div>
+    </>}
+
+    {phase === 'detail' && selected[0] && <StrategyDetail listing={selected[0]} actionLabel={expanding ? 'Add to mandate' : 'Use this strategy'} onUse={expanding ? addSelectedStrategy : () => go('limits')} />}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
         <fieldset className={aqua.privateField}>
-          <legend>Your private limits</legend>
-          <p className={aqua.muted}>Encrypted for the confidential workflow. The Provider never receives these values.</p>
-          <label>Capital budget (USDC)<FormInput inputMode="decimal" value={budget} aria-invalid={!!positiveError(budget)} onChange={e => setBudget(e.target.value)} /><span className={aqua.hint}>Maximum virtual balance assigned to this strategy.</span></label>
-          <label>Maximum single-asset exposure (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={e => setExposure(e.target.value)} /><span className={aqua.hint}>Largest permitted share of the budget in either asset.</span></label>
-          <label>Maximum USDT inventory (USDC value)<FormInput inputMode="decimal" value={maxWeakAsset} aria-invalid={!!positiveError(maxWeakAsset) || toNumber(maxWeakAsset) > toNumber(budget)} onChange={e => setMaxWeakAsset(e.target.value)} /><span className={aqua.hint}>Stops the strategy from accumulating more USDT beyond this value.</span></label>
-          <label>Maximum amount per swap (USDC)<FormInput inputMode="decimal" value={maxTrade} aria-invalid={!!positiveError(maxTrade) || toNumber(maxTrade) > toNumber(budget)} onChange={e => setMaxTrade(e.target.value)} /></label>
-          <label>Policy validity (minutes)<FormInput inputMode="numeric" value={validityMinutes} aria-invalid={!!positiveError(validityMinutes)} onChange={e => setValidityMinutes(e.target.value)} /><span className={aqua.hint}>Trading stops if the latest confidential report expires.</span></label>
+          <legend>Your private mandate</legend>
+          <p className={aqua.muted}>These limits govern this mandate, including compatible strategies you add later.</p>
+          <label>Capital budget (USDC)<FormInput inputMode="decimal" value={budget} aria-invalid={!!positiveError(budget)} onChange={event => setBudget(event.target.value)} /></label>
+          <label>Maximum WETH exposure (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={event => setExposure(event.target.value)} /></label>
+          <label>Maximum WETH inventory (USDC value)<FormInput inputMode="decimal" value={maxWethInventory} aria-invalid={!!positiveError(maxWethInventory) || toNumber(maxWethInventory) > toNumber(budget)} onChange={event => setMaxWethInventory(event.target.value)} /></label>
+          <label>Maximum amount per swap (USDC)<FormInput inputMode="decimal" value={maxTrade} aria-invalid={!!positiveError(maxTrade) || toNumber(maxTrade) > toNumber(budget)} onChange={event => setMaxTrade(event.target.value)} /></label>
+          <label>Mandate validity (minutes)<FormInput inputMode="numeric" value={validityMinutes} aria-invalid={!!positiveError(validityMinutes)} onChange={event => setValidityMinutes(event.target.value)} /><span className={aqua.hint}>Trading stops when the latest authorization expires.</span></label>
         </fieldset>
-        {account.authenticated && account.embedded && <p className={aqua.notice}>Your Privy wallet needs USDC and USDT before this strategy can be activated.</p>}
-        <Primary type="submit" disabled={!valid}>Review private policy</Primary>
+        <Primary type="submit" disabled={!valid}>Review mandate</Primary>
       </form>
-      <aside className={aqua.explanation}><h2>Policy boundary</h2><ul className={aqua.trustList}><li>Funds remain in your wallet.</li><li>The workflow may tighten these limits, never expand them.</li><li>The Guard checks direction, amount and report freshness on every swap.</li></ul><h3>Strategy risk</h3><p>{selected.template.risk}</p></aside>
+      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>You can add other compatible strategies after activation.</li></ul><h3>Execution pair</h3><p>This strategy uses WETH / USDC liquidity through Aqua.</p></aside>
     </div>}
 
     {phase === 'review' && <div className={aqua.decisionGrid}>
-      <div className={aqua.panel}><PolicyMetrics budget={budget} exposure={exposure} maxWeakAsset={maxWeakAsset} maxTrade={maxTrade} validity={validityMinutes} /><div className={aqua.actionRow}><Primary onClick={evaluate}>Run confidential evaluation</Primary><Secondary onClick={() => go(() => setPhase('limits'))}>Edit limits</Secondary></div></div>
+      <div className={aqua.panel}>
+        <StrategySet selected={selected} />
+        <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} validity={validityMinutes} />
+        <div className={aqua.actionRow}><Primary onClick={submit}>Create confidential mandate</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
+      </div>
       <PrivacyRoute />
     </div>}
 
-    {phase === 'evaluating' && <RuntimePanel eyebrow="Chainlink Confidential Workflow" title="Evaluating inside the TEE" copy="Decrypting both inputs, checking policy compatibility and preparing the smallest enforceable report." steps={['Provider commitment verified', 'Maker policy decrypted', 'Constraints being evaluated', 'Execution intent sealed']} />}
-
-    {phase === 'approved' && <div className={aqua.decisionGrid}>
-      <div className={`${aqua.panel} ${aqua.approvedPanel}`}><StatusHead label="Approved with limits" title="Restricted execution intent" mark="✓" /><div className={aqua.intentRows}><div><span>Maker receives USDT</span><strong>Allowed</strong></div><div><span>Maker pays USDT</span><strong>Allowed</strong></div><div><span>Maximum swap</span><strong>{maxTrade} USDC</strong></div><div><span>Report validity</span><strong>{validityMinutes} minutes</strong></div></div><p className={aqua.muted}>Raw Provider logic and your original policy are absent from this intent.</p><div className={aqua.actionRow}><Primary onClick={activate}>Review and activate</Primary><Secondary onClick={() => go(() => setPhase('limits'))}>Change policy</Secondary></div></div>
-      <PrivacyRoute />
-    </div>}
-
-    {phase === 'rejected' && <div className={aqua.decisionGrid}>
-      <div className={`${aqua.panel} ${aqua.rejectedPanel}`}><StatusHead label="Rejected safely" title="No executable intent was produced" mark="×" /><p>The strategy requires more inventory freedom than your policy permits. No Aqua authorization or execution payload was created.</p><div className={aqua.actionRow}><Primary onClick={() => go(() => setPhase('limits'))}>Adjust policy</Primary><Secondary onClick={() => go(() => setSelected(null))}>Choose another strategy</Secondary></div></div>
-      <PrivacyRoute />
-    </div>}
-
-    {phase === 'executing' && <RuntimePanel eyebrow="1inch Aqua / SwapVM" title="Activating maker strategy" copy="Signing the approved program, assigning virtual balances and connecting PinTool Guard." steps={['Execution intent verified', 'SwapVM program compiled', 'Wallet authorization pending', 'Aqua strategy active']} />}
-
-    {phase === 'active' && <div className={aqua.executionLayout}>
-      <div className={aqua.panel}><StatusHead label="Aqua strategy active" title="USDC / USDT liquidity" mark="✓" /><div className={aqua.intentRows}><div><span>Pricing</span><strong>PeggedSwap + Fee</strong></div><div><span>Settlement</span><strong>Maker wallet</strong></div><div><span>Policy enforcement</span><strong>PinTool Guard</strong></div><div><span>Report freshness</span><strong>{validityMinutes} minutes</strong></div></div></div>
-      <div className={aqua.swapTests}><article><span className={aqua.eyebrow}>Permitted flow</span><h3>Maker pays USDT</h3><p>The Taker pays USDC and receives USDT, reducing the Maker&apos;s USDT inventory.</p><Primary disabled={swapState === 'settling' || swapState === 'checking'} onClick={() => runSwap(false)}>{swapState === 'settling' ? 'Settling…' : swapState === 'settled' ? 'Settled through Aqua' : 'Execute swap'}</Primary></article><article><span className={aqua.eyebrow}>Protected flow</span><h3>Maker receives USDT</h3><p>The Taker pays USDT and receives USDC. Guard checks the Maker&apos;s resulting USDT inventory before settlement.</p><Secondary disabled={swapState === 'settling' || swapState === 'checking'} onClick={() => runSwap(true)}>{swapState === 'checking' ? 'Checking policy…' : swapState === 'blocked' ? 'Blocked by PinTool Guard' : 'Execute swap'}</Secondary></article></div>
-      <div className={aqua.evidence}><div><span>Confidential report</span><strong>Verified by Guard</strong></div><div><span>Aqua strategy</span><strong>Active</strong></div><div><span>Wallet custody</span><strong>Maker retained</strong></div></div>
-    </div>}
+    {phase === 'submitting' && <RuntimePanel expanding={expanding} />}
+    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} onRefresh={refresh} onAdd={startAdding} />}
   </section>;
 }
 
-function PolicyMetrics({ budget, exposure, maxWeakAsset, maxTrade, validity }: { budget: string; exposure: string; maxWeakAsset: string; maxTrade: string; validity: string }) {
-  return <div className={aqua.policyReview}><div><span>Capital budget</span><strong>{budget} USDC</strong></div><div><span>Single-asset exposure</span><strong>{exposure}% max</strong></div><div><span>USDT inventory</span><strong>{maxWeakAsset} USDC max</strong></div><div><span>Per swap</span><strong>{maxTrade} USDC max</strong></div><div><span>Policy validity</span><strong>{validity} minutes</strong></div></div>;
+function StrategySet({ selected }: { selected: Listing[] }) {
+  return <div className={aqua.providerPair}>{selected.map(item => <div key={item.id}><span>{item.provider ?? 'Independent Provider'}</span><strong>{item.name}</strong><small>{item.template.label}</small></div>)}</div>;
+}
+
+function StrategyDetail({ listing, actionLabel, onUse }: { listing: Listing; actionLabel: string; onUse: () => void }) {
+  return <div className={aqua.decisionGrid}>
+    <div className={aqua.previewColumn}>
+      <ListingCard listing={listing} />
+      <Primary onClick={onUse}>{actionLabel}</Primary>
+    </div>
+    <aside className={aqua.explanation}>
+      <span className={aqua.eyebrow}>Execution overview</span>
+      <h2>How your liquidity is used</h2>
+      <div className={aqua.intentRows}>
+        <div><span>Pair</span><strong>WETH / USDC</strong></div>
+        <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
+        <div><span>Custody</span><strong>Maker wallet</strong></div>
+        <div><span>Proprietary model</span><strong>{listing.template.privateInputs}</strong></div>
+      </div>
+      <h3>Risk to understand</h3>
+      <p>{listing.template.risk}</p>
+      <p className={aqua.muted}>Reviewing a strategy does not reveal its Provider&apos;s private policy. Your own limits are applied before it can be authorized.</p>
+    </aside>
+  </div>;
+}
+
+function PolicyMetrics({ budget, exposure, maxWethInventory, maxTrade, validity }: { budget: string; exposure: string; maxWethInventory: string; maxTrade: string; validity: string }) {
+  return <div className={aqua.policyReview}><div><span>Capital budget</span><strong>{budget} USDC</strong></div><div><span>WETH exposure</span><strong>{exposure}% max</strong></div><div><span>WETH inventory</span><strong>{maxWethInventory} USDC max</strong></div><div><span>Per swap</span><strong>{maxTrade} USDC max</strong></div><div><span>Authorization validity</span><strong>{validity} minutes</strong></div></div>;
 }
 
 function PrivacyRoute() {
-  return <aside className={aqua.privacyRoute}><span className={aqua.eyebrow}>Disclosure boundary</span><h2>Only the result leaves the TEE.</h2><div><span>Provider logic</span><strong>Encrypted</strong></div><div><span>Maker policy</span><strong>Encrypted</strong></div><div><span>Execution intent</span><strong>Minimal public output</strong></div></aside>;
+  return <aside className={aqua.privacyRoute}><span className={aqua.eyebrow}>Disclosure boundary</span><h2>Only the mandate leaves the TEE.</h2><div><span>Provider policies</span><strong>Confidential</strong></div><div><span>Maker limits</span><strong>Confidential</strong></div><div><span>Authorization</span><strong>Public and enforceable</strong></div></aside>;
 }
 
-function StatusHead({ label, title, mark }: { label: string; title: string; mark: string }) {
-  return <div className={aqua.statusHeader}><span className={aqua.statusMark}>{mark}</span><div><span className={aqua.eyebrow}>{label}</span><h2>{title}</h2></div></div>;
+function RuntimePanel({ expanding }: { expanding: boolean }) {
+  return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>Chainlink Confidential Workflow</span><h2>{expanding ? 'Adding strategy to mandate' : 'Evaluating your strategy'}</h2><p>Applying your hard limits and waiting for the resulting PinTool Guard state to be confirmed onchain.</p></div><ol className={aqua.runtimeSteps}><li data-done>{expanding ? 'New strategy received' : 'Strategy received'}</li><li data-done>Maker mandate received</li><li data-active>Private policies being evaluated</li><li>Guard confirmation</li></ol></div>;
 }
 
-function RuntimePanel({ eyebrow, title, copy, steps }: { eyebrow: string; title: string; copy: string; steps: string[] }) {
-  return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>{eyebrow}</span><h2>{title}</h2><p>{copy}</p></div><ol className={aqua.runtimeSteps}>{steps.map((step, index) => <li key={step} data-done={index < 2 || undefined} data-active={index === 2 || undefined}>{step}</li>)}</ol></div>;
+function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: MandateState; refreshing: boolean; onRefresh: () => void; onAdd: () => void }) {
+  const active = mandate.strategies.find(item => item.status === 'active');
+  const expires = new Date(mandate.evidence.expiresAt);
+  return <div className={aqua.monitorLayout}>
+    <section className={aqua.panel}>
+      <div className={aqua.statusHeader}><span className={aqua.statusMark}>✓</span><div><span className={aqua.eyebrow}>Mandate sequence {mandate.evidence.sequence}</span><h2>{active ? active.name : 'No strategy currently authorized'}</h2></div></div>
+      <div className={aqua.intentRows}><div><span>Market state</span><strong>{mandate.regime === 'high-volatility' ? 'High volatility' : mandate.regime === 'normal' ? 'Normal' : 'Evaluating'}</strong></div><div><span>Pair</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Authorization expires</span><strong>{Number.isNaN(expires.valueOf()) ? mandate.evidence.expiresAt : expires.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong></div></div>
+      <div className={aqua.actionRow}><Primary onClick={onAdd}>Add strategy</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Secondary></div>
+      <a className={aqua.evidenceLink} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer">View Guard update ↗</a>
+    </section>
+
+    <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
+      <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Strategy set</h2><span className={aqua.muted}>One shared balance</span></div>
+      {mandate.strategies.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
+        <div><span className={aqua.eyebrow}>{strategy.provider ?? 'Strategy Provider'}</span><strong>{strategy.name}</strong></div>
+        <div className={aqua.rosterStatus}><span>{strategy.status}</span><code>{shortHash(strategy.strategyHash)}</code></div>
+      </article>)}
+    </section>
+
+    <section className={aqua.activityPanel} aria-labelledby="mandate-activity-title">
+      <div className={aqua.sectionTop}><h2 id="mandate-activity-title" className={aqua.sectionTitle}>Recent activity</h2><span className={aqua.muted}>{mandate.events.length} events</span></div>
+      {mandate.events.length ? <ol className={aqua.activityList}>{mandate.events.map(event => <li key={event.id}><div><strong>{event.title}</strong><span>{event.detail}</span></div><div><time dateTime={event.occurredAt}>{new Date(event.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>{event.explorerUrl && <a href={event.explorerUrl} target="_blank" rel="noreferrer">Transaction ↗</a>}</div></li>)}</ol> : <p className={aqua.muted}>Confirmed mandate activity will appear here.</p>}
+    </section>
+
+    <div className={aqua.evidence}><div><span>Confidential report</span><strong>{shortHash(mandate.evidence.reportDigest)}</strong></div><div><span>Aqua strategies</span><strong>{mandate.strategies.length} sharing one balance</strong></div><div><span>Currently authorized</span><strong>{active?.name ?? 'None'}</strong></div></div>
+  </div>;
 }

@@ -58,17 +58,17 @@ function Providing() {
 function Making() {
   const router = useRouter();
   const { proposals, remove } = useProposals();
-  if (!proposals.length) return <Empty title="No proposals yet" text="Choose a strategy in the marketplace and set your private limits." action="Explore strategies" href="/maker" />;
+  if (!proposals.length) return <Empty title="No mandates yet" text="Choose a strategy in the marketplace and create your first liquidity mandate." action="Explore strategies" href="/maker" />;
   return <>
     <div className={aqua.sectionTop}>
-      <h2 className={aqua.sectionTitle}>Your proposals</h2>
-      <span className={aqua.muted}>{proposals.length} waiting for execution</span>
+      <h2 className={aqua.sectionTitle}>Your liquidity mandates</h2>
+      <span className={aqua.muted}>{proposals.length} configured</span>
     </div>
     <div className={aqua.proposalList}>
       {proposals.map(item => <article key={item.id} className={aqua.panel}>
         <div className={aqua.panelHead}>
           <div>
-            <span className={aqua.eyebrow}>{item.mechanism} · Waiting for execution</span>
+            <span className={aqua.eyebrow}>{item.mechanism} · Mandate configured</span>
             <h3 className={aqua.proposalTitle}>{item.strategyName}</h3>
           </div>
           <div className={aqua.cardButtons}>

@@ -1,17 +1,18 @@
-# ==========================================================================
-# CRE PROJECT SETTINGS FILE
-# ==========================================================================
-# This workflow does not read from or write to a chain — the RPCs below are
-# here so you can extend Step 4 into an on-chain `writeReport` without extra
-# setup. See the README's "Customization" section.
+# Shared CRE project targets. Each workflow selects its own profile in workflow.yaml.
 staging-settings:
   rpcs:
-    - chain-name: ethereum-testnet-sepolia
-      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
 
-# ==========================================================================
+simulation-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
+
 production-settings:
   rpcs:
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: ethereum-mainnet

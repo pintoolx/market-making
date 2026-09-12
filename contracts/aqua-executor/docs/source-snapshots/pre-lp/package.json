@@ -1,0 +1,30 @@
+{
+  "name": "aqua-executor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "1inch Aqua / SwapVM execution side: strategy params -> maker approve, ship, taker swap, dock, with tx records",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build:contracts": "bash scripts/build-artifacts.sh",
+    "build:guard": "node scripts/build-guard.ts",
+    "deploy": "node --env-file-if-exists=.env src/deploy.ts",
+    "lifecycle": "node --env-file-if-exists=.env src/lifecycle.ts",
+    "execute": "node --env-file-if-exists=.env src/execute-cli.ts",
+    "monitor": "node --env-file-if-exists=.env src/monitor-cli.ts",
+    "demo:risk": "node --env-file-if-exists=.env src/risk-demo.ts",
+    "demo:guard": "node --env-file-if-exists=.env src/guard-demo.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@1inch/swap-vm-sdk": "0.4.4",
+    "viem": "2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.4",
+    "typescript": "^5.9.3"
+  }
+}

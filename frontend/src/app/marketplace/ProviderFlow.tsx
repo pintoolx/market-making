@@ -15,10 +15,62 @@ import aqua from './aqua.module.css';
 
 const CATEGORIES = ['All', ...Object.keys(CATEGORY_LABELS)] as const;
 const STEPS = ['Choose a template', 'Write your logic', 'Publish'];
-type Draft = { name: string; introduction: string; rules: string; fee: string };
+type Draft = {
+  name: string;
+  introduction: string;
+  rules: string;
+  fee: string;
+  parameters?: Record<string, string>;
+  signal?: string;
+  operator?: string;
+  threshold?: string;
+  lookbackMinutes?: string;
+  recoveryThreshold?: string;
+};
 const DEFAULT_FEE = '10';
 const MAX_FEE = 30;
 const feeError = (value: string) => { const n = Number(value.trim()); return value.trim() === '' || !Number.isFinite(n) || n < 0 || n > MAX_FEE ? `Enter a number from 0 to ${MAX_FEE}.` : ''; };
+
+type ParameterField = { key: string; label: string; defaultValue: string; suffix?: string; options?: { value: string; label: string }[] };
+const TEMPLATE_FIELDS: Record<string, ParameterField[]> = {
+  xyc: [
+    { key: 'baseFeeBps', label: 'Base fee', defaultValue: '30', suffix: 'bps' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+    { key: 'directions', label: 'Quote direction', defaultValue: 'both', options: [{ value: 'both', label: 'Both directions' }, { value: 'buy-weth', label: 'Buy WETH only' }, { value: 'sell-weth', label: 'Sell WETH only' }] },
+  ],
+  clmm: [
+    { key: 'rangeBelowPct', label: 'Range below reference', defaultValue: '5', suffix: '%' },
+    { key: 'rangeAbovePct', label: 'Range above reference', defaultValue: '5', suffix: '%' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+  ],
+  pegged: [
+    { key: 'reference', label: 'Reference price', defaultValue: 'chainlink', options: [{ value: 'chainlink', label: 'Chainlink price feed' }, { value: 'market-mid', label: 'Verified market midpoint' }] },
+    { key: 'spreadBps', label: 'Quote spread', defaultValue: '10', suffix: 'bps' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+  ],
+  decay: [
+    { key: 'adjustmentBps', label: 'Post-fill adjustment', defaultValue: '20', suffix: 'bps' },
+    { key: 'decaySeconds', label: 'Decay duration', defaultValue: '300', suffix: 'seconds' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+  ],
+  inventory: [
+    { key: 'targetWethPct', label: 'Target WETH inventory', defaultValue: '50', suffix: '%' },
+    { key: 'tolerancePct', label: 'Inventory tolerance', defaultValue: '10', suffix: '%' },
+    { key: 'maxFillUsdc', label: 'Maximum fill', defaultValue: '100', suffix: 'USDC' },
+  ],
+  shared: [
+    { key: 'strategyBudgetUsdc', label: 'Requested virtual balance', defaultValue: '1000', suffix: 'USDC' },
+    { key: 'priority', label: 'Allocation priority', defaultValue: 'balanced', options: [{ value: 'balanced', label: 'Balanced' }, { value: 'volume', label: 'Prefer volume' }, { value: 'defensive', label: 'Prefer capital protection' }] },
+    { key: 'suspendBelowUsdc', label: 'Suspend below available balance', defaultValue: '200', suffix: 'USDC' },
+  ],
+};
+const SIGNAL_OPTIONS = [
+  { value: 'realized-volatility', label: 'Realized volatility' },
+  { value: 'price-deviation', label: 'Price deviation' },
+  { value: 'inventory-ratio', label: 'Maker inventory ratio' },
+  { value: 'net-order-flow', label: 'Net order flow' },
+];
+const defaultParameters = (templateId: string) => Object.fromEntries((TEMPLATE_FIELDS[templateId] ?? []).map(field => [field.key, field.defaultValue]));
 
 // Drafts survive switching pages within this browser tab, and are dropped once published.
 const DRAFTS_KEY = 'pintool.aqua.drafts';
@@ -49,7 +101,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
     const template = id ? AQUA_TEMPLATES.find(t => t.id === id) : undefined;
     if (id && template) {
       const listing = readPublished().find(item => item.template.id === id);
-      if (listing && !saved[id]) saved[id] = { name: listing.name, introduction: listing.summary, rules: '', fee: String(listing.feePct ?? DEFAULT_FEE) };
+      if (listing && !saved[id]) saved[id] = { name: listing.name, introduction: listing.summary, rules: '', fee: String(listing.feePct ?? DEFAULT_FEE), parameters: defaultParameters(id) };
       writeDrafts(saved);
       setSelected(template);
       window.history.replaceState(null, '', '/studio');
@@ -64,17 +116,31 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
     `${item.name} ${item.label} ${item.mechanism} ${item.summary}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
   const stored = selected ? drafts[selected.id] : undefined;
-  const draft = selected ? { name: selected.name, introduction: selected.summary, rules: '', fee: DEFAULT_FEE, ...stored } : null;
-  const draftReady = !!draft && !!draft.name.trim() && !!draft.introduction.trim() && !!draft.rules.trim() && !feeError(draft.fee);
+  const draft = selected ? { name: selected.name, introduction: selected.summary, rules: '', fee: DEFAULT_FEE, parameters: defaultParameters(selected.id), signal: 'realized-volatility', operator: 'above', threshold: '5', lookbackMinutes: '15', recoveryThreshold: '3', ...stored } : null;
+  const requiredParameters = selected ? TEMPLATE_FIELDS[selected.id] ?? [] : [];
+  const draftReady = !!draft && !!draft.name.trim() && !!draft.introduction.trim() && !feeError(draft.fee)
+    && requiredParameters.every(field => !!draft.parameters?.[field.key]?.trim())
+    && !!draft.signal?.trim() && !!draft.operator?.trim() && !!draft.threshold?.trim()
+    && !!draft.lookbackMinutes?.trim() && !!draft.recoveryThreshold?.trim();
   const feePct = draft && !feeError(draft.fee) ? Number(draft.fee) : undefined;
 
   const go = (fn: () => void) => { didNavigate.current = true; scrollTop(); fn(); };
   // Always build on the latest drafts so quick successive edits don't overwrite each other.
   const updateDraft = (field: keyof Draft, value: string) => {
     if (!selected) return;
-    const base = { name: selected.name, introduction: selected.summary, rules: '', fee: DEFAULT_FEE };
+    const base = { name: selected.name, introduction: selected.summary, rules: '', fee: DEFAULT_FEE, parameters: defaultParameters(selected.id) };
     setDrafts(current => {
       const next = { ...current, [selected.id]: { ...base, ...current[selected.id], [field]: value } };
+      writeDrafts(next);
+      return next;
+    });
+  };
+  const updateParameter = (key: string, value: string) => {
+    if (!selected) return;
+    setDrafts(current => {
+      const base = { name: selected.name, introduction: selected.summary, rules: '', fee: DEFAULT_FEE, parameters: defaultParameters(selected.id) };
+      const existing = { ...base, ...current[selected.id] };
+      const next = { ...current, [selected.id]: { ...existing, parameters: { ...existing.parameters, [key]: value } } };
       writeDrafts(next);
       return next;
     });
@@ -93,7 +159,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const openTemplate = (item: AquaTemplate) => go(() => {
     const listing = published.find(p => p.template.id === item.id);
     if (listing && !drafts[item.id]) {
-      const next = { ...drafts, [item.id]: { name: listing.name, introduction: listing.summary, rules: '', fee: String(listing.feePct ?? DEFAULT_FEE) } };
+      const next = { ...drafts, [item.id]: { name: listing.name, introduction: listing.summary, rules: '', fee: String(listing.feePct ?? DEFAULT_FEE), parameters: defaultParameters(item.id) } };
       setDrafts(next);
       writeDrafts(next);
     }
@@ -143,9 +209,27 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
           </label>
         </fieldset>
         <fieldset className={aqua.privateField}>
-          <legend>Private logic</legend>
-          <p className={aqua.muted}>Makers never see this. It is not saved after you publish.</p>
-          <label>Your logic<textarea required maxLength={4000} rows={6} placeholder={selected.prompt} value={draft.rules} onChange={e => updateDraft('rules', e.target.value)} /></label>
+          <legend>Execution parameters</legend>
+          <p className={aqua.muted}>These define the public envelope that your private policy may narrow.</p>
+          <div className={aqua.structuredFields}>
+            {requiredParameters.map(field => <label key={field.key}>{field.label}
+              {field.options
+                ? <select value={draft.parameters?.[field.key] ?? field.defaultValue} onChange={event => updateParameter(field.key, event.target.value)}>{field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                : <span className={aqua.inputWithSuffix}><FormInput required inputMode="decimal" value={draft.parameters?.[field.key] ?? field.defaultValue} onChange={event => updateParameter(field.key, event.target.value)} /><small>{field.suffix}</small></span>}
+            </label>)}
+          </div>
+        </fieldset>
+        <fieldset className={aqua.privateField}>
+          <legend>Private activation policy</legend>
+          <p className={aqua.muted}>Makers never see these thresholds. They are removed from this browser draft after publishing.</p>
+          <div className={aqua.structuredFields}>
+            <label>Market signal<select value={draft.signal} onChange={event => updateDraft('signal', event.target.value)}>{SIGNAL_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+            <label>Activate when<select value={draft.operator} onChange={event => updateDraft('operator', event.target.value)}><option value="above">Signal is above</option><option value="below">Signal is below</option></select></label>
+            <label>Activation threshold<FormInput required inputMode="decimal" value={draft.threshold} onChange={event => updateDraft('threshold', event.target.value)} /></label>
+            <label>Observation window<span className={aqua.inputWithSuffix}><FormInput required inputMode="numeric" value={draft.lookbackMinutes} onChange={event => updateDraft('lookbackMinutes', event.target.value)} /><small>minutes</small></span></label>
+            <label>Recovery threshold<FormInput required inputMode="decimal" value={draft.recoveryThreshold} onChange={event => updateDraft('recoveryThreshold', event.target.value)} /></label>
+          </div>
+          <label>Additional private constraints <span className={aqua.optional}>(optional)</span><textarea maxLength={2000} rows={3} placeholder={selected.prompt} value={draft.rules} onChange={event => updateDraft('rules', event.target.value)} /></label>
         </fieldset>
         <Primary type="submit" disabled={!draftReady}>Continue</Primary>
         {!draftReady && <p className={aqua.muted}>Fill in every field to continue.</p>}

@@ -1,0 +1,13 @@
+simulation-settings:
+  user-workflow:
+    workflow-name: pintool-guard-public-delivery-simulation
+  workflow-artifacts:
+    workflow-path: ./main.ts
+    config-path: ./config.generated.json
+
+production-settings:
+  user-workflow:
+    workflow-name: pintool-guard-public-delivery
+  workflow-artifacts:
+    workflow-path: ./main.ts
+    config-path: ./config.generated.json

@@ -151,6 +151,8 @@ Strategy 參數由 hash 識別，上架後不能修改；改參數要 `dock()` �
 
 ## 建議鎖定的閉環
 
+2026-09-12 deployment 決定：final filmed run 以 Ethereum Sepolia 的 WETH／Circle testnet USDC 為目標。Base Sepolia 的 mWETH／mUSDC 交易保留為既有 regression evidence 與緊急 fallback；不得在同一組 final evidence 中混用兩條鏈或把 mock token 標成 canonical asset。
+
 題目維持 marketplace 的角色模型，但錄影只做一個 Maker、兩個 Provider strategy、兩種市場狀態：
 
 ```mermaid
@@ -171,8 +173,8 @@ flowchart LR
 ### 固定情境
 
 - Pair：WETH／USDC。
-- Strategy A：Provider A 的 tight-spread、normal-market execution envelope。
-- Strategy B：Provider B 的 wide-spread、defensive execution envelope；Toxic-Flow Shield 是 B 的內部判斷內容。
+- Strategy A：Provider A 的 narrow-range WETH／USDC concentrated execution envelope。
+- Strategy B：Provider B 的 wide-range、lower-cap WETH／USDC concentrated execution envelope；Toxic-Flow Shield 只作為 B 的內部 regime 判斷內容。
 - Maker mandate：max single fill、max WETH inventory、max aggregate exposure、expiry。
 - Normal market：A active，B blocked；A 的真實 Aqua swap 成功，B 被 Guard revert。
 - Volatility rises：同一個 confidential workflow 產生新 sequence；A blocked，B active。
