@@ -52,7 +52,7 @@ The historical deployment uses **Base Sepolia, chain ID 84532**, in [`deployment
 |---|---|---|---|
 | Historical Base project harness | `0xf79ffa7f200220f564b91f20db39d357aa50a8c4` | Fabricated / simulation | Historical Guard enforcement evidence only |
 | Historical Base CLI simulation | `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5` | Zero workflow ID and owner; `simulationMode=true` | Requires a **new** simulation Guard |
-| Current Ethereum Sepolia CLI simulation | `0x15fc6ae953e024d975e77382eeec56a9101f9f88` | Zero workflow ID / owner, simulation mode | Guard V2 deployed at `0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e`; delivery pending |
+| Current Ethereum Sepolia CLI simulation | `0x15fc6ae953e024d975e77382eeec56a9101f9f88` | Zero workflow ID / owner, simulation mode | Guard V2 deployed at `0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`; delivery pending |
 | Production CRE | Obtain and verify the official forwarder for the chosen network | Assigned nonzero workflow ID / owner; `simulationMode=false` | Requires a separate deployment and actual delivery verification |
 
 The historical CLI address comes from its [pinned supported-chains source](https://github.com/smartcontractkit/cre-cli/blob/v1.33.0/cmd/workflow/simulate/chain/evm/supported_chains.go). The current Sepolia address is in the [official directory](https://docs.chain.link/cre/guides/workflow/using-evm-client/forwarder-directory-ts). Confirm tenant-specific supported chains after login and recheck on CLI upgrades. Do not configure the CLI forwarder as production trust. Guard immutables cannot be changed after deployment. A new Guard also changes the Maker-approved program and its hash if later used for trading; the first paused transport probe deliberately does not ship a program.

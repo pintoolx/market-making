@@ -70,6 +70,12 @@ remains the supported strategy-operation recovery interface.
 ## Receiver revision and recovery
 
 The current artifact includes Maker-scoped `activeStrategyHash` enforcement.
+The simulation receiver was replaced at [`0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`](https://sepolia.etherscan.io/address/0xfadc3165abeb127a0815d5ea4e2862ed430e1f70)
+using source commit `c15642de33a87d97042a88b4311642a7204fab6c`.
+See [the separate revision proof](ethereum-sepolia-guard-revision.json) and
+[creation receipt](https://sepolia.etherscan.io/tx/0x2b2ba81e2ed1e68dd7e8e88cbea2ce9f95d1a59517370702ecf06c1556e01567).
+This adds one successful deployment to the earlier run; it does not rerun the
+40-transaction demo.
 The original 40-transaction run used an earlier V2 revision without this getter;
 its receipts and source manifest remain historical. For an existing deployment,
 run `pnpm sepolia upgrade-guard --execute` with the **same state directory**.

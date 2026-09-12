@@ -78,8 +78,9 @@ maker)` — those are listed explicitly so reviewers see exactly what is reveale
   (no `TeeRuntime` overload) → on-chain delivery must cross back with `usingTheDons()`.
 - `HTTPClient.sendRequest()` is the only capability with a `TeeRuntime` overload.
 - Quotas: 2 KB per secret, 27 KB per workflow, 5 secret calls per execution.
-- Base Sepolia chain-selector name `ethereum-testnet-sepolia-base-1`; CRE mock forwarder
-  `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5`.
+- Ethereum Sepolia chain-selector name `ethereum-testnet-sepolia`; CRE simulation forwarder
+  `0x15fc6ae953e024d975e77382eeec56a9101f9f88`. The current simulation Guard uses
+  the Maker-active revision in `deployments/11155111.json`; production needs its own identity.
 
 ## Production configuration
 

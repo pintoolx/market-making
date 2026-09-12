@@ -7,8 +7,9 @@
     "USDC": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
   },
   "guard": {
-    "address": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+    "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
     "version": 2,
+    "revision": "maker-active-v1",
     "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
     "profile": "cre-simulation"
   }
