@@ -136,6 +136,8 @@ The monitor reads Chainlink Ethereum mainnet ETH/USD and USDC/USD as reference p
 
 ## Records
 
+Builder drafts can also run the standalone [isolated lifecycle evaluator](../../docs/BUILDER-LIFECYCLE-SIMULATION.md). It forks pinned Sepolia deployments with synthetic local funding and report authority, verifies actual settlement/rejection receipts, and never writes to the public RPC. These results do not yet enable Builder wallet registration.
+
 `records/<chainId>/<runId>.jsonl`, one JSON object per line:
 
 | `kind` | Meaning |

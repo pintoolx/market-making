@@ -1,0 +1,790 @@
+{
+  "sourceHashes": {
+    "contracts/aqua-executor/src/builder-fork.ts": "3ca8d5b6571a2fcfd922d733b04e35283f89d015ed3523cd72877588af161392",
+    "contracts/aqua-executor/src/builder-simulation.ts": "f4b06162a639870bc0eea1778630546ac7ef317d5b1f8a4c497618aeac268586",
+    "contracts/aqua-executor/src/builder-token-proxy.ts": "022140c4967846cefea01e5b24def929e706ad068c63193bb2bf33b108685d00",
+    "contracts/aqua-executor/src/builder-compile.ts": "7b512e8fbc36befe7f0bc4c31680c4e520824b0c012e77dbebc9bfa9dc74b2cf",
+    "contracts/aqua-executor/src/guard-compile.ts": "204185bb077c481d236fa613c322c8e2cb45e05b3261a591eda6e0c6957085d7",
+    "contracts/aqua-executor/scripts/builder-simulation-fixture.ts": "132d868a7a7ad612e77e72b8626135e577dd11ac7cc1e3e3d8074a9eab98d217"
+  },
+  "draft": {
+    "schemaVersion": 1,
+    "id": "fork-xyc",
+    "owner": "wallet:0x54be5eb548610e6547967afb5a4b1d733820fd74",
+    "revision": 1,
+    "kind": "maker",
+    "maker": "0x54be5eb548610e6547967afb5a4b1d733820fd74",
+    "allocations": {
+      "baseAtomic": "10000000000000000",
+      "quoteAtomic": "25000000"
+    },
+    "spec": {
+      "title": "Public local fork fixture",
+      "profileId": "sepolia-standing-v2",
+      "baseToken": {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18
+      },
+      "quoteToken": {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6
+      },
+      "model": {
+        "kind": "xyc"
+      },
+      "feeBps": 0,
+      "deadline": 1789336106,
+      "modifiers": [],
+      "guardEnvelope": {
+        "maxAmountBasePerSwap": "5000000000000000",
+        "maxAmountQuotePerSwap": "12500000",
+        "maxPostBalanceBase": "20000000000000000",
+        "maxPostBalanceQuote": "50000000"
+      }
+    },
+    "requirements": [],
+    "salt": "100",
+    "createdAt": "2026-09-12T21:48:26.000Z",
+    "updatedAt": "2026-09-12T21:48:26.000Z"
+  },
+  "compiled": {
+    "schemaVersion": 1,
+    "draftId": "fork-xyc",
+    "revision": 1,
+    "contentDigest": "0x44a6a57f1e6be5a401734ebdf360417e38592af4751a9c255fcae28d3de099c2",
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "recipeId": "guarded-xyc-v2",
+    "recipeVersion": 1,
+    "specHash": "0x8d0bafdd6e9fca62ab0485b6fc43ef45a171a0e5c858c7645508e7e78156df5c",
+    "strategy": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000054be5eb548610e6547967afb5a4b1d733820fd744000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000920d05006aa71a2a110014080000000000000064207d64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f02fff9976782d46cc05630d1f6ebab18b2324d6b141c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000011c37937e0800000000000000000000000000000bebc20000000000000000000470de4df82000000000000000000000000000002faf0800000000000000000000000000000",
+    "program": "0x0d05006aa71a2a110014080000000000000064207d64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f02fff9976782d46cc05630d1f6ebab18b2324d6b141c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000011c37937e0800000000000000000000000000000bebc20000000000000000000470de4df82000000000000000000000000000002faf080",
+    "programHash": "0x9236563707f534bfce5e013a922669215ad884aedfc208b49f2cb0db0f576fb2",
+    "orderHash": "0x39300e17850f2966c7a0850e574653577361d01a797641299f03bc7e0a9d7da3",
+    "strategyHash": "0x39300e17850f2966c7a0850e574653577361d01a797641299f03bc7e0a9d7da3",
+    "decoded": {
+      "maker": "0x54be5eb548610e6547967afb5a4b1d733820fd74",
+      "traits": "28948022309329048855892746252171976963317496166410141009864396001978282409984",
+      "program": "0x0d05006aa71a2a110014080000000000000064207d64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f02fff9976782d46cc05630d1f6ebab18b2324d6b141c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000011c37937e0800000000000000000000000000000bebc20000000000000000000470de4df82000000000000000000000000000002faf080",
+      "kind": "xyc",
+      "deadline": 1789336106,
+      "salt": "100",
+      "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+      "envelope": "0x02fff9976782d46cc05630d1f6ebab18b2324d6b141c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000011c37937e0800000000000000000000000000000bebc20000000000000000000470de4df82000000000000000000000000000002faf080",
+      "baseToken": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "quoteToken": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "guardEnvelope": {
+        "maxAmountBasePerSwap": "5000000000000000",
+        "maxAmountQuotePerSwap": "12500000",
+        "maxPostBalanceBase": "20000000000000000",
+        "maxPostBalanceQuote": "50000000"
+      },
+      "curveArgs": [],
+      "instructions": [
+        {
+          "pc": 0,
+          "opcode": 13,
+          "name": "deadline",
+          "args": "0x006aa71a2a"
+        },
+        {
+          "pc": 7,
+          "opcode": 17,
+          "name": "xycSwapXD",
+          "args": "0x"
+        },
+        {
+          "pc": 9,
+          "opcode": 20,
+          "name": "salt",
+          "args": "0x0000000000000064"
+        },
+        {
+          "pc": 19,
+          "opcode": 32,
+          "name": "extruction",
+          "args": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f02fff9976782d46cc05630d1f6ebab18b2324d6b141c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000011c37937e0800000000000000000000000000000bebc20000000000000000000470de4df82000000000000000000000000000002faf080"
+        }
+      ],
+      "programHash": "0x9236563707f534bfce5e013a922669215ad884aedfc208b49f2cb0db0f576fb2",
+      "orderHash": "0x39300e17850f2966c7a0850e574653577361d01a797641299f03bc7e0a9d7da3",
+      "strategyHash": "0x39300e17850f2966c7a0850e574653577361d01a797641299f03bc7e0a9d7da3"
+    },
+    "params": {
+      "schema": "aqua-swapvm-v1.0.2",
+      "chainId": 11155111,
+      "maker": "0x54be5eb548610e6547967afb5a4b1d733820fd74",
+      "tokens": [
+        "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+      ],
+      "amounts": [
+        "10000000000000000",
+        "25000000"
+      ],
+      "program": {
+        "feeBps": 0,
+        "deadline": 1789336106,
+        "salt": "100",
+        "kind": "xyc"
+      },
+      "meta": {
+        "producer": "fixed-params",
+        "strategyVersion": 1,
+        "paramsRevision": 1
+      },
+      "guard": {
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "version": 2,
+        "caps": {
+          "maxAmount0PerSwap": "5000000000000000",
+          "maxAmount1PerSwap": "12500000",
+          "maxPostBalance0": "20000000000000000",
+          "maxPostBalance1": "50000000"
+        }
+      }
+    },
+    "order": {
+      "maker": "0x54be5eb548610e6547967afb5a4b1d733820fd74",
+      "traits": "28948022309329048855892746252171976963317496166410141009864396001978282409984",
+      "data": "0x0d05006aa71a2a110014080000000000000064207d64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f02fff9976782d46cc05630d1f6ebab18b2324d6b141c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000011c37937e0800000000000000000000000000000bebc20000000000000000000470de4df82000000000000000000000000000002faf080"
+    },
+    "tokens": [
+      "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+    ],
+    "amounts": [
+      "10000000000000000",
+      "25000000"
+    ]
+  },
+  "result": {
+    "schemaVersion": 1,
+    "engineVersion": "builder-lifecycle-v1",
+    "mode": "fork-with-overrides",
+    "chainId": 11155111,
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "blockNumber": "11691533",
+    "blockHash": "0x3eea1e5f1c0f8304f8160bbdd8e811f0ee9afba3f0f8095414a6d3182833d1fc",
+    "sourceTimestamp": "1789248480",
+    "contracts": [
+      {
+        "address": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+        "codeHash": "0x720bc02d220db318164dc3bade86eec1f3655bdc00fc1174de7d816a95c341f8"
+      },
+      {
+        "address": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "codeHash": "0xbf5f6aa09936bfff8940a55f95924aaddc511c7fa6f7fbbb1a927931c7ad6d76"
+      },
+      {
+        "address": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "codeHash": "0xa82e68f882ece0c004d318dea653db154e09b62e6543b0125db0505b3a532a83"
+      },
+      {
+        "address": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+        "codeHash": "0x0a1b63dd9c5ee32c042a5124c96d3d344eea29c0daca30e54d2d91c09cc940b7"
+      },
+      {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "codeHash": "0xc864e10689f2da18833652a3b075d43106e87f0f90d95ee64f6f0b33bc026083"
+      },
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "codeHash": "0xcd3f29e2ea9c61dadd48bfeaf8b2884b6de9dfee7bf45329452c4c33d0868ceb"
+      }
+    ],
+    "tokenImplementation": {
+      "proxy": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "slot": "0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3",
+      "implementation": "0xda317c1d3e835dd5f1be459006471acaa1289068",
+      "codeHash": "0xf4898b096a273d86cda13cce6503404da4005565fae6026a94919b231229d85b",
+      "runtimeBytes": 23464
+    },
+    "sourceRuntimeRebuilt": false,
+    "authorization": "synthetic-forwarder-impersonation",
+    "frozenBlockTime": true,
+    "limitations": [
+      "Local fork balances and report authority are synthetic.",
+      "No live wallet funding, DON/TEE delivery or source-to-runtime rebuild is proven."
+    ],
+    "draftId": "fork-xyc",
+    "revision": 1,
+    "artifactDigest": "0x5dcdd740d34a29eb28fd4ccaa7a4311f36888fa33f8f642cc799b47f3e320bd6",
+    "passed": true,
+    "coverageComplete": true,
+    "cases": [
+      {
+        "name": "registration",
+        "passed": true
+      },
+      {
+        "name": "missing-report",
+        "passed": true,
+        "details": {
+          "revert": "MissingReport",
+          "transactionHash": "0xb1bee915973c5f250e3b796150aac892152b8967eb4f69471d414edbe006f85e",
+          "blockHash": "0x094c2e366d5f9f460e4f8670cce0160e13c81855ca9028a5d1309835c9301934",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "bidirectional-and-sequential-settlement",
+        "passed": true,
+        "details": {
+          "successfulSwaps": 3
+        }
+      },
+      {
+        "name": "amount-cap-0",
+        "passed": true,
+        "details": {
+          "revert": "AmountLimitExceeded",
+          "transactionHash": "0x851939120b037037019e6465167e9ec41cf60a3cc51abfb4ef040845e2562efd",
+          "blockHash": "0xa03b2a917bea167b110d3dc79f7e61c4c7c6e69e142014aeb9849024c5c42742",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "amount-cap-1",
+        "passed": true,
+        "details": {
+          "revert": "AmountLimitExceeded",
+          "transactionHash": "0x2806b695ea5941ede2e2ec155f0ba713ce73ace4f24beac525293c2016d72030",
+          "blockHash": "0x7903038f95ab427b6753477cc34712cc11913aeea02afba0d0f53f636054e43a",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "direction-disabled",
+        "passed": true,
+        "details": {
+          "revert": "DirectionDisabled",
+          "transactionHash": "0x8421d59caa1659635a77f0ff304841d69434df9066bfab81d549cb4e7bbc82ca",
+          "blockHash": "0x4eb56ba06a108628d5a54931af36bf87cce559f5a4ed3055a6a9d10feba5cd46",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "inventory-cap",
+        "passed": true,
+        "details": {
+          "revert": "InventoryLimitExceeded",
+          "transactionHash": "0x8421d59caa1659635a77f0ff304841d69434df9066bfab81d549cb4e7bbc82ca",
+          "blockHash": "0x4133b801b275af7f7aafc7ecb326d9cf786e1682325f7215708671927723749c",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "exact-cap-boundaries-0",
+        "passed": true,
+        "details": {
+          "oneAtomicUnitOver": [
+            {
+              "revert": "AmountLimitExceeded",
+              "transactionHash": "0x339245c8e7e05612f638b1aab6a986d0a29610a0ecd6d53a0193ad514dcdb175",
+              "blockHash": "0x88d3a7de7a367018189b9b7b725d64123ff6d0e8d217cecc274e7f7074205d03",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            },
+            {
+              "revert": "AmountLimitExceeded",
+              "transactionHash": "0x8037c6c0607716bd773fba9179cbaab3b2e9a1ab356072ae0f97202c82d0126f",
+              "blockHash": "0x89beb98c5aa2d97b7399994d249618a709ac7fe522974ebf09841b8906cc81e8",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            },
+            {
+              "revert": "InventoryLimitExceeded",
+              "transactionHash": "0xc21da67bc3054955ad01928b27aca09baa7b6418ec3fe40af06576f2a15af887",
+              "blockHash": "0x07ab5e546b2e7ef67c245fe49869b9cdbfa202a25d638aaab23db5876d5478ae",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            },
+            {
+              "revert": "InventoryLimitExceeded",
+              "transactionHash": "0x0c8931f7747d075499b614241c419ac6b2ccf04e0b697b32e8dd869f6c2d58f3",
+              "blockHash": "0x3ae22773530acd9558ae5af4a228091c8156dfad63ca1053e9004840fb09ed6b",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            }
+          ],
+          "exactlyAtAllFourCaps": {
+            "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "amountIn": "100000000000000",
+            "amountOut": "247524",
+            "transactionHash": "0x34e129ed73ffd1fc5eca74e7bf47cc05e5ebfca7d00af20bce33743a113b461b",
+            "blockHash": "0xad95304ff23ec71775ab865355c4395573ac22969473e8470d953a9bf51a6130",
+            "case": "exact-cap-boundaries-0",
+            "contextTimestamp": "1789248480",
+            "quoteBlockHash": "0x00f9d596735cec2890cb3999b5c2699bd0496c0dcad7574f66c04da99d73620b",
+            "quoteMatchesSettlement": true,
+            "inventoryMatchesTransfers": true
+          }
+        }
+      },
+      {
+        "name": "exact-cap-boundaries-1",
+        "passed": true,
+        "details": {
+          "oneAtomicUnitOver": [
+            {
+              "revert": "AmountLimitExceeded",
+              "transactionHash": "0x78f3103b3803f59b9bf803665b0ba16e7e752895e279c41a02e114f07003ab34",
+              "blockHash": "0x57ff92dc2e128b7cfb802481dd5f55217a6139c1eaf5595347fdc6856d31c7b0",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            },
+            {
+              "revert": "AmountLimitExceeded",
+              "transactionHash": "0x2cbd6a21d71eda7c7a097a952caaa77da59176567b56cd988283854eb1ddd582",
+              "blockHash": "0xe42859e31cb309f9f1ac262c2ab0bc24a2c0137ca2ae91bd9e9ac058d55da277",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            },
+            {
+              "revert": "InventoryLimitExceeded",
+              "transactionHash": "0xb0a28eba3ecc42485f79ca4ad6743058eb985ed7e37252414cd99c7e91ae82d8",
+              "blockHash": "0x56be70903d2d658ee7e0fdeadbb04c270e37b5ecbb72a00c0dc0b481b91f6a74",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            },
+            {
+              "revert": "InventoryLimitExceeded",
+              "transactionHash": "0x5a77ae6f98f005138af9f05bc8ec34e3361e688d2bf0c44560f653e6e12feb3a",
+              "blockHash": "0x672ffc78da773d7213f32f29219b58eafec8efff21f9e4fd7a0cfe2086938777",
+              "tokenBalancesUnchanged": true,
+              "authorizationUnchanged": true,
+              "nativeGasExcluded": true
+            }
+          ],
+          "exactlyAtAllFourCaps": {
+            "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "tokenOut": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "amountIn": "250000",
+            "amountOut": "99009900990099",
+            "transactionHash": "0x2eec88136873cf7c01cfa0fde2f997734b84b927895af53f38d2d80d3c7ef9fa",
+            "blockHash": "0x1dd48d9cb85db7d7f7f371cdea47f3cd410093ed77a899af3125448358574f76",
+            "case": "exact-cap-boundaries-1",
+            "contextTimestamp": "1789248480",
+            "quoteBlockHash": "0xa6d5787d352384027c4b4a5fac380afe5bbed900436485fefca2d926e9212108",
+            "quoteMatchesSettlement": true,
+            "inventoryMatchesTransfers": true
+          }
+        }
+      },
+      {
+        "name": "exact-out-rejected-0",
+        "passed": true,
+        "details": {
+          "revert": "UnsupportedSwap",
+          "transactionHash": "0x568e713683b9d0ef5331f4f6e4bbeba029f92b1dcf01f636d0bea8c718667c53",
+          "blockHash": "0x17a54fae13f5f2c06ef3202dcecf25288daa328b32806c5db854e7942c52ef4c",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "exact-out-rejected-1",
+        "passed": true,
+        "details": {
+          "revert": "UnsupportedSwap",
+          "transactionHash": "0x0ef4f236f275ff5f12905f36e221ccc208a21c78f0fdfc1c4b48f99a3f348ed0",
+          "blockHash": "0x1a1f02457d8b251b85693cb01db5407cfb6e103847adcdd7c635c6fe8ee719b2",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "report-domain-and-source",
+        "passed": true,
+        "details": [
+          {
+            "revert": "InvalidReportDomain",
+            "transactionHash": "0x47a4fc04380545b5e97cbfe5b04a025763da4e551d2ff80b9cab7f6d53b89cb4",
+            "blockHash": "0xf65c692ff15547993bd3015e66b3aa1c2ae8cb2c618210ffbba34c8699dad940",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          },
+          {
+            "revert": "InvalidReportDomain",
+            "transactionHash": "0x89b12a4ae8ac568723a786197a59f35150726719754c69f63e73f708085db68c",
+            "blockHash": "0x67e8838a829855cead59b74f41cb8950f8642d682f31a249a243b6e324d00478",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          },
+          {
+            "revert": "InvalidReportDomain",
+            "transactionHash": "0x3af20feb17f7c70f7e8fdcc5a6b2720c884a201d24c4c0098b6e74b7670b3d83",
+            "blockHash": "0xfde7fa5e4cc0b24908fb31629eaef69bfdad2390c1e10ceec661d7747008a875",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          },
+          {
+            "revert": "UnauthorizedForwarder",
+            "transactionHash": "0x0081b92e3e4ac91fe2255e1be1a86bd2645a8f39388b32e1e032fd0ffe0c65a9",
+            "blockHash": "0x629706f8b043a3272f0687c615e09746f442c82f99efc308ee2914ef15f9b67c",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          }
+        ]
+      },
+      {
+        "name": "report-token-pair",
+        "passed": true,
+        "details": {
+          "revert": "TokenPairMismatch",
+          "transactionHash": "0x8421d59caa1659635a77f0ff304841d69434df9066bfab81d549cb4e7bbc82ca",
+          "blockHash": "0x7eecf008a05151aa3f6e2d7b1d79b89dbe29b43b6d794ab6f7250c3850327b23",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "report-idempotency-and-replay",
+        "passed": true,
+        "details": {
+          "identicalReportEvents": 0,
+          "conflict": {
+            "revert": "ReportReplay",
+            "transactionHash": "0x935344ebf8cff22e1559055bf9493996fb138565b1a5cd9283ff02eeb0bebf78",
+            "blockHash": "0x173d965aa1d0f49265689e78d9f2f4ac482ff7c0dc4c40d0c24beb792510e5ca",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          }
+        }
+      },
+      {
+        "name": "active-strategy-switch",
+        "passed": true,
+        "details": {
+          "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "amountIn": "100000000000000",
+          "amountOut": "247524",
+          "transactionHash": "0x09e3b8cacdd55a26238e82b6082c6f3594081c420fca6f30196c798b7a08fd80",
+          "blockHash": "0xb8fa41c6c89a78084bd5ec377ce07dec92e3e7eefed2c92440099f992e82fefd",
+          "case": "active-strategy-switch",
+          "contextTimestamp": "1789248480",
+          "quoteBlockHash": "0x53d72e7be04c1437bd87350539252219035d63d7b208a9fc573c89bf21d32c14",
+          "quoteMatchesSettlement": true,
+          "inventoryMatchesTransfers": true
+        }
+      },
+      {
+        "name": "schema-one-expiry",
+        "passed": true,
+        "details": {
+          "revert": "ReportNotCurrent",
+          "transactionHash": "0x33245b03293547a937bf0d00d7359857147f9d3b6c44aa5d3b423a82af2cd93e",
+          "blockHash": "0x376407f0dcc1b9807fef72dc301b6211453eca957606f156fc68dea9f3c8ee54",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "maker-wallet-empty-0",
+        "passed": true,
+        "details": {
+          "revert": "SafeTransferFromFailed",
+          "transactionHash": "0x8c420412b4380b9c261c1e1a8079e6cd660edaedc5bef33a0f687efe4d913e66",
+          "blockHash": "0x8bd60c5d91f2ce006453fe137d88610510719243a3c7cac904431c42c7d82bb0",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "maker-wallet-empty-1",
+        "passed": true,
+        "details": {
+          "revert": "SafeTransferFromFailed",
+          "transactionHash": "0x1d13cfa0ede1be7b085e1d85165612528d1888895e27b730c047228d3411313f",
+          "blockHash": "0x9b579483beee0c80497291ab2d722c01f575a23d066cc5f83f111588777f857d",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "virtual-output-exhausted-0",
+        "passed": true,
+        "details": {
+          "override": "synthetic-router-pull-to-exhaust-virtual-inventory",
+          "rejection": {
+            "revert": "unknown-contract-revert",
+            "transactionHash": "0xe8615c48b975fbe07892c943a9ba179385c9463ed09c567fde94910521ccac3a",
+            "blockHash": "0x7d4221f8dd9844e6183d83b4c38815636f390c6a09bc3fbd28f8a9636871a43a",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          }
+        }
+      },
+      {
+        "name": "virtual-output-exhausted-1",
+        "passed": true,
+        "details": {
+          "override": "synthetic-router-pull-to-exhaust-virtual-inventory",
+          "rejection": {
+            "revert": "unknown-contract-revert",
+            "transactionHash": "0xeacbd1713a32fcaf04d83c05e278f20471508f1a9feb00e4c07ef60fe8a5e0b5",
+            "blockHash": "0x0c368b0dd668ebbf2d2ce8c9092672d444caa39937c7da76de4ebf7856842dcd",
+            "tokenBalancesUnchanged": true,
+            "authorizationUnchanged": true,
+            "nativeGasExcluded": true
+          }
+        }
+      },
+      {
+        "name": "standing-after-one-hour",
+        "passed": true,
+        "details": {
+          "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "amountIn": "100000000000000",
+          "amountOut": "247524",
+          "transactionHash": "0x0ef8947d47b881df572051feb74bbc750f4e69ba0e6b034657b1916b7bdad960",
+          "blockHash": "0x4f7788e15f9b307f05f37921b79836652401a3c4a95618d5ce45f38c89908123",
+          "case": "standing-after-one-hour",
+          "contextTimestamp": "1789252081",
+          "quoteBlockHash": "0xa648d6c96bf5f3a6fbddc612296f3703e7b08969caa1809cb062c4b560992d41",
+          "quoteMatchesSettlement": true,
+          "inventoryMatchesTransfers": true
+        }
+      },
+      {
+        "name": "deadline-before-and-at",
+        "passed": true,
+        "details": {
+          "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "tokenOut": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "amountIn": "250000",
+          "amountOut": "100989997950602",
+          "transactionHash": "0x410bf16997f42fe8179fa0b635a87210349bfcd9ee0e163209b794dc6d85e5d5",
+          "blockHash": "0xc781ac8c04fe0b16051bf62cc1f07b25d25da92aedc3e93eafe4cdb4259f7ee7",
+          "case": "deadline-before-and-at",
+          "contextTimestamp": "1789336106",
+          "quoteBlockHash": "0xa3a9125faf3f7ea453532ae3dbea42d9a8d164efe62ce24ba466a414c35be8de",
+          "quoteMatchesSettlement": true,
+          "inventoryMatchesTransfers": true
+        }
+      },
+      {
+        "name": "deadline-rejected",
+        "passed": true,
+        "details": {
+          "revert": "DeadlineReached",
+          "transactionHash": "0x02ee62414119e97661a9527c1c66854375e37855e28dda14f82717b07d04764e",
+          "blockHash": "0x14c57df79d104688f75d3eefea563934675616f571df4b550410d3a34be14486",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      },
+      {
+        "name": "maker-revoke-and-unrevoke",
+        "passed": true,
+        "details": {
+          "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "amountIn": "100000000000000",
+          "amountOut": "247524",
+          "transactionHash": "0x90165944cb868cb6a696d42038175aa0ce616f7259c0fac025ab4588266ab2e5",
+          "blockHash": "0x1199c10bd79e5620e2a01817f84c8ec770d13c6a2e57509eaa79a87508f97cfe",
+          "case": "maker-revoke-and-unrevoke",
+          "contextTimestamp": "1789248480",
+          "quoteBlockHash": "0xcf9191c91986263e7402f69ff1429cee5256c0ce164ef0ded77d7ffc9c698551",
+          "quoteMatchesSettlement": true,
+          "inventoryMatchesTransfers": true
+        }
+      },
+      {
+        "name": "dock-rejected",
+        "passed": true,
+        "details": {
+          "revert": "SafeBalancesForTokenNotInActiveStrategy",
+          "transactionHash": "0x77b71f046c5bddbcb3956f531c2094a54edf098d67920c40c4df4e63fefcdf60",
+          "blockHash": "0x15b4cbf1a221aa2af2c6992e24a1303a7a7753f369c87101773dadf61c19b117",
+          "tokenBalancesUnchanged": true,
+          "authorizationUnchanged": true,
+          "nativeGasExcluded": true
+        }
+      }
+    ],
+    "swaps": [
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x34f3efb00ebbe1c4426d82a6bf69469d2bf87ae9555d454b448be24fa15baedf",
+        "blockHash": "0x2a10dc6f4306bc3593c19baa7c9efda632cfb330553b302ca2d6ffc07f271127",
+        "case": "bidirectional-and-sequential-settlement",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0xd6d43905b8258e8308e1631c3313300f9afe6fd7746bf793c9ac6c1777f07d81",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "tokenOut": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "amountIn": "250000",
+        "amountOut": "100989997950602",
+        "transactionHash": "0x367c1796ad64c79b64a9c8cb5bbef92f34a09ca9feb16294c55de7274b73471d",
+        "blockHash": "0x0b699cce6b20f6f1cb2a4237bf793ad87e3d691318e1106ad0f5a005e49e3b47",
+        "case": "bidirectional-and-sequential-settlement",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0x2a10dc6f4306bc3593c19baa7c9efda632cfb330553b302ca2d6ffc07f271127",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247573",
+        "transactionHash": "0x6274e4ecc2fbf803fd44d2d2231089bf75c32456b8e0981f56bd0cf6151d2f29",
+        "blockHash": "0x251c1963325d0e9decd7a414e9bda2c7a35452adf0df73c51d25c7d7b207db5a",
+        "case": "bidirectional-and-sequential-settlement",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0x0b699cce6b20f6f1cb2a4237bf793ad87e3d691318e1106ad0f5a005e49e3b47",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x34e129ed73ffd1fc5eca74e7bf47cc05e5ebfca7d00af20bce33743a113b461b",
+        "blockHash": "0xad95304ff23ec71775ab865355c4395573ac22969473e8470d953a9bf51a6130",
+        "case": "exact-cap-boundaries-0",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0x00f9d596735cec2890cb3999b5c2699bd0496c0dcad7574f66c04da99d73620b",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "tokenOut": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "amountIn": "250000",
+        "amountOut": "99009900990099",
+        "transactionHash": "0x2eec88136873cf7c01cfa0fde2f997734b84b927895af53f38d2d80d3c7ef9fa",
+        "blockHash": "0x1dd48d9cb85db7d7f7f371cdea47f3cd410093ed77a899af3125448358574f76",
+        "case": "exact-cap-boundaries-1",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0xa6d5787d352384027c4b4a5fac380afe5bbed900436485fefca2d926e9212108",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x09e3b8cacdd55a26238e82b6082c6f3594081c420fca6f30196c798b7a08fd80",
+        "blockHash": "0xb8fa41c6c89a78084bd5ec377ce07dec92e3e7eefed2c92440099f992e82fefd",
+        "case": "active-strategy-switch",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0x53d72e7be04c1437bd87350539252219035d63d7b208a9fc573c89bf21d32c14",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x4b66a0bcd88acd3be51785dbba8b940bbe727e2ed0fe6589c0c7b6a59326604f",
+        "blockHash": "0xb70ca8b9de7ba55b1b9047c5d8a20565437f3e091d22a1454753895a29ae6ded",
+        "case": "schema-one-expiry",
+        "contextTimestamp": "1789249079",
+        "quoteBlockHash": "0xbec7647b2287746b94834d5787007dea433e3905142a746a4b29413fe2111a55",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x0ef8947d47b881df572051feb74bbc750f4e69ba0e6b034657b1916b7bdad960",
+        "blockHash": "0x4f7788e15f9b307f05f37921b79836652401a3c4a95618d5ce45f38c89908123",
+        "case": "standing-after-one-hour",
+        "contextTimestamp": "1789252081",
+        "quoteBlockHash": "0xa648d6c96bf5f3a6fbddc612296f3703e7b08969caa1809cb062c4b560992d41",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x0ef8947d47b881df572051feb74bbc750f4e69ba0e6b034657b1916b7bdad960",
+        "blockHash": "0x74507aceabf3f50f0716ecbff831d9e0b37d831714a85bcbd254a259ee377778",
+        "case": "deadline-before-and-at",
+        "contextTimestamp": "1789336105",
+        "quoteBlockHash": "0xd5a0a444886b2e3fe6267c99bc370b045a2c3c19d33e63b8dcfe0e9384c27bc3",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "tokenOut": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "amountIn": "250000",
+        "amountOut": "100989997950602",
+        "transactionHash": "0x410bf16997f42fe8179fa0b635a87210349bfcd9ee0e163209b794dc6d85e5d5",
+        "blockHash": "0xc781ac8c04fe0b16051bf62cc1f07b25d25da92aedc3e93eafe4cdb4259f7ee7",
+        "case": "deadline-before-and-at",
+        "contextTimestamp": "1789336106",
+        "quoteBlockHash": "0xa3a9125faf3f7ea453532ae3dbea42d9a8d164efe62ce24ba466a414c35be8de",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      },
+      {
+        "tokenIn": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "tokenOut": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "amountIn": "100000000000000",
+        "amountOut": "247524",
+        "transactionHash": "0x90165944cb868cb6a696d42038175aa0ce616f7259c0fac025ab4588266ab2e5",
+        "blockHash": "0x1199c10bd79e5620e2a01817f84c8ec770d13c6a2e57509eaa79a87508f97cfe",
+        "case": "maker-revoke-and-unrevoke",
+        "contextTimestamp": "1789248480",
+        "quoteBlockHash": "0xcf9191c91986263e7402f69ff1429cee5256c0ce164ef0ded77d7ffc9c698551",
+        "quoteMatchesSettlement": true,
+        "inventoryMatchesTransfers": true
+      }
+    ],
+    "simulatedTransactionsOnly": true,
+    "registrationReady": false
+  }
+}
