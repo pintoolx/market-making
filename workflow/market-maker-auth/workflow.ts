@@ -1,123 +1,109 @@
-import {
-	cre,
-	hexToBase64,
-	ok,
-	text,
-	type TeeRuntime,
-} from '@chainlink/cre-sdk'
-import { encodeAbiParameters, parseAbiParameters } from 'viem'
+import { cre, type TeeRuntime } from '@chainlink/cre-sdk'
 import { z } from 'zod'
+import { GUARD_CONFIG } from '../src/config/guard'
+import { computeAuthorization } from '../src/intersect'
+import { publishAuthorization } from '../src/publish'
+import {
+	makerLimitsSchema,
+	marketSnapshotSchema,
+	providerStrategySchema,
+	type ReportIdentity,
+} from '../src/types'
 
-// ─── Config Schema ──────────────────────────────────────────
+// ─── Config Schema (public, non-secret) ─────────────────────
+const hexAddress = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
+const hexBytes32 = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
+
 export const configSchema = z.object({
 	schedule: z.string(),
-	url: z.string(),
-	secretId: z.string(),
-	scoreThreshold: z.number(),
+	/** Logical secret ids declared in ../secrets.yaml. */
+	providerSecretId: z.string(),
+	makerSecretId: z.string(),
+	/** See src/publish.ts. Defaults to dry-run until pengu confirms the Guard. */
+	publishMode: z.enum(['dry-run', 'don-report', 'http-rpc']).default('dry-run'),
+	/** Maker wallet the report authorises (funds never leave it). */
+	maker: hexAddress,
+	/** TODO(pengu): router.hash(order) of the Maker-approved guarded program. */
+	strategyHash: hexBytes32,
+	/**
+	 * TODO: replace with an HTTPClient fetch from inside the enclave (price feed +
+	 * Maker balances). Kept in config for a deterministic, offline simulation.
+	 */
+	marketSnapshot: marketSnapshotSchema,
 })
-type Config = z.infer<typeof configSchema>
+export type Config = z.infer<typeof configSchema>
 
-// ─── Logic to be executed over confidential data ────────────
-// Some logic needs to be computed over sensitive data while preserving the
-// confidentiality of that data from node operators: risk thresholds, API
-// credentials, centralised exchange stablecoin reserves for reasoning, identity
-// details. Leaking this data could have adverse effects, including enabling
-// front-running attacks, exposing sensitive financial information, and
-// compromising individual privacy.
-//
-// Note what is and is not confidential here: a confidential workflow, despite
-// running inside the enclave, is part of the binary the Workflow DON provides to
-// the enclave — so the binary, including this logic, is revealed. What the
-// enclave keeps confidential is the data this logic computes over: Vault DON
-// secrets, the request and response payloads of HTTP calls made from the
-// enclave, and other intermediate values.
-//
-// Keep it deterministic for a given input — the enclave result is attested and
-// verified by DON consensus before the workflow completes.
-const scoreResponse = (body: string): number => {
-	let score = 0
-	for (let i = 0; i < body.length; i++) {
-		score = (score + body.charCodeAt(i)) % 1000
+/** Zod error → path + code only. Never echo the offending value of a secret. */
+const parseSecretJson = <S extends z.ZodTypeAny>(schema: S, raw: string, label: string): z.infer<S> => {
+	let json: unknown
+	try {
+		json = JSON.parse(raw)
+	} catch {
+		throw new Error(`${label}: secret is not valid JSON`)
 	}
-	return score
+	const parsed = schema.safeParse(json)
+	if (!parsed.success) {
+		const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '<root>'}:${i.code}`).join(', ')
+		throw new Error(`${label}: secret failed schema validation (${issues})`)
+	}
+	return parsed.data
 }
 
 // ─── TEE Cron Callback ──────────────────────────────────────
-// Receives a `TeeRuntime`, not a `Runtime`. Everything here runs inside the
-// enclave until we explicitly cross back with `usingTheDons()`.
+// Everything here runs inside the enclave until publishAuthorization()
+// explicitly crosses back with `usingTheDons()` (only in don-report mode).
 export const onCronTrigger = (runtime: TeeRuntime<Config>): string => {
 	const config = runtime.config
 
-	// ── Step 2: Fetch a secret inside the enclave ──
-	// The Vault DON releases this secret only into an attested enclave, and it is
-	// decrypted at the moment `getSecret()` runs. There is nothing to declare
-	// upfront (unlike Confidential HTTP's `vaultDonSecrets`).
-	const apiToken = runtime.getSecret({ id: config.secretId }).result().value
-
-	// ── Step 3: Make a capability call from inside the enclave ──
-	// `HTTPClient.sendRequest()` has a `TeeRuntime` overload, so passing the TEE
-	// runtime executes the request from inside the enclave, keeping the request
-	// and response payloads confidential from node operators. The Workflow DON
-	// offers consensus verification of enclave attestations, proving the integrity
-	// of the logic executed within the enclave.
-	//
-	// Note: do NOT reach for `ConfidentialHTTPClient` here — it has no
-	// `TeeRuntime` overload and is not meant to be called from a TEE handler.
-	const response = new cre.capabilities.HTTPClient()
-		.sendRequest(runtime, {
-			url: config.url,
-			method: 'GET',
-			multiHeaders: {
-				Authorization: { values: [`Bearer ${apiToken}`] },
-			},
-		})
+	// ── 1. Both confidential inputs, one Vault DON round-trip ──
+	// Secrets are released only into the attested enclave; one getSecrets()
+	// call counts once against PerWorkflow.Secrets.CallLimit (5).
+	const secrets = runtime
+		.getSecrets([{ id: config.providerSecretId }, { id: config.makerSecretId }])
 		.result()
 
-	if (!ok(response)) {
-		throw new Error(`Confidential request failed with status: ${response.statusCode}`)
+	const strategy = parseSecretJson(providerStrategySchema, secrets[config.providerSecretId].value, 'PROVIDER_STRATEGY')
+	const limits = parseSecretJson(makerLimitsSchema, secrets[config.makerSecretId].value, 'MAKER_LIMITS')
+
+	// ── 2. Public observation ──
+	const market = config.marketSnapshot
+
+	// ── 3. Intersect (pure, deterministic) ──
+	// DON consensus time, not Date.now() — see docs "Time in workflows".
+	const nowSec = Math.floor(runtime.now().getTime() / 1000)
+	const identity: ReportIdentity = {
+		chainId: GUARD_CONFIG.chainId,
+		guard: GUARD_CONFIG.guard,
+		router: GUARD_CONFIG.router,
+		maker: config.maker as `0x${string}`,
+		strategyHash: config.strategyHash as `0x${string}`,
+		token0: GUARD_CONFIG.token0,
+		token1: GUARD_CONFIG.token1,
 	}
+	const authorization = computeAuthorization({
+		strategy,
+		limits,
+		market,
+		identity,
+		nowSec,
+		// Timestamp-based nonce: strictly increasing as long as runs are ≥1 s
+		// apart, and no enclave state is needed. See docs/authorization-format.md.
+		nonce: BigInt(nowSec),
+	})
 
-	const body = text(response)
+	// NOTE: `authorization.trace` (matched rule id, which side bound each cap)
+	// is intentionally never logged or returned — it would leak the private inputs.
 
-	// The default endpoint echoes the request headers back, so we can confirm the
-	// secret really was injected inside the enclave — as a boolean, never by
-	// logging the token itself. Drop this once `url` points at a real API.
-	const secretReachedApi = body.includes(apiToken)
+	// ── 4. Deliver (seam) ──
+	const published = publishAuthorization(runtime, authorization)
 
-	// Decision logic executed over the confidential response payload.
-	const score = scoreResponse(body)
-	const verdict = score >= config.scoreThreshold ? 'APPROVE' : 'REJECT'
-
-	// ⚠️ Logs should be used for simulations only, and MUST be removed before
-	// deploying to production to preserve the confidentiality offered by enclaves.
-	// Avoid logging inside the enclave in general — sensitive or not.
-	runtime.log(`Enclave computation complete. verdict=${verdict}`)
-
-	// ── Step 4: Cross back to the DON for anything that needs consensus ──
-	// `usingTheDons()` returns a regular `Runtime`. Anything passed into a
-	// capability call on it executes on Workflow DON nodes and is NO LONGER
-	// confidential — so we cross over the verdict and score only, never the
-	// secret or the raw response body.
-	const donRuntime = runtime.usingTheDons()
-
-	const encodedPayload = encodeAbiParameters(
-		parseAbiParameters('string verdict, uint256 score'),
-		[verdict, BigInt(score)],
+	// Only public report fields cross out of the enclave in this summary.
+	const r = authorization.report
+	return (
+		`allowedDirections=${r.allowedDirections} nonce=${r.nonce} ` +
+		`validAfter=${r.validAfter} validUntil=${r.validUntil} ` +
+		`txHash=${published.txHash ?? 'none (dry-run)'}`
 	)
-
-	donRuntime
-		.report({
-			encodedPayload: hexToBase64(encodedPayload),
-			encoderName: 'evm',
-			signingAlgo: 'ecdsa',
-			hashingAlgo: 'keccak256',
-		})
-		.result()
-
-	// The signed report is now a normal CRE report. To deliver it on-chain, pass
-	// it to `evmClient.writeReport(donRuntime, report)` — see the Keeper Bot or
-	// Event Reactor templates for the full write path.
-	return `${verdict} (score: ${score}, secret reached API: ${secretReachedApi})`
 }
 
 // ─── Workflow Init ──────────────────────────────────────────
@@ -125,16 +111,7 @@ export function initWorkflow(config: Config) {
 	const cronTrigger = new cre.capabilities.CronCapability()
 
 	return [
-		// ── Step 1: Register a TEE handler ──
-		// `cre.handlerInTee` instead of `cre.handler`. The third argument is a
-		// `TeeConstraint` describing which enclaves this handler will accept.
-		//
-		// Alternatives:
-		//   {}                        — any registered TEE, any region
-		//   { regions: ['us-west-2'] } — any TEE, restricted to a region
-		//
-		// AWS Nitro in us-west-2 is currently the only registered TEE type and
-		// region; check your SDK version if you expect otherwise.
+		// AWS Nitro in us-west-2 is currently the only registered TEE type/region.
 		cre.handlerInTee(cronTrigger.trigger({ schedule: config.schedule }), onCronTrigger, [
 			{ tee: 'nitro', regions: ['us-west-2'] },
 		]),

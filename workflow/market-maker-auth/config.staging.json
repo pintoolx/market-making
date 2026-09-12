@@ -1,6 +1,16 @@
 {
-  "schedule": "0 */1 * * * *",
-  "url": "https://postman-echo.com/headers",
-  "secretId": "API_TOKEN",
-  "scoreThreshold": 500
+  "schedule": "0 */2 * * * *",
+  "providerSecretId": "PROVIDER_STRATEGY",
+  "makerSecretId": "MAKER_LIMITS",
+  "publishMode": "dry-run",
+  "maker": "0x3333333333333333333333333333333333333333",
+  "strategyHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+  "marketSnapshot": {
+    "midPrice": "3000",
+    "volatilityBps": 120,
+    "balance0": "1000000000000000000",
+    "balance1": "4000000000",
+    "decimals0": 18,
+    "decimals1": 6
+  }
 }

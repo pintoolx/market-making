@@ -1,13 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { encodeGuardReportV1, guardReportV1Hash, GUARD_REPORT_V1_BYTE_LENGTH } from './encode'
 import type { GuardReportV1 } from './types'
 
 // Shared fixture owned by the contracts side — if this test breaks, the two
 // sides have diverged and docs/GUARD-REPORT-V1.md needs a decision.
-const fixturePath = join(import.meta.dir, '..', '..', 'docs', 'guard-report-v1', 'example.json')
-const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
+// node:fs is deliberately unavailable under the CRE SDK's restricted-node-modules types; use Bun.
+const fixturePath = `${import.meta.dir}/../../docs/guard-report-v1/example.json`
+const fixture = (await Bun.file(fixturePath).json()) as {
 	report: Record<string, string>
 	encodedReport: `0x${string}`
 	encodedByteLength: number
