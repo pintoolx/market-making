@@ -1,6 +1,6 @@
 # ETHOnline：雙方私密規則合成做市策略
 
-狀態：2026-09-12 主線規格。已決定 Chainlink + 1inch Aqua；Maker 選兩位 Provider、TEE 產生短效 active-strategy mandate。Ethereum Sepolia 的 WETH／Circle testnet USDC 是 final target，既有 Base Sepolia mock-token deployment 保留為 fallback。完整 demo 與最新介面以 [WINNING-FLOW.md](WINNING-FLOW.md) 為準。
+狀態：2026-09-12 主線規格。已決定 Chainlink + 1inch Aqua；產品允許 Maker 建立由一個或多個 Provider strategy 組成的 strategy set，TEE 為該集合產生短效 active-strategy mandate。ETHOnline 錄影固定使用兩套策略，方便證明授權反轉。Ethereum Sepolia 的 WETH／Circle testnet USDC 是 final target，既有 Base Sepolia mock-token deployment 保留為 fallback。完整錄影與驗收介面以 [WINNING-FLOW.md](WINNING-FLOW.md) 為準。
 
 ## 名稱與 repo 邊界
 
@@ -16,7 +16,7 @@ Strategy Provider 提供私密做市邏輯，Maker 提供私密資金與風險�
 
 價值是讓雙方合作而不直接交換完整規則。TEE 外的成交參數、數量、時機仍可能公開並洩漏部分資訊；不能宣稱永久隱藏完整策略或保證不虧損。
 
-成功標準：同一個 Maker wallet 已 ship 兩套 Provider strategies；normal regime 只允許 A，高波動 regime 原子切換成只允許 B。兩個狀態都要各有一筆真實 Aqua transfer 與一筆 Guard rejection。
+產品成功標準是同一份 Maker balance 能安全支援一組策略，且任一時間最多只授權一套。錄影驗收固定 ship 兩套 Provider strategies：normal regime 只允許 A，高波動 regime 原子切換成只允許 B。兩個狀態都要各有一筆真實 Aqua transfer 與一筆 Guard rejection。
 
 ## ETHOnline 主線
 
@@ -83,13 +83,13 @@ pengu 的 adapter 負責 token 地址排序、decimals、價格倒數與 sqrtPri
 ## 產品流程
 
 1. Provider：選模板、填私密規則、提交；看到版本與已接收狀態。
-2. Maker：選兩位 Provider、填一份共同額度與限制；只看自己的 policy。
+2. Maker：選一個或多個 Provider strategy、填一份套用到整個 strategy set 的共同額度與限制；只看自己的 policy。
 3. 評估：顯示資料時間、處理狀態；不顯示另一方原始條件。
 4. 核准：顯示 market regime、active strategy hash、另一套 blocked strategy、單筆上限與期限。
 5. 拒絕：顯示「目前條件無法形成可執行策略」，Maker 可查看授權的詳細原因。
-6. 成交：顯示 token 餘額變化、策略識別與 swap 交易；測試 taker 明確標示為測試。
+6. 監控：顯示目前被授權的策略、期限、已確認的 report 與成交紀錄。市場 fixture 與測試 taker 由外部整合工具驅動，不做成產品按鈕。
 
-Provider 的 Condition／Action 留在策略邏輯；Maker 的部位與資金分配由輸出推導，呈現在 Position／Split 層。這份先定流程，尚未修改既有 UI。
+Provider 的 Condition／Action 留在策略邏輯；Maker 的部位與資金分配由輸出推導，呈現在 Position／Split 層。Provider Studio 下一步要把自由文字改成各模板的結構化欄位，文字助手只能協助填表，不能直接成為可執行政策。
 
 ## Demo 與驗收
 

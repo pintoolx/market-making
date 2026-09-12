@@ -2,11 +2,11 @@
 
 Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
 
-The intended design lets two Strategy Providers compete for one Maker balance while keeping their raw logic private. The Maker supplies one private capital mandate. A confidential workflow authorizes one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. Confidential execution and profit sharing are not implemented end to end yet.
+The intended design lets a Maker assemble a set of private strategies around one balance while keeping Provider logic and Maker limits private. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. The recorded ETHOnline scenario uses two strategies to make the authorization reversal easy to verify. Confidential execution and profit sharing are not implemented end to end yet.
 
 ## Intended flow
 
-1. **Two Providers publish private policies.** Each policy decides when its public Aqua execution envelope should be active.
+1. **Providers publish private policies.** Each policy decides when its public Aqua execution envelope should be active.
 2. **A Maker sets one private mandate.** Capital, WETH inventory, fill and expiry limits remain hidden from both Providers.
 3. **A confidential workflow selects the permitted strategy.** A deterministic validator applies the Maker's hard limits before emitting a short-lived mandate.
 4. **PinTool Guard enforces the mandate on Aqua.** Market regime changes switch the active strategy hash without moving the Maker's underlying wallet balance.
@@ -26,7 +26,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 
 | Part | Folder | Status |
 |---|---|---|
-| Web app: role choice, Provider Studio, two-Provider Maker mandate, profile | `frontend/` | Working; live execution requires the mandate service configured below |
+| Web app: role choice, Provider Studio, strategy-set Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
 | CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
 | Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Single-strategy v1 synthetic-report prototype works; atomic A/B mandate switching and actual CRE delivery remain pending |
