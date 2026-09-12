@@ -89,6 +89,17 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
     go(() => setDone({ id: `mine-${selected.id}`, name: draft.name.trim(), summary: draft.introduction.trim(), template: selected, mine: true, provider: providerName, providerAvatar: profile.avatar || undefined, feePct }));
   };
   const startOver = () => go(() => { setDone(null); setSelected(null); setPreview(false); });
+  // Opening a published strategy from the list starts from what was published, not the template defaults.
+  const openTemplate = (item: AquaTemplate) => go(() => {
+    const listing = published.find(p => p.template.id === item.id);
+    if (listing && !drafts[item.id]) {
+      const next = { ...drafts, [item.id]: { name: listing.name, introduction: listing.summary, rules: '', fee: String(listing.feePct ?? DEFAULT_FEE) } };
+      setDrafts(next);
+      writeDrafts(next);
+    }
+    setSelected(item);
+    setPreview(false);
+  });
 
   if (done) return <section className={aqua.flow}>
     <PageHead eyebrow="Published" title="Your strategy is live." accent={done.name} headingRef={heading}>
@@ -184,7 +195,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
             <div className={aqua.cardRule}><span className={aqua.eyebrow}>You define</span><p>{item.privateInputs}</p></div>
           </div>
           <div className={`${styles.cardActions} ${aqua.cardActions}`}>
-            <Primary onClick={() => go(() => { setSelected(item); setPreview(false); })} aria-label={`Use the ${item.name} template`}>{hasDraft ? 'Continue draft' : isPublished ? 'Edit strategy' : 'Use template'}</Primary>
+            <Primary onClick={() => openTemplate(item)} aria-label={`Use the ${item.name} template`}>{hasDraft ? 'Continue draft' : isPublished ? 'Edit strategy' : 'Use template'}</Primary>
           </div>
         </article>;
       })}
