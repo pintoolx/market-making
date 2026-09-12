@@ -51,6 +51,7 @@ export function parseCreate(input) {
 export function validateState(value, expected) {
   const state = object(value, 'Runner response');
   if (typeof state.mandateId !== 'string' || !STRATEGY_ID.test(state.mandateId)) throw new Error('runner returned an invalid mandate ID');
+  if (typeof state.maker !== 'string' || !ADDRESS.test(state.maker)) throw new Error('runner returned an invalid Maker address');
   if (!['normal', 'high-volatility', 'unknown'].includes(state.regime)) throw new Error('runner returned an invalid regime');
   if (!Array.isArray(state.strategies) || state.strategies.length < 1 || state.strategies.filter(s => s?.status === 'active').length > 1) throw new Error('runner returned an invalid strategy set');
   for (const strategy of state.strategies) {
@@ -110,8 +111,9 @@ export function createService(config, dependencies = {}) {
     await rename(temporary, target);
   };
   const load = async id => JSON.parse(await readFile(statePath(id), 'utf8'));
-  const accept = async (output, requiredStrategyIds = []) => {
+  const accept = async (output, requiredStrategyIds = [], expectedMaker) => {
     const state = validateState(output, config);
+    if (expectedMaker && state.maker.toLowerCase() !== expectedMaker.toLowerCase()) throw new Error('runner response is for a different Maker');
     const returnedIds = new Set(state.strategies.map(strategy => strategy.listingId));
     if (requiredStrategyIds.some(id => !returnedIds.has(id))) throw new Error('runner response does not contain the requested strategy set');
     const claims = new Map([[state.evidence.reportTransactionHash.toLowerCase(), '0x1']]);
@@ -131,23 +133,27 @@ export function createService(config, dependencies = {}) {
   return {
     async create(input) {
       const parsed = parseCreate(input);
-      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds);
+      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds, parsed.maker);
     },
     async get(id) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
+      let current;
+      try { current = await load(id); } catch {}
       let output;
-      try { output = await runner({ action: 'get', mandateId: id }); }
-      catch (error) { try { output = await load(id); } catch { throw error; } }
+      try { output = await runner({ action: 'get', mandateId: id, current }); }
+      catch (error) { if (current) output = current; else throw error; }
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output);
+      return accept(output, [], current?.maker);
     },
     async add(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
       const body = object(input, 'Request'); exactKeys(body, ['providerStrategyId'], 'Request');
       if (typeof body.providerStrategyId !== 'string' || !STRATEGY_ID.test(body.providerStrategyId)) throw new HttpError(400, 'Provider strategy ID is invalid.');
-      const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId });
+      let current;
+      try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
+      const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId, current });
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [body.providerStrategyId]);
+      return accept(output, [body.providerStrategyId], current.maker);
     },
   };
 }

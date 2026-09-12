@@ -7,15 +7,16 @@ import { createService, HttpError, parseCreate, validateState, verifyReceipt } f
 
 const hash = digit => `0x${digit.repeat(64)}`;
 const tx = hash('a');
+const inputMaker = '0x1111111111111111111111111111111111111111';
 const state = {
-  mandateId: 'mandate-01', regime: 'normal',
+  mandateId: 'mandate-01', maker: inputMaker, regime: 'normal',
   strategies: [{ listingId: 'featured-tight-market', name: 'Tight Market', provider: 'PinTool Strategies', strategyHash: hash('b'), status: 'active', maxAmountPerSwapAtomic: '100000000' }],
   evidence: { chainId: 84532, networkName: 'Base Sepolia', reportDigest: hash('c'), reportTransactionHash: tx,
     reportExplorerUrl: `https://sepolia.basescan.org/tx/${tx}`, sequence: '1', expiresAt: '2026-09-12T12:00:00.000Z' },
   events: [{ id: 'event-1', type: 'report-accepted', title: 'Guard report accepted', detail: 'Authorization updated.', occurredAt: '2026-09-12T11:50:00.000Z', transactionHash: tx, explorerUrl: `https://sepolia.basescan.org/tx/${tx}` }],
 };
 const config = { chainId: 84532, networkName: 'Base Sepolia', explorerUrl: 'https://sepolia.basescan.org', rpcUrl: 'http://rpc.invalid', stateDir: '', runner: '/unused', runnerTimeoutMs: 1000 };
-const input = { maker: '0x1111111111111111111111111111111111111111', providerStrategyIds: ['featured-tight-market'], policy: {
+const input = { maker: inputMaker, providerStrategyIds: ['featured-tight-market'], policy: {
   capitalBudgetUsdc: '1000', maxWethExposurePct: '60', maxWethInventoryUsdc: '350', maxSwapUsdc: '100', validityMinutes: '10' } };
 
 test('private policy is validated for forwarding without broadening its limits', () => {
@@ -67,4 +68,28 @@ test('get may use verified public cache during a runner outage; add may not', as
   await service.create(input); online = false;
   assert.equal((await service.get(state.mandateId)).mandateId, state.mandateId);
   await assert.rejects(service.add(state.mandateId, { providerStrategyId: 'featured-defensive-market' }), /offline/);
+});
+
+test('get and add pass only previously verified public state to the runner', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'pintool-mandates-'));
+  const calls = [];
+  const service = createService({ ...config, stateDir: dir }, {
+    runner: async request => {
+      calls.push(request);
+      if (request.action === 'add-strategy') return {
+        ...structuredClone(state),
+        strategies: [...state.strategies.map(item => ({ ...item, status: 'standby' })),
+          { ...state.strategies[0], listingId: request.providerStrategyId, status: 'active' }],
+      };
+      return structuredClone(state);
+    },
+    verifyReceipt: async () => ({ chainId: 84532 }),
+  });
+  await service.create(input);
+  await service.get(state.mandateId);
+  await service.add(state.mandateId, { providerStrategyId: 'featured-defensive-market' });
+  assert.deepEqual(calls[1], { action: 'get', mandateId: state.mandateId, current: state });
+  assert.equal(calls[2].current.mandateId, state.mandateId);
+  assert.equal(calls[2].providerStrategyId, 'featured-defensive-market');
+  assert.ok(!JSON.stringify(calls[2].current).includes('capitalBudgetUsdc'));
 });

@@ -51,18 +51,25 @@ function iso(seconds) {
 }
 
 export async function runDirectMandate(request, config, dependencies = {}) {
-  if (request?.action !== 'create') throw new Error('Direct CRE runner currently supports mandate creation only');
+  if (!['create', 'get', 'add-strategy'].includes(request?.action)) throw new Error('Direct CRE runner action is unsupported');
+  const creating = request.action === 'create';
+  const current = creating ? null : request.current;
   const input = request.input;
-  if (!input || !ADDRESS.test(input.maker ?? '') || !Array.isArray(input.providerStrategyIds)
-    || input.providerStrategyIds.length !== 1) throw new Error('Direct CRE runner requires one valid Maker strategy');
-  if (policyDigest(input.policy) !== config.expectedPolicyDigest) {
+  if (creating && (!input || !ADDRESS.test(input.maker ?? '') || !Array.isArray(input.providerStrategyIds)
+    || input.providerStrategyIds.length !== 1)) throw new Error('Direct CRE runner requires one valid Maker strategy');
+  if (creating && policyDigest(input.policy) !== config.expectedPolicyDigest) {
     throw new Error('Maker limits do not match the confidential policy provisioned for this workflow');
   }
-  const listingId = input.providerStrategyIds[0];
+  if (!creating && (!current || current.mandateId !== request.mandateId || !ADDRESS.test(current.maker ?? '')
+    || !Array.isArray(current.strategies) || current.strategies.length === 0)) throw new Error('Current mandate state is required');
+  const listingId = creating ? input.providerStrategyIds[0]
+    : request.action === 'add-strategy' ? request.providerStrategyId
+      : (current.strategies.find(item => item.status === 'active') ?? current.strategies[0]).listingId;
   const listing = config.catalog[listingId];
   if (!listing) throw new Error('Selected strategy is not provisioned for this workflow');
 
-  const mandateId = `mandate-${randomUUID()}`;
+  const maker = creating ? input.maker : current.maker;
+  const mandateId = creating ? `mandate-${randomUUID()}` : request.mandateId;
   const fromBlock = await (dependencies.currentBlock ?? currentBlock)(config.rpcUrl, dependencies.fetchImpl);
   const trigger = dependencies.trigger ?? triggerCREWorkflow;
   const accepted = await trigger({
@@ -71,7 +78,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     privateKey: config.privateKey,
   }, {
     requestId: mandateId,
-    maker: input.maker,
+    maker,
     strategyHash: listing.strategyHash,
     marketSnapshot: config.marketSnapshot,
   }, { fetchImpl: dependencies.fetchImpl });
@@ -80,7 +87,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   const evidence = await observe({
     rpcUrl: config.rpcUrl,
     guard: config.guard,
-    maker: input.maker,
+    maker,
     strategyHash: listing.strategyHash,
     fromBlock,
   }, { fetchImpl: dependencies.fetchImpl, timeoutMs: config.timeoutMs });
@@ -104,17 +111,23 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     transactionHash: evidence.transactionHash,
     explorerUrl: transactionUrl,
   });
+  const selectedState = {
+    listingId,
+    name: listing.name,
+    provider: listing.provider,
+    strategyHash: listing.strategyHash,
+    status: active ? 'active' : 'paused',
+    maxAmountPerSwapAtomic: evidence.report.maxAmount1PerSwap.toString(),
+  };
+  const strategies = creating ? [selectedState] : [
+    ...current.strategies.filter(item => item.listingId !== listingId).map(item => ({ ...item, status: 'standby' })),
+    selectedState,
+  ];
   return {
     mandateId,
+    maker,
     regime: Number(config.marketSnapshot.volatilityBps) >= 1000 ? 'high-volatility' : 'normal',
-    strategies: [{
-      listingId,
-      name: listing.name,
-      provider: listing.provider,
-      strategyHash: listing.strategyHash,
-      status: active ? 'active' : 'paused',
-      maxAmountPerSwapAtomic: evidence.report.maxAmount1PerSwap.toString(),
-    }],
+    strategies,
     evidence: {
       chainId: config.chainId,
       networkName: config.networkName,
@@ -124,7 +137,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
       sequence: evidence.report.nonce.toString(),
       expiresAt: iso(evidence.report.validUntil),
     },
-    events,
+    events: [...events, ...(current?.events ?? [])],
   };
 }
 
