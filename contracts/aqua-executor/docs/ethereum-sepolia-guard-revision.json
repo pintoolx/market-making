@@ -1,0 +1,125 @@
+{
+  "sourceCommit": "c15642de33a87d97042a88b4311642a7204fab6c",
+  "chainId": 11155111,
+  "revision": "maker-active-v1",
+  "transactionHash": "0x2b2ba81e2ed1e68dd7e8e88cbea2ce9f95d1a59517370702ecf06c1556e01567",
+  "previousGuard": "0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e",
+  "guard": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+  "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+  "constructorArgs": [
+    "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+    "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "0x0000000000000000000000000000000000000000",
+    true
+  ],
+  "mode": "simulation receiver replacement only; no report delivery, strategy activation or token transfers",
+  "sourceHashes": {
+    "src/sepolia.ts": "a064db3a50bcc35dc45582fc8b0fd8b3f7a247717680a381579cb32af9749eb4",
+    "src/durable-send.ts": "488131d5e313293655b01ff2f62c87c156f27c3448f2115afe72916f0981a89a",
+    "src/execution-store.ts": "361043af546facede8cf07c91812b5400ad74e5e8ecec31da0b17f1bd6a464f3",
+    "contracts/AquaGuardV2.sol": "d1ba50e7bfdc7d37e61bcba162497db7c9528d35740757566a6402d42d57a91f",
+    "contracts/vendor/SwapVMInterfaces.sol": "46bb79531cddc5866937cd78c70fad1e6a5f7559fe64573e780b6e2d5711a426",
+    "artifacts/AquaGuardV2.json": "8cb4851c377043f666144a5cd462a5a39d5918e61d21e3b62d7dc2b66abb77cd"
+  },
+  "verification": [
+    {
+      "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+      "blockNumber": "11688767",
+      "blockHash": "0x997fd447b5f01bf38eec40adf8d03577ac0b97fb471b51071335a40183e05b62",
+      "status": "success",
+      "contractAddress": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+      "gasUsed": "1357200",
+      "effectiveGasPrice": "1115923695",
+      "gasCostWei": "1514531638854000",
+      "creationInputMatches": true,
+      "runtimeCodeHash": "0x4a6a15af7b058701438537ecbde2c7c71a74ca34214ddcbc4ba5693e4f2af650",
+      "state": {
+        "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+        "forwarder": "0x15fC6ae953E024d975e77382eEeC56A9101f9F88",
+        "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "workflowOwner": "0x0000000000000000000000000000000000000000",
+        "simulationMode": true,
+        "guardVersion": 2,
+        "aqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a"
+      },
+      "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "earlierReceiverLacksActiveStrategyGetter": true,
+      "allowances": [
+        {
+          "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "owner": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+          "amount": "0"
+        },
+        {
+          "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "owner": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+          "spender": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+          "amount": "0"
+        },
+        {
+          "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "owner": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+          "amount": "0"
+        },
+        {
+          "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "owner": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+          "spender": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+          "amount": "0"
+        }
+      ]
+    },
+    {
+      "rpc": "https://sepolia.gateway.tenderly.co",
+      "blockNumber": "11688767",
+      "blockHash": "0x997fd447b5f01bf38eec40adf8d03577ac0b97fb471b51071335a40183e05b62",
+      "status": "success",
+      "contractAddress": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+      "gasUsed": "1357200",
+      "effectiveGasPrice": "1115923695",
+      "gasCostWei": "1514531638854000",
+      "creationInputMatches": true,
+      "runtimeCodeHash": "0x4a6a15af7b058701438537ecbde2c7c71a74ca34214ddcbc4ba5693e4f2af650",
+      "state": {
+        "router": "0x47A875f39BA4b0d0beaa928BB071D4b4dA0b4092",
+        "forwarder": "0x15fC6ae953E024d975e77382eEeC56A9101f9F88",
+        "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "workflowOwner": "0x0000000000000000000000000000000000000000",
+        "simulationMode": true,
+        "guardVersion": 2,
+        "aqua": "0x1111113CCf1426A8E30e2bfF5E005d929bF6a90a"
+      },
+      "activeStrategyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "earlierReceiverLacksActiveStrategyGetter": true,
+      "allowances": [
+        {
+          "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "owner": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+          "amount": "0"
+        },
+        {
+          "token": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+          "owner": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+          "spender": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+          "amount": "0"
+        },
+        {
+          "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "owner": "0x32f79282124eafc681601cdca2883c672c72d340",
+          "spender": "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a",
+          "amount": "0"
+        },
+        {
+          "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "owner": "0x9c69f55b9e6836b8e096c0f61202665c869922cc",
+          "spender": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+          "amount": "0"
+        }
+      ]
+    }
+  ]
+}

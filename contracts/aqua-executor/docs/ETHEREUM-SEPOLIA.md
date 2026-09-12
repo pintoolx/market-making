@@ -65,6 +65,7 @@ The old `deploy --network ethereum-sepolia` command refuses to create mocks. Gua
 allows simulation only on local, Base Sepolia and Ethereum Sepolia; its production
 identity checks are unchanged.
 
+
 Deployment and funding save signed bytes **before broadcast** in
 `.state/sepolia/<maker>/`. Retry the same command and state directory after an
 interruption. It recovers the same hashes/nonces instead of creating another
@@ -79,6 +80,36 @@ to `records/11155111/`. Preserve failed-run records too. The fixed lifecycle and
 Guard demo themselves are not resumable controllers: inspect active strategies
 and allowances before restarting an interrupted run. The JSON execution entry
 remains the supported strategy-operation recovery interface.
+
+## Receiver revision and recovery
+
+`upgrade-guard` is the fixed, recoverable operation used for the recorded
+Maker-active replacement below; it updates the current bundle. For future
+artifact or production identity changes, use `deploy-guard` and its versioned
+manifest. These are separate journal requests; do not run both expecting the
+same creation transaction.
+
+The current artifact includes Maker-scoped `activeStrategyHash` enforcement.
+The simulation receiver was replaced at [`0xfadc3165abeb127a0815d5ea4e2862ed430e1f70`](https://sepolia.etherscan.io/address/0xfadc3165abeb127a0815d5ea4e2862ed430e1f70)
+using source commit `c15642de33a87d97042a88b4311642a7204fab6c`.
+See [the separate revision proof](ethereum-sepolia-guard-revision.json) and
+[creation receipt](https://sepolia.etherscan.io/tx/0x2b2ba81e2ed1e68dd7e8e88cbea2ce9f95d1a59517370702ecf06c1556e01567).
+This adds one successful deployment to the earlier run; it does not rerun the
+40-transaction demo.
+The original 40-transaction run used an earlier V2 revision without this getter;
+its receipts and source manifest remain historical. For an existing deployment,
+run `pnpm sepolia upgrade-guard --execute` with the **same state directory**.
+This deploys only a replacement simulation Guard, retains the Router and assets,
+and uses its own durable `sepolia-guard-maker-active-v1` request. Repeating it
+recovers the same creation hash. Do not delete the original deployment journal
+to bypass the bytecode mismatch check. Fresh setups continue to use `deploy`.
+
+A replacement has empty report state. Recompile future guarded programs with
+the new address and obtain fresh strategy hashes and reports; existing programs
+still reference the old immutable receiver. The original recorded strategies
+are already docked. Replacement does not activate a strategy or deliver a CRE
+report. Both workflow publishers reject receivers without the active-strategy
+getter before writing.
 
 ## Guard and workflow boundary
 
@@ -102,7 +133,12 @@ deployment and current guarded strategy hash before broadcasting. The
 orchestrator defaults to Sepolia RPC/explorer/chain ID. The UI shows WETH / USDC
 with Ethereum Sepolia identification and small suggested limits.
 
-Production CRE account access, confidential execution, Maker-scoped atomic strategy switching and frontend evidence integration require the current Guard artifact and final workflow identity. The recorded deployment predates those additions. Existing `demo:risk` intentionally remains
+Real CRE account access, confidential execution, public A/B mandate-switch
+verification and frontend evidence integration remain separate acceptance items
+in the [architecture](../../../docs/ARCHITECTURE.md). Local contract tests cover
+atomic A/B switching. A successful asset migration
+does not establish those milestones. Existing `demo:risk` intentionally remains
+
 restricted to the old mock fixture; the generic monitor/controller can use the
 new assets and deployment with an explicit price source.
 
@@ -119,6 +155,6 @@ SOLC=/path/to/solc-0.8.30 pnpm build:guard:v2 --check
 The optional fork test uses the real WETH9, Circle USDC proxy/implementation,
 and Aqua from Sepolia. It impersonates USDC's issuer **only on its child Anvil**
 to create a 20-USDC fixture; upstream RPC calls are read-only. It checks interrupted
-deployment/wrapping recovery, repeated initialization without new transactions,
+deployment/wrapping/receiver replacement recovery, repeated initialization without new transactions,
 the 13-transaction lifecycle and concentrated Guard success/veto with unchanged
 wallet/Aqua balances on rejection. Fork records are not public-chain evidence.

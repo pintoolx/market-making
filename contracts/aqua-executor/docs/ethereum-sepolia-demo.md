@@ -22,7 +22,8 @@ testnet USDC. No mock asset was deployed or minted. Execution source commit:
 Primary execution RPC: PublicNode. Independent receipt/state validation:
 Tenderly public Sepolia at block **11688673**. All 40 receipt statuses,
 block numbers, senders/destinations and gas used match the records. Router and CRE
-Guard creation inputs match the committed artifacts and constructor arguments.
+Guard creation inputs match the artifacts at the source commit above and their
+constructor arguments. The latest artifact includes later strategy-switching changes.
 Machine-readable proof: [ethereum-sepolia-verification.json](ethereum-sepolia-verification.json).
 
 ## Deployment
@@ -37,13 +38,16 @@ Machine-readable proof: [ethereum-sepolia-verification.json](ethereum-sepolia-ve
 | Synthetic enforcement Guard V2 | [0x799782cb42ae0f2803ef3c6fd3a79e50c85177fa](https://sepolia.etherscan.io/address/0x799782cb42ae0f2803ef3c6fd3a79e50c85177fa) |
 | Owner-controlled test forwarder | [0x6326003d7bbc057ef29cdbf0779d0d1bf654711c](https://sepolia.etherscan.io/address/0x6326003d7bbc057ef29cdbf0779d0d1bf654711c) |
 
-The [deployment bundle](../deployments/11155111.json) identifies the **CRE
-simulation receiver**, which trusts `0x15fc6ae953e024d975e77382eeec56a9101f9f88` and zero workflow
+At the time of this run, the deployment bundle identified the **CRE
+simulation receiver** above, which trusts `0x15fc6ae953e024d975e77382eeec56a9101f9f88` and zero workflow
 identity. `setup:guard config` successfully checked that receiver and generated
 a paused unshipped probe via read-only calls. No CRE delivery occurred.
 The enforcement demo uses the separate test receiver shown above. Its reports
 are synthetic; successful enforcement is **not a DON or TEE attestation**.
-Neither receiver implements an atomic A/B mandate switch.
+Neither receiver in this historical run implements an atomic A/B mandate switch.
+The [current deployment bundle](../deployments/11155111.json) may point to a later
+revision; see [receiver revision and recovery](ETHEREUM-SEPOLIA.md#receiver-revision-and-recovery).
+Do not use the 40 receipts here as proof of the later revision.
 
 ## Selected receipts
 

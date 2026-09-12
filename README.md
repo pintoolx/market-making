@@ -86,7 +86,7 @@ The integrated execution environment uses Ethereum Sepolia with canonical WETH a
 
 ## Integration status
 
-The web application, mandate API, Aqua executor, Guard contracts and confidential workflow are implemented and tested. Ethereum Sepolia execution is verified. The checked-in Sepolia receiver was deployed for CRE simulation before Maker-scoped atomic strategy switching was added; deploy the current Guard artifact with the final workflow identity before enabling the full product flow. The mandate service accepts only independently verified Guard events and transaction receipts.
+The web application, mandate API, Aqua executor, Guard contracts and confidential workflow are implemented and tested. Ethereum Sepolia execution is verified. The current Sepolia simulation receiver includes Maker-scoped atomic strategy switching; its [replacement proof](contracts/aqua-executor/docs/ethereum-sepolia-guard-revision.json) is separate from the earlier swap demo. Real CRE delivery and a production receiver with assigned workflow identity remain pending. The mandate service accepts only independently verified Guard events and transaction receipts.
 
 Provider policies and Maker limits are intended to remain confidential. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
 

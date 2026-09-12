@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { decodeFunctionData, erc20Abi, parseEther, parseUnits, type PublicClient } from 'viem'
 import { checkSepoliaAssets, DEMO_ACCOUNTS, fundingPlan, FUNDING_TARGET, guardIdentity, guardReleaseId, SEPOLIA, versionedGuardDeploymentFile } from '../src/sepolia.ts'
@@ -73,4 +75,12 @@ test('current Guard release and versioned manifest names are deterministic', () 
   assert.equal(guardReleaseId(fake), guardReleaseId(fake))
   assert.match(versionedGuardDeploymentFile('0x1111111111111111111111111111111111111111').pathname,
     /deployments\/11155111\.guard-0x1111111111111111111111111111111111111111\.json$/)
+})
+
+test('simulation-only setup commands cannot silently ignore production identity flags', () => {
+  for (const action of ['deploy', 'upgrade-guard']) {
+    const run = spawnSync(process.execPath, [fileURLToPath(new URL('../src/sepolia.ts', import.meta.url)), action, '--execute', '--production'], { encoding: 'utf8' })
+    assert.equal(run.status, 1)
+    assert.match(run.stderr, /receiver identity options require deploy-guard/)
+  }
 })

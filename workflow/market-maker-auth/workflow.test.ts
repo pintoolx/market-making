@@ -138,6 +138,9 @@ describe('onCronTrigger', () => {
 		const reportLine = logs.find((l) => l.includes('report={'))
 		expect(reportLine).toBeDefined()
 		expect(reportLine).toContain('"allowedDirections":"3"')
+		expect(reportLine).toContain(`"guard":"${runtime.config.guard}"`)
+		expect(reportLine).toContain(`"router":"${runtime.config.router}"`)
+		expect(reportLine).toContain('"chainId":"11155111"')
 		expect(logs.some((l) => /encodedReport=0x[0-9a-f]{1024}$/.test(l))).toBe(true) // 512 bytes
 		expect(logs.some((l) => /reportHash=0x[0-9a-f]{64}$/.test(l))).toBe(true)
 	})
@@ -205,6 +208,8 @@ describe('onHttpTrigger', () => {
 		const report = logs.find((line) => line.includes('report={'))
 		expect(report).toContain('0x5555555555555555555555555555555555555555')
 		expect(report).toContain(`0x${'6'.repeat(64)}`)
+		expect(report).toContain(`"guard":"${runtime.config.guard}"`)
+		expect(report).toContain(`"router":"${runtime.config.router}"`)
 	})
 
 	test('rejects private fields and malformed payloads without echoing their values', () => {
