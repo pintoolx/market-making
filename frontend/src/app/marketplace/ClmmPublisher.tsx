@@ -28,11 +28,14 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
   const [ttl, setTtl] = useState('300');
   const [threshold, setThreshold] = useState('');
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<'signing' | 'saving' | null>(null);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
-  const pending = useRef<{ key: string; body: string } | null>(null);
+  const pending = useRef<{ key: string; body: string; formKey: string; state: 'published' | 'withdrawn' } | null>(null);
   const provider = account.address?.toLowerCase();
   const publicKey = CONFIDENTIAL_WORKFLOW_PUBLIC_KEY;
+  const formKey = JSON.stringify([provider, name, summary, below, above, fill0, fill1, inventory0, inventory1, ttl, threshold]);
+  const canRetrySave = pending.current?.state === 'published' && pending.current.formKey === formKey;
 
   useEffect(() => {
     let alive = true;
@@ -55,6 +58,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
 
   const publish = async (state: 'published' | 'withdrawn') => {
     setError(''); setSaved(false);
+    let stage: 'preparing' | 'signing' | 'saving' = 'preparing';
     try {
       if (!provider || !account.signMessage || !loaded) throw new Error('Connect your Provider wallet and load the current version first.');
       if (!publicKey) throw new Error('The confidential workflow public key is not configured.');
@@ -76,16 +80,25 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
       if (pending.current?.key !== key) {
         const policy = providerPolicy(release, state === 'withdrawn' ? 0 : percentToBps(threshold));
         const envelope = sealProviderStrategy(policy, publicKey, provider);
+        stage = 'signing'; setPhase('signing');
         const signature = await account.signMessage(publicationMessage(release, envelope));
-        pending.current = { key, body: JSON.stringify({ release, envelope, signature }) };
+        pending.current = { key, body: JSON.stringify({ release, envelope, signature }), formKey, state };
       }
+      stage = 'saving'; setPhase('saving');
       const result = await request<PublicRelease>('/v1/provider-strategies', { method: 'POST', body: pending.current.body });
       const signed = JSON.parse(pending.current.body);
       if (result.id !== release.id || result.version !== release.version || result.digest !== keccak256(toHex(publicationMessage(signed.release, signed.envelope)))) throw new Error('Publication receipt did not match this version.');
       setLatest(result); setSaved(true); setThreshold(''); pending.current = null;
       window.dispatchEvent(new Event('pintool:published-changed'));
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Publication failed. Your inputs are preserved.'); }
-    finally { setBusy(false); }
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Publication failed.';
+      const networkFailure = reason instanceof TypeError && /fetch|network|load failed/i.test(message);
+      if (stage === 'saving' && networkFailure) {
+        setError('The publication service could not be reached. Keep this tab open and retry saving with the same inputs; your wallet signature is preserved.');
+      } else if (stage === 'signing') {
+        setError(`Wallet signing did not complete. Your inputs are preserved. ${message}`);
+      } else setError(message);
+    } finally { setBusy(false); setPhase(null); }
   };
 
   return <section className={aqua.flow}>
@@ -115,7 +128,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
       {saved && <p role="status">Version {latest?.version} {latest?.state === 'withdrawn' ? 'withdrawn from new provisioning. To stop an existing strategy, its Maker must revoke its Guard authorization or dock it in Aqua.' : 'saved. The Maker-specific program must be provisioned, shipped and authorized before it can quote.'}</p>}
       <div className={aqua.actionRow}>
-        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect Provider wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? 'Saving…' : `Sign and publish version ${(latest?.version ?? 0) + 1}`}</Primary>}
+        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect Provider wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? `Retry saving version ${(latest?.version ?? 0) + 1}` : `Sign and publish version ${(latest?.version ?? 0) + 1}`}</Primary>}
         {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Withdraw listing</Secondary>}
       </div>
       {!publicKey && <p className={aqua.muted}>Publication is waiting for a configured workflow encryption key.</p>}
