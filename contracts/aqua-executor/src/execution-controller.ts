@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { erc20Abi } from 'viem'
+import { erc20Abi, keccak256 } from 'viem'
 import { takerTraits, type Compiled } from './compile.ts'
 import { compileExecution as compile } from './execution-compile.ts'
 import type { Ctx } from './config.ts'
@@ -52,10 +52,19 @@ const activeOf = (plan: MonitorPlan) => compile(plan.rebalances?.at(-1)?.strateg
 export class ExecutionConflictError extends Error {}
 
 async function bindContext(ctx: Ctx, d: Deployment, store: ExecutionStore) {
-  const [chainId, genesis] = await monitorRead(() => Promise.all([ctx.pc.getChainId(), ctx.pc.getBlock({ blockNumber: 0n })]))
+  // Public/pruned RPCs may not retain the genesis block. Bind the journal to the
+  // live deployment bytecode instead, which also catches a wrong contract at a
+  // familiar address on another development network.
+  const [chainId, aquaCode, routerCode] = await monitorRead(() => Promise.all([
+    ctx.pc.getChainId(),
+    ctx.pc.getBytecode({ address: d.aqua }),
+    ctx.pc.getBytecode({ address: d.router }),
+  ]))
   if (chainId !== ctx.chain.id || chainId !== d.chainId) throw new Error('execution chainId mismatch')
+  if (!aquaCode || aquaCode === '0x' || !routerCode || routerCode === '0x') throw new Error('execution deployment has missing contract bytecode')
   const context = {
-    version: 1, chainId, genesis: genesis.hash, maker: ctx.maker.account.address.toLowerCase(), taker: ctx.taker.account.address.toLowerCase(),
+    version: 2, chainId, aquaCodeHash: keccak256(aquaCode), routerCodeHash: keccak256(routerCode),
+    maker: ctx.maker.account.address.toLowerCase(), taker: ctx.taker.account.address.toLowerCase(),
     aqua: d.aqua.toLowerCase(), router: d.router.toLowerCase(), tokens: Object.fromEntries(Object.entries(d.tokens).map(([k, v]) => [k, v.toLowerCase()])),
   }
   const saved = store.get('meta', 'context')
