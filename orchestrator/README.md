@@ -53,6 +53,37 @@ The default evidence network is Ethereum Sepolia (11155111), with `sepolia.ether
 
 ## Railway deployment
 
+### Reproducible Sepolia market scenarios
+
+Operators can evaluate an existing mandate against `normal-v1` (2520 USDC,
+20 bps) or `stress-v1` (2520 USDC, 400 bps). These are specified synthetic
+summary values for the 30-minute movement metric, not live Kraken observations
+or a backtest. The same confidential evaluator intersects the original Provider
+policy with the stored encrypted Maker limits. Token balances and decimals are
+still read from a real finalized Sepolia block.
+
+Run from the service's configured environment as the `node` user:
+
+```sh
+node bin/run-market-scenario <mandate-id> <listing-id> normal-v1
+node bin/run-market-scenario <mandate-id> <listing-id> stress-v1
+```
+
+Each command explicitly evaluates one provisioned profile. It invokes the CRE
+local simulator, broadcasts any changed authorization, verifies the Guard report,
+and updates the saved mandate. It does not sign Maker or Taker wallet transactions.
+Run commands sequentially and finish any outstanding trade before changing its
+Maker's active authorization.
+
+The separate `market-scenarios` targets allow only the official simulation
+transport on Ethereum Sepolia. Cron execution, arbitrary market snapshots,
+unknown scenario IDs, mismatched deployments and unprovisioned Makers are rejected.
+No public API route enables synthetic inputs; normal website reevaluation keeps
+its live data source. Scenario inputs and their digest are retained in the public
+execution record, explicitly labeled as synthetic. That digest identifies the
+workflow's input record; it is not a hardware attestation or an additional
+onchain commitment in the Guard ABI.
+
 The production `mandate-service` is connected to `pintoolx/market-making`, branch `main`. Pushes and merged PRs on that branch trigger Railway deployment automatically. The repository root is the build context; `railway.json` selects `orchestrator/Dockerfile` and checks `/health`.
 
 Mount persistent storage at `/data` so verified mandate state and sealed Maker input sidecars under `/data/mandates` survive deployments. Startup initializes the mounted directory and then drops to the `node` user before creating CRE credentials or starting the server. Keep this filesystem-backed service at one replica.

@@ -6,6 +6,7 @@ import { confidentialEnvelopeSchema, openConfidentialEnvelope, type Confidential
 import { computeAuthorization } from '../src/intersect'
 import { publishAuthorization } from '../src/publish'
 import { acquireMarket } from '../src/market-data'
+import { acquireScenarioMarket, scenarioIdSchema } from '../src/market-scenarios'
 import { transportSchema } from '../guard-report/config'
 import {
 	makerLimitsSchema,
@@ -44,7 +45,8 @@ export const configSchema = z.object({
 	/** TODO(pengu): router.hash(order) of the Maker-approved guarded program. */
 	strategyHash: hexBytes32,
 	/** Live mode acquires public observations itself; fixtures are dry-run only. */
-	marketSource: z.enum(['fixture', 'kraken']).default('fixture'),
+	marketSource: z.enum(['fixture', 'kraken', 'scenario']).default('fixture'),
+	scenarioId: scenarioIdSchema.optional(),
 	marketSnapshot: marketSnapshotSchema.optional(),
 	transport: transportSchema.optional(),
 }).superRefine((config, ctx) => {
@@ -53,6 +55,13 @@ export const configSchema = z.object({
 	}
 	if (config.marketSource === 'kraken' && config.marketSnapshot !== undefined) {
 		ctx.addIssue({ code: 'custom', message: 'Live acquisition must not carry a fixture marketSnapshot' })
+	}
+	if (config.marketSource === 'scenario') {
+		if (!config.scenarioId || config.marketSnapshot !== undefined || config.publishMode !== 'don-report' || config.transport?.profile !== 'cre-simulation') {
+			ctx.addIssue({ code: 'custom', message: 'Market scenarios require an explicit scenario ID, no fixture snapshot, and CRE simulation report transport' })
+		}
+	} else if (config.scenarioId !== undefined) {
+		ctx.addIssue({ code: 'custom', message: 'Scenario ID is not allowed in live or fixture mode' })
 	}
 	if (config.publishMode === 'don-report' && !config.transport) {
 		ctx.addIssue({ code: 'custom', message: 'Report delivery requires an explicit transport profile' })
@@ -87,6 +96,7 @@ export const httpRequestSchema = z
 export type HTTPRequest = z.infer<typeof httpRequestSchema>
 
 type ExecutionInput = Pick<Config, 'maker' | 'strategyHash' | 'marketSnapshot'> & {
+	requestId?: string
 	providerSecretId?: string
 	provider?: string
 	providerStrategyEnvelope?: ConfidentialEnvelope
@@ -129,9 +139,13 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 	// Acquire and validate PUBLIC data before fetching private inputs. Only maker
 	// and public data-source config are used in DON capability calls.
 	if (config.marketSource === 'kraken' && input.marketSnapshot !== undefined) throw new Error('Live acquisition rejects caller-supplied marketSnapshot')
-	const market = config.marketSource === 'kraken'
+	if (config.marketSource === 'scenario' && (input.marketSnapshot !== undefined || !input.requestId || input.maker.toLowerCase() !== config.maker.toLowerCase())) throw new Error('Scenario execution requires a provisioned Maker HTTP request without market overrides')
+	const scenario = config.marketSource === 'scenario'
+		? acquireScenarioMarket(runtime.usingTheDons(), input.maker, config.scenarioId!) : undefined
+	const market = scenario?.market ?? (config.marketSource === 'kraken'
 		? acquireMarket(runtime.usingTheDons(), input.maker).market
-		: marketSnapshotSchema.parse(input.marketSnapshot)
+		: marketSnapshotSchema.parse(input.marketSnapshot))
+	if (scenario) runtime.log(JSON.stringify({ kind: 'cre-market-scenario', requestId: input.requestId, strategyHash: input.strategyHash, ...scenario.evidence }))
 
 	// ── 1. Both confidential inputs, one Vault DON round-trip ──
 	// Secrets are released only into the attested enclave; one getSecrets()
@@ -196,7 +210,10 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 }
 
 // Cron remains useful for continuous re-evaluation of the configured strategy.
-export const onCronTrigger = (runtime: TeeRuntime<Config>): string => executeAuthorization(runtime, runtime.config)
+export const onCronTrigger = (runtime: TeeRuntime<Config>): string => {
+	if (runtime.config.marketSource === 'scenario') throw new Error('Market scenarios are manual HTTP executions only')
+	return executeAuthorization(runtime, runtime.config)
+}
 
 // HTTP provides an on-demand product entry point. No request value is logged.
 export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload): string => {
@@ -214,6 +231,7 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		expectedStrategyId = binding.strategyId
 	}
 	const result = executeAuthorization(runtime, {
+		requestId: parsed.data.requestId,
 		...(parsed.data.providerStrategyEnvelope
 			? { provider: parsed.data.provider, providerStrategyEnvelope: parsed.data.providerStrategyEnvelope }
 			: { providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash) }),

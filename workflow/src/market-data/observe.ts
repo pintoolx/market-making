@@ -59,33 +59,7 @@ export function observeMarket(runtime: Runtime<unknown>, input: Config) {
   )(config, observedAt).result();
   const summary = summarizeMarket(market, observedAt, config);
 
-  const network = getNetwork({ chainFamily: "evm", chainSelectorName: config.chainSelectorName, isTestnet: true });
-  if (!network) throw new Error("Ethereum Sepolia is unavailable in the CRE SDK network registry");
-  const evm = new EVMClient(network.chainSelector.selector);
-  const header = evm.headerByNumber(runtime, { blockNumber: LAST_FINALIZED_BLOCK_NUMBER }).result().header;
-  if (!header?.blockNumber || header.hash.length !== 32) throw new Error("Finalized block header is incomplete");
-  const height = protoBigIntToBigint(header.blockNumber);
-  if (height <= 0n) throw new Error("Invalid finalized block number");
-  assertFresh("Finalized block", header.timestamp, observedAt, config.maxFinalizedBlockAgeSeconds, config.clockSkewSeconds);
-
-  const read = (address: Address, data: Hex): Hex => bytesToHex(evm.callContract(runtime, {
-    call: encodeCallMsg({ from: zeroAddress, to: address, data }),
-    blockNumber: blockNumber(height),
-  }).result().data);
-  const readToken = (address: Address, expectedDecimals: number) => {
-    const decimals = decodeFunctionResult({
-      abi: tokenAbi, functionName: "decimals",
-      data: read(address, encodeFunctionData({ abi: tokenAbi, functionName: "decimals" })),
-    });
-    if (decimals !== expectedDecimals) throw new Error(`Unexpected token decimals at ${address}`);
-    const balance = decodeFunctionResult({
-      abi: tokenAbi, functionName: "balanceOf",
-      data: read(address, encodeFunctionData({ abi: tokenAbi, functionName: "balanceOf", args: [config.maker as Address] })),
-    });
-    return { address, decimals, balanceAtomic: balance.toString(), balance: formatUnits(balance, decimals) };
-  };
-  const weth = readToken(config.weth, 18);
-  const usdc = readToken(config.usdc, 6);
+  const { weth, usdc, network, height, header } = observeWallet(runtime, config);
   const price = formatUnits(summary.midpoint, PRICE_DECIMALS);
   const result = {
     schemaVersion: "market-observation-v2",
@@ -117,4 +91,38 @@ export function observeMarket(runtime: Runtime<unknown>, input: Config) {
   };
   runtime.log(`Market snapshot: ETH/USDC midpoint=${price}; volatility30m=${summary.volatility.bps} bps; maker WETH=${weth.balance}; USDC=${usdc.balance}; finalized block=${height}`);
   return result;
+}
+
+/** Read real finalized Sepolia balances independently of the market-price source. */
+export function observeWallet(runtime: Runtime<unknown>, config: Config) {
+  const observedAt = BigInt(Math.floor(runtime.now().getTime() / 1000));
+  const network = getNetwork({ chainFamily: "evm", chainSelectorName: config.chainSelectorName, isTestnet: true });
+  if (!network) throw new Error("Ethereum Sepolia is unavailable in the CRE SDK network registry");
+  const evm = new EVMClient(network.chainSelector.selector);
+  const header = evm.headerByNumber(runtime, { blockNumber: LAST_FINALIZED_BLOCK_NUMBER }).result().header;
+  if (!header?.blockNumber || header.hash.length !== 32) throw new Error("Finalized block header is incomplete");
+  const height = protoBigIntToBigint(header.blockNumber);
+  if (height <= 0n) throw new Error("Invalid finalized block number");
+  assertFresh("Finalized block", header.timestamp, observedAt, config.maxFinalizedBlockAgeSeconds, config.clockSkewSeconds);
+
+  const read = (address: Address, data: Hex): Hex => bytesToHex(evm.callContract(runtime, {
+    call: encodeCallMsg({ from: zeroAddress, to: address, data }),
+    blockNumber: blockNumber(height),
+  }).result().data);
+  const readToken = (address: Address, expectedDecimals: number) => {
+    const decimals = decodeFunctionResult({
+      abi: tokenAbi, functionName: "decimals",
+      data: read(address, encodeFunctionData({ abi: tokenAbi, functionName: "decimals" })),
+    });
+    if (decimals !== expectedDecimals) throw new Error(`Unexpected token decimals at ${address}`);
+    const balance = decodeFunctionResult({
+      abi: tokenAbi, functionName: "balanceOf",
+      data: read(address, encodeFunctionData({ abi: tokenAbi, functionName: "balanceOf", args: [config.maker as Address] })),
+    });
+    return { address, decimals, balanceAtomic: balance.toString(), balance: formatUnits(balance, decimals) };
+  };
+  const weth = readToken(config.weth, 18);
+  const usdc = readToken(config.usdc, 6);
+  return { weth, usdc, network, height, header };
+
 }

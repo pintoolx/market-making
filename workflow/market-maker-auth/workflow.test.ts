@@ -376,3 +376,24 @@ test('live HTTP acquisition rejects injected market data before private inputs a
     strategyHash: runtime.config.strategyHash, marketSnapshot, makerLimitsEnvelope: SEALED_MAKER }))).toThrow('rejects caller-supplied')
   expect(secretCalls).toEqual([])
 })
+
+describe('scenario isolation', () => {
+  const scenario = () => ({ ...makeConfig(), marketSource: 'scenario', scenarioId: 'normal-v1', marketSnapshot: undefined, publishMode: 'don-report',
+    transport: { profile: 'cre-simulation', forwarder: '0x15fc6ae953e024d975e77382eeec56a9101f9f88', workflowId: `0x${'0'.repeat(64)}`, workflowOwner: `0x${'0'.repeat(40)}`, gasLimit: '500000' } })
+  test('requires a named simulation scenario and prevents production and snapshot overrides', () => {
+    expect(configSchema.parse(scenario()).scenarioId).toBe('normal-v1')
+    for (const patch of [{ scenarioId: undefined }, { scenarioId: 'custom' }, { marketSnapshot: makeConfig().marketSnapshot },
+      { marketSource: 'kraken' }, { publishMode: 'dry-run' }, { transport: { ...scenario().transport, profile: 'cre-production' } }]) {
+      expect(() => configSchema.parse({ ...scenario(), ...patch })).toThrow()
+    }
+  })
+  test('cron and caller-supplied snapshots are rejected before any secret or capability call', () => {
+    const { runtime, secretCalls, crossedToDons } = makeFakeTeeRuntime()
+    runtime.config = configSchema.parse(scenario())
+    expect(() => onCronTrigger(runtime)).toThrow('manual HTTP')
+    expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'scenario-check', maker: runtime.config.maker,
+      strategyHash: runtime.config.strategyHash, makerLimitsEnvelope: SEALED_MAKER, marketSnapshot: makeConfig().marketSnapshot }))).toThrow('without market overrides')
+    expect(secretCalls).toEqual([])
+    expect(crossedToDons()).toBe(0)
+  })
+})
