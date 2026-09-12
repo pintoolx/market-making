@@ -1,0 +1,12 @@
+.git
+**/.env
+**/.env.*
+!**/.env.example
+**/.next
+**/node_modules
+**/out
+**/.state
+**/records
+contracts
+frontend
+workflow

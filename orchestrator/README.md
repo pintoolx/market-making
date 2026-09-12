@@ -52,3 +52,28 @@ node src/server.mjs
 Set the frontend build variable to the public service URL, for example `NEXT_PUBLIC_MANDATE_API_URL=http://localhost:8787` during local integration. When Ethereum Sepolia is ready, change the chain, RPC and explorer environment variables together; the HTTP contract remains unchanged.
 
 The default evidence network is Ethereum Sepolia (11155111), with `sepolia.etherscan.io` transaction links. Set the chain ID, network name, RPC and explorer together when overriding the defaults. The gateway must use the same confirmed Sepolia deployment; changing these defaults does not deploy or configure the gateway.
+
+## Railway deployment
+
+The root `railway.json` builds `orchestrator/Dockerfile` and checks `/health`. Create a Railway service from this repository and mount a persistent volume at `/data`; the container stores verified public mandate state under `/data/mandates`.
+
+Set these service variables:
+
+```text
+ALLOWED_ORIGIN=https://mm.pintool.fun
+MANDATE_RUNNER=/workspace/orchestrator/bin/cre-mandate-runner
+MANDATE_CHAIN_ID=11155111
+MANDATE_NETWORK_NAME=Ethereum Sepolia
+MANDATE_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+MANDATE_EXPLORER_URL=https://sepolia.etherscan.io
+MANDATE_STATE_DIR=/data/mandates
+CRE_GATEWAY_URL=<CRE HTTP gateway>
+CRE_WORKFLOW_ID=<64 hex characters, without 0x>
+CRE_HTTP_TRIGGER_PRIVATE_KEY=<authorized EVM signing key>
+MANDATE_GUARD_ADDRESS=<current Guard deployment>
+MANDATE_STRATEGY_CATALOG=<listing-to-strategy JSON>
+MANDATE_MARKET_SNAPSHOT=<public market-state JSON>
+MANDATE_POLICY_SHA256=<provisioned Maker-policy digest>
+```
+
+Railway supplies `PORT`. After deployment, open `/health`, add the generated HTTPS origin to the frontend as `NEXT_PUBLIC_MANDATE_API_URL`, and rebuild the static frontend. A healthy process proves only that configuration parsing and HTTP serving work; create a mandate to verify CRE delivery and onchain evidence.
