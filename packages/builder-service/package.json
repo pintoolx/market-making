@@ -20,7 +20,8 @@
     "viem": "2.56.3",
     "zod": "4.4.3",
     "ai": "7.0.99",
-    "@ai-sdk/openai": "4.0.66"
+    "@ai-sdk/openai": "4.0.66",
+    "jose": "6.2.12"
   },
   "devDependencies": {
     "@types/node": "24.13.4",

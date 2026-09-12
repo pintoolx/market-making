@@ -70,7 +70,7 @@ const RETIRED_API = 'https://pintool-backend-production.up.railway.app';
 const configuredApi = process.env.NEXT_PUBLIC_MANDATE_API_URL?.replace(/\/$/, '');
 const API_BASE = !configuredApi || configuredApi === RETIRED_API ? PRODUCTION_API : configuredApi;
 
-function getApiBase(): string {
+export function getApiBase(): string {
   if (!API_BASE) throw new Error('Mandate service is not configured. Set NEXT_PUBLIC_MANDATE_API_URL.');
   return API_BASE;
 }

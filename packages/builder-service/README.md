@@ -23,7 +23,9 @@ Migrations use the dedicated `builder` schema, an advisory transaction lock and 
 
 The API derives `owner = wallet:<verified lowercase address>` from a server session. Existing Privy-connected EOA wallets can sign the generated ERC-4361 challenge without assets. Challenges expire after five minutes and are consumed atomically once. The signed session duration is at most 24 hours. Message text, domain, chain and address come from the server; sessions are bound to the configured origin and chain. Database rows store token hashes, and logout revokes the session. Smart-contract wallet signatures are not supported by this initial EOA adapter.
 
-Clients must keep the returned bearer token out of URLs, logs and model input. Mount this handler with the same explicit HTTPS frontend origin used by the application's wallet UI. Browser requests send `Authorization` and `Idempotency-Key` headers. CORS is not authentication. The handler rejects client-supplied owners, message roles/tool history and unsupported fields. New Maker drafts use the session wallet and cannot be retargeted to an unverified address.
+Production mounting must set `privyAppId` to the frontend's existing Privy app. The handler verifies `X-Privy-Access-Token` against that app's public JWKS using ES256, issuer `privy.io`, the app audience, required user/session/issued/expiry claims and a two-hour maximum token age. Identity tokens are rejected. Both the challenge and Builder session are bound to this Privy app, user and login session; a fresh token for the same session works, a different session does not. The wallet still signs its own challenge. No Privy app secret is required. Without this configuration the EOA-only adapter remains available for local scripts; it is not the production Builder authentication configuration.
+
+Clients must keep both tokens out of URLs, logs and model input. Mount this handler with the same explicit HTTPS frontend origin used by the application's wallet UI. Browser requests send `Authorization`, `X-Privy-Access-Token` and `Idempotency-Key` headers. CORS is not authentication. The handler rejects client-supplied owners, message roles/tool history and unsupported fields. New Maker drafts use the session wallet and cannot be retargeted to an unverified address.
 
 Every owner-facing repository query filters by owner. Composite foreign keys prevent attaching another owner's child records. These repositories are server-internal and do not expose SQL or a direct client database connection. This batch uses application authorization and constraints, not per-user PostgreSQL RLS. Use dedicated application database credentials in deployment; migration/operator credentials and worker internals must not be exposed through the API or model tools.
 
@@ -43,9 +45,10 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | POST `/auth/logout` | Revokes this session |
 | GET `/capabilities` | Current domain capability evidence, not a deployment-readiness claim |
 | POST `/conversations` | `{ title, kind: "template" \| "maker" }`; creates conversation and draft |
-| GET `/conversations` | Latest 100 owned conversations |
+| GET `/conversations` | Latest 100 owned conversations, including active turn ID/state for recovery |
 | GET `/drafts/:id` | Owned draft |
 | GET `/drafts/:id/history` | Latest 100 immutable revision summaries |
+| GET `/drafts/:id/validation` | Authoritative validation and requirement assessment for the current revision and pinned profile |
 | POST `/drafts/:id/patch` | `{ expectedRevision, patch }` |
 | POST `/drafts/:id/restore` | `{ expectedRevision, revision }`; appends a revision |
 | POST `/conversations/:id/messages` | `{ content }`; public user text only |
@@ -65,7 +68,25 @@ Six tools are currently wired: capabilities, token resolution, patch/restore, va
 
 Agent work survives HTTP disconnects. A separate process claims queued/expired turns; each attempt has a lease, and a draft mutation checks the current lease and last revision in the same transaction. User edits or new standalone user messages supersede the old turn. Cancellation prevents late events, mutations and assistant completion; it does not erase an already committed revision. A process restart can reclaim an expired turn up to three attempts; graceful shutdown leaves the lease available for recovery. A `started` event resets provisional text for the new attempt. Ordinary model failure is terminal for that turn and leaves the draft reviewable; the user can submit a new turn against its current revision.
 
-Text and allowlisted tool name/success events are persisted for replay. No raw SDK event, reasoning trace, credential, private-policy input or tool output object goes to the client stream. Owner and lease identifiers do not go into model tool context. Existing SIWE is an EOA adapter; application Privy-token verification, UI integration and deployment mounting remain pending. The chat is explicitly for public strategy goals and public parameters; the private-policy editor is a separate future boundary.
+Text and allowlisted tool name/success events are persisted for replay. No raw SDK event, reasoning trace, credential, private-policy input or tool output object goes to the client stream. Owner and lease identifiers do not go into model tool context. The chat is explicitly for public strategy goals and public parameters; the private-policy editor is a separate future boundary.
+
+## Browser workspace
+
+`/builder` uses the existing Privy wallet provider and displays owned conversations, streamed Markdown replies, current parameters, missing settings, immutable revision diffs and restore actions. The Builder bearer token stays in browser memory; Privy refreshes its access token for each request. Reloading requires wallet proof again and reopens saved work. Failed authentication returns to wallet verification. Lost acceptance responses can recover the active turn through the conversation list. Stopping generation preserves committed edits and cancels the worker's remaining authority.
+
+The Provider navigation link is gated by `NEXT_PUBLIC_BUILDER_ENABLED=true`; leave it unset until the API/worker is mounted and verified. The page currently designs public Provider drafts. Publication, private editing and Maker execution are subsequent stages, and the UI does not represent a draft as deployed.
+
+The browser fixture bundles the actual workspace with a public local wallet and synthetic Privy JWT. Its server uses a disposable local PostgreSQL database, the real handler/worker/tools, and a deterministic model. It never adds a fixture route to the application. Install Python Playwright/Chromium in the test environment, then from the repository root:
+
+```sh
+pnpm --package esbuild@0.28.2 dlx esbuild packages/builder-service/test/browser/entry.jsx --bundle --format=esm --platform=browser --jsx=automatic --conditions=style --external:/hero.svg --outdir=.cache/builder/browser '--define:process.env.NEXT_PUBLIC_MANDATE_API_URL="http://127.0.0.1:3311"' '--define:process.env.NODE_ENV="development"'
+# Set BUILDER_TEST_DATABASE_URL to disposable localhost PostgreSQL, start this in one terminal:
+node packages/builder-service/test/browser/server.mjs
+# In another terminal:
+python3 packages/builder-service/test/browser/run.py
+```
+
+The Python checks cover login, streamed text, two turns of CLMM edits, preserved caps, restoration, cancellation, a committed request with a lost response, reopening saved work, expired-session recovery, and mobile layout. Screenshots go to ignored `.cache/builder/`. These are browser/API/database checks with a fixture identity and model, not live Privy sign-in or live OpenAI browser acceptance.
 
 Live checks use disposable localhost PostgreSQL databases and public fixture conversations:
 

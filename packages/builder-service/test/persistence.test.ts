@@ -34,15 +34,15 @@ after(async () => {
 
 test('real PostgreSQL migrations serialize, verify checksums and preserve unrelated data', async () => {
   const applied = await Promise.all([migrate(pool), migrate(pool)])
-  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 2)
+  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 3)
   assert.equal((await pool.query('SELECT value FROM public.legacy_marker')).rows[0].value, 'keep')
-  assert.deepEqual(await migrate(pool), { available: 2, applied: 0 })
+  assert.deepEqual(await migrate(pool), { available: 3, applied: 0 })
   const dir = await mkdtemp(join(tmpdir(), 'builder-migration-'))
   try {
     const sql = await readFile(new URL('../migrations/001_drafts_and_jobs.sql', import.meta.url), 'utf8')
     await writeFile(join(dir, '001_drafts_and_jobs.sql'), sql + '\n-- changed migration\n')
     await assert.rejects(migrate(pool, pathToFileURL(dir + '/')), /checksum mismatch/)
-    assert.deepEqual(await migrate(pool), { available: 2, applied: 0 })
+    assert.deepEqual(await migrate(pool), { available: 3, applied: 0 })
   } finally { await rm(dir, { recursive: true, force: true }) }
 })
 
@@ -191,6 +191,10 @@ test('HTTP routes authenticate wallet ownership, persist multi-turn data and rej
     assert.equal(created.status, 200)
     const { draft, conversationId } = created.body
     assert.equal((await call(`/drafts/${draft.id}`, { token: another })).status, 404)
+    assert.equal((await call(`/drafts/${draft.id}/validation`, { token: another })).status, 404)
+    const validation = await call(`/drafts/${draft.id}/validation`, { token })
+    assert.equal(validation.status, 200); assert.equal(validation.body.revision, 1); assert.equal(validation.body.ready, false)
+    assert.ok(validation.body.missingFields.includes('spec.guardEnvelope'))
     assert.equal((await call(`/drafts/${draft.id}/patch`, { token, key: randomUUID(), body: { expectedRevision: 1, owner: other, patch: {} } })).status, 400)
     const edit = { expectedRevision: 1, patch: { spec: { model: { kind: 'xyc' }, feeBps: 0 } } }, requestId = randomUUID()
     const response = await call(`/drafts/${draft.id}/patch`, { token, key: requestId, body: edit })
@@ -210,10 +214,14 @@ test('HTTP routes authenticate wallet ownership, persist multi-turn data and rej
     assert.deepEqual((await call(turnPath, { token, key: turnKey, body: turnInput })).body, accepted.body)
     assert.equal((await call(turnPath, { token, key: randomUUID(), body: turnInput })).status, 409)
     const turnId = accepted.body.id
+    const listed = (await call('/conversations', { token })).body.conversations.find((c: any) => c.conversationId === conversationId)
+    assert.equal(listed.activeTurnId, turnId); assert.equal(listed.activeTurnState, 'queued')
+    assert.equal((await call('/conversations', { token: another })).body.conversations.some((c: any) => c.conversationId === conversationId), false)
     assert.equal((await call(`/turns/${turnId}`, { token })).body.turn.state, 'queued')
     assert.equal((await call(`/turns/${turnId}/events`, { token: another })).status, 404)
     assert.deepEqual((await call(`/turns/${turnId}/events`, { token })).body.events, [])
     assert.equal((await call(`/turns/${turnId}/cancel`, { token, key: randomUUID(), body: {} })).body.state, 'cancelled')
+    assert.equal((await call('/conversations', { token })).body.conversations.find((c: any) => c.conversationId === conversationId).activeTurnId, null)
     assert.equal((await call('/auth/logout', { token, body: {} })).status, 200)
     assert.equal((await call('/conversations', { token })).status, 401)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }

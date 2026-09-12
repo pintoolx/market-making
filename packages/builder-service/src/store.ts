@@ -88,8 +88,10 @@ export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
     },
     async list(owner: string) {
       ownerSchema.parse(owner)
-      return (await pool.query(`SELECT c.id AS "conversationId", c.title, c.updated_at AS "updatedAt", d.id AS "draftId", d.revision::text
+      return (await pool.query(`SELECT c.id AS "conversationId", c.title, c.updated_at AS "updatedAt", d.id AS "draftId", d.revision::text,
+        t.id AS "activeTurnId",t.state AS "activeTurnState"
         FROM builder.conversations c JOIN builder.drafts d ON d.conversation_id=c.id AND d.owner=c.owner
+        LEFT JOIN builder.agent_turns t ON t.draft_id=d.id AND t.owner=d.owner AND t.state IN ('queued','running')
         WHERE c.owner=$1 ORDER BY c.updated_at DESC, c.id LIMIT 100`, [owner])).rows
     },
     async patch(owner: string, requestId: string, input: unknown) {
