@@ -30,8 +30,8 @@ export default function AquaApp({ screen }: { screen: Screen }) {
     <section className={aqua.homeTop} aria-label="Choose a role">
       <div className={aqua.homeIntro}>
         <span className={aqua.eyebrow}>Private strategies · self-custodial liquidity</span>
-        <h1>Two Providers.<span>One maker balance.</span></h1>
-        <p>Makers let private strategies compete inside one confidential capital mandate. The active strategy can change with the market while funds remain in the Maker wallet.</p>
+        <h1>Private strategies.<span>One maker balance.</span></h1>
+        <p>Build a strategy set, place one confidential capital mandate around it, and let market conditions decide which strategy may use your liquidity.</p>
       </div>
       <div className={aqua.roleChoices}>
         <article className={`${styles.card} ${aqua.roleCard}`}>
