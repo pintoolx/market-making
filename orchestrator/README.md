@@ -55,22 +55,27 @@ The default evidence network is Ethereum Sepolia (11155111), with `sepolia.ether
 
 The root `railway.json` builds `orchestrator/Dockerfile` and checks `/health`. Create a Railway service from this repository and mount a persistent volume at `/data`; the container stores verified public mandate state under `/data/mandates`.
 
-Set these service variables:
+The image runs CRE CLI local simulation and broadcasts through Chainlink's official
+simulation forwarder. It pins CRE v1.33.0, installs Bun, and writes credentials and
+workflow secrets only when the container starts. Set these service variables:
 
 ```text
 ALLOWED_ORIGIN=https://mm.pintool.fun
-MANDATE_RUNNER=/workspace/orchestrator/bin/cre-mandate-runner
+MANDATE_RUNNER=/workspace/orchestrator/bin/cre-local-simulation-runner
 MANDATE_CHAIN_ID=11155111
 MANDATE_NETWORK_NAME=Ethereum Sepolia
 MANDATE_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 MANDATE_EXPLORER_URL=https://sepolia.etherscan.io
 MANDATE_STATE_DIR=/data/mandates
-CRE_GATEWAY_URL=<CRE HTTP gateway>
-CRE_WORKFLOW_ID=<64 hex characters, without 0x>
-CRE_HTTP_TRIGGER_PRIVATE_KEY=<authorized EVM signing key>
+CRE_AUTH_CONFIG_B64=<base64-encoded CRE CLI credential file>
+CRE_ETH_PRIVATE_KEY=<funded Sepolia report signer>
+SECRET_PROVIDER_STRATEGY=<private Provider policy JSON>
+SECRET_PROVIDER_STRATEGY_DEFENSIVE=<private Provider policy JSON>
+SECRET_MAKER_LIMITS=<fallback private Maker limits JSON>
+SECRET_ENVELOPE_PRIVATE_KEY=<X25519 private key used by the confidential handler>
 MANDATE_GUARD_ADDRESS=<current Guard deployment>
 MANDATE_STRATEGY_CATALOG=<listing-to-strategy JSON>
 MANDATE_MARKET_SNAPSHOT=<public market-state JSON>
 ```
 
-Railway supplies `PORT`. After deployment, open `/health`, add the generated HTTPS origin to the frontend as `NEXT_PUBLIC_MANDATE_API_URL`, and rebuild the static frontend. A healthy process proves only that configuration parsing and HTTP serving work; create a mandate to verify CRE delivery and onchain evidence.
+Railway supplies `PORT`. After deployment, open `/health`, add the generated HTTPS origin to the frontend as `NEXT_PUBLIC_MANDATE_API_URL`, and rebuild the static frontend. A healthy process proves only that configuration parsing and HTTP serving work; create a mandate to verify CRE compilation, simulated confidential execution, official-forwarder delivery and onchain evidence. This mode is CRE local simulation, not production DON execution or TEE attestation.

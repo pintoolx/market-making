@@ -118,6 +118,7 @@ export function runAdapter(executable, request, timeoutMs = 120000) {
     child.stdout.on('data', chunk => { stdout += chunk; if (stdout.length > 2_000_000) { child.kill('SIGKILL'); finish(new Error('runner output exceeded limit')); } });
     // Drain stderr without retaining it. A faulty runner must not leak private inputs into application logs.
     child.stderr.resume();
+    child.stdin.on('error', finish);
     child.once('error', finish);
     child.once('close', code => {
       if (code !== 0) return finish(new Error('confidential runner failed'));
