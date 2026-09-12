@@ -380,11 +380,13 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
       <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Execution profiles</h2><span className={aqua.muted}>{adaptive ? 'One strategy · one shared balance' : 'Self-custodial liquidity'}</span></div>
       {profiles.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
-        <div><span className={aqua.eyebrow}>{adaptive ? name : strategy.provider ?? 'Independent Provider'}</span><strong>{strategy.name}</strong></div>
+        <div><span className={aqua.eyebrow} title={strategy.provider}>{adaptive ? name : /^0x[a-f0-9]{40}$/i.test(strategy.provider ?? '') ? shortHash(strategy.provider!) : strategy.provider ?? 'Independent Provider'}</span><strong>{strategy.name}</strong></div>
         <div className={aqua.rosterStatus}>
           <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to verify'}</span>
           {'readiness' in strategy && <small>Guard: {!fresh(strategy) ? 'not verified' : strategy.readiness?.authorized ? 'authorized' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'not verified'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'not verified'}</small>}
           {strategy.strategyHash && <CopyStrategyHash value={strategy.strategyHash} />}
+        </div>
+        <div className={aqua.rosterActions}>
           <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Evaluate profile</Secondary>
           <Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trading page ↗</Link>
         </div>

@@ -1,6 +1,15 @@
 import { decodeAbiParameters, decodeFunctionData, keccak256, parseAbi } from 'viem';
 import { aquaActivationAbi } from './aqua-activation.mjs';
 
+/** Accept decoded contract errors only, never text containing an error name. */
+export function isInactiveStrategyError(error) {
+  let current = error;
+  for (let i = 0; current && i < 16; i++, current = current.cause) {
+    if (current.data?.errorName === 'StrategyNotActive') return true;
+  }
+  return false;
+}
+
 export const tradeAbi = parseAbi([
   'struct Order { address maker; uint256 traits; bytes data; }',
   'function quote(Order order, address tokenIn, address tokenOut, uint256 amount, bytes takerTraitsAndData) view returns (uint256 amountIn, uint256 amountOut, bytes32 orderHash)',

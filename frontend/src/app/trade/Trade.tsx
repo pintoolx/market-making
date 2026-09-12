@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useConnectWallet, useWallets } from '@privy-io/react-auth';
 import { createPublicClient, createWalletClient, custom, decodeEventLog, erc20Abi, formatUnits, http, parseUnits, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
-import { tradeAbi, verifiedTradeOrder, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
+import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
 import deployment from '../../../../contracts/aqua-executor/deployments/11155111.json';
 import { PRIVY_APP_ID } from '../providers/PrivyProvider';
 import { request, type ExecutableStrategyCatalog, type ExecutableStrategy } from '../marketplace/mandateClient';
@@ -16,6 +16,7 @@ import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import styles from '../marketplace/page.module.css';
 import aqua from '../marketplace/aqua.module.css';
+import GuardCheck from './GuardCheck';
 
 const client = createPublicClient({ chain: sepolia, transport: http(process.env.NEXT_PUBLIC_ENS_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com', { timeout: 15000, retryCount: 1 }) });
 const router = deployment.router as Hex;
@@ -49,6 +50,8 @@ function TradeForm() {
   const [failedHash, setFailedHash] = useState<Hex | null>(null);
   const [settled, setSettled] = useState<{ hash: Hex; amount: string; output: string; inputSymbol: string; outputSymbol: string } | null>(null);
   const [busy, setBusy] = useState('');
+  const [guardCheckPending, setGuardCheckPending] = useState(false);
+  const [inactiveStrategy, setInactiveStrategy] = useState('');
   const [error, setError] = useState('');
   const [now, setNow] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -71,8 +74,9 @@ function TradeForm() {
     return () => { alive = false; clearInterval(tick); };
   }, []);
   const act = async (label: string, action: () => Promise<void>) => {
-    setError(''); setBusy(label);
+    setError(''); setInactiveStrategy(''); setBusy(label);
     try { await action(); } catch (e) { const message = e instanceof Error ? e.message : 'Unable to complete this request.';
+      if (isInactiveStrategyError(e)) setInactiveStrategy(selected);
       setError(/StrategyNotActive|DirectionDisabled/.test(message) ? 'This strategy is not currently authorized to trade in this direction. Its Maker needs to review the execution conditions.' : /AmountLimitExceeded|InventoryLimitExceeded/.test(message) ? 'This trade exceeds the strategy’s current trade or inventory limits. Try a smaller amount.' : /rejected|denied/i.test(message) ? 'Wallet request cancelled. No new transaction was submitted.' : message); }
     finally { setBusy(''); }
   };
@@ -155,14 +159,14 @@ function TradeForm() {
     <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <form className={aqua.tradeForm} onSubmit={e => { e.preventDefault(); void review(); }}>
-          <fieldset disabled={!!busy || !!pending || !loaded || !ready}>
+          <fieldset disabled={!!busy || !!pending || guardCheckPending || !loaded || !ready}>
             <legend>Trade details</legend>
             <label>Strategy<select value={selected} onChange={e => { setSelected(e.target.value); setQuote(null); setError(''); }}><option value="">Choose a strategy</option>{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label>Trading wallet<select value={address} onChange={e => { setAddress(e.target.value); setQuote(null); }}><option value="">Choose a wallet</option>{wallets.map(w => <option key={w.address} value={w.address}>{short(w.address)}</option>)}</select></label>
             <Secondary type="button" onClick={() => connectWallet()}>Connect trading wallet</Secondary>
             <label>Pay token<select value={direction} onChange={e => { setDirection(e.target.value as 'USDC' | 'WETH'); setQuote(null); }}><option>USDC</option><option>WETH</option></select></label><label>You pay<FormInput aria-label="Amount to pay" placeholder="0.00" inputMode="decimal" required value={amount} onChange={e => { setAmount(e.target.value); setQuote(null); }} /></label>
           </fieldset>
-          {!pending && <Primary type="submit" disabled={!!busy || !choice || !wallet || !amount}>{busy || 'Review quote'}</Primary>}
+          {!pending && <Primary type="submit" disabled={!!busy || guardCheckPending || !choice || !wallet || !amount}>{busy || 'Review quote'}</Primary>}
         </form>
         {loaded && !choices.length && <p>No wallet-activated strategies are available yet.</p>}
         {quote && <>
@@ -172,7 +176,7 @@ function TradeForm() {
             <div><dt>Slippage tolerance</dt><dd>0.5%</dd></div>
             <div><dt>Quote valid for</dt><dd>{expired ? 'Expired' : `${Math.max(0, Math.floor(quote.deadline - now / 1000))} seconds`}</dd></div>
           </dl>
-          <Primary disabled={!!busy || !!pending || expired} onClick={() => void sign()}>{quote.allowance < quote.amount ? `Approve ${direction} in wallet` : 'Swap in wallet'}</Primary>
+          <Primary disabled={!!busy || !!pending || guardCheckPending || expired} onClick={() => void sign()}>{quote.allowance < quote.amount ? `Approve ${direction} in wallet` : 'Swap in wallet'}</Primary>
           {quote.allowance < quote.amount && <p>Approve only this amount, then review a fresh quote to swap.</p>}
         </>}
         {pending && <><p role="status">{pending.kind === 'swap' ? 'Swap' : 'Approval'} submitted. Check its confirmation before sending another.</p><a href={`https://sepolia.etherscan.io/tx/${pending.hash}`} target="_blank" rel="noreferrer">View transaction ↗</a><Secondary disabled={!!busy} onClick={() => void act('Checking confirmation…', () => confirm(pending))}>Check confirmation</Secondary></>}
@@ -180,6 +184,7 @@ function TradeForm() {
         {failedHash && <a href={`https://sepolia.etherscan.io/tx/${failedHash}`} target="_blank" rel="noreferrer">View failed transaction ↗</a>}
         {busy && <p role="status">{busy}</p>}
         {error && <p role="alert" className={aqua.fieldError}>{error.length > 500 ? `${error.slice(0, 500)}…` : error}</p>}
+        <GuardCheck onPendingChange={setGuardCheckPending} available={!busy && !pending && !!error && inactiveStrategy === selected} choice={choice} wallet={wallet} amount={amount} direction={direction} />
       </div>
       <aside className={aqua.explanation}>
         <h2>{choice?.name || 'Direct settlement'}</h2>
