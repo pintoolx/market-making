@@ -377,7 +377,6 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: Ma
       <div className={aqua.statusHeader}><span className={aqua.statusMark}>✓</span><div><span className={aqua.eyebrow}>Mandate sequence {mandate.evidence.sequence}</span><h2>{active ? active.name : 'No strategy currently authorized'}</h2></div></div>
       <div className={aqua.intentRows}><div><span>Market state</span><strong>{mandate.regime === 'high-volatility' ? 'High volatility' : mandate.regime === 'normal' ? 'Normal' : 'Evaluating'}</strong></div><div><span>Pair</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Authorization expires</span><strong>{Number.isNaN(expires.valueOf()) ? mandate.evidence.expiresAt : expires.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong></div></div>
       <div className={aqua.actionRow}><Primary onClick={onAdd}>Add strategy</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Secondary></div>
-      <a className={aqua.evidenceLink} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer">View Guard update ↗</a>
     </section>
 
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
@@ -387,7 +386,7 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: Ma
         <div className={aqua.rosterStatus}>
           <span>{!fresh(strategy) ? 'Refresh to verify' : strategy.readiness?.phase === 'ready-for-quote' ? 'Ready to quote' : 'Not ready to quote'}</span>
           <small>Guard: {fresh(strategy) && strategy.readiness?.authorized ? 'authorized' : 'unverified / inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'unverified / unavailable'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'unverified / insufficient'}</small>
-          <code>{shortHash(strategy.strategyHash)}</code>
+          <CopyStrategyHash value={strategy.strategyHash} />
         </div>
       </article>)}
     </section>
@@ -398,6 +397,18 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onAdd }: { mandate: Ma
     </section>
 
     <p className={aqua.muted}>Readiness is a short-lived chain snapshot. Each trade still requires a fresh quote and Guard checks. A saved listing or accepted report alone does not mean liquidity can trade.</p>
-    <div className={aqua.evidence}><div><span>Guard report</span><strong>{shortHash(mandate.evidence.reportDigest)}</strong></div><div><span>Aqua strategies</span><strong>{mandate.strategies.length} sharing one balance</strong></div><div><span>Currently authorized</span><strong>{active?.name ?? 'Unverified / none'}</strong></div></div>
+    <div className={aqua.evidence}><div><span>Guard transaction</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View Guard transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua strategies</span><strong>{mandate.strategies.length} sharing one balance</strong></div><div><span>Currently authorized</span><strong>{active?.name ?? 'Unverified / none'}</strong></div></div>
   </div>;
+}
+
+function CopyStrategyHash({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch { /* Clipboard access can be blocked by the browser. */ }
+  };
+  return <button type="button" className={aqua.hashCopy} onClick={copy} title={value} aria-label={copied ? 'Strategy ID copied' : `Copy strategy ID ${value}`}><code>{shortHash(value)}</code><small>{copied ? 'Copied' : 'Copy'}</small></button>;
 }
