@@ -95,7 +95,7 @@ export type StrategyRule = z.infer<typeof strategyRuleSchema>
 // The Maker states risk limits in their own terms; the enclave translates them
 // into the Guard's absolute caps at the current price.
 
-export const makerLimitsSchema = z
+export const makerLimitsV1Schema = z
 	.object({
 		schemaVersion: z.literal(1),
 		/** Max total capital deployed, measured in token1 atomic units (e.g. USDC). */
@@ -110,6 +110,26 @@ export const makerLimitsSchema = z
 	})
 	.strict()
 
+/**
+ * Browser-facing limits keep every value in token1 terms. The TEE converts
+ * value ceilings to token0 amounts using the same market snapshot as the
+ * Provider-rule evaluation, so no ordinary server has to infer WETH units.
+ */
+export const makerLimitsV2Schema = z
+	.object({
+		schemaVersion: z.literal(2),
+		maxBudget1: uintString,
+		maxToken0ShareBps: z.number().int().min(0).max(10_000),
+		maxToken0Value1: uintString,
+		maxSwapValue1: uintString,
+		maxTtlSec: z.number().int().positive().max(MAX_REPORT_LIFETIME_SEC),
+	})
+	.strict()
+
+export const makerLimitsSchema = z.discriminatedUnion('schemaVersion', [makerLimitsV1Schema, makerLimitsV2Schema])
+
+export type MakerLimitsV1 = z.infer<typeof makerLimitsV1Schema>
+export type MakerLimitsV2 = z.infer<typeof makerLimitsV2Schema>
 export type MakerLimits = z.infer<typeof makerLimitsSchema>
 
 // ─── Market snapshot (non-secret observation) ───────────────

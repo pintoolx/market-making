@@ -38,17 +38,16 @@ This plan is separate from `AquaStrategyParams`, preserving the existing TEE/Swa
 
 ## Live prices
 
-`createChainlinkPrices(deployment)` reads Base mainnet through public RPCs without a wallet or API key. It maps this deployment's mWETH/mUSDC demonstration tokens to ETH/USD and USDC/USD references. These mock tokens have no claim on real ETH or USDC. Real deployments may instead provide `WETH` and `USDC` address keys; the deployer must verify that those assets match the references.
+`createChainlinkPrices(deployment)` reads Ethereum mainnet through public RPCs without a wallet or API key. It maps a test deployment's mWETH/mUSDC tokens, or the current Sepolia WETH/USDC pair, to ETH/USD and USDC/USD references. Mock tokens have no claim on real ETH or USDC; deployments using `WETH` and `USDC` address keys must verify that those assets match the references.
 
-| Feed | Base mainnet proxy | Accepted age |
+| Feed | Ethereum mainnet proxy | Accepted age |
 |---|---|---|
-| ETH/USD | `0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70` | 1320 seconds |
-| USDC/USD | `0x7e860098F58bBFC8648a4311b374B1D669a2bc6B` | 86520 seconds |
-| Sequencer uptime | `0xBCF85224fc0756B9Fa45aA7892530B47e10b6433` | Must be up for more than 3600 seconds |
+| ETH/USD | `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419` | 3600 seconds |
+| USDC/USD | `0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6` | 86400 seconds |
 
-Price ages are the directory's 1200-second ETH and 86400-second USDC heartbeat plus a 120-second allowance. Each feed is checked separately: allowing the USDC heartbeat does not permit a day-old ETH price. Proxies and heartbeats were checked against the [Chainlink Base feed directory](https://reference-data-directory.vercel.app/feeds-ethereum-mainnet-base-1.json); ETH uses the standard secondary proxy of the shared SVR entry. The [AggregatorV3 API](https://docs.chain.link/data-feeds/api-reference) supplies round timestamps and decimals, and the [L2 sequencer guidance](https://docs.chain.link/data-feeds/l2-sequencer-feeds) supplies the uptime check and recovery grace period.
+Each feed is checked separately: allowing the USDC heartbeat does not permit a day-old ETH price. The proxies are the Chainlink Ethereum mainnet standard [ETH/USD](https://data.chain.link/feeds/ethereum/mainnet/eth-usd) and [USDC/USD](https://data.chain.link/feeds/ethereum/mainnet/usdc-usd) feeds. The [AggregatorV3 API](https://docs.chain.link/data-feeds/api-reference) supplies round timestamps and decimals. Ethereum mainnet has no L2 sequencer dependency.
 
-The adapter verifies chain ID 8453, a recent oracle block (60 seconds), positive round answers, timestamps, decimals and expected feed descriptions. Both feeds and the sequencer are read in one multicall at the same block. USDC uses its actual quote, not an assumed $1 peg. A failed endpoint is followed by the next endpoint. Optional `BASE_PRICE_RPC_URLS` is a comma-separated list of read-only Base mainnet RPCs; defaults are PublicNode and `mainnet.base.org`.
+The adapter verifies chain ID 1, a recent oracle block (60 seconds), positive round answers, timestamps, decimals and expected feed descriptions. Both feeds are read in one multicall at the same block. USDC uses its actual quote, not an assumed $1 peg. A failed endpoint is followed by the next endpoint. Optional `ETHEREUM_PRICE_RPC_URLS` is a comma-separated list of read-only Ethereum mainnet RPCs; defaults are PublicNode and LlamaRPC.
 
 ```ts
 interface PriceSnapshot {

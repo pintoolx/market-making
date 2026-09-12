@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+import { pathToFileURL } from 'node:url';
+import { mandateRunnerConfig, runDirectMandate } from '../src/cre-mandate-runner.mjs';
+import { localSimulatorConfig, simulateCREWorkflow } from '../src/cre-local-simulator.mjs';
+
+async function readStdin() {
+  let body = '';
+  for await (const chunk of process.stdin) {
+    body += chunk;
+    if (Buffer.byteLength(body) > 64_000) throw new Error('runner input exceeded limit');
+  }
+  return JSON.parse(body);
+}
+
+export async function main() {
+  const simulation = localSimulatorConfig();
+  const result = await runDirectMandate(await readStdin(), mandateRunnerConfig(), {
+    triggerConfig: simulation,
+    trigger: simulateCREWorkflow,
+  });
+  process.stdout.write(`${JSON.stringify(result)}\n`);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  main().catch(error => {
+    process.stderr.write(`${error instanceof Error ? error.message : 'local simulation runner failed'}\n`);
+    process.exitCode = 1;
+  });
+}

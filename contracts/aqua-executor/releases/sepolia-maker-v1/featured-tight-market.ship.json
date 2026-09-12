@@ -1,0 +1,54 @@
+{
+  "schema": "aqua-execution-v1",
+  "requestId": "ship-sepolia-maker-v1-1",
+  "sessionId": "sepolia-maker-v1-1",
+  "action": "ship",
+  "strategy": {
+    "schema": "aqua-swapvm-v1.0.2",
+    "chainId": 11155111,
+    "maker": "0x24f93609de41a839f411d18f3ee242c5089caad7",
+    "tokens": [
+      "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+    ],
+    "amounts": [
+      "4000000000000000",
+      "10000000"
+    ],
+    "program": {
+      "kind": "concentrated",
+      "feeBps": 0,
+      "deadline": 1798761600,
+      "salt": "2026091201",
+      "sqrtPriceMin": "19245008972987525483639",
+      "sqrtPriceMax": "20851441405707476267814"
+    },
+    "guard": {
+      "address": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
+      "version": 2,
+      "caps": {
+        "maxAmount0PerSwap": "400000000000000",
+        "maxAmount1PerSwap": "1000000",
+        "maxPostBalance0": "6000000000000000",
+        "maxPostBalance1": "20000000"
+      }
+    },
+    "meta": {
+      "producer": "fixed-params",
+      "strategyVersion": 1,
+      "paramsRevision": 1
+    }
+  },
+  "policy": {
+    "tokens": [
+      "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+      "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+    ],
+    "baselineAmounts": [
+      "4000000000000000",
+      "10000000"
+    ],
+    "maxDrawdownBps": 500,
+    "maxPriceAgeSec": 86400
+  }
+}

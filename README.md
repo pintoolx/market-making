@@ -86,9 +86,11 @@ The integrated execution environment uses Ethereum Sepolia with canonical WETH a
 
 ## Integration status
 
-The web application, mandate API, Aqua executor, Guard contracts and confidential workflow are implemented and tested. Ethereum Sepolia execution is verified. The current Sepolia simulation receiver includes Maker-scoped atomic strategy switching; its [replacement proof](contracts/aqua-executor/docs/ethereum-sepolia-guard-revision.json) is separate from the earlier swap demo. Real CRE delivery and a production receiver with assigned workflow identity remain pending. The mandate service accepts only independently verified Guard events and transaction receipts.
+The web application, mandate API, Aqua executor, Guard contracts and confidential workflow are implemented and tested. The Ethereum Sepolia release uses canonical WETH and Circle test USDC. Two Aqua strategies share one Maker balance; CRE local simulation broadcasts real reports through the simulation forwarder; the Guard switches the active strategy; and Sepolia receipts prove a successful swap on each strategy plus a `StrategyNotActive` rejection against the old strategy. The mandate service independently verifies every Guard report and Aqua receipt before exposing it to the web application.
 
-Provider policies and Maker limits are intended to remain confidential. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
+Local simulation runs the same `handlerInTee` workflow code but is not a hardware TEE. Deployment access and a production receiver bound to the assigned workflow identity remain the final production infrastructure step.
+
+Provider policies remain Vault DON secrets, while Maker limits are sealed in the browser and opened only inside the confidential workflow. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
 
 ## Documentation
 

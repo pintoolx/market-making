@@ -1,25 +1,26 @@
 {
   "schedule": "0 */2 * * * *",
-  "authorizedEVMAddress": "0x1111111111111111111111111111111111111111",
+  "authorizedEVMAddress": "0x24f93609de41a839f411d18f3ee242c5089caad7",
   "providerSecretId": "PROVIDER_STRATEGY",
   "providerStrategies": [
     {
-      "strategyHash": "0x5555555555555555555555555555555555555555555555555555555555555555",
+      "strategyHash": "0xf0f27135496be85b02d71ce2b3cb83c4d730100b72ec158a6e782d8bcdd3732a",
       "secretId": "PROVIDER_STRATEGY_DEFENSIVE"
     }
   ],
   "makerSecretId": "MAKER_LIMITS",
-  "publishMode": "dry-run",
-  "maker": "0x3333333333333333333333333333333333333333",
-  "strategyHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
-  "marketSnapshot": {
-    "midPrice": "2500",
-    "volatilityBps": 120,
-    "balance0": "4000000000000000",
-    "balance1": "10000000",
-    "decimals0": 18,
-    "decimals1": 6
-  },
+  "envelopePrivateKeySecretId": "ENVELOPE_PRIVATE_KEY",
+  "publishMode": "don-report",
+  "maker": "0x24f93609de41a839f411d18f3ee242c5089caad7",
+  "strategyHash": "0x23b5f02fe3e0bd1079059341d55d45d0cbcb8f992ebf742d82962ec40ff3af4f",
   "guard": "0xfadc3165abeb127a0815d5ea4e2862ed430e1f70",
-  "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092"
+  "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+  "marketSource": "kraken",
+  "transport": {
+    "profile": "cre-simulation",
+    "forwarder": "0x15fc6ae953e024d975e77382eeec56a9101f9f88",
+    "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "workflowOwner": "0x0000000000000000000000000000000000000000",
+    "gasLimit": "500000"
+  }
 }

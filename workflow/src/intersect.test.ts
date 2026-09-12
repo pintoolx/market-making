@@ -6,6 +6,7 @@ import {
 	MAX_REPORT_LIFETIME_SEC,
 	parsePrice,
 	type MakerLimits,
+	type MakerLimitsV1,
 	type MarketSnapshot,
 	type ProviderStrategy,
 	type ReportIdentity,
@@ -52,7 +53,7 @@ const strategy = (): ProviderStrategy => ({
 	inventory: { maxBalance0: WETH(5), maxBalance1: USDC(50_000) },
 })
 
-const limits = (): MakerLimits => ({
+const limits = (): MakerLimitsV1 => ({
 	schemaVersion: 1,
 	maxBudget1: USDC(10_000),
 	maxToken0ShareBps: 6000,
@@ -91,6 +92,24 @@ const run = (over: {
 // ─── Tests ───────────────────────────────────────────────────
 
 describe('computeAuthorization — happy path', () => {
+	test('value-denominated v2 limits are converted to token amounts inside the TEE', () => {
+		const v2: MakerLimits = {
+			schemaVersion: 2,
+			maxBudget1: USDC(10_000),
+			maxToken0ShareBps: 6000,
+			maxToken0Value1: USDC(3000),
+			maxSwapValue1: USDC(300),
+			maxTtlSec: 180,
+		}
+		const { report, trace } = run({ limits: v2, market: market({ balance0: '0', balance1: '0' }) })
+
+		expect(report.maxAmount0PerSwap).toBe(BigInt(WETH(0.1)))
+		expect(report.maxAmount1PerSwap).toBe(BigInt(USDC(300)))
+		expect(report.maxPostBalance0).toBe(BigInt(WETH(1)))
+		expect(report.validUntil - report.validAfter).toBe(180)
+		expect(trace.binding.maxAmount0PerSwap).toBe('maker')
+	})
+
 	test('calm market: both directions, each cap taken from the stricter side', () => {
 		const { report, trace } = run()
 

@@ -66,13 +66,18 @@ export function matchRule(strategy: ProviderStrategy, market: MarketSnapshot): S
  *   value1 = maxBudget1 * share / BPS                     (token1 atomic)
  *   amount0 = value1 * 10^dec0 * PRICE_SCALE / (price * 10^dec1)
  */
-export function makerToken0Ceiling(limits: MakerLimits, market: MarketSnapshot): bigint {
+const token1ValueToToken0 = (value1: bigint, market: MarketSnapshot): bigint => {
 	const price = parsePrice(market.midPrice)
 	if (price <= 0n) throw new Error('market snapshot: midPrice must be positive')
-	const value1 = (BigInt(limits.maxBudget1) * BigInt(limits.maxToken0ShareBps)) / BPS
 	const num = value1 * 10n ** BigInt(market.decimals0) * PRICE_SCALE
 	const den = price * 10n ** BigInt(market.decimals1)
 	return num / den
+}
+
+export function makerToken0Ceiling(limits: MakerLimits, market: MarketSnapshot): bigint {
+	const shareValue1 = (BigInt(limits.maxBudget1) * BigInt(limits.maxToken0ShareBps)) / BPS
+	const value1 = limits.schemaVersion === 2 ? min(shareValue1, BigInt(limits.maxToken0Value1)) : shareValue1
+	return token1ValueToToken0(value1, market)
 }
 
 const clampU128 = (v: bigint): bigint => (v > UINT128_MAX ? UINT128_MAX : v)
@@ -94,8 +99,10 @@ export function computeAuthorization(input: IntersectInput): Authorization {
 	// ── 2. Per-swap caps: the stricter side wins ──
 	const providerCap0 = rule ? BigInt(rule.maxAmount0PerSwap) : 0n
 	const providerCap1 = rule ? BigInt(rule.maxAmount1PerSwap) : 0n
-	const makerCap0 = BigInt(limits.maxAmount0PerSwap)
-	const makerCap1 = BigInt(limits.maxAmount1PerSwap)
+	const makerCap0 = limits.schemaVersion === 2
+		? token1ValueToToken0(BigInt(limits.maxSwapValue1), market)
+		: BigInt(limits.maxAmount0PerSwap)
+	const makerCap1 = limits.schemaVersion === 2 ? BigInt(limits.maxSwapValue1) : BigInt(limits.maxAmount1PerSwap)
 	let maxAmount0PerSwap = clampU128(min(providerCap0, makerCap0))
 	let maxAmount1PerSwap = clampU128(min(providerCap1, makerCap1))
 

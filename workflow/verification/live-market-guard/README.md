@@ -46,6 +46,8 @@ We kept the request, hash, original HODL baseline and freshness policy unchanged
 
 The intentionally rejected swap persists its signed transaction in the existing private journal before broadcasting and verifies `DirectionDisabled` before submission. [Its replay after final cleanup](rejection-replayed.log) reused the same mined hash and verified historical block balances; it did not re-approve or send another swap. Signed bytes are not included here.
 
+Source checkpoint: `b769b92` preserves the exact pre-integration source and its hashes. Later commits integrate encrypted inputs and the current orchestrator; the historical transactions do not prove those changes.
+
 ## Verification and source scope
 
 - Main workflow: **50 tests / 265 assertions** and typecheck passed.

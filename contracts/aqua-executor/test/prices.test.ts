@@ -5,8 +5,7 @@ import { chainlinkSnapshot, type OracleSample } from '../src/prices.ts'
 const tokens: `0x${string}`[] = ['0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']
 const now = 1_800_000_000
 const sample = (): OracleSample => ({
-  chainId: 8453, blockNumber: 123n, blockTimestamp: BigInt(now),
-  sequencer: [1n, 0n, BigInt(now - 3601), BigInt(now - 10), 1n],
+  chainId: 1, blockNumber: 123n, blockTimestamp: BigInt(now),
   feeds: [
     { description: 'ETH / USD', decimals: 8, round: [2n, 250012345678n, BigInt(now - 10), BigInt(now - 10), 2n] },
     { description: 'USDC / USD', decimals: 8, round: [3n, 99984987n, BigInt(now - 20_000), BigInt(now - 20_000), 3n] },
@@ -26,7 +25,7 @@ test('Chainlink preserves actual observation times and the USDC price instead of
 })
 
 test('Chainlink validates each feed heartbeat independently', () => {
-  for (const [index, maxAge] of [[0, 1320], [1, 86520]] as const) {
+  for (const [index, maxAge] of [[0, 3600], [1, 86400]] as const) {
     const data = sample()
     data.feeds[index]!.round = [1n, 100000000n, BigInt(now - maxAge), BigInt(now - maxAge), 1n]
     assert.doesNotThrow(() => chainlinkSnapshot(tokens, data, now))
@@ -37,12 +36,9 @@ test('Chainlink validates each feed heartbeat independently', () => {
 
 test('Chainlink rejects bad rounds, wrong feeds and an unhealthy oracle chain', () => {
   const cases: ((d: OracleSample) => void)[] = [
-    d => { d.chainId = 84532 },
+    d => { d.chainId = 11155111 },
     d => { d.blockTimestamp = BigInt(now - 61) },
     d => { d.blockTimestamp = BigInt(now + 6) },
-    d => { d.sequencer = [1n, 1n, BigInt(now - 4000), BigInt(now), 1n] },
-    d => { d.sequencer = [1n, 0n, BigInt(now - 3600), BigInt(now), 1n] },
-    d => { d.sequencer = [1n, 0n, 0n, BigInt(now), 1n] },
     d => { d.feeds[0]!.round = [1n, 0n, BigInt(now), BigInt(now), 1n] },
     d => { d.feeds[0]!.round = [1n, -1n, BigInt(now), BigInt(now), 1n] },
     d => { d.feeds[0]!.round = [1n, 1n, BigInt(now), BigInt(now + 1), 1n] },

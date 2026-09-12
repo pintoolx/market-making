@@ -1,11 +1,18 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { decodeEventLog, decodeFunctionData, encodeAbiParameters, keccak256, parseAbi } from 'viem';
 
 const HEX32 = /^0x[0-9a-f]{64}$/i;
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
-const POSITIVE = /^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
 const STRATEGY_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/;
+const HEX = /^[0-9a-f]+$/i;
+const routerAbi = parseAbi([
+  'struct Order { address maker; uint256 traits; bytes data; }',
+  'function swap(Order order, address tokenIn, address tokenOut, uint256 amount, bytes takerTraitsAndData) returns (uint256 amountIn, uint256 amountOut, bytes32 orderHash)',
+  'event Swapped(bytes32 orderHash, address maker, address taker, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)',
+]);
+const orderParameter = [{ type: 'tuple', components: [{ name: 'maker', type: 'address' }, { name: 'traits', type: 'uint256' }, { name: 'data', type: 'bytes' }] }];
 
 export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -19,33 +26,24 @@ function exactKeys(value, allowed, label) {
   const unknown = Object.keys(value).filter(key => !allowed.includes(key));
   if (unknown.length) throw new HttpError(400, `${label} contains unknown fields.`);
 }
-function decimal(value, label, { percentage = false } = {}) {
-  if (typeof value !== 'string' || !POSITIVE.test(value) || Number(value) <= 0 || (percentage && Number(value) > 100)) {
-    throw new HttpError(400, `${label} is invalid.`);
-  }
-  return value;
+function envelope(value) {
+  const sealed = object(value, 'Maker limits envelope');
+  exactKeys(sealed, ['version', 'ephemeralPublicKey', 'nonce', 'ciphertext'], 'Maker limits envelope');
+  if (sealed.version !== 1 || typeof sealed.ephemeralPublicKey !== 'string' || sealed.ephemeralPublicKey.length !== 64 || !HEX.test(sealed.ephemeralPublicKey)
+    || typeof sealed.nonce !== 'string' || sealed.nonce.length !== 48 || !HEX.test(sealed.nonce)
+    || typeof sealed.ciphertext !== 'string' || sealed.ciphertext.length < 32 || sealed.ciphertext.length > 8192
+    || sealed.ciphertext.length % 2 !== 0 || !HEX.test(sealed.ciphertext)) throw new HttpError(400, 'Maker limits envelope is invalid.');
+  return sealed;
 }
 
 export function parseCreate(input) {
   const body = object(input, 'Request');
-  exactKeys(body, ['maker', 'providerStrategyIds', 'policy'], 'Request');
+  exactKeys(body, ['maker', 'providerStrategyIds', 'makerLimitsEnvelope'], 'Request');
   if (typeof body.maker !== 'string' || !ADDRESS.test(body.maker) || /^0x0{40}$/i.test(body.maker)) throw new HttpError(400, 'Maker address is invalid.');
   if (!Array.isArray(body.providerStrategyIds) || body.providerStrategyIds.length < 1 || body.providerStrategyIds.length > 12
     || body.providerStrategyIds.some(id => typeof id !== 'string' || !STRATEGY_ID.test(id))
     || new Set(body.providerStrategyIds).size !== body.providerStrategyIds.length) throw new HttpError(400, 'Provider strategy IDs are invalid.');
-  const policy = object(body.policy, 'Policy');
-  exactKeys(policy, ['capitalBudgetUsdc', 'maxWethExposurePct', 'maxWethInventoryUsdc', 'maxSwapUsdc', 'validityMinutes'], 'Policy');
-  const parsed = {
-    capitalBudgetUsdc: decimal(policy.capitalBudgetUsdc, 'Capital budget'),
-    maxWethExposurePct: decimal(policy.maxWethExposurePct, 'WETH exposure', { percentage: true }),
-    maxWethInventoryUsdc: decimal(policy.maxWethInventoryUsdc, 'WETH inventory'),
-    maxSwapUsdc: decimal(policy.maxSwapUsdc, 'Maximum swap'),
-    validityMinutes: decimal(policy.validityMinutes, 'Validity'),
-  };
-  if (Number(parsed.maxWethInventoryUsdc) > Number(parsed.capitalBudgetUsdc) || Number(parsed.maxSwapUsdc) > Number(parsed.capitalBudgetUsdc)) {
-    throw new HttpError(400, 'Inventory and swap limits cannot exceed the capital budget.');
-  }
-  return { maker: body.maker.toLowerCase(), providerStrategyIds: body.providerStrategyIds, policy: parsed };
+  return { maker: body.maker.toLowerCase(), providerStrategyIds: body.providerStrategyIds, makerLimitsEnvelope: envelope(body.makerLimitsEnvelope) };
 }
 
 export function validateState(value, expected) {
@@ -81,6 +79,36 @@ export async function verifyReceipt(rpcUrl, txHash, expectedStatus = '0x1', fetc
   return { chainId: Number(BigInt(chain.result)), receipt: transaction.result };
 }
 
+export async function verifyAquaSwap(rpcUrl, router, txHash, expectedStrategyHash, expectedStatus, fetchImpl = fetch) {
+  const response = await fetchImpl(rpcUrl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify([
+    { jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] },
+    { jsonrpc: '2.0', id: 2, method: 'eth_getTransactionReceipt', params: [txHash] },
+    { jsonrpc: '2.0', id: 3, method: 'eth_getTransactionByHash', params: [txHash] },
+  ]) });
+  if (!response.ok) throw new Error(`RPC Aqua lookup failed (${response.status})`);
+  const payload = await response.json();
+  const result = id => Array.isArray(payload) ? payload.find(item => item.id === id)?.result : null;
+  const chainId = result(1), receipt = result(2), transaction = result(3);
+  if (!chainId || !receipt || !transaction || transaction.hash?.toLowerCase() !== txHash.toLowerCase()
+    || receipt.transactionHash?.toLowerCase() !== txHash.toLowerCase()) throw new Error('Aqua transaction evidence is unavailable');
+  if (transaction.to?.toLowerCase() !== router.toLowerCase() || receipt.status !== expectedStatus) throw new Error('Aqua transaction target or status does not match the claim');
+  const call = decodeFunctionData({ abi: routerAbi, data: transaction.input });
+  if (call.functionName !== 'swap') throw new Error('transaction is not an Aqua Router swap');
+  const strategyHash = keccak256(encodeAbiParameters(orderParameter, [call.args[0]]));
+  if (strategyHash.toLowerCase() !== expectedStrategyHash.toLowerCase()) throw new Error('Aqua swap uses a different strategy');
+  const swapEvents = receipt.logs.filter(log => log.address?.toLowerCase() === router.toLowerCase()).flatMap(log => {
+    try { const event = decodeEventLog({ abi: routerAbi, data: log.data, topics: log.topics }); return event.eventName === 'Swapped' ? [event] : []; }
+    catch { return []; }
+  });
+  if (expectedStatus === '0x1' && !swapEvents.some(event => event.args.orderHash?.toLowerCase() === strategyHash.toLowerCase())) throw new Error('successful Aqua swap emitted no matching Swapped event');
+  if (expectedStatus === '0x0' && swapEvents.length) throw new Error('rejected Aqua swap unexpectedly emitted Swapped');
+  const blockResponse = await fetchImpl(rpcUrl, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'eth_getBlockByNumber', params: [receipt.blockNumber, false] }) });
+  const block = blockResponse.ok ? (await blockResponse.json()).result : null;
+  if (!block?.timestamp) throw new Error('Aqua transaction block is unavailable');
+  return { chainId: Number(BigInt(chainId)), receipt, transaction, strategyHash, occurredAt: new Date(Number(BigInt(block.timestamp)) * 1000).toISOString() };
+}
+
 export function runAdapter(executable, request, timeoutMs = 120000) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(executable, [], { shell: false, stdio: ['pipe', 'pipe', 'pipe'], env: process.env });
@@ -90,6 +118,7 @@ export function runAdapter(executable, request, timeoutMs = 120000) {
     child.stdout.on('data', chunk => { stdout += chunk; if (stdout.length > 2_000_000) { child.kill('SIGKILL'); finish(new Error('runner output exceeded limit')); } });
     // Drain stderr without retaining it. A faulty runner must not leak private inputs into application logs.
     child.stderr.resume();
+    child.stdin.on('error', finish);
     child.once('error', finish);
     child.once('close', code => {
       if (code !== 0) return finish(new Error('confidential runner failed'));
@@ -102,8 +131,10 @@ export function runAdapter(executable, request, timeoutMs = 120000) {
 export function createService(config, dependencies = {}) {
   const runner = dependencies.runner ?? (request => runAdapter(config.runner, request, config.runnerTimeoutMs));
   const receipt = dependencies.verifyReceipt ?? ((hash, status) => verifyReceipt(config.rpcUrl, hash, status));
+  const aquaSwap = dependencies.verifyAquaSwap ?? ((hash, strategyHash, status) => verifyAquaSwap(config.rpcUrl, config.router, hash, strategyHash, status));
   const stateDir = resolve(config.stateDir);
   const statePath = id => join(stateDir, `${id}.json`);
+  const envelopePath = id => join(stateDir, `${id}.maker-envelope.json`);
   const save = async state => {
     await mkdir(stateDir, { recursive: true });
     const target = statePath(state.mandateId), temporary = `${target}.${process.pid}.tmp`;
@@ -111,7 +142,15 @@ export function createService(config, dependencies = {}) {
     await rename(temporary, target);
   };
   const load = async id => JSON.parse(await readFile(statePath(id), 'utf8'));
-  const accept = async (output, requiredStrategyIds = [], expectedMaker) => {
+  const loadEnvelope = async id => { try { return JSON.parse(await readFile(envelopePath(id), 'utf8')); } catch { return null; } };
+  const saveEnvelope = async (id, sealed) => {
+    if (!sealed) return;
+    await mkdir(stateDir, { recursive: true });
+    const target = envelopePath(id), temporary = `${target}.${process.pid}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(sealed)}\n`, { mode: 0o600 });
+    await rename(temporary, target);
+  };
+  const accept = async (output, requiredStrategyIds = [], expectedMaker, sealed) => {
     const state = validateState(output, config);
     if (expectedMaker && state.maker.toLowerCase() !== expectedMaker.toLowerCase()) throw new Error('runner response is for a different Maker');
     const returnedIds = new Set(state.strategies.map(strategy => strategy.listingId));
@@ -127,23 +166,25 @@ export function createService(config, dependencies = {}) {
     }
     const verified = await Promise.all([...claims].map(([hash, status]) => receipt(hash, status)));
     if (verified.some(result => result?.chainId !== undefined && result.chainId !== config.chainId)) throw new Error('RPC returned evidence from the wrong chain');
+    await saveEnvelope(state.mandateId, sealed);
     await save(state);
     return state;
   };
   return {
     async create(input) {
       const parsed = parseCreate(input);
-      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds, parsed.maker);
+      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds, parsed.maker, parsed.makerLimitsEnvelope);
     },
     async get(id) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
       let current;
       try { current = await load(id); } catch {}
+      const sealed = current ? await loadEnvelope(id) : null;
       let output;
-      try { output = await runner({ action: 'get', mandateId: id, current }); }
+      try { output = await runner({ action: 'get', mandateId: id, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) }); }
       catch (error) { if (current) output = current; else throw error; }
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [], current?.maker);
+      return accept(output, [], current?.maker, sealed);
     },
     async add(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
@@ -151,9 +192,32 @@ export function createService(config, dependencies = {}) {
       if (typeof body.providerStrategyId !== 'string' || !STRATEGY_ID.test(body.providerStrategyId)) throw new HttpError(400, 'Provider strategy ID is invalid.');
       let current;
       try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
-      const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId, current });
+      const sealed = await loadEnvelope(id);
+      const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) });
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [body.providerStrategyId], current.maker);
+      return accept(output, [body.providerStrategyId], current.maker, sealed);
+    },
+    async recordExecution(id, input) {
+      if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
+      const body = object(input, 'Request'); exactKeys(body, ['providerStrategyId', 'transactionHash', 'outcome'], 'Request');
+      if (!STRATEGY_ID.test(body.providerStrategyId ?? '') || !HEX32.test(body.transactionHash ?? '')
+        || !['settled', 'rejected'].includes(body.outcome)) throw new HttpError(400, 'Execution evidence is invalid.');
+      let current;
+      try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
+      const strategy = current.strategies.find(item => item.listingId === body.providerStrategyId);
+      if (!strategy) throw new HttpError(400, 'Strategy is not part of this mandate.');
+      if (current.events.some(event => event.transactionHash?.toLowerCase() === body.transactionHash.toLowerCase())) return current;
+      if (body.outcome === 'settled' && strategy.status !== 'active') throw new HttpError(409, 'Only the active strategy may settle.');
+      if (body.outcome === 'rejected' && strategy.status === 'active') throw new HttpError(409, 'An active strategy rejection does not prove the strategy switch.');
+      const evidence = await aquaSwap(body.transactionHash, strategy.strategyHash, body.outcome === 'settled' ? '0x1' : '0x0');
+      if (evidence.chainId !== config.chainId) throw new Error('RPC returned Aqua evidence from the wrong chain');
+      const explorerUrl = `${config.explorerUrl}/tx/${body.transactionHash}`;
+      current.events = [{ id: `${body.transactionHash}-${body.outcome}`, type: body.outcome === 'settled' ? 'swap-settled' : 'swap-rejected',
+        title: body.outcome === 'settled' ? `${strategy.name} swap settled` : `${strategy.name} swap blocked`,
+        detail: body.outcome === 'settled' ? 'Aqua executed within the current Guard authorization.' : 'The inactive strategy was rejected by the Guard onchain.',
+        occurredAt: evidence.occurredAt, transactionHash: body.transactionHash.toLowerCase(), explorerUrl }, ...current.events];
+      await save(current);
+      return current;
     },
   };
 }
