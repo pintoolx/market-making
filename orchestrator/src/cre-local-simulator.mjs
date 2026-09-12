@@ -24,6 +24,7 @@ export function localSimulatorConfig(env = process.env) {
     projectDir: resolve(projectDir),
     workflowDir: env.CRE_WORKFLOW_DIR?.trim() || 'market-maker-auth',
     target: env.CRE_TARGET?.trim() || 'staging-settings',
+    toolPath: env.CRE_TOOL_PATH?.trim() || '',
     timeoutMs: Number(env.MANDATE_RUNNER_TIMEOUT_MS ?? 120_000),
   };
 }
@@ -39,8 +40,9 @@ export async function simulateCREWorkflow(config, payload, dependencies = {}) {
     const args = ['workflow', 'simulate', config.workflowDir, '--non-interactive', '--trigger-index', '1',
       '--http-payload', `@${payloadPath}`, '--target', config.target, '--broadcast'];
     const makeChild = dependencies.spawnImpl ?? spawn;
+    const env = config.toolPath ? { ...process.env, PATH: `${config.toolPath}:${process.env.PATH ?? ''}` } : process.env;
     await (dependencies.runImpl ?? run)(makeChild(config.executable, args, {
-      cwd: config.projectDir, env: process.env, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: config.projectDir, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'],
     }), config.timeoutMs);
     return { workflowExecutionId: `local-simulation-${id}` };
   } finally {

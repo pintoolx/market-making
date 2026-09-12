@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { localSimulatorConfig, simulateCREWorkflow } from '../src/cre-local-simulator.mjs';
 
 test('local simulator always runs the HTTP TEE handler with a Sepolia broadcast', async () => {
-  const config = localSimulatorConfig({ CRE_PROJECT_DIR: '/workspace/workflow', CRE_CLI: '/usr/bin/cre', CRE_TARGET: 'staging-settings' });
+  const config = localSimulatorConfig({ CRE_PROJECT_DIR: '/workspace/workflow', CRE_CLI: '/usr/bin/cre', CRE_TARGET: 'staging-settings', CRE_TOOL_PATH: '/opt/bun/bin' });
   const payload = { requestId: 'mandate-1', maker: `0x${'11'.repeat(20)}`, strategyHash: `0x${'22'.repeat(32)}`, marketSnapshot: { midPrice: '2500' } };
   let invocation;
   const output = await simulateCREWorkflow(config, payload, { spawnImpl(executable, args, options) {
@@ -20,6 +20,7 @@ test('local simulator always runs the HTTP TEE handler with a Sepolia broadcast'
   assert.equal(invocation.executable, '/usr/bin/cre');
   assert.equal(invocation.options.cwd, '/workspace/workflow');
   assert.equal(invocation.options.shell, false);
+  assert.ok(invocation.options.env.PATH.startsWith('/opt/bun/bin:'));
   assert.ok(invocation.args.includes('--broadcast'));
   assert.ok(invocation.args.includes('--non-interactive'));
   assert.deepEqual(invocation.body, payload);
