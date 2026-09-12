@@ -64,7 +64,7 @@ PinTool 讓做市策略作者發布可驗證但不公開完整邏輯的策略，
 
 ## 當前前端必修
 
-1. 將 `publishedStore`、`proposalStore` 的瀏覽器狀態明確視為 draft cache；不得映射成鏈上狀態名稱。
+1. `publishedStore` 仍只可視為 listing cache；`proposalStore` 只在 mandate service 確認建立成功後寫入本機索引，不得自行推測鏈上狀態。
 2. Profile 的 Providing／Making 改成 Studio／Portfolio，並依真實狀態分組。
 3. Header 改為 Strategies／Portfolio／Studio，讓回訪路徑穩定。
 4. Marketplace seed listings 只能呈現有對應 fixture／strategy definition 的項目；其餘模板留在 Studio。

@@ -31,7 +31,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
       <div className={aqua.homeIntro}>
         <span className={aqua.eyebrow}>Private strategies · self-custodial liquidity</span>
         <h1>Private strategies.<span>One maker balance.</span></h1>
-        <p>Build a strategy set, place one confidential capital mandate around it, and let market conditions decide which strategy may use your liquidity.</p>
+        <p>Discover a private market-making strategy, apply your own capital limits, and keep control of liquidity in your wallet. Add more strategies when you are ready.</p>
       </div>
       <div className={aqua.roleChoices}>
         <article className={`${styles.card} ${aqua.roleCard}`}>
@@ -39,7 +39,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
           <div className={aqua.roleBody}>
             <span className={aqua.roleNumber}>Strategy Provider</span>
             <h2>I provide strategy</h2>
-            <ul><li>Start from six Aqua templates</li><li>Your logic stays private in the TEE</li><li>Earn a fee when Makers profit</li></ul>
+            <ul><li>Start from Aqua execution templates</li><li>Define structured private conditions</li><li>Publish strategies for Makers to use</li></ul>
           </div>
           <div className={aqua.roleAction}><Primary onClick={() => goTo('provider')}>Open Provider Studio</Primary></div>
         </article>
@@ -48,7 +48,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
           <div className={aqua.roleBody}>
             <span className={aqua.roleNumber}>Maker</span>
             <h2>I provide liquidity</h2>
-            <ul><li>Earn with a Provider&apos;s strategy</li><li>Funds stay in your own wallet</li><li>Pay a fee only on profit</li></ul>
+            <ul><li>Inspect a strategy before using it</li><li>Set your own capital boundaries</li><li>Keep funds in your own wallet</li></ul>
           </div>
           <div className={aqua.roleAction}><Primary onClick={() => goTo('maker')}>Explore strategies</Primary></div>
         </article>

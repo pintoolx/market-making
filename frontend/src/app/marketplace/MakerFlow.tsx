@@ -124,17 +124,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
   const savePolicy = () => {
     if (!valid || selected.length === 0) return;
-    selected.forEach(item => save({
-      id: item.id,
-      strategyName: item.name,
-      mechanism: item.template.label,
-      budget: budget.trim(),
-      maxExposure: exposure.trim(),
-      maxWeakAsset: maxWethInventory.trim(),
-      maxTrade: maxTrade.trim(),
-      validityMinutes: validityMinutes.trim(),
-      feePct: item.feePct,
-    }));
     go('review');
   };
 
@@ -157,6 +146,17 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         },
       });
       setMandate(state);
+      selected.forEach(item => save({
+        id: item.id,
+        strategyName: item.name,
+        mechanism: item.template.label,
+        budget: budget.trim(),
+        maxExposure: exposure.trim(),
+        maxWeakAsset: maxWethInventory.trim(),
+        maxTrade: maxTrade.trim(),
+        validityMinutes: validityMinutes.trim(),
+        feePct: item.feePct,
+      }));
       go('monitor');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The mandate could not be created.');
@@ -226,7 +226,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
         <fieldset className={aqua.privateField}>
           <legend>Your private mandate</legend>
-          <p className={aqua.muted}>These limits apply across every strategy in your set.</p>
+          <p className={aqua.muted}>These limits govern this mandate, including compatible strategies you add later.</p>
           <label>Capital budget (USDC)<FormInput inputMode="decimal" value={budget} aria-invalid={!!positiveError(budget)} onChange={event => setBudget(event.target.value)} /></label>
           <label>Maximum WETH exposure (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={event => setExposure(event.target.value)} /></label>
           <label>Maximum WETH inventory (USDC value)<FormInput inputMode="decimal" value={maxWethInventory} aria-invalid={!!positiveError(maxWethInventory) || toNumber(maxWethInventory) > toNumber(budget)} onChange={event => setMaxWethInventory(event.target.value)} /></label>

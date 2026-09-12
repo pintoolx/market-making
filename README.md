@@ -57,6 +57,7 @@ The web app is exported as a static site (`output: "export"`).
 
 ## Docs
 
+- [Product website model and lifecycle](docs/PRODUCT-WEBSITE.md)
 - [Product spec and interfaces](docs/PRODUCT-HANDOFF.md)
 - [Winning integration and video flow](docs/WINNING-FLOW.md)
 - [Frontend mandate service contract](docs/STRATEGY-MANDATE-API.md)
