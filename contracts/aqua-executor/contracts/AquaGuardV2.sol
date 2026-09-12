@@ -52,6 +52,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     bool public immutable simulationMode;
     uint256 public constant MAX_REPORT_LIFETIME = 600;
     mapping(address maker => mapping(bytes32 strategyHash => StoredReport)) private reports;
+    mapping(address maker => bytes32 strategyHash) public activeStrategyHash;
 
     error InvalidConfiguration();
     error UnauthorizedForwarder();
@@ -64,6 +65,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     error UnauthorizedRouter();
     error InvalidEnvelope();
     error MissingReport();
+    error StrategyNotActive();
     error UnsupportedSwap();
     error TokenPairMismatch();
     error DirectionDisabled();
@@ -71,6 +73,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     error InventoryLimitExceeded();
 
     event ReportAccepted(address indexed maker, bytes32 indexed strategyHash, uint64 nonce, bytes32 digest, uint48 validUntil);
+    event ActiveStrategyChanged(address indexed maker, bytes32 indexed previousStrategyHash, bytes32 indexed strategyHash);
 
     constructor(address forwarder_, address router_, bytes32 workflowId_, address workflowOwner_, bool simulationMode_) {
         if (forwarder_.code.length == 0 || router_.code.length == 0) revert InvalidConfiguration();
@@ -126,6 +129,12 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         if (r.nonce <= saved.report.nonce) revert ReportReplay();
         saved.report = r;
         saved.digest = digest;
+        bytes32 previous = activeStrategyHash[r.maker];
+        bytes32 next = r.allowedDirections == 0 ? bytes32(0) : r.strategyHash;
+        if (previous != next) {
+            activeStrategyHash[r.maker] = next;
+            emit ActiveStrategyChanged(r.maker, previous, next);
+        }
         emit ReportAccepted(r.maker, r.strategyHash, r.nonce, digest, r.validUntil);
     }
 
@@ -142,6 +151,7 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         if (token0 == address(0) || token1 == address(0) || token0 == token1) revert InvalidEnvelope();
         GuardReportV1 storage r = reports[query.maker][query.orderHash].report;
         if (r.nonce == 0) revert MissingReport();
+        if (activeStrategyHash[query.maker] != query.orderHash) revert StrategyNotActive();
         if (block.timestamp < r.validAfter || block.timestamp >= r.validUntil) revert ReportNotCurrent();
         if (!query.isExactIn || swap.amountNetPulled != 0 || swap.amountIn == 0 || swap.amountOut == 0 ||
             swap.amountOut > swap.balanceOut) revert UnsupportedSwap();
