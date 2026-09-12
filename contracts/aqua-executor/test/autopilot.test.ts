@@ -125,3 +125,39 @@ test('guarded rollover keeps the exact recipe and stays closed to trading until 
   try { assert.equal(store.get<{ rebalances: number }>('autopilot', id)?.rebalances, 1) } finally { store.close() }
   await executeRequest(f.ctx, f.d, { schema: 'aqua-execution-v1', requestId: 'dock', sessionId: id, action: 'dock', expectedStrategyHash: status.strategyHash }, opts)
 })
+
+test('a fresh oracle response from the next second is accepted against the clock after reads', async () => {
+  const id = 'auto-slow-oracle', p = params(); p.program.deadline += 300
+  const opts = await ship(id, p)
+  const result = await autopilotTick(f.ctx, f.d, id, policy, { ...opts, getPrices: async () => { await sleep(1100); return prices() } })
+  assert.ok('reason' in result); assert.equal(result.reason, 'waiting-for-expiry')
+  await executeRequest(f.ctx, f.d, { schema: 'aqua-execution-v1', requestId: 'dock', sessionId: id, action: 'dock', expectedStrategyHash: compileExecution(p).strategyHash }, opts)
+})
+
+test('delayed broadcast recovery starts cooldown at the mined rollover block', async t => {
+  const tc = createTestClient({ chain: foundry, mode: 'anvil', transport: http(f.rpc) })
+  const snapshot = await tc.snapshot()
+  const wall = Date.now()
+  t.mock.timers.enable({ apis: ['Date'], now: wall })
+  try {
+    const id = 'auto-mined-cooldown', p = params(); p.program.deadline += 3
+    const opts = await ship(id, p), bounded = { ...policy, ttlSec: 60, cooldownSec: 120, maxRebalances: 3 }
+    const first = p.program.deadline + 1
+    t.mock.timers.setTime(first * 1000)
+    await tc.setNextBlockTimestamp({ timestamp: BigInt(first) }); await tc.mine({ blocks: 1 })
+    await assert.rejects(autopilotTick(f.ctx, f.d, id, bounded, { ...opts, execute: true, onTransaction: e => {
+      if (e.step === 'primary' && e.phase === 'prepared') throw new Error('delay prepared rollover')
+    } }), /delay prepared rollover/)
+    t.mock.timers.setTime((first + 180) * 1000)
+    await tc.setNextBlockTimestamp({ timestamp: BigInt(first + 180) }); await tc.mine({ blocks: 1 })
+    const recovered = await autopilotTick(f.ctx, f.d, id, bounded, { ...opts, execute: true })
+    assert.ok('result' in recovered)
+    assert.equal(recovered.result?.outcome, 'rebalanced')
+    const primary = recovered.result!.transactions.find(tx => tx.step === 'primary')!
+    const mined = await f.ctx.pc.getBlock({ blockNumber: BigInt(primary.blockNumber) })
+    const store = new ExecutionStore(opts.stateDir)
+    try { assert.equal(store.get<{ lastAt: number }>('autopilot', id)?.lastAt, Number(mined.timestamp)) } finally { store.close() }
+    const result = await autopilotTick(f.ctx, f.d, id, bounded, opts)
+    assert.ok('reason' in result); assert.equal(result.reason, 'cooldown')
+  } finally { await tc.revert({ id: snapshot }); t.mock.timers.reset() }
+})
