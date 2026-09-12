@@ -116,8 +116,14 @@
 .panel .privateField { padding: 8px 20px 20px; border: 2px dashed var(--aqua-ink); border-radius: 12px; }
 .panel .privateField legend { margin: 0 0 4px -8px; padding: 0 8px; }
 .panel label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 600; }
-.panel textarea { padding: 12px; width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid #8997ad; border-radius: 8px; background: #e4eaf2; color: var(--aqua-ink); font: inherit; font-weight: 400; line-height: 1.6; }
-.panel textarea:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 3px; }
+.panel textarea, .panel select { padding: 12px; width: 100%; box-sizing: border-box; border: 1px solid #8997ad; border-radius: 8px; background: #e4eaf2; color: var(--aqua-ink); font: inherit; font-weight: 400; line-height: 1.4; }
+.panel textarea { resize: vertical; line-height: 1.6; }
+.panel textarea:focus-visible, .panel select:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 3px; }
+.structuredFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.inputWithSuffix { position: relative; display: block; }
+.inputWithSuffix input { padding-right: 68px; }
+.inputWithSuffix small { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--aqua-muted); font-size: 11px; font-weight: 600; pointer-events: none; }
+.optional { color: var(--aqua-muted); font-size: 12px; font-weight: 400; }
 .panel > button { min-height: 48px; }
 .metrics { flex-wrap: wrap; gap: 20px 40px; }
 .metrics > div { min-width: 0; }
@@ -293,7 +299,7 @@
   .panel { padding: 20px; }
   .panel .privateField { padding: 8px 14px 16px; }
   .actionRow { grid-template-columns: 1fr; }
-  .policyReview, .providerPair, .evidence, .monitorLayout { grid-template-columns: 1fr; }
+  .policyReview, .providerPair, .structuredFields, .evidence, .monitorLayout { grid-template-columns: 1fr; }
   .evidence { grid-column: auto; }
   .selectionBar { bottom: 8px; align-items: stretch; flex-direction: column; }
   .runtimePanel { min-height: 0; padding: 24px 20px; grid-template-columns: 1fr; }

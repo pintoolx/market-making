@@ -13,7 +13,7 @@ import { ListingCard, PageHead, Steps } from './ui';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
 
-const STEPS = ['Choose strategies', 'Set private limits', 'Review', 'Monitor'];
+const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
 const FEATURED: Listing[] = [
   {
     id: 'featured-tight-market',
@@ -22,6 +22,7 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[0],
     mine: false,
     provider: 'PinTool Strategies',
+    providerAvatar: '/logo.svg',
   },
   {
     id: 'featured-defensive-market',
@@ -30,10 +31,47 @@ const FEATURED: Listing[] = [
     template: AQUA_TEMPLATES[0],
     mine: false,
     provider: 'PinTool Strategies',
+    providerAvatar: '/logo.svg',
+  },
+  {
+    id: 'featured-adaptive-range',
+    name: 'Adaptive Range',
+    summary: 'Concentrates WETH / USDC liquidity around a private reference range and recenters when conditions change.',
+    template: AQUA_TEMPLATES[1],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/logo.svg',
+  },
+  {
+    id: 'featured-wide-range',
+    name: 'Wide Range Reserve',
+    summary: 'Uses a wider WETH / USDC range to remain available through larger price moves.',
+    template: AQUA_TEMPLATES[1],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/logo.svg',
+  },
+  {
+    id: 'featured-inventory-recovery',
+    name: 'Inventory Recovery',
+    summary: 'Adjusts WETH / USDC quoting to move inventory back toward the Maker’s target allocation.',
+    template: AQUA_TEMPLATES[4],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/logo.svg',
+  },
+  {
+    id: 'featured-flow-decay',
+    name: 'Flow Decay',
+    summary: 'Temporarily changes WETH / USDC pricing after a fill, then decays toward its baseline quote.',
+    template: AQUA_TEMPLATES[3],
+    mine: false,
+    provider: 'PinTool Strategies',
+    providerAvatar: '/logo.svg',
   },
 ];
 
-type Phase = 'choose' | 'limits' | 'review' | 'submitting' | 'monitor';
+type Phase = 'choose' | 'detail' | 'limits' | 'review' | 'submitting' | 'monitor';
 
 const toNumber = (value: string) => Number(value.replace(/,/g, '').trim());
 const positiveError = (value: string) => !value.trim() ? '' : !(toNumber(value) > 0) ? 'Enter an amount above 0.' : '';
@@ -65,7 +103,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     const id = new URLSearchParams(window.location.search).get('strategy');
     if (!id) return;
     const listing = [...readPublished(), ...FEATURED].find(item => item.id === id);
-    if (listing) setSelected([listing]);
+    if (listing) { setSelected([listing]); setPhase('detail'); }
     window.history.replaceState(null, '', '/maker');
   }, []);
 
@@ -76,11 +114,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     setError('');
     setPhase(next);
   };
-  const toggle = (listing: Listing) => {
-    setSelected(current => current.some(item => item.id === listing.id)
-      ? current.filter(item => item.id !== listing.id)
-      : [...current, listing]);
-  };
+  const openStrategy = (listing: Listing) => { setSelected([listing]); go('detail'); };
 
   const valid = [budget, maxWethInventory, maxTrade, validityMinutes].every(value => value.trim() && !positiveError(value))
     && !!exposure.trim() && !percentageError(exposure)
@@ -142,19 +176,21 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
   };
 
-  const currentStep = phase === 'choose' ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
-  const title = phase === 'choose' ? 'Build your strategy set.'
-    : phase === 'limits' ? 'Set one boundary for your capital.'
+  const currentStep = ['choose', 'detail'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
+  const title = phase === 'choose' ? 'Find a strategy for your liquidity.'
+    : phase === 'detail' ? selected[0]?.name ?? 'Strategy details.'
+      : phase === 'limits' ? 'Set your capital boundaries.'
       : phase === 'review' ? 'Review your mandate.'
         : phase === 'submitting' ? 'Creating your mandate.'
           : 'Your liquidity mandate.';
 
   return <section className={aqua.flow}>
-    {phase !== 'choose' && phase !== 'monitor' && <button type="button" className={aqua.backLink} onClick={() => go('choose')}>← Strategy marketplace</button>}
+    {phase !== 'choose' && phase !== 'monitor' && <button type="button" className={aqua.backLink} onClick={() => go(phase === 'limits' ? 'detail' : 'choose')}>← {phase === 'limits' ? 'Strategy details' : 'Strategy marketplace'}</button>}
     <PageHead eyebrow="Maker Marketplace" title={title} accent={phase === 'monitor' ? 'One balance, guarded continuously.' : undefined} headingRef={heading}>
-      {phase === 'choose' && 'Choose the private strategies that may compete for your Aqua liquidity. You control the capital boundary they all share.'}
-      {phase === 'limits' && 'Providers never receive your original WETH exposure, inventory or fill limits.'}
-      {phase === 'review' && 'The confidential workflow will decide which eligible strategy may use your liquidity.'}
+      {phase === 'choose' && 'Explore strategies built for self-custodial liquidity on Aqua.'}
+      {phase === 'detail' && 'Review what the strategy does, how it executes and what can go wrong before using it.'}
+      {phase === 'limits' && 'The Provider never receives your original WETH exposure, inventory or fill limits.'}
+      {phase === 'review' && 'The confidential workflow will check whether this strategy fits your private limits.'}
       {phase === 'submitting' && 'Checking Provider policies against your limits and waiting for the Guard report to be confirmed.'}
       {phase === 'monitor' && 'Track the currently authorized strategy and every confirmed execution decision.'}
     </PageHead>
@@ -162,18 +198,13 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
     {phase === 'choose' && <>
-      <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{selected.length} selected</span></div>
+      <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={`${styles.grid} ${aqua.grid}`}>
-        {listings.map(item => {
-          const chosen = selected.some(entry => entry.id === item.id);
-          return <ListingCard key={item.id} listing={item} action={<Secondary aria-pressed={chosen} onClick={() => toggle(item)}>{chosen ? 'Added to mandate' : 'Add to mandate'}</Secondary>} />;
-        })}
-      </div>
-      <div className={aqua.selectionBar}>
-        <div><span className={aqua.eyebrow}>Your strategy set</span><strong>{selected.length ? `${selected.length} ${selected.length === 1 ? 'strategy' : 'strategies'} selected` : 'Choose at least one strategy'}</strong></div>
-        <Primary disabled={selected.length === 0} onClick={() => go('limits')}>Set capital limits</Primary>
+        {listings.map(item => <ListingCard key={item.id} listing={item} action={<Secondary onClick={() => openStrategy(item)}>View strategy</Secondary>} />)}
       </div>
     </>}
+
+    {phase === 'detail' && selected[0] && <StrategyDetail listing={selected[0]} onUse={() => go('limits')} />}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
@@ -188,7 +219,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         </fieldset>
         <Primary type="submit" disabled={!valid}>Review mandate</Primary>
       </form>
-      <aside className={aqua.explanation}><h2>One policy across your strategy set</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>Provider policies may narrow your limits, never expand them.</li><li>PinTool Guard permits at most one strategy at a time.</li></ul><h3>Execution pair</h3><p>WETH / USDC strategies share Aqua liquidity without moving capital when authorization changes.</p></aside>
+      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>You can add other compatible strategies after activation.</li></ul><h3>Execution pair</h3><p>This strategy uses WETH / USDC liquidity through Aqua.</p></aside>
     </div>}
 
     {phase === 'review' && <div className={aqua.decisionGrid}>
@@ -207,6 +238,28 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
 function StrategySet({ selected }: { selected: Listing[] }) {
   return <div className={aqua.providerPair}>{selected.map(item => <div key={item.id}><span>{item.provider ?? 'Independent Provider'}</span><strong>{item.name}</strong><small>{item.template.label}</small></div>)}</div>;
+}
+
+function StrategyDetail({ listing, onUse }: { listing: Listing; onUse: () => void }) {
+  return <div className={aqua.decisionGrid}>
+    <div className={aqua.previewColumn}>
+      <ListingCard listing={listing} />
+      <Primary onClick={onUse}>Use this strategy</Primary>
+    </div>
+    <aside className={aqua.explanation}>
+      <span className={aqua.eyebrow}>Execution overview</span>
+      <h2>How your liquidity is used</h2>
+      <div className={aqua.intentRows}>
+        <div><span>Pair</span><strong>WETH / USDC</strong></div>
+        <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
+        <div><span>Custody</span><strong>Maker wallet</strong></div>
+        <div><span>Private input</span><strong>{listing.template.privateInputs}</strong></div>
+      </div>
+      <h3>Risk to understand</h3>
+      <p>{listing.template.risk}</p>
+      <p className={aqua.muted}>Reviewing a strategy does not reveal its Provider&apos;s private policy. Your own limits are applied before it can be authorized.</p>
+    </aside>
+  </div>;
 }
 
 function PolicyMetrics({ budget, exposure, maxWethInventory, maxTrade, validity }: { budget: string; exposure: string; maxWethInventory: string; maxTrade: string; validity: string }) {

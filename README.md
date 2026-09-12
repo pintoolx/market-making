@@ -2,12 +2,12 @@
 
 Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
 
-The intended design lets a Maker assemble a set of private strategies around one balance while keeping Provider logic and Maker limits private. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. The recorded ETHOnline scenario uses two strategies to make the authorization reversal easy to verify. Confidential execution and profit sharing are not implemented end to end yet.
+The product lets a Maker discover a strategy, inspect its public execution envelope, apply private capital limits and monitor its authorization around one self-custodial balance. A Maker may later add more strategies to that mandate. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. The recorded ETHOnline scenario uses two strategies to make the authorization reversal easy to verify. Confidential execution and profit sharing are not implemented end to end yet.
 
 ## Intended flow
 
 1. **Providers publish private policies.** Each policy decides when its public Aqua execution envelope should be active.
-2. **A Maker sets one private mandate.** Capital, WETH inventory, fill and expiry limits remain hidden from both Providers.
+2. **A Maker chooses a strategy and sets one private mandate.** Capital, WETH inventory, fill and expiry limits remain hidden from Providers. More strategies may be added to the same mandate later.
 3. **A confidential workflow selects the permitted strategy.** A deterministic validator applies the Maker's hard limits before emitting a short-lived mandate.
 4. **PinTool Guard enforces the mandate on Aqua.** Market regime changes switch the active strategy hash without moving the Maker's underlying wallet balance.
 
@@ -26,7 +26,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 
 | Part | Folder | Status |
 |---|---|---|
-| Web app: role choice, Provider Studio, strategy-set Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
+| Web app: role choice, structured Provider Studio, strategy discovery and detail, Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
 | CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
 | Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Single-strategy v1 synthetic-report prototype works; atomic A/B mandate switching and actual CRE delivery remain pending |
