@@ -15,6 +15,12 @@ const DOMAIN_TEXT = 'pintool/confidential-envelope/v1';
 const DOMAIN = new TextEncoder().encode(DOMAIN_TEXT);
 const HEX_32 = /^[0-9a-fA-F]{64}$/;
 
+// The public half of the deployed workflow envelope key. Keeping it in the
+// client bundle is intentional: only the matching private key is confidential.
+export const CONFIDENTIAL_WORKFLOW_PUBLIC_KEY =
+  process.env.NEXT_PUBLIC_CONFIDENTIAL_WORKFLOW_PUBLIC_KEY?.trim()
+  || '8ec56952f3fc21dbf57ac6431e82084c663f7b3db2b42af30f362e12e81e3a03';
+
 const fromHex = (value: string): Uint8Array => {
   const normalized = value.replace(/^0x/, '');
   if (!HEX_32.test(normalized)) throw new Error('The confidential workflow public key is invalid.');

@@ -8,7 +8,8 @@ import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
 import { addMandateStrategy, createMandate, getExecutableStrategies, getMandate, request, type MandateState } from './mandateClient';
 import type { PublicRelease } from './ClmmPublisher';
-import { sealForConfidentialWorkflow } from './confidentialEnvelope';
+import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealForConfidentialWorkflow } from './confidentialEnvelope';
+
 import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
 import { useProposals } from './proposalStore';
@@ -195,8 +196,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
     go('submitting');
     try {
-      const publicKey = process.env.NEXT_PUBLIC_CONFIDENTIAL_WORKFLOW_PUBLIC_KEY?.trim();
-      if (!publicKey) throw new Error('Confidential workflow encryption is not configured.');
       const makerLimitsEnvelope = sealForConfidentialWorkflow({
         schemaVersion: 2,
         maxBudget1: decimalToAtomic(budget, 6),
@@ -204,7 +203,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         maxToken0Value1: decimalToAtomic(maxWethInventory, 6),
         maxSwapValue1: decimalToAtomic(maxTrade, 6),
         maxTtlSec: Number(validityMinutes) * 60,
-      }, publicKey, makerAddress);
+      }, CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, makerAddress);
       const state = await createMandate({
         maker: makerAddress,
         providerStrategyIds: selected.map(item => item.id),

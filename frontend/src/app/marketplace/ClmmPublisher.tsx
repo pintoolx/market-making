@@ -8,7 +8,7 @@ import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import { request } from './mandateClient';
-import { sealProviderStrategy } from './confidentialEnvelope';
+import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealProviderStrategy } from './confidentialEnvelope';
 import aqua from './aqua.module.css';
 
 export type PublicRelease = LpRelease & { digest: string; executionStatus: string };
@@ -31,7 +31,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
   const [saved, setSaved] = useState(false);
   const pending = useRef<{ key: string; body: string } | null>(null);
   const provider = account.address?.toLowerCase();
-  const publicKey = process.env.NEXT_PUBLIC_CONFIDENTIAL_WORKFLOW_PUBLIC_KEY;
+  const publicKey = CONFIDENTIAL_WORKFLOW_PUBLIC_KEY;
 
   useEffect(() => {
     let alive = true;
