@@ -1,0 +1,13 @@
+{
+  "schema": "aqua-autopilot-v1",
+  "minPrice": "1000",
+  "maxPrice": "5000",
+  "rangeWidthBps": 1000,
+  "triggerBps": 500,
+  "cooldownSec": 60,
+  "ttlSec": 300,
+  "maxRebalances": 12,
+  "feeBps": 0,
+  "highMovementFeeBps": 0,
+  "movementThresholdBps": 1000
+}

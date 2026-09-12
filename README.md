@@ -29,6 +29,7 @@ Limits reduce exposure; they do not guarantee a maximum loss.
 | Web app: role choice, Provider Studio, Maker Marketplace, profile | `frontend/` | Working; published strategies and proposals are kept in the browser |
 | CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; account access, actual delivery and TEE evaluator pending |
 | Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
+| LP templates and automatic controller | `contracts/aqua-executor/` | XYC, PeggedSwap, concentrated LP; bounded range/fee rollover and guarded JSON recovery tested locally |
 | Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Prototype with synthetic-report testnet swaps / rejection evidence; actual CRE delivery pending |
 
 ## Getting started
