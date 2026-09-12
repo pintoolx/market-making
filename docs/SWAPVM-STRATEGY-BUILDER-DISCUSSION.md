@@ -183,7 +183,7 @@ ANVIL=/path/to/anvil node --test \
   test/pegged.test.ts test/guard.test.ts
 ```
 
-**22 tests passed，0 failed，0 skipped**。見 [`tests.log`](strategy-builder-research/tests.log)。這些是現有實作的測試，包含本地上游合約、mock ERC20 與合成 report；不代表 Builder 的新流程已通過，也沒有重跑公開鏈資產交易。本輪未跑新的 fork lifecycle 或 Builder browser 測試，因為新產品尚未實作。
+**22 tests passed，0 failed，0 skipped**。見 [`tests.txt`](strategy-builder-research/tests.txt)。這些是現有實作的測試，包含本地上游合約、mock ERC20 與合成 report；不代表 Builder 的新流程已通過，也沒有重跑公開鏈資產交易。本輪未跑新的 fork lifecycle 或 Builder browser 測試，因為新產品尚未實作。
 
 ## 官方來源與適用邊界
 

@@ -124,7 +124,7 @@ Guard 每 Maker 只有一個 active hash。給 B enabled report 會切換 A；�
 - Node orchestrator：`cre-mandate-runner`、`cre-local-simulator`、`guard-observer`、`lp-readiness`、`service`，26 passed / 0 failed。
 - Node + 本地 Anvil：`contracts/aqua-executor/test/concentrated.test.ts`，6 passed / 0 failed。包含 standing 時間推進、caps、持續撤銷、重新啟用及 active 切換。
 
-測試使用既有本地依賴，未重新安裝或更改 lockfile；這是針對 main 的局部驗證，不是全 repo build/CI 或新事件服務的端到端驗收。紀錄見 [event-trigger-tests.log](strategy-builder-research/event-trigger-tests.log)。
+測試使用既有本地依賴，未重新安裝或更改 lockfile；這是針對 main 的局部驗證，不是全 repo build/CI 或新事件服務的端到端驗收。紀錄見 [event-trigger-tests.txt](strategy-builder-research/event-trigger-tests.txt)。
 
 PR #35 的 [已提交 Sepolia 證據](https://github.com/pintoolx/market-making/blob/1d7f6a2257f27193d7faf070498cd3a54184ca0f/workflow/verification/standing-authorizations/README.md) 顯示 standing 初次接受、unchanged 無新 tx、Tight 成交及 Defensive 拒絕；不是這次重新送出的交易，也不是切換 Defensive 成功或正式 DON/TEE 證明。
 

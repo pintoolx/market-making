@@ -72,7 +72,7 @@
 ## 證據與環境
 
 - [第一輪歷史唯讀證據](strategy-builder-research/deployment-read.json)：Sepolia finalized block `11690067`，針對舊 Guard 的 Router/Aqua binding；不是最新 standing Guard 的 readback。
-- [第一輪歷史測試](strategy-builder-research/tests.log)：22 passed，針對當時底層 recipes。[最新事件研究測試](strategy-builder-research/event-trigger-tests.log)：main `1d7f6a2` 的 workflow 45、orchestrator 26、本地 Guard 整合 6，共 **77 passed / 0 failed**；不是新 Builder／事件服務已完成。
+- [第一輪歷史測試](strategy-builder-research/tests.txt)：22 passed，針對當時底層 recipes。[最新事件研究測試](strategy-builder-research/event-trigger-tests.txt)：main `1d7f6a2` 的 workflow 45、orchestrator 26、本地 Guard 整合 6，共 **77 passed / 0 failed**；不是新 Builder／事件服務已完成。
 - 本輪沒有新增鏈上交易、部署合約、啟動長駐續期服務、讀取真實 `.env`、上傳 workflow／secrets 或改動既有資產 journal。
 - Node `v24.14.0`、pnpm `10.6.2`；SwapVM SDK `0.4.4`。Node/CJS compiler 與瀏覽器共用層需隔離；不要盲升套件。
 - 本地 Anvil：`/home/kuoba123/eth-glo/aqua-executor/.cache/bin/anvil`。
