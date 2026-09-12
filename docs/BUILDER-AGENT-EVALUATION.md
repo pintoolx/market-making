@@ -23,7 +23,7 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 
 ## Offline regression checks
 
-`pnpm typecheck:builder-service` passed. The expanded `pnpm test:builder-service` suite passed 44 tests (one optional network test skipped) using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
+`pnpm typecheck:builder-service` passed. The expanded `pnpm test:builder-service` suite passed 49 tests (one optional network test skipped) using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
 
 - Atomic/idempotent acceptance, owner isolation, strict client input and one active turn per draft.
 - Multiple workers, expired-lease recovery after a new pool, three-attempt limit, cancellation, and late worker rejection even when it supplies the latest draft revision.
@@ -79,3 +79,7 @@ The API supports app-pinned Privy verification plus EOA wallet proof; production
 ## Provider numerical comparisons
 
 `eval-preview-agent.ts` passed five real OpenAI turns against signed local HTTP and PostgreSQL. The agent compared hypothetical XYC allocations, tightened only the USDC output cap and observed two WETH-input refusals, restored the cap and compared CLMM, then evaluated unequal Pegged allocations and explained why a 2500 reference parameter did not produce a 2500 execution price. The final turn read current/history without generating work or changing the draft. Every turn preserved non-requested parameters and retained the Provider template without a Maker identity/allocation. Full public [evidence](builder-previews/agent-evaluation.json) and [calculation semantics](BUILDER-SCENARIO-PREVIEWS.md) are committed. These are mathematical previews with explicit report assumptions; the separate nine-strategy fork check compares the underlying algorithm to actual quotes and transfers.
+
+## Maker inventory reads
+
+`eval-inventory-agent.ts` passed three real OpenAI turns with signed local HTTP, PostgreSQL and actual Sepolia reads of a fresh unfunded Maker. The agent distinguished ETH/WETH, zero balances and allowances, discussed virtual accounting without mutation/read, then changed only the USDC allocation from 25 to 20 and read again without claiming funds or settlement readiness. Public [evidence](builder-inventory/agent-evaluation.json) records every tool result source and unchanged parameters. The native reader was separately verified against shared-inventory/ship/dock states in an isolated fork; [details](BUILDER-WALLET-INVENTORY.md) preserve this distinction. No asset signature or public-chain transaction was sent.

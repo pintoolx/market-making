@@ -7,13 +7,15 @@ import { createDesignAgent } from './design-agent.ts'
 import { createArtifacts } from './artifacts.ts'
 import { createSimulations } from './simulations.ts'
 import { createPreviews } from './previews.ts'
+import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
 
 /** One durable turn; called by a long-lived worker, never owned by an HTTP connection. */
-export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal, preparation: { simulationEnabled?: boolean } = {}) {
+export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal, preparation: { simulationEnabled?: boolean; inventoryAdapter?: InventoryAdapter } = {}) {
   const turns = createTurns(pool), store = createStore(pool, profile.id, turn), artifacts = createArtifacts(pool, profile, turn), abort = new AbortController()
   const simulations = createSimulations(pool, profile, turn)
   const previews = createPreviews(pool, profile, turn)
   const combined = AbortSignal.any([abort.signal, AbortSignal.timeout(180000), ...(signal ? [signal] : [])])
+  const inventory = preparation.inventoryAdapter ? createInventoryReader(pool, profile, preparation.inventoryAdapter, turn) : undefined
   let heartbeatBusy = false
   const heartbeat = setInterval(async () => {
     if (heartbeatBusy) return
@@ -47,6 +49,7 @@ export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, mode
           return previews.get(turn.owner, saved.previewId)
         },
         previews: () => previews.list(turn.owner, turn.draftId),
+        ...(inventory ? { inventory: (expectedRevision: number) => inventory.read(turn.owner, { draftId: turn.draftId, expectedRevision }, combined) } : {}),
       } })
     const result = await agent.stream({ messages, abortSignal: combined })
     let text = '', pending = '', lastFlush = Date.now()

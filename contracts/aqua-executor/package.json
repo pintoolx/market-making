@@ -38,6 +38,7 @@
   "exports": {
     "./builder": "./src/builder-compile.ts",
     "./builder-simulation": "./src/builder-simulation.ts",
-    "./builder-preview": "./src/builder-preview.ts"
+    "./builder-preview": "./src/builder-preview.ts",
+    "./builder-inventory": "./src/builder-inventory.ts"
   }
 }

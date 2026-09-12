@@ -15,6 +15,7 @@ export interface DesignRepository {
   simulations?(): Promise<unknown>
   preview?(requestId: string, expectedRevision: number, options: ScenarioInput): Promise<unknown>
   previews?(): Promise<unknown>
+  inventory?(expectedRevision: number): Promise<unknown>
 }
 const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
   'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
@@ -123,6 +124,14 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         await read()
         return { chainId: profile.chainId, availableTokens: profile.tokens,
           tokens: queries.map(query => ({ query, token: resolveProfileToken(query, profile) })) }
+      }) }),
+    getWalletInventory: tool({ description: 'Read this owned Maker wallet at one recent verified Sepolia block: native ETH, WETH/USDC balances, allowances to Aqua, and bounded known strategy virtual balances. No address or RPC input is accepted. Provider templates have no Maker inventory; use explicit hypothetical scenario allocations instead. ETH is not WETH. Wallet and virtual balances share funds and must not be added. Sufficient balance/allowance is not proof of uncommitted inventory, valid report or settlement readiness. This is an on-demand read; signing requires a fresh preflight.',
+      strict: true, inputSchema: z.object({ expectedRevision: z.number().int().positive() }).strict(), execute: ({ expectedRevision }) => safe(async () => {
+        const draft = await read()
+        if (draft.kind !== 'maker') throw new Error('maker-instance-required')
+        if (draft.revision !== expectedRevision) throw new Error('draft-changed')
+        if (!repository.inventory) throw new Error('inventory-unavailable')
+        return repository.inventory(expectedRevision)
       }) }),
     createOrPatchDraft: tool({ description: 'Edit this existing owned draft or restore a previous revision. Values are decimal strings; allocations and Guard caps use HUMAN token units, prices use quote/base, fees use bps, deadline uses Unix seconds. Unmentioned fields persist. Set curve before its parameters. Requirement IDs are null for new requirements or an existing ID when refining. This does not publish, approve, register or broadcast anything.',
       strict: true, inputSchema: designEditSchema, execute: (input, options) => safe(async () => {
