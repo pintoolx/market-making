@@ -1,122 +1,159 @@
-import { describe, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import type { TeeRuntime } from '@chainlink/cre-sdk'
-import { test } from '@chainlink/cre-sdk/test'
-import { initWorkflow, onCronTrigger } from './workflow'
+import { configSchema, initWorkflow, onCronTrigger, type Config } from './workflow'
 
-const API_TOKEN = 'test-token'
+// The public test surface has no TEE runtime factory (`newTestRuntime` returns
+// a DON `Runtime`), so we stand up the slice of `TeeRuntime` the handler uses:
+// config, getSecrets, now, log, usingTheDons.
 
-const makeConfig = () => ({
-	schedule: '0 */1 * * * *',
-	url: 'https://postman-echo.com/headers',
-	secretId: 'API_TOKEN',
-	scoreThreshold: 500,
-})
-
-// The public test surface does not yet ship a TEE runtime factory
-// (`newTestRuntime` returns a DON `Runtime`), so we stand up the small slice of
-// `TeeRuntime` the handler actually uses: config, getSecret, callCapability
-// (which HTTPClient.sendRequest goes through), log, and usingTheDons.
-type FakeTeeRuntimeOptions = {
-	statusCode?: number
-	body?: string
+const PROVIDER = {
+	schemaVersion: 1,
+	strategyId: 'unit-test-strategy',
+	rules: [
+		{
+			id: 'calm-two-sided',
+			when: { priceMin: '1000', priceMax: '10000', volatilityBpsMax: 300 },
+			allowMakerBuyToken0: true,
+			allowMakerSellToken0: true,
+			maxAmount0PerSwap: '500000000000000000',
+			maxAmount1PerSwap: '1500000000',
+			ttlSec: 300,
+		},
+	],
+	inventory: { maxBalance0: '5000000000000000000', maxBalance1: '50000000000' },
 }
 
-const makeFakeTeeRuntime = ({ statusCode = 200, body = 'hello' }: FakeTeeRuntimeOptions = {}) => {
-	const capturedHeaders: string[] = []
-	const reports: unknown[] = []
+const MAKER = {
+	schemaVersion: 1,
+	maxBudget1: '10000000000',
+	maxToken0ShareBps: 6000,
+	maxAmount0PerSwap: '400000000000000000',
+	maxAmount1PerSwap: '2000000000',
+	maxTtlSec: 240,
+}
+
+const NOW = new Date(1_800_000_000_000)
+
+const makeConfig = (): Config =>
+	configSchema.parse({
+		schedule: '0 */2 * * * *',
+		providerSecretId: 'PROVIDER_STRATEGY',
+		makerSecretId: 'MAKER_LIMITS',
+		maker: '0x3333333333333333333333333333333333333333',
+		strategyHash: '0x4444444444444444444444444444444444444444444444444444444444444444',
+		marketSnapshot: {
+			midPrice: '3000',
+			volatilityBps: 120,
+			balance0: '1000000000000000000',
+			balance1: '4000000000',
+			decimals0: 18,
+			decimals1: 6,
+		},
+	})
+
+const makeFakeTeeRuntime = (secrets: Record<string, string> = {
+	PROVIDER_STRATEGY: JSON.stringify(PROVIDER),
+	MAKER_LIMITS: JSON.stringify(MAKER),
+}) => {
 	const logs: string[] = []
+	const secretCalls: string[][] = []
+	let crossedToDons = 0
 
 	const runtime = {
 		config: makeConfig(),
-		getSecret: (request: { id?: string }) => ({
-			result: () => ({ id: request.id, value: API_TOKEN }),
-		}),
-		callCapability: ({ payload }: { payload: { multiHeaders?: Record<string, unknown> } }) => {
-			const auth = payload.multiHeaders?.Authorization as { values?: string[] } | undefined
-			capturedHeaders.push(...(auth?.values ?? []))
+		getSecrets: (requests: { id: string }[]) => {
+			secretCalls.push(requests.map((r) => r.id))
 			return {
-				result: () => ({
-					statusCode,
-					body: new TextEncoder().encode(body),
-				}),
+				result: () =>
+					Object.fromEntries(
+						requests.map((r) => {
+							if (!(r.id in secrets)) throw new Error(`missing secret ${r.id}`)
+							return [r.id, { id: r.id, value: secrets[r.id] }]
+						}),
+					),
 			}
 		},
+		now: () => NOW,
 		log: (message: string) => logs.push(message),
-		usingTheDons: () => ({
-			report: (input: unknown) => {
-				reports.push(input)
-				return { result: () => ({}) }
-			},
-		}),
+		usingTheDons: () => {
+			crossedToDons++
+			throw new Error('usingTheDons must not be called in dry-run')
+		},
 	}
 
-	return { runtime: runtime as unknown as TeeRuntime<ReturnType<typeof makeConfig>>, capturedHeaders, reports, logs }
+	return {
+		runtime: runtime as unknown as TeeRuntime<Config>,
+		logs,
+		secretCalls,
+		crossedToDons: () => crossedToDons,
+	}
 }
 
 describe('onCronTrigger', () => {
-	test('injects the enclave-fetched secret into the outbound request', () => {
-		const { runtime, capturedHeaders } = makeFakeTeeRuntime()
+	test('fetches both confidential inputs in a single getSecrets() call', () => {
+		const { runtime, secretCalls } = makeFakeTeeRuntime()
 
 		onCronTrigger(runtime)
 
-		expect(capturedHeaders).toEqual([`Bearer ${API_TOKEN}`])
+		expect(secretCalls).toEqual([['PROVIDER_STRATEGY', 'MAKER_LIMITS']])
 	})
 
-	test('confirms the secret reached the API when the response echoes it back', () => {
-		const { runtime } = makeFakeTeeRuntime({ body: `{"authorization":"Bearer ${API_TOKEN}"}` })
+	test('returns only public report fields and stays inside the enclave in dry-run', () => {
+		const { runtime, crossedToDons } = makeFakeTeeRuntime()
 
-		expect(onCronTrigger(runtime)).toContain('secret reached API: true')
+		const summary = onCronTrigger(runtime)
+
+		expect(summary).toContain('allowedDirections=3')
+		expect(summary).toContain(`validAfter=${NOW.getTime() / 1000}`)
+		expect(summary).toContain(`validUntil=${NOW.getTime() / 1000 + 240}`)
+		expect(summary).toContain('txHash=none (dry-run)')
+		expect(crossedToDons()).toBe(0)
 	})
 
-	test('reports the secret did not reach the API when it is absent', () => {
-		const { runtime } = makeFakeTeeRuntime({ body: '{"authorization":"Bearer other"}' })
-
-		expect(onCronTrigger(runtime)).toContain('secret reached API: false')
-	})
-
-	test('crosses back to the DON to generate a report', () => {
-		const { runtime, reports } = makeFakeTeeRuntime()
+	test('dry-run logs the full payload the Guard would receive', () => {
+		const { runtime, logs } = makeFakeTeeRuntime()
 
 		onCronTrigger(runtime)
 
-		expect(reports).toHaveLength(1)
-		expect(reports[0]).toMatchObject({
-			encoderName: 'evm',
-			signingAlgo: 'ecdsa',
-			hashingAlgo: 'keccak256',
-		})
+		const reportLine = logs.find((l) => l.includes('report={'))
+		expect(reportLine).toBeDefined()
+		expect(reportLine).toContain('"allowedDirections":"3"')
+		expect(logs.some((l) => /encodedReport=0x[0-9a-f]{1024}$/.test(l))).toBe(true) // 512 bytes
+		expect(logs.some((l) => /reportHash=0x[0-9a-f]{64}$/.test(l))).toBe(true)
 	})
 
-	test('APPROVEs when the confidential score clears the threshold', () => {
-		// 'zzzzzzzz' sums to 976, above the 500 threshold.
-		const { runtime } = makeFakeTeeRuntime({ body: 'zzzzzzzz' })
+	test('never logs or returns private inputs (rule ids, thresholds, share, TTL preferences)', () => {
+		const { runtime, logs } = makeFakeTeeRuntime()
 
-		expect(onCronTrigger(runtime)).toContain('APPROVE')
-	})
+		const summary = onCronTrigger(runtime)
+		const everything = [...logs, summary].join('\n')
 
-	test('REJECTs when the confidential score is below the threshold', () => {
-		// 'a' sums to 97, below the 500 threshold.
-		const { runtime } = makeFakeTeeRuntime({ body: 'a' })
-
-		expect(onCronTrigger(runtime)).toContain('REJECT')
-	})
-
-	test('throws on a non-2xx response and never reaches the DON', () => {
-		const { runtime, reports } = makeFakeTeeRuntime({ statusCode: 401 })
-
-		expect(() => onCronTrigger(runtime)).toThrow('status: 401')
-		expect(reports).toHaveLength(0)
-	})
-
-	test('does not log the secret or the raw response body', () => {
-		const { runtime, logs } = makeFakeTeeRuntime({ body: 'sensitive-response' })
-
-		onCronTrigger(runtime)
-
-		for (const line of logs) {
-			expect(line).not.toContain(API_TOKEN)
-			expect(line).not.toContain('sensitive-response')
+		for (const secretOnly of ['unit-test-strategy', 'calm-two-sided', '"priceMin"', '10000"', '6000', 'volatilityBpsMax']) {
+			expect(everything).not.toContain(secretOnly)
 		}
+	})
+
+	test('rejects a malformed secret without echoing its contents', () => {
+		const { runtime } = makeFakeTeeRuntime({
+			PROVIDER_STRATEGY: JSON.stringify({ ...PROVIDER, strategyId: 'TOP-SECRET-NAME', rules: [] }),
+			MAKER_LIMITS: JSON.stringify(MAKER),
+		})
+
+		let message = ''
+		try {
+			onCronTrigger(runtime)
+		} catch (e) {
+			message = (e as Error).message
+		}
+		expect(message).toContain('PROVIDER_STRATEGY: secret failed schema validation')
+		expect(message).toContain('rules:too_small')
+		expect(message).not.toContain('TOP-SECRET-NAME')
+	})
+
+	test('rejects a secret that is not JSON', () => {
+		const { runtime } = makeFakeTeeRuntime({ PROVIDER_STRATEGY: 'not json', MAKER_LIMITS: JSON.stringify(MAKER) })
+
+		expect(() => onCronTrigger(runtime)).toThrow('PROVIDER_STRATEGY: secret is not valid JSON')
 	})
 })
 
@@ -126,8 +163,6 @@ describe('initWorkflow', () => {
 
 		expect(handlers).toHaveLength(1)
 		expect(handlers[0].fn).toBe(onCronTrigger)
-
-		// handlerInTee attaches TEE requirements; cre.handler does not.
 		expect(handlers[0].requirements).toBeDefined()
 	})
 })

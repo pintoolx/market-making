@@ -4,7 +4,7 @@
   "private": true,
   "description": "Chainlink CRE confidential workflow: intersects the Provider strategy and the Maker limits inside a TEE and emits a GuardReportV1 for the Aqua Guard.",
   "scripts": {
-    "test": "bun test src",
+    "test": "bun test src market-maker-auth",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "simulate": "cre workflow simulate market-maker-auth --non-interactive --trigger-index 0",
     "check:leak": "bash scripts/check-no-leak.sh"
