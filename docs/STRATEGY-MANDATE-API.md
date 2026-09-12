@@ -125,6 +125,16 @@ order, recomputes its strategy hash and checks it against the mandate. A settlem
 contain the matching `Swapped` event; a rejection must have a failed receipt and no such
 event. Only this verified evidence is appended to the activity shown by the frontend.
 
+The wallet trading page normally stops when a quote is rejected. For an explicitly
+reviewed enforcement check, a decoded `StrategyNotActive` error exposes a separate
+submission form. It requires a positive minimum output, sufficient Taker balance
+and allowance, and another inactive-strategy preflight before asking the wallet
+to sign. The user pays Sepolia gas; authorization changing before mining can still
+allow a trade at that minimum. The browser verifies the submitted calldata and
+failed receipt and never treats a successful transaction as rejection evidence.
+A failed receipt proves a revert, not its precise cause; the decoded preflight
+error is separate evidence and is not a mined execution trace.
+
 ## Required invariants
 
 - A strategy product contains at least one execution profile and at most one `active` profile for a Maker.
