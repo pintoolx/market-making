@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { encodeGuardReportV1, guardReportV1Hash, GUARD_REPORT_V1_BYTE_LENGTH } from './encode'
+import { encodeGuardReportV1, guardReportV1Hash, guardReportV1ToJson, GUARD_REPORT_V1_BYTE_LENGTH } from './encode'
 import type { GuardReportV1 } from './types'
 
 // Shared fixture owned by the contracts side — if this test breaks, the two
@@ -46,5 +46,15 @@ describe('encodeGuardReportV1 (golden against docs/guard-report-v1/example.json)
 
 	test('keccak256 of the encoding matches the fixture reportHash', () => {
 		expect(guardReportV1Hash(fromFixture(fixture.report))).toBe(fixture.reportHash)
+	})
+
+	test('serializes every report field in an explicit deterministic order', () => {
+		const json = guardReportV1ToJson(fromFixture(fixture.report))
+		expect(Object.keys(json)).toEqual([
+			'schemaVersion', 'chainId', 'guard', 'router', 'maker', 'strategyHash', 'token0', 'token1',
+			'nonce', 'validAfter', 'validUntil', 'allowedDirections', 'maxAmount0PerSwap',
+			'maxAmount1PerSwap', 'maxPostBalance0', 'maxPostBalance1',
+		])
+		expect(json).toEqual(fixture.report)
 	})
 })
