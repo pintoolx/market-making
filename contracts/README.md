@@ -1,6 +1,5 @@
 # Aqua execution (contracts)
 
-Owner: pengu
 
 Everything onchain: the Guard contract, the SwapVM strategy that calls it, and deploy and demo scripts.
 
@@ -10,7 +9,7 @@ Everything onchain: the Guard contract, the SwapVM strategy that calls it, and d
 
 From the repository root, run `pnpm install --frozen-lockfile`, `pnpm typecheck:contracts` and `ANVIL=/path/to/anvil pnpm test:contracts`. See the [migration notes](../docs/AQUA-EXECUTOR-MIGRATION.md) for provenance, package commands and validation.
 
-The executor supports **XYC, PeggedSwap and concentrated liquidity**, with zero-fee guarded variants. Guard v2 checks real Aqua inventory for concentrated pricing. Explicit Guard recipes support durable JSON execution and recovery. A local controller previews or executes range/fee changes after strategy expiry, while retaining the original HODL loss benchmark. See [LP programs and automatic rollover](aqua-executor/docs/LP-STRATEGIES.md). New LP tests use local Anvil; public Guard v2 deployment and actual CRE delivery remain pending.
+The executor supports **XYC, PeggedSwap and concentrated liquidity**, with zero-fee guarded variants. Guard v2 checks real Aqua inventory for concentrated pricing and enforces one active strategy hash per Maker. Explicit Guard recipes support durable JSON execution and recovery. A local controller previews or executes range/fee changes after strategy expiry, while retaining the original HODL loss benchmark. See [LP programs and automatic rollover](aqua-executor/docs/LP-STRATEGIES.md). New LP tests use local Anvil; public Guard v2 deployment and actual CRE delivery remain pending.
 
 The project selected **DON → forwarder → Guard** delivery. A [public CRE adapter and runbook](../workflow/guard-report/README.md) are ready for the first transport check, pending account access. The CLI simulation needs a new Guard bound to Chainlink's simulation forwarder; the existing harness-bound Guard cannot be reused. The [integration decision](../docs/CRE-GUARD-INTEGRATION.md) records the pinned Aqua opcode `0x20` / five-register ABI and the separate production identity profile. Do not substitute upstream main's `0x04` / four-register interface into the existing router deployment.
 
@@ -27,7 +26,8 @@ The report format with the confidential workflow in [`workflow/`](../workflow/).
 
 Start review with the [Guard report v1 proposal](../docs/GUARD-REPORT-V1.md). It includes proposed ABI fields, units, expiry and replay behavior, an encoding fixture and the decisions that still require agreement.
 
-## Background
+## Reference
 
-- [What Aqua can enforce per swap, and the Guard design](../docs/AQUA-STRATEGY-DEEP-DIVE.md)
+- [Current system architecture](../docs/ARCHITECTURE.md)
+- [LP programs and automatic rollover](aqua-executor/docs/LP-STRATEGIES.md)
 - Example Extruction target: `test/solidity/mocks/BestRouteSelector.sol` in `1inch/swap-vm`

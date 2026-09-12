@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import type { TeeRuntime } from '@chainlink/cre-sdk'
-import { configSchema, initWorkflow, onCronTrigger, type Config } from './workflow'
+import type { HTTPPayload, TeeRuntime } from '@chainlink/cre-sdk'
+import { configSchema, initWorkflow, onCronTrigger, onHttpTrigger, type Config } from './workflow'
 
 // The public test surface has no TEE runtime factory (`newTestRuntime` returns
 // a DON `Runtime`), so we stand up the slice of `TeeRuntime` the handler uses:
@@ -37,7 +37,9 @@ const NOW = new Date(1_800_000_000_000)
 const makeConfig = (): Config =>
 	configSchema.parse({
 		schedule: '0 */2 * * * *',
+		authorizedEVMAddress: '0x1111111111111111111111111111111111111111',
 		providerSecretId: 'PROVIDER_STRATEGY',
+		providerStrategies: [{ strategyHash: `0x${'6'.repeat(64)}`, secretId: 'PROVIDER_STRATEGY_DEFENSIVE' }],
 		makerSecretId: 'MAKER_LIMITS',
 		maker: '0x3333333333333333333333333333333333333333',
 		strategyHash: '0x4444444444444444444444444444444444444444444444444444444444444444',
@@ -53,6 +55,7 @@ const makeConfig = (): Config =>
 
 const makeFakeTeeRuntime = (secrets: Record<string, string> = {
 	PROVIDER_STRATEGY: JSON.stringify(PROVIDER),
+	PROVIDER_STRATEGY_DEFENSIVE: JSON.stringify({ ...PROVIDER, strategyId: 'defensive-unit-test-strategy' }),
 	MAKER_LIMITS: JSON.stringify(MAKER),
 }) => {
 	const logs: string[] = []
@@ -89,6 +92,10 @@ const makeFakeTeeRuntime = (secrets: Record<string, string> = {
 	}
 }
 
+const httpPayload = (value: unknown) => ({
+	input: new TextEncoder().encode(JSON.stringify(value)),
+}) as HTTPPayload
+
 describe('onCronTrigger', () => {
 	test('fetches both confidential inputs in a single getSecrets() call', () => {
 		const { runtime, secretCalls } = makeFakeTeeRuntime()
@@ -96,6 +103,17 @@ describe('onCronTrigger', () => {
 		onCronTrigger(runtime)
 
 		expect(secretCalls).toEqual([['PROVIDER_STRATEGY', 'MAKER_LIMITS']])
+	})
+
+	test('rejects a strategy hash without a configured Provider secret', () => {
+		const { runtime, secretCalls } = makeFakeTeeRuntime()
+		expect(() => onHttpTrigger(runtime, httpPayload({
+			requestId: 'mandate-unknown',
+			maker: '0x5555555555555555555555555555555555555555',
+			strategyHash: `0x${'7'.repeat(64)}`,
+			marketSnapshot: makeConfig().marketSnapshot,
+		}))).toThrow('No Provider secret is configured')
+		expect(secretCalls).toEqual([])
 	})
 
 	test('returns only public report fields and stays inside the enclave in dry-run', () => {
@@ -158,11 +176,48 @@ describe('onCronTrigger', () => {
 })
 
 describe('initWorkflow', () => {
-	test('registers the cron handler with a Nitro TEE constraint', () => {
+	test('registers cron and authorized HTTP handlers with Nitro TEE constraints', () => {
 		const handlers = initWorkflow(makeConfig())
 
-		expect(handlers).toHaveLength(1)
+		expect(handlers).toHaveLength(2)
 		expect(handlers[0].fn).toBe(onCronTrigger)
+		expect(handlers[1].fn).toBe(onHttpTrigger)
 		expect(handlers[0].requirements).toBeDefined()
+		expect(handlers[1].requirements).toBeDefined()
+	})
+})
+
+describe('onHttpTrigger', () => {
+	test('uses public request identity while fetching both private inputs inside the TEE', () => {
+		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
+		const summary = onHttpTrigger(runtime, httpPayload({
+			requestId: 'mandate-01',
+			maker: '0x5555555555555555555555555555555555555555',
+			strategyHash: `0x${'6'.repeat(64)}`,
+			marketSnapshot: makeConfig().marketSnapshot,
+		}))
+
+		expect(secretCalls).toEqual([['PROVIDER_STRATEGY_DEFENSIVE', 'MAKER_LIMITS']])
+		expect(summary).toContain('requestId=mandate-01')
+		expect(summary).toContain('allowedDirections=3')
+		const report = logs.find((line) => line.includes('report={'))
+		expect(report).toContain('0x5555555555555555555555555555555555555555')
+		expect(report).toContain(`0x${'6'.repeat(64)}`)
+	})
+
+	test('rejects private fields and malformed payloads without echoing their values', () => {
+		const { runtime } = makeFakeTeeRuntime()
+		let message = ''
+		try {
+			onHttpTrigger(runtime, httpPayload({
+				requestId: 'mandate-01',
+				maker: '0x5555555555555555555555555555555555555555',
+				strategyHash: `0x${'6'.repeat(64)}`,
+				marketSnapshot: makeConfig().marketSnapshot,
+				makerLimits: 'TOP-SECRET-LIMITS',
+			}))
+		} catch (error) { message = (error as Error).message }
+		expect(message).toContain('HTTP trigger payload failed schema validation')
+		expect(message).not.toContain('TOP-SECRET-LIMITS')
 	})
 })

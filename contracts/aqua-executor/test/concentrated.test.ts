@@ -4,7 +4,7 @@ import { executeRequest, executionStatus } from '../src/execution-controller.ts'
 import { compileExecution } from '../src/execution-compile.ts'
 import { parseStrategy } from '../src/execution-request.ts'
 import { before, after, test } from 'node:test'
-import { encodeAbiParameters, encodeFunctionData, zeroHash, zeroAddress, type Abi } from 'viem'
+import { encodeAbiParameters, encodeFunctionData, toFunctionSelector, zeroHash, zeroAddress, type Abi } from 'viem'
 import { compile } from '../src/compile.ts'
 import { concentrationBounds } from '../src/concentrated.ts'
 import { readJson } from '../src/config.ts'
@@ -20,6 +20,7 @@ after(() => f?.close())
 const params = () => { const p = f.params(); p.tokens = [f.d.tokens.mWETH!, f.d.tokens.mUSDC!]; p.amounts = ['2000000000000000000', '5000000000'];
   p.program = { kind: 'concentrated', feeBps: 0, deadline: p.program.deadline, salt: p.program.salt, ...concentrationBounds(p.tokens, [18, 6], '2000', '3000') }; return p }
 const caps = { maxAmount0PerSwap: 10n ** 18n, maxAmount1PerSwap: 1000_000_000n, maxPostBalance0: 3n * 10n ** 18n, maxPostBalance1: 6000_000_000n }
+const strategyNotActive = new RegExp(toFunctionSelector('StrategyNotActive()').slice(2))
 
 test('range conversion handles inverted addresses and 18/6 decimals using integer rounding', () => {
   const low = '0x0000000000000000000000000000000000000001', high = '0x0000000000000000000000000000000000000002'
@@ -79,6 +80,41 @@ test('range exhaustion cannot spend virtual inventory and v1 addresses reject th
   await f.activate(wrong, caps); await f.submit(wrong, {}, caps)
   await assert.rejects(quote(ctx, d, wrong, wrong.tokens[1]!, wrong.tokens[0]!, 10_000_000n))
   await send(ctx, ctx.maker, buildTx.dock(d, wrong), 'dock', rec)
+})
+
+test('Guard v2 atomically switches the single active strategy for one Maker balance', async () => {
+  const { ctx, d, rec } = f
+  const first = compileGuardedV2(params(), guard, caps)
+  const secondParams = params()
+  if (secondParams.program.kind !== 'concentrated') throw new Error('expected concentrated strategy')
+  secondParams.program = {
+    ...secondParams.program,
+    ...concentrationBounds(secondParams.tokens, [18, 6], '2200', '3200'),
+  }
+  const second = compileGuardedV2(secondParams, guard, caps)
+  await f.activate(first, caps)
+  await f.activate(second, caps)
+
+  await f.submit(first, {}, caps)
+  assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), first.strategyHash)
+  await quote(ctx, d, first, first.tokens[1]!, first.tokens[0]!, 10_000_000n)
+
+  await f.submit(second, { allowedDirections: 0 }, caps)
+  assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), first.strategyHash)
+  await quote(ctx, d, first, first.tokens[1]!, first.tokens[0]!, 10_000_000n)
+  await assert.rejects(quote(ctx, d, second, second.tokens[1]!, second.tokens[0]!, 10_000_000n), strategyNotActive)
+
+  await f.submit(second, { nonce: 2n }, caps)
+  assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), second.strategyHash)
+  await assert.rejects(quote(ctx, d, first, first.tokens[1]!, first.tokens[0]!, 10_000_000n), strategyNotActive)
+  await quote(ctx, d, second, second.tokens[1]!, second.tokens[0]!, 10_000_000n)
+
+  await f.submit(second, { nonce: 3n, allowedDirections: 0 }, caps)
+  assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), zeroHash)
+  await assert.rejects(quote(ctx, d, second, second.tokens[1]!, second.tokens[0]!, 10_000_000n), strategyNotActive)
+
+  await send(ctx, ctx.maker, buildTx.dock(d, first), 'dock-first', rec)
+  await send(ctx, ctx.maker, buildTx.dock(d, second), 'dock-second', rec)
 })
 
 

@@ -1,76 +1,101 @@
 # PinTool Market Making
 
-Private market-making strategies on 1inch Aqua, with Chainlink Confidential Compute integration in progress.
+**Private strategy intelligence for self-custodial market making.**
 
-The product lets a Maker discover a strategy, inspect its public execution envelope, apply private capital limits and monitor its authorization around one self-custodial balance. A Maker may later add more strategies to that mandate. A confidential workflow authorizes at most one strategy at a time, and PinTool Guard enforces the resulting short-lived mandate on every Aqua swap. The recorded ETHOnline scenario uses two strategies to make the authorization reversal easy to verify. Confidential execution and profit sharing are not implemented end to end yet.
+PinTool connects Strategy Providers with Makers on [1inch Aqua](https://1inch.com/aqua/). Providers contribute proprietary market-making policies, Makers define private risk limits, and a [Chainlink Confidential Workflow](https://chain.link/confidential-compute) combines both inside a TEE. The resulting short-lived authorization is enforced on every swap by PinTool Guard.
 
-## Intended flow
+## How it works
 
-1. **Providers publish private policies.** Each policy decides when its public Aqua execution envelope should be active.
-2. **A Maker chooses a strategy and sets one private mandate.** Capital, WETH inventory, fill and expiry limits remain hidden from Providers. More strategies may be added to the same mandate later.
-3. **A confidential workflow selects the permitted strategy.** A deterministic validator applies the Maker's hard limits before emitting a short-lived mandate.
-4. **PinTool Guard enforces the mandate on Aqua.** Market regime changes switch the active strategy hash without moving the Maker's underlying wallet balance.
+```text
+Strategy Provider policy ─┐
+                          ├─► Chainlink Confidential Workflow ─► signed authorization
+Maker risk limits ────────┘                                          │
+                                                                    ▼
+Maker wallet ───────────────► 1inch Aqua strategy ───────────► PinTool Guard
+        one self-custodial balance                         allow or revert each swap
+```
 
-## What stays private
+1. A **Strategy Provider** publishes a strategy listing while keeping its activation rules, thresholds and sizing logic private.
+2. A **Maker** selects a strategy and sets private limits for capital, inventory, fills and authorization lifetime.
+3. The confidential workflow intersects both policies. It can make a Maker's limits stricter, never looser.
+4. PinTool Guard accepts the signed authorization and enforces it during Aqua execution.
 
-| Intended private inputs | Public output |
-|---|---|
-| Provider's pricing and adjustment logic | Strategy name, description and fee |
-| Maker's original budget and exposure policy | Derived direction flags, caps, validity windows, activated strategy parameters and every onchain trade |
+This lets one Maker balance support multiple strategies without transferring custody to PinTool. At most one strategy in a mandate is active at a time.
 
-Public outputs and their history can reveal information about private inputs over time. Short expiry limits the use of an authorization; it does not erase historical reports or prevent strategy inference. We make no quantified privacy guarantee. Current frontend drafts remain in the browser, and the report delivery fixture uses public data; real TEE processing is still pending. See the [privacy and integration decision](docs/CRE-GUARD-INTEGRATION.md).
+## Product surfaces
 
-Limits reduce exposure; they do not guarantee a maximum loss.
+- **Strategy marketplace** — discover strategies and inspect their public execution envelopes.
+- **Provider Studio** — create a strategy from structured market-making templates and publish its public listing.
+- **Maker mandate** — configure private risk limits and assign liquidity to compatible strategies.
+- **Activity monitor** — follow confirmed authorization changes and onchain execution.
 
-## Status
+## Architecture
 
-| Part | Folder | Status |
+| Component | Location | Responsibility |
 |---|---|---|
-| Web app: role choice, structured Provider Studio, strategy discovery and detail, Maker mandate, monitoring and profile | `frontend/` | Working; live execution requires the mandate service configured below |
-| Mandate orchestration and evidence gate | `orchestrator/` | HTTP API implemented; waits for a confidential runner and verifies every claimed Base Sepolia receipt before returning public state |
-| CRE report delivery / confidential workflow | `workflow/` | Public adapter, SDK mock tests and WASM build ready; confidential evaluator is not yet in this repository |
-| Aqua / SwapVM executor, off-chain loss monitor and transaction recovery | `contracts/aqua-executor/` | Imported; local tests and historical Base Sepolia evidence included |
-| LP templates and automatic controller | `contracts/aqua-executor/` | XYC, PeggedSwap, concentrated LP; bounded range/fee rollover and guarded JSON recovery tested locally |
-| Guard contract and per-swap enforcement | `contracts/aqua-executor/` | Guard v1/v2 tested locally; v1 has synthetic-report testnet evidence. Atomic A/B switching and actual CRE delivery remain pending |
+| Web application | [`frontend/`](frontend/) | Marketplace, Provider Studio, Maker mandate, monitoring and profile |
+| Mandate service | [`orchestrator/`](orchestrator/) | Request validation, confidential runner transport and receipt verification |
+| Confidential workflow | [`workflow/market-maker-auth/`](workflow/market-maker-auth/) | Private policy intersection and Guard report generation |
+| Report delivery | [`workflow/guard-report/`](workflow/guard-report/) | DON report encoding and onchain delivery |
+| Aqua executor | [`contracts/aqua-executor/`](contracts/aqua-executor/) | Compile, ship, swap, rebalance, monitor and dock Aqua strategies |
+| PinTool Guard | [`contracts/aqua-executor/contracts/`](contracts/aqua-executor/contracts/) | Enforce direction, amount, inventory and expiry bounds per swap |
 
-## Getting started
+Read the [system architecture](docs/ARCHITECTURE.md) for trust boundaries and execution invariants.
+
+## Local development
+
+### Web application
 
 ```bash
 pnpm install
-cp frontend/.env.example frontend/.env.local   # set Privy and mandate service values
-pnpm dev                                        # http://localhost:3200
+cp frontend/.env.example frontend/.env.local
+pnpm dev
 ```
 
-Uses pnpm with a hoisted `node_modules` (see `.npmrc`). `@solana-program/token` is pinned in `package.json` because newer versions need a newer `@solana/kit` than the Solana wallet adapters use.
+The app runs at [http://localhost:3200](http://localhost:3200). Set `NEXT_PUBLIC_PRIVY_APP_ID` and `NEXT_PUBLIC_MANDATE_API_URL` in `frontend/.env.local`.
 
-The executor requires **Node 24 or newer** for its SQLite journal. With Node 24 and Anvil installed, run `pnpm typecheck:contracts` and `pnpm test:contracts` (`ANVIL=/path/to/anvil` if needed). The web app's scripts and Node 22 Pages deployment remain separate. See [executor setup and migration](docs/AQUA-EXECUTOR-MIGRATION.md).
+### Validation
 
-The CRE adapter uses a separate Bun package. Run `bun install --frozen-lockfile`, `bun test` and `bun run build` in `workflow/guard-report/`; see the [delivery runbook](workflow/guard-report/README.md).
+```bash
+pnpm lint
+pnpm build
+pnpm test:orchestrator
 
-The mandate service currently targets the existing Base Sepolia contracts. Configure its runner, RPC and allowed frontend origin from `orchestrator/.env.example`, then run `pnpm start:orchestrator`. The runner receives private input only through stdin and must return confirmed public evidence; see the [runner protocol](orchestrator/README.md). The service rejects missing, failed, wrong-chain or wrong-strategy evidence.
+cd workflow
+bun install --frozen-lockfile
+bun test
+bun run typecheck
+```
 
-## Deploy (Cloudflare Pages)
+The Aqua executor requires Node.js 24 or newer and Anvil:
 
-The web app is exported as a static site (`output: "export"`).
+```bash
+pnpm typecheck:contracts
+ANVIL=/path/to/anvil pnpm test:contracts
+```
+
+## Deployment
+
+The frontend is a static Next.js export deployed at [mm.pintool.fun](https://mm.pintool.fun).
 
 - Build command: `pnpm install --frozen-lockfile && pnpm build`
-- Build output directory: `frontend/out`
-- Environment variables: `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_MANDATE_API_URL` (inlined at build time) and `NODE_VERSION=22`
-- The Maker flow does not fabricate workflow or transaction success when the mandate service is absent.
-- Add the Pages domain to the Privy app's allowed origins.
+- Output directory: `frontend/out`
+- Runtime variables: `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_MANDATE_API_URL`, `NODE_VERSION=22`
 
-## Docs
+Ethereum Sepolia is the target network for the integrated WETH/USDC flow. The repository also contains earlier Base Sepolia execution receipts used to validate the imported Aqua executor. A network migration must update the deployment manifest, workflow domain, RPC, explorer and frontend configuration together; the mandate service rejects mixed-network evidence.
 
-- [Product website model and lifecycle](docs/PRODUCT-WEBSITE.md)
-- [Product spec and interfaces](docs/PRODUCT-HANDOFF.md)
-- [Winning integration and video flow](docs/WINNING-FLOW.md)
-- [Frontend mandate service contract](docs/STRATEGY-MANDATE-API.md)
-- [ETHOnline topic diligence and prior-art analysis](docs/TOPIC-DILIGENCE.md)
-- [Aqua maker strategy research](docs/AQUA-MAKER-RESEARCH.md)
-- [What Aqua can enforce per swap, and the Guard design](docs/AQUA-STRATEGY-DEEP-DIVE.md)
-- [CRE delivery decision, pinned VM version and privacy limits](docs/CRE-GUARD-INTEGRATION.md)
-- [User stories and UX walkthrough](docs/UX-USER-STORIES.md)
+## Integration status
 
-## Background
+The web product, mandate API, Aqua executor, Guard contracts and confidential evaluation workflow are implemented and tested independently. The mandate service includes the complete signed CRE HTTP trigger and Guard-event verification path. End-to-end deployment requires the Ethereum Sepolia contract addresses, a deployed Confidential Workflow ID and the corresponding authorized signer. Until those values are configured, the product does not present planned actions as confirmed transactions.
 
-The web app grew out of the [PinTool](https://github.com/pintoolx) app; its earlier git history is kept under `frontend/`. Everything from commit `33ff065` onward is new to this project; earlier commits are the existing PinTool app. How AI tools were used is described in [AI_USAGE.md](AI_USAGE.md).
+Provider policies and Maker limits are intended to remain confidential. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Mandate API](docs/STRATEGY-MANDATE-API.md)
+- [Authorization format](docs/AUTHORIZATION-FORMAT.md)
+- [Guard report specification](docs/GUARD-REPORT-V1.md)
+- [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md)
+- [Aqua executor](contracts/aqua-executor/README.md)
+- [AI usage](AI_USAGE.md)

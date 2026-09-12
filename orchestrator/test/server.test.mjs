@@ -7,7 +7,7 @@ import { makeServer } from '../src/server.mjs';
 
 const h = digit => `0x${digit.repeat(64)}`;
 const tx = h('a');
-const state = { mandateId: 'mandate-http', regime: 'normal', strategies: [{ listingId: 'featured-tight-market', name: 'Tight Market', strategyHash: h('b'), status: 'active', maxAmountPerSwapAtomic: '100000000' }],
+const state = { mandateId: 'mandate-http', maker: '0x1111111111111111111111111111111111111111', regime: 'normal', strategies: [{ listingId: 'featured-tight-market', name: 'Tight Market', strategyHash: h('b'), status: 'active', maxAmountPerSwapAtomic: '100000000' }],
   evidence: { chainId: 84532, networkName: 'Base Sepolia', reportDigest: h('c'), reportTransactionHash: tx,
     reportExplorerUrl: `https://sepolia.basescan.org/tx/${tx}`, sequence: '1', expiresAt: '2026-09-12T12:00:00.000Z' }, events: [] };
 const input = { maker: '0x1111111111111111111111111111111111111111', providerStrategyIds: ['featured-tight-market'], policy: {

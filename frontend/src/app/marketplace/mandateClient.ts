@@ -32,6 +32,7 @@ export type MandateEvent = {
 
 export type MandateState = {
   mandateId: string;
+  maker: string;
   regime: MarketRegime;
   strategies: MandateStrategy[];
   evidence: ChainEvidence;
@@ -74,7 +75,7 @@ function isHex(value: unknown): value is `0x${string}` {
 
 function validateState(value: MandateState): MandateState {
   const active = Array.isArray(value.strategies) ? value.strategies.filter(item => item?.status === 'active') : [];
-  if (!value.mandateId || !['normal', 'high-volatility', 'unknown'].includes(value.regime)
+  if (!value.mandateId || !/^0x[0-9a-f]{40}$/i.test(value.maker) || !['normal', 'high-volatility', 'unknown'].includes(value.regime)
     || !Array.isArray(value.strategies) || value.strategies.length === 0 || active.length > 1
     || !value.strategies.every(item => item?.listingId && item?.name && isHex(item.strategyHash))
     || !value.evidence || !isHex(value.evidence.reportDigest)

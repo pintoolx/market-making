@@ -64,7 +64,22 @@ export function guardReportV1Hash(report: GuardReportV1): Hex {
 
 /** JSON-friendly view (bigint → decimal string) for logs and fixtures. */
 export function guardReportV1ToJson(report: GuardReportV1): Record<string, string> {
-	return Object.fromEntries(
-		Object.entries(report).map(([k, v]) => [k, typeof v === 'bigint' ? v.toString() : String(v)]),
-	)
+	return {
+		schemaVersion: String(report.schemaVersion),
+		chainId: report.chainId.toString(),
+		guard: report.guard,
+		router: report.router,
+		maker: report.maker,
+		strategyHash: report.strategyHash,
+		token0: report.token0,
+		token1: report.token1,
+		nonce: report.nonce.toString(),
+		validAfter: String(report.validAfter),
+		validUntil: String(report.validUntil),
+		allowedDirections: String(report.allowedDirections),
+		maxAmount0PerSwap: report.maxAmount0PerSwap.toString(),
+		maxAmount1PerSwap: report.maxAmount1PerSwap.toString(),
+		maxPostBalance0: report.maxPostBalance0.toString(),
+		maxPostBalance1: report.maxPostBalance1.toString(),
+	}
 }

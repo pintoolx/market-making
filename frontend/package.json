@@ -1,5 +1,6 @@
 {
-  "name": "pintool-app",
+  "name": "@pintool/web",
+  "description": "The PinTool Market Making web application.",
   "version": "0.1.0",
   "private": true,
   "scripts": {

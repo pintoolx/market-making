@@ -12,7 +12,7 @@ A strategy's parameters can arrive through the [TEE JSON request entry](docs/exe
 maker approve(Aqua) → Aqua.ship → taker router.swap → [Aqua.multicall(dock old, ship new)] → Aqua.dock → revoke
 ```
 
-**Base Sepolia demo completed:** 13 successful lifecycle transactions, including two swaps and atomic rebalance. See [deployment addresses and transaction evidence](docs/base-sepolia-demo.md), or forward the [TEE interface and actual strategy parameters](docs/tee-handoff.md) to the integration team.
+**Base Sepolia verification:** 13 lifecycle transactions succeeded, including two swaps and an atomic rebalance. See the [deployment addresses and transaction evidence](docs/base-sepolia-demo.md) and the [confidential executor interface](docs/confidential-executor-interface.md).
 
 | Step | Signer | Call | What moves |
 |---|---|---|---|

@@ -1,5 +1,6 @@
 {
-  "name": "market-making",
+  "name": "@pintool/market-making",
+  "description": "Private strategy intelligence for self-custodial market making on 1inch Aqua.",
   "private": true,
   "packageManager": "pnpm@10.6.2",
   "scripts": {
@@ -8,6 +9,8 @@
     "lint": "pnpm --filter ./frontend lint",
     "test:orchestrator": "pnpm --filter @pintool/mandate-service test",
     "start:orchestrator": "pnpm --filter @pintool/mandate-service start",
+    "test:workflow": "cd workflow && bun test",
+    "typecheck:workflow": "cd workflow && bun run typecheck",
     "test:contracts": "pnpm --filter aqua-executor test",
     "typecheck:contracts": "pnpm --filter aqua-executor typecheck"
   },
