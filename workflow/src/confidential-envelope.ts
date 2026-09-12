@@ -27,13 +27,13 @@ const fromHex = (value: string): Uint8Array => {
 }
 
 /** Decrypts a browser-sealed value only after execution has entered the TEE. */
-export const openConfidentialEnvelope = (envelope: ConfidentialEnvelope, privateKeyHex: string, maker: string): string => {
+export const openConfidentialEnvelope = (envelope: ConfidentialEnvelope, privateKeyHex: string, subject: string, scope: 'maker' | 'provider' = 'maker'): string => {
 	const privateKey = privateKeyHex.replace(/^0x/, '')
 	if (!HEX_32.test(privateKey)) throw new Error('confidential envelope key is invalid')
 	try {
 		const sharedSecret = x25519.getSharedSecret(fromHex(privateKey), fromHex(envelope.ephemeralPublicKey))
 		const key = hkdf(sha256, sharedSecret, DOMAIN, DOMAIN, 32)
-		const context = new TextEncoder().encode(`${DOMAIN_TEXT}|maker=${maker.toLowerCase()}`)
+		const context = new TextEncoder().encode(`${DOMAIN_TEXT}|${scope}=${subject.toLowerCase()}`)
 		const plaintext = xchacha20poly1305(key, fromHex(envelope.nonce), context).decrypt(fromHex(envelope.ciphertext))
 		return new TextDecoder().decode(plaintext)
 	} catch {

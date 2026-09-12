@@ -23,14 +23,20 @@ const fromHex = (value: string): Uint8Array => {
 
 const toHex = (value: Uint8Array): string => Array.from(value, byte => byte.toString(16).padStart(2, '0')).join('');
 
-export function sealForConfidentialWorkflow(value: unknown, publicKeyHex: string, maker: string): ConfidentialEnvelope {
+function seal(value: unknown, publicKeyHex: string, scope: 'maker' | 'provider', subject: string): ConfidentialEnvelope {
   const ephemeralPrivateKey = randomBytes(32);
   const ephemeralPublicKey = x25519.getPublicKey(ephemeralPrivateKey);
   const sharedSecret = x25519.getSharedSecret(ephemeralPrivateKey, fromHex(publicKeyHex));
   const nonce = randomBytes(24);
   const key = hkdf(sha256, sharedSecret, DOMAIN, DOMAIN, 32);
   const plaintext = new TextEncoder().encode(JSON.stringify(value));
-  const context = new TextEncoder().encode(`${DOMAIN_TEXT}|maker=${maker.toLowerCase()}`);
+  const context = new TextEncoder().encode(`${DOMAIN_TEXT}|${scope}=${subject.toLowerCase()}`);
   const ciphertext = xchacha20poly1305(key, nonce, context).encrypt(plaintext);
   return { version: 1, ephemeralPublicKey: toHex(ephemeralPublicKey), nonce: toHex(nonce), ciphertext: toHex(ciphertext) };
 }
+
+export const sealForConfidentialWorkflow = (value: unknown, publicKeyHex: string, maker: string): ConfidentialEnvelope =>
+  seal(value, publicKeyHex, 'maker', maker);
+
+export const sealProviderStrategy = (value: unknown, publicKeyHex: string, provider: string): ConfidentialEnvelope =>
+  seal(value, publicKeyHex, 'provider', provider);

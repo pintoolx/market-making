@@ -42,7 +42,7 @@ const DOMAIN_TEXT = 'pintool/confidential-envelope/v1'
 const DOMAIN = new TextEncoder().encode(DOMAIN_TEXT)
 const SEALED_MAKER_ADDRESS = '0x5555555555555555555555555555555555555555'
 const hex = (value: Uint8Array) => Array.from(value, (byte) => byte.toString(16).padStart(2, '0')).join('')
-const seal = (value: unknown, maker = SEALED_MAKER_ADDRESS) => {
+const seal = (value: unknown, subject = SEALED_MAKER_ADDRESS, scope: 'maker' | 'provider' = 'maker') => {
 	const ephemeralPrivateKey = new Uint8Array(32).fill(8)
 	const nonce = new Uint8Array(24).fill(9)
 	const shared = x25519.getSharedSecret(ephemeralPrivateKey, x25519.getPublicKey(ENVELOPE_PRIVATE_KEY))
@@ -51,7 +51,7 @@ const seal = (value: unknown, maker = SEALED_MAKER_ADDRESS) => {
 		version: 1 as const,
 		ephemeralPublicKey: hex(x25519.getPublicKey(ephemeralPrivateKey)),
 		nonce: hex(nonce),
-		ciphertext: hex(xchacha20poly1305(key, nonce, new TextEncoder().encode(`${DOMAIN_TEXT}|maker=${maker.toLowerCase()}`)).encrypt(new TextEncoder().encode(JSON.stringify(value)))),
+		ciphertext: hex(xchacha20poly1305(key, nonce, new TextEncoder().encode(`${DOMAIN_TEXT}|${scope}=${subject.toLowerCase()}`)).encrypt(new TextEncoder().encode(JSON.stringify(value)))),
 	}
 }
 const SEALED_MAKER = seal({
@@ -225,6 +225,46 @@ describe('initWorkflow', () => {
 })
 
 describe('onHttpTrigger', () => {
+	test('opens a Provider-submitted strategy and Maker limits only inside the TEE', () => {
+		const provider = '0x7777777777777777777777777777777777777777'
+		const providerEnvelope = seal(PROVIDER, provider, 'provider')
+		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
+		const summary = onHttpTrigger(runtime, httpPayload({
+			requestId: 'mandate-dynamic-provider',
+			maker: SEALED_MAKER_ADDRESS,
+			strategyHash: makeConfig().strategyHash,
+			marketSnapshot: makeConfig().marketSnapshot,
+			makerLimitsEnvelope: SEALED_MAKER,
+			provider,
+			providerStrategyEnvelope: providerEnvelope,
+		}))
+
+		expect(secretCalls).toEqual([['ENVELOPE_PRIVATE_KEY']])
+		expect(summary).toContain('allowedDirections=3')
+		expect([...logs, summary].join('\n')).not.toContain(providerEnvelope.ciphertext)
+		expect(() => onHttpTrigger(runtime, httpPayload({
+			requestId: 'mandate-provider-replay',
+			maker: SEALED_MAKER_ADDRESS,
+			strategyHash: makeConfig().strategyHash,
+			marketSnapshot: makeConfig().marketSnapshot,
+			makerLimitsEnvelope: SEALED_MAKER,
+			provider: '0x8888888888888888888888888888888888888888',
+			providerStrategyEnvelope: providerEnvelope,
+		}))).toThrow('confidential envelope could not be opened')
+	})
+
+	test('requires Provider identity and encrypted policy together', () => {
+		const { runtime } = makeFakeTeeRuntime()
+		expect(() => onHttpTrigger(runtime, httpPayload({
+			requestId: 'mandate-half-provider',
+			maker: SEALED_MAKER_ADDRESS,
+			strategyHash: makeConfig().strategyHash,
+			marketSnapshot: makeConfig().marketSnapshot,
+			makerLimitsEnvelope: SEALED_MAKER,
+			provider: '0x7777777777777777777777777777777777777777',
+		}))).toThrow('providerStrategyEnvelope')
+	})
+
 	test('decrypts dynamic Maker limits only after entering the TEE', () => {
 		const { runtime, secretCalls, logs } = makeFakeTeeRuntime()
 		const sealedLimits = seal({
