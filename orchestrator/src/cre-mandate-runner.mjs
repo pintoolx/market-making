@@ -17,7 +17,7 @@ export function policyDigest(policy) {
   return createHash('sha256').update(stableStringify(policy)).digest('hex');
 }
 
-export function directRunnerConfig(env = process.env) {
+export function mandateRunnerConfig(env = process.env) {
   const catalog = JSON.parse(required(env, 'MANDATE_STRATEGY_CATALOG'));
   const marketSnapshot = JSON.parse(required(env, 'MANDATE_MARKET_SNAPSHOT'));
   if (!catalog || typeof catalog !== 'object' || Array.isArray(catalog)) throw new Error('MANDATE_STRATEGY_CATALOG must be an object');
@@ -31,9 +31,6 @@ export function directRunnerConfig(env = process.env) {
   const expectedPolicyDigest = required(env, 'MANDATE_POLICY_SHA256').toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(expectedPolicyDigest)) throw new Error('MANDATE_POLICY_SHA256 is invalid');
   return {
-    gatewayUrl: required(env, 'CRE_GATEWAY_URL'),
-    workflowId: required(env, 'CRE_WORKFLOW_ID'),
-    privateKey: required(env, 'CRE_HTTP_TRIGGER_PRIVATE_KEY'),
     rpcUrl: required(env, 'MANDATE_RPC_URL'),
     explorerUrl: required(env, 'MANDATE_EXPLORER_URL').replace(/\/$/, ''),
     networkName: required(env, 'MANDATE_NETWORK_NAME'),
@@ -43,6 +40,15 @@ export function directRunnerConfig(env = process.env) {
     marketSnapshot,
     expectedPolicyDigest,
     timeoutMs: Number(env.MANDATE_RUNNER_TIMEOUT_MS ?? 120_000),
+  };
+}
+
+export function directRunnerConfig(env = process.env) {
+  return {
+    ...mandateRunnerConfig(env),
+    gatewayUrl: required(env, 'CRE_GATEWAY_URL'),
+    workflowId: required(env, 'CRE_WORKFLOW_ID'),
+    privateKey: required(env, 'CRE_HTTP_TRIGGER_PRIVATE_KEY'),
   };
 }
 
@@ -72,7 +78,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   const mandateId = creating ? `mandate-${randomUUID()}` : request.mandateId;
   const fromBlock = await (dependencies.currentBlock ?? currentBlock)(config.rpcUrl, dependencies.fetchImpl);
   const trigger = dependencies.trigger ?? triggerCREWorkflow;
-  const accepted = await trigger({
+  const accepted = await trigger(dependencies.triggerConfig ?? {
     gatewayUrl: config.gatewayUrl,
     workflowId: config.workflowId,
     privateKey: config.privateKey,

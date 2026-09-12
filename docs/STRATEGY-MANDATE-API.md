@@ -6,6 +6,8 @@ The implementation lives in `orchestrator/`. It connects to Chainlink and Aqua t
 
 The frontend creates mandates and reads confirmed state and activity. Workflow and contract tooling drive market fixtures, CRE delivery and test-taker swaps; these are not exposed as product actions. The service must never present an expected outcome as confirmed evidence.
 
+For the hackathon path, configure `MANDATE_RUNNER` with `orchestrator/bin/cre-local-simulation-runner`. Each create or add-strategy request invokes the confidential HTTP handler through `cre workflow simulate --broadcast`, waits for the matching `ReportAccepted` event on Ethereum Sepolia, verifies the receipt, and only then returns the public mandate state. This path requires CRE CLI authentication and a funded Sepolia signer, but it does not require a deployed workflow or Confidential Workflows deployment access.
+
 Raw Provider policy and Maker limits must use a verified confidential input path. When that transport is unavailable, the service must reject the request and must not leave plaintext in ordinary backend logs.
 
 ## Create a mandate
