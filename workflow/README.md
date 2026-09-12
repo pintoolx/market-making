@@ -2,16 +2,14 @@
 
 # Confidential workflow (Chainlink CRE, TEE)
 
-Owner: Henry (workflow). Counterpart: pengu (`contracts/`, the Aqua Guard).
-
 A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It reads two confidential inputs — the Provider's strategy and the Maker's risk limits — as Vault DON secrets, intersects them at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). The TEE never handles Maker funds.
 
-The evaluator and report delivery are currently separate integration stages:
+The workflow has two entry points:
 
-- [`market-maker-auth/`](market-maker-auth/) runs the Provider × Maker intersection through `handlerInTee` and produces the 16-field report in simulation.
-- [`guard-report/`](guard-report/) encodes and delivers public report output through `runtime.report()` → `EVMClient.writeReport()`, then verifies Guard state and receipts.
+- A cron trigger continuously reevaluates the configured strategy.
+- An authorized HTTP trigger performs on-demand evaluation for a public Maker, strategy hash and market snapshot.
 
-Both stages have tests, but the confidential evaluator is not yet wired to the delivery adapter in one deployed workflow. CLI simulation is not production DON or TEE attestation. See the [transport and verification boundary](../docs/CRE-GUARD-INTEGRATION.md) and [`docs/authorization-format.md`](../docs/authorization-format.md).
+Both handlers enter the TEE before fetching Provider and Maker secrets, then call the shared report delivery seam. The separate [`guard-report/`](guard-report/) package verifies encoding, DON delivery and Guard readback. CLI simulation is not production DON or TEE attestation. See the [system architecture](../docs/ARCHITECTURE.md) and [transport verification boundary](../docs/CRE-GUARD-INTEGRATION.md).
 
 ## Layout
 
@@ -19,11 +17,12 @@ Both stages have tests, but the confidential evaluator is not yet wired to the d
 workflow/
 ├── project.yaml                 CRE project settings (RPCs per target)
 ├── secrets.yaml                 logical secret ids → env vars (PROVIDER_STRATEGY, MAKER_LIMITS)
-├── .env.example                 synthetic demo secrets (copy to .env — gitignored)
+├── .env.example                 local simulation secrets (copy to .env — gitignored)
 ├── market-maker-auth/           the CRE workflow (cre init --template hello-confidential-workflows-ts)
-│   ├── workflow.ts              handlerInTee cron callback: getSecrets → intersect → publish
+│   ├── workflow.ts              cron + HTTP handlerInTee callbacks: getSecrets → intersect → publish
 │   ├── workflow.test.ts         handler tests with a fake TeeRuntime
-│   ├── config.staging.json      public config: schedule, maker, strategyHash, market snapshot, publishMode
+│   ├── http-request.example.json public on-demand trigger payload
+│   ├── config.staging.json      public config: schedule, trigger signer, default identity and publishMode
 │   └── workflow.yaml
 ├── src/
 │   ├── types.ts                 zod schemas for both secrets, the snapshot and GuardReportV1
@@ -31,7 +30,7 @@ workflow/
 │   ├── intersect.test.ts        15 cases: incompatible sides, exhausted inventory, expiry, rule order
 │   ├── encode.ts                ABI encoder, golden-tested against docs/guard-report-v1/example.json
 │   ├── publish.ts               THE seam to the Guard: publishAuthorization(runtime, result)
-│   └── config/guard.ts          Guard / router / token / forwarder constants (TODO(pengu) marks)
+│   └── config/guard.ts          Guard / router / token / forwarder constants
 └── scripts/check-no-leak.sh     simulate, then assert no private value appears in the output
 ```
 
@@ -44,15 +43,16 @@ cd workflow
 bun install
 cp .env.example .env          # synthetic values; real policies go here, never committed
 
-bun test                      # 25 unit tests (src/ + market-maker-auth/)
+bun test                      # unit tests for evaluator, encoding and both triggers
 bun run typecheck
-bun run simulate              # = cre workflow simulate market-maker-auth --non-interactive --trigger-index 0
+bun run simulate              # cron trigger
+bun run simulate:http         # HTTP trigger with the checked-in public payload
 bun run check:leak            # simulate + leak scan
 ```
 
 `simulate` prints the TEE notice box, the complete `GuardReportV1` payload the Guard would
 receive (dry-run), its 512-byte ABI encoding and `keccak256` hash, and a public one-line
-result. No deployment access is needed to simulate; deploying needs `cre account access`
+result. HTTP trigger input is visible to Workflow DON nodes and therefore contains no private policy. No deployment access is needed to simulate; deploying needs `cre account access`
 and Confidential Workflows private-beta enrollment.
 
 ## Confidentiality boundary
@@ -81,11 +81,10 @@ maker)` — those are listed explicitly so reviewers see exactly what is reveale
 - Base Sepolia chain-selector name `ethereum-testnet-sepolia-base-1`; CRE mock forwarder
   `0x82300bd7c3958625581cc2f77bc6464dcecdf3e5`.
 
-## Status
+## Production configuration
 
-- [x] Scaffold from the official confidential template; baseline simulate passes
-- [x] Pure intersection + GuardReportV1 encoding, golden-matched to the contracts fixture
-- [x] TEE handler end-to-end in `cre workflow simulate` (dry-run publish)
-- [x] Leak check script
-- [ ] `publishMode: don-report` against a Guard deployed with the CRE forwarder (waiting on pengu — see `docs/authorization-format.md` §9)
-- [ ] Market snapshot fetched inside the enclave via `HTTPClient` instead of config
+- Replace `authorizedEVMAddress` with the EVM address used to sign CRE HTTP trigger requests. An empty or placeholder authorization is not valid production configuration.
+- Upload `PROVIDER_STRATEGY` and `MAKER_LIMITS` through Vault DON and remove simulation-only secret values.
+- Use `publishMode: don-report` with a Guard deployed for the official forwarder and assigned workflow identity.
+- Supply live market observations and Maker balances through a verified data path. The checked-in HTTP fixture and cron defaults are deterministic local inputs.
+- Remove simulation-only report logging before deployment.

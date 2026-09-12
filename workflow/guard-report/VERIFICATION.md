@@ -2,11 +2,13 @@
 
 ## Ethereum Sepolia update
 
-The adapter now targets chain 11155111 and AquaGuardV2. Typechecks, **10 tests /
-76 assertions**, and WASM build pass. Preparation rejects Base bundles and
-noncanonical tokens. A read-only `setup:guard config` against deployed receiver
+The adapter now targets chain 11155111 and AquaGuardV2. Typechecks, **11 tests /
+78 assertions**, and WASM build pass. The current preflight also rejects receivers
+without Maker-scoped active-strategy support. Preparation rejects Base bundles and
+noncanonical tokens. Before that capability check was added, a read-only `setup:guard config` against receiver
 `0x51c4fa6a0622ffe4a9a57cbb7057b93a874f356e` passed all immutable checks and generated
-a paused, unshipped probe. No CRE report was broadcast. The [asset migration run](../../contracts/aqua-executor/docs/ethereum-sepolia-demo.md)
+a paused, unshipped probe. That earlier receiver is now rejected by the current
+preflight. No CRE report was broadcast. The [asset migration run](../../contracts/aqua-executor/docs/ethereum-sepolia-demo.md)
 records public-chain deployment and synthetic-report enforcement separately.
 The evidence below describes the original Base adapter increment.
 

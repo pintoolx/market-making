@@ -7,6 +7,7 @@
     "test": "bun test src market-maker-auth",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "simulate": "cre workflow simulate market-maker-auth --non-interactive --trigger-index 0",
+    "simulate:http": "cre workflow simulate market-maker-auth --non-interactive --trigger-index 1 --http-payload @market-maker-auth/http-request.example.json",
     "check:leak": "bash scripts/check-no-leak.sh"
   },
   "dependencies": {

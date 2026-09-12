@@ -9,7 +9,7 @@ The complete Aqua lifecycle with atomic rebalance succeeded on Base Sepolia (cha
 - [Deployment JSONL](../records/84532/deploy-2026-09-11T17-30-31-800Z.jsonl)
 - [Funding JSONL](../records/84532/funding-2026-09-11T17-30-24-212Z.jsonl)
 - [Deployment addresses](../deployments/84532.json)
-- [TEE interface and actual strategy parameters](tee-handoff.md)
+- [Confidential executor interface](confidential-executor-interface.md)
 
 ## Contracts
 

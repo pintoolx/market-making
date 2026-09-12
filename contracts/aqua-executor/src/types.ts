@@ -35,7 +35,7 @@ export interface Deployment {
   /** symbol -> address */
   tokens: Record<string, Hex>
   /** Optional delivery receiver; synthetic demo receivers are recorded separately. */
-  guard?: { address: Hex; version: 2; forwarder: Hex; profile: 'cre-simulation' }
+  guard?: { address: Hex; version: 2; revision?: 'maker-active-v1'; forwarder: Hex; profile: 'cre-simulation' }
 }
 
 export interface ProgramCommon {

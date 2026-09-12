@@ -1,11 +1,8 @@
-# Authorization format — workflow-side proposal (draft for the contracts owner)
+# Authorization Format
 
-Status: **proposal, not yet agreed.** Written by the workflow owner on 2026-09-12 to
-align with the contracts owner (pengu). It adopts
-[`GUARD-REPORT-V1.md`](GUARD-REPORT-V1.md) **field for field, with no renames**, and
-records how the enclave derives every value, what was deliberately *not* added, how the
-report is delivered, and the questions that still need an answer. Where this document and
-`GUARD-REPORT-V1.md` disagree, the disagreement is listed in §8 rather than silently resolved.
+This specification adopts [`GUARD-REPORT-V1.md`](GUARD-REPORT-V1.md) field for
+field. It defines how the confidential workflow derives each value, which values stay
+private, how the report is delivered and which deployment values must be configured.
 
 Implementation: [`workflow/src/types.ts`](../workflow/src/types.ts) (schemas),
 [`workflow/src/intersect.ts`](../workflow/src/intersect.ts) (derivation),
@@ -36,7 +33,7 @@ budget and share, and which side "won" each cap stay inside the TEE.
 | 3 | `guard` | `address` | 20 bytes | `config/guard.ts` | Binds the report to one receiver so a report signed for Guard A cannot be replayed into Guard B. |
 | 4 | `router` | `address` | 20 bytes | `config/guard.ts` | The Guard only accepts `extruction()` calls from this router; the report must name the same one. |
 | 5 | `maker` | `address` | 20 bytes | `config.staging.json` | Storage key #1 — the Guard keys state by `(maker, strategyHash)`; funds never leave this wallet. |
-| 6 | `strategyHash` | `bytes32` | `router.hash(order)` | `config.staging.json` (TODO pengu) | Storage key #2 — ties the authorization to one Maker-approved guarded program. |
+| 6 | `strategyHash` | `bytes32` | `router.hash(order)` | `config.staging.json` | Storage key #2 — ties the authorization to one Maker-approved guarded program. |
 | 7 | `token0` | `address` | 20 bytes | `config/guard.ts` | With `token1`, lets the Guard reject a swap on the wrong pair; order = the approved program's order, never sorted. |
 | 8 | `token1` | `address` | 20 bytes | `config/guard.ts` | See `token0`. |
 | 9 | `nonce` | `uint64` | `> 0`, strictly increasing per `(maker, strategyHash)` | TEE (unix seconds, see §5) | Ordering + replay protection: older or reused nonces revert; a byte-identical retry is a no-op. |
@@ -76,8 +73,8 @@ snapshot wins, none matching = paused.
 | `maxAmount0PerSwap` / `maxAmount1PerSwap` | Per-fill ceilings the Maker tolerates. |
 | `maxTtlSec` | Maker's upper bound on report lifetime. |
 
-**Market snapshot** (public, currently from `config.staging.json`; TODO: fetch inside the
-enclave with `HTTPClient`): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
+**Market snapshot** (public, currently from `config.staging.json`; a verified live
+data adapter is planned): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
 `balance0` / `balance1`, and the two token decimals.
 
 ## 4. Derivation rules (the "intersection")
@@ -151,37 +148,25 @@ other.
 
 | Candidate | Decision | Reason |
 |---|---|---|
-| price bounds (`minPrice`/`maxPrice`) | not added | The Guard sees `amountIn`/`amountOut`, so it *could* enforce an effective price, but the Aqua strategy program already prices the fill; adding a second price check risks double-reverting quotes. Price thresholds are instead used *inside* the TEE to pick the regime. Open to adding if pengu wants the Guard to enforce a band (§9 Q5). |
+| price bounds (`minPrice`/`maxPrice`) | not added | The Aqua program already prices each fill. A second Guard price check could reject valid quotes. Price thresholds select the active regime inside the TEE. |
 | remaining cumulative budget | not added | `GUARD-REPORT-V1.md` explicitly rejects cumulative counters without quote/swap consistency tests; the absolute `maxPostBalance*` caps give the same protection statelessly. |
 | matched rule id / reason | never on-chain | Would leak the strategy shape. Kept in an enclave-only `DecisionTrace`. |
 | per-direction caps | not added | Both amount caps apply to both directions in v1; splitting them doubles the payload for little gain. |
 
-## 9. Questions for pengu
+## 9. Deployment decisions
 
-1. **Delivery:** confirm option B (forwarder → `onReport`) is what you want the workflow to
-   target, so option A stays a stub.
-2. **Guard deployment for simulation:** will you redeploy the simulation-profile Guard with
-   `forwarder = 0x82300bd7c3958625581cc2f77bc6464dcecdf3e5` (CRE mock forwarder, Base
-   Sepolia) so `cre workflow simulate --broadcast` can change Guard state? Give me the new
-   address → `workflow/src/config/guard.ts`.
-3. **Production identity:** for the non-simulation profile the Guard's immutable
-   `workflowId` / `workflowOwner` must match the registered workflow. Do you want the
-   workflow ID before deploying, or a Guard with a settable identity for the demo?
-4. **`strategyHash`:** send the `router.hash(order)` of the guarded program plus the Maker
-   address for the demo → `workflow/market-maker-auth/config.staging.json`.
-5. **Price band in the report?** See §8 row 1. If yes, propose the unit (token1 per token0,
-   scale) and I add two `uint128` fields + tests + a new fixture.
-6. **Gas limit** for `onReport` on Base Sepolia (currently a placeholder `500000`).
-7. **Metadata in simulation:** confirm the Guard's simulation profile skips the 64-byte
-   workflow-identity check (docs say only the forwarder address is checked).
+1. Deploy the Guard with the forwarder used by the target CRE environment.
+2. Bind the production Guard to the registered `workflowId` and `workflowOwner`.
+3. Configure the guarded Aqua program's `strategyHash` and Maker address.
+4. Verify the `onReport` gas limit against the deployed Guard.
+5. Confirm that simulation and production enforce their intended metadata checks.
+6. Update chain selector, contracts, token pair, RPC and explorer together when migrating
+   from the archived Base Sepolia deployment to Ethereum Sepolia.
 
-## 10. What changes when the answers arrive
+## 10. Configuration map
 
-| Answer | File(s) touched |
+| Configuration | Files |
 |---|---|
-| Q1, Q2, Q3, Q6 | `workflow/src/config/guard.ts` constants; flip `publishMode` to `don-report` in `config.staging.json`. |
-| Q4 | `workflow/market-maker-auth/config.staging.json` (`maker`, `strategyHash`). |
-| Q5 | `workflow/src/types.ts`, `intersect.ts`, `encode.ts`, tests, `docs/guard-report-v1/*` — plus the Solidity struct. |
-| Q7 | none on the workflow side. |
-
-Nothing else in `workflow/` depends on these answers.
+| Guard, router, token, forwarder, workflow identity and gas | `workflow/src/config/guard.ts` |
+| Maker, strategy hash, market snapshot and publish mode | `workflow/market-maker-auth/config.*.json` |
+| Report schema | `workflow/src/types.ts`, `intersect.ts`, `encode.ts`, tests, `docs/guard-report-v1/*` and the Solidity struct |

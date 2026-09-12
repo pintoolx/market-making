@@ -16,7 +16,7 @@ export type AquaTemplate = {
   prompt: string;
 };
 
-// Educational examples from AQUA-MAKER-RESEARCH.md, not deployed provider listings.
+// Product templates for authoring strategies; they are not deployed Provider listings.
 export const AQUA_TEMPLATES: AquaTemplate[] = [
   {
     id: 'xyc', name: 'Classic two-sided', mechanism: 'XYC', label: 'Constant product', category: 'Base strategy',

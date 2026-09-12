@@ -14,7 +14,8 @@ maker approve(Aqua) → Aqua.ship → taker router.swap → [Aqua.multicall(dock
 
 **Current route: Ethereum Sepolia WETH / Circle testnet USDC.** See [funding, deployment, small demos and verification](docs/ETHEREUM-SEPOLIA.md). [Public run: 39 successful transactions and one expected Guard revert](docs/ethereum-sepolia-demo.md). Run `pnpm sepolia status` before deployment.
 
-**Historical Base Sepolia demo completed:** 13 successful lifecycle transactions, including two swaps and atomic rebalance. See [deployment addresses and transaction evidence](docs/base-sepolia-demo.md), or forward the [TEE interface and actual strategy parameters](docs/tee-handoff.md) to the integration team.
+**Historical Base Sepolia demo completed:** 13 successful lifecycle transactions, including two swaps and atomic rebalance. See [deployment addresses and transaction evidence](docs/base-sepolia-demo.md), or forward the [confidential executor interface](docs/confidential-executor-interface.md) to the integration team.
+
 
 | Step | Signer | Call | What moves |
 |---|---|---|---|

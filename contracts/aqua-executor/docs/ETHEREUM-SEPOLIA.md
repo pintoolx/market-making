@@ -45,7 +45,7 @@ pnpm lifecycle --network ethereum-sepolia --rebalance
 pnpm demo:guard --network ethereum-sepolia
 ```
 
-Without `--execute`, `sepolia deploy` and `sepolia fund` are read-only preflights.
+Without `--execute`, `sepolia deploy`, `sepolia upgrade-guard` and `sepolia fund` are read-only preflights.
 The old `deploy --network ethereum-sepolia` command refuses to create mocks.
 The new deployment command reuses Aqua/WETH/USDC, deploys pinned SwapVM v1.0.2
 and AquaGuardV2, and writes `deployments/11155111.json`. The bundle includes the
@@ -66,6 +66,24 @@ to `records/11155111/`. Preserve failed-run records too. The fixed lifecycle and
 Guard demo themselves are not resumable controllers: inspect active strategies
 and allowances before restarting an interrupted run. The JSON execution entry
 remains the supported strategy-operation recovery interface.
+
+## Receiver revision and recovery
+
+The current artifact includes Maker-scoped `activeStrategyHash` enforcement.
+The original 40-transaction run used an earlier V2 revision without this getter;
+its receipts and source manifest remain historical. For an existing deployment,
+run `pnpm sepolia upgrade-guard --execute` with the **same state directory**.
+This deploys only a replacement simulation Guard, retains the Router and assets,
+and uses its own durable `sepolia-guard-maker-active-v1` request. Repeating it
+recovers the same creation hash. Do not delete the original deployment journal
+to bypass the bytecode mismatch check. Fresh setups continue to use `deploy`.
+
+A replacement has empty report state. Recompile future guarded programs with
+the new address and obtain fresh strategy hashes and reports; existing programs
+still reference the old immutable receiver. The original recorded strategies
+are already docked. Replacement does not activate a strategy or deliver a CRE
+report. Both workflow publishers reject receivers without the active-strategy
+getter before writing.
 
 ## Guard and workflow boundary
 
@@ -89,9 +107,10 @@ deployment and current guarded strategy hash before broadcasting. The
 orchestrator defaults to Sepolia RPC/explorer/chain ID. The UI shows WETH / USDC
 with Ethereum Sepolia identification and small suggested limits.
 
-Real CRE account access, confidential execution, atomic A/B mandate switching,
-and frontend evidence integration are separate acceptance items in
-[`WINNING-FLOW.md`](../../../docs/WINNING-FLOW.md). A successful asset migration
+Real CRE account access, confidential execution, public A/B mandate-switch
+verification and frontend evidence integration remain separate acceptance items
+in the [architecture](../../../docs/ARCHITECTURE.md). Local contract tests cover
+atomic A/B switching. A successful asset migration
 does not establish those milestones. Existing `demo:risk` intentionally remains
 restricted to the old mock fixture; the generic monitor/controller can use the
 new assets and deployment with an explicit price source.
@@ -109,6 +128,6 @@ SOLC=/path/to/solc-0.8.30 pnpm build:guard:v2 --check
 The optional fork test uses the real WETH9, Circle USDC proxy/implementation,
 and Aqua from Sepolia. It impersonates USDC's issuer **only on its child Anvil**
 to create a 20-USDC fixture; upstream RPC calls are read-only. It checks interrupted
-deployment/wrapping recovery, repeated initialization without new transactions,
+deployment/wrapping/receiver replacement recovery, repeated initialization without new transactions,
 the 13-transaction lifecycle and concentrated Guard success/veto with unchanged
 wallet/Aqua balances on rejection. Fork records are not public-chain evidence.

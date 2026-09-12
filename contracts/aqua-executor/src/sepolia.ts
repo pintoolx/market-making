@@ -29,6 +29,7 @@ export const FUNDING_TARGET = {
 }
 const wethAbi = parseAbi(['function deposit() payable'])
 const routerIdentityAbi = parseAbi(['function AQUA() view returns (address)'])
+const activeStrategyAbi = parseAbi(['function activeStrategyHash(address maker) view returns (bytes32)'])
 const artifact = (name: string) => readJson(`artifacts/${name}.json`) as { abi: Abi; bytecode: Hex }
 
 export async function checkSepoliaAssets(pc: PublicClient) {
@@ -107,25 +108,48 @@ async function withStore<T>(ctx: Ctx, options: Options, requestId: string, work:
 }
 
 /** Reuses canonical Aqua and assets; never deploys or mints mock tokens. */
+async function deployOne(ctx: Ctx, sender: ReturnType<typeof durableSender>, name: string, args: unknown[]) {
+  const a = artifact(name)
+  const data = encodeDeployData({ abi: a.abi, bytecode: a.bytecode, args })
+  const previous = sender.get(name)
+  if (previous && previous.request.data !== data) throw new Error(`saved ${name} deployment uses different bytecode or constructor arguments; retain its journal and use upgrade-guard for the maker-active-v1 revision`)
+  const receipt = await sender.send(name, ctx.maker, `deploy:${name}`, zeroHash, async () => ({ data }))
+  if (!receipt.contractAddress) throw new Error(`missing deployed ${name}`)
+  const code = await ctx.pc.getCode({ address: receipt.contractAddress })
+  if (!code || code === '0x') throw new Error(`missing deployed ${name}`)
+  return receipt.contractAddress
+}
+
+async function deployReceiver(ctx: Ctx, sender: ReturnType<typeof durableSender>, router: Hex): Promise<NonNullable<Deployment['guard']>> {
+  const address = await deployOne(ctx, sender, 'AquaGuardV2', [SEPOLIA.simulationForwarder, router, zeroHash, zeroAddress, true])
+  await ctx.pc.readContract({ address, abi: activeStrategyAbi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] })
+  return { address, version: 2, revision: 'maker-active-v1', forwarder: SEPOLIA.simulationForwarder, profile: 'cre-simulation' }
+}
+
 export async function deploySepolia(ctx: Ctx, options: Options): Promise<Deployment> {
   return withStore(ctx, options, 'sepolia-deploy-v1', async (store, sender) => {
-    const deployOne = async (name: string, args: unknown[]) => {
-      const a = artifact(name)
-      const data = encodeDeployData({ abi: a.abi, bytecode: a.bytecode, args })
-      const previous = sender.get(name)
-      if (previous && previous.request.data !== data) throw new Error(`saved ${name} deployment uses different bytecode or constructor arguments`)
-      const receipt = await sender.send(name, ctx.maker, `deploy:${name}`, zeroHash, async () => ({ data }))
-      if (!receipt.contractAddress) throw new Error(`missing deployed ${name}`)
-      const code = await ctx.pc.getCode({ address: receipt.contractAddress })
-      if (!code || code === '0x') throw new Error(`missing deployed ${name}`)
-      return receipt.contractAddress
-    }
-    const router = await deployOne('AquaSwapVMRouter', [SEPOLIA.aqua, SEPOLIA.WETH, ctx.maker.account.address, '1inch SwapVM v1.0', '1.0.2'])
+    const router = await deployOne(ctx, sender, 'AquaSwapVMRouter', [SEPOLIA.aqua, SEPOLIA.WETH, ctx.maker.account.address, '1inch SwapVM v1.0', '1.0.2'])
     const aqua = await ctx.pc.readContract({ address: router, abi: routerIdentityAbi, functionName: 'AQUA' })
     if (aqua.toLowerCase() !== SEPOLIA.aqua) throw new Error('router AQUA does not match canonical registry')
-    const guard = await deployOne('AquaGuardV2', [SEPOLIA.simulationForwarder, router, zeroHash, zeroAddress, true])
+    const guard = await deployReceiver(ctx, sender, router)
     const d: Deployment = { chainId: SEPOLIA.chainId, aqua: SEPOLIA.aqua, router, tokens: { WETH: SEPOLIA.WETH, USDC: SEPOLIA.USDC },
-      guard: { address: guard, version: 2, forwarder: SEPOLIA.simulationForwarder, profile: 'cre-simulation' } }
+      guard }
+    store.put('sepolia', 'deployment', d)
+    return d
+  })
+}
+
+/** Separate durable operation: replace the immutable receiver, retaining the router, assets and old receipts. */
+export async function upgradeSepoliaGuard(ctx: Ctx, deployment: Deployment, options: Options): Promise<Deployment> {
+  if (deployment.chainId !== SEPOLIA.chainId || deployment.aqua.toLowerCase() !== SEPOLIA.aqua ||
+      deployment.tokens.WETH?.toLowerCase() !== SEPOLIA.WETH || deployment.tokens.USDC?.toLowerCase() !== SEPOLIA.USDC) {
+    throw new Error('Guard upgrade requires canonical Ethereum Sepolia deployment')
+  }
+  return withStore(ctx, options, 'sepolia-guard-maker-active-v1', async (store, sender) => {
+    const aqua = await ctx.pc.readContract({ address: deployment.router, abi: routerIdentityAbi, functionName: 'AQUA' })
+    if (aqua.toLowerCase() !== SEPOLIA.aqua) throw new Error('router AQUA does not match canonical registry')
+    const guard = await deployReceiver(ctx, sender, deployment.router)
+    const d = { ...deployment, guard }
     store.put('sepolia', 'deployment', d)
     return d
   })
@@ -152,7 +176,7 @@ async function main() {
     'state-dir': { type: 'string' }, rpc: { type: 'string' },
   } })
   const action = positionals[0] ?? 'status'
-  if (positionals.length > 1 || !['status', 'deploy', 'fund'].includes(action)) throw new Error('Usage: sepolia status | deploy --execute | fund --execute [--state-dir PATH]')
+  if (positionals.length > 1 || !['status', 'deploy', 'fund', 'upgrade-guard'].includes(action)) throw new Error('Usage: sepolia status | deploy --execute | upgrade-guard --execute | fund --execute [--state-dir PATH]')
   const network = NETWORKS['ethereum-sepolia']
   const rpc = values.rpc ?? process.env[network.rpcEnv] ?? network.rpc
   if (!values.execute || action === 'status') {
@@ -167,8 +191,9 @@ async function main() {
   process.env[network.rpcEnv] = rpc
   const ctx = fromEnv('ethereum-sepolia')
   const options = { stateDir: values['state-dir'] ?? fileURLToPath(new URL(`../.state/sepolia/${ctx.maker.account.address.toLowerCase()}`, import.meta.url)) }
-  if (action === 'deploy') {
-    const d = await deploySepolia(ctx, options)
+  if (action === 'deploy' || action === 'upgrade-guard') {
+    const d = action === 'deploy' ? await deploySepolia(ctx, options)
+      : await upgradeSepoliaGuard(ctx, readJson('deployments/11155111.json') as Deployment, options)
     mkdirSync(new URL('.', deploymentFile(d.chainId)), { recursive: true })
     writeFileSync(deploymentFile(d.chainId), json(d) + '\n')
     console.log(json(d))

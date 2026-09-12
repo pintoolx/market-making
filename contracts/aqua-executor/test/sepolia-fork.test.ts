@@ -13,7 +13,7 @@ import { generatePrivateKey } from 'viem/accounts'
 import { connect } from '../src/config.ts'
 import { deploy } from '../src/deploy.ts'
 import { waitMined } from '../src/executor.ts'
-import { deploySepolia, fundSepolia, SEPOLIA } from '../src/sepolia.ts'
+import { deploySepolia, fundSepolia, upgradeSepoliaGuard, SEPOLIA } from '../src/sepolia.ts'
 import { runLifecycle } from '../src/lifecycle.ts'
 import { runGuardDemo } from '../src/guard-demo.ts'
 import { recorder } from '../src/records.ts'
@@ -71,6 +71,20 @@ test('Sepolia fork: canonical assets, durable deployment/funding, lifecycle and 
     assert.equal(await ctx.pc.getTransactionCount({ address: ctx.maker.account.address }), nonceAfterRouter + 1)
     assert.deepEqual(d.tokens, { WETH: SEPOLIA.WETH, USDC: SEPOLIA.USDC })
     assert.equal(d.guard?.profile, 'cre-simulation')
+    assert.equal(d.guard?.revision, 'maker-active-v1')
+    await assert.rejects(upgradeSepoliaGuard(ctx, { ...d, chainId: 84532 }, options), /canonical Ethereum Sepolia/)
+    await assert.rejects(upgradeSepoliaGuard(ctx, d, { ...options, onTransaction: e => {
+      if (e.phase === 'broadcast') { original = e.hash; throw new Error('interrupt Guard replacement') }
+    } }), /interrupt Guard/)
+    await waitMined(ctx, original!)
+    const nonceAfterGuard = await ctx.pc.getTransactionCount({ address: ctx.maker.account.address })
+    const upgraded = await upgradeSepoliaGuard(ctx, d, options)
+    assert.equal(upgraded.router, d.router)
+    assert.deepEqual(upgraded.tokens, d.tokens)
+    assert.notEqual(upgraded.guard?.address, d.guard?.address)
+    assert.equal((await ctx.pc.getTransactionReceipt({ hash: original! })).contractAddress?.toLowerCase(), upgraded.guard?.address.toLowerCase())
+    assert.deepEqual(await upgradeSepoliaGuard(ctx, upgraded, options), upgraded)
+    assert.equal(await ctx.pc.getTransactionCount({ address: ctx.maker.account.address }), nonceAfterGuard)
     await assert.rejects(fundSepolia(ctx, { ...options, onTransaction: e => {
       if (e.phase === 'broadcast' && e.step === 'wrap-weth') throw new Error('interrupt wrap')
     } }), /interrupt wrap/)

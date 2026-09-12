@@ -2,11 +2,12 @@
 
 Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested SwapVM v1.0.2 compiler and 16-field Guard report ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
 
-**Mainline update, 2026-09-12:** the final product flow now targets two Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is now deployed; see [asset setup](../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) and [public transaction evidence](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md). The Base Sepolia setup remains historical enforcement evidence. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement the Maker-scoped activeStrategyHash required by [WINNING-FLOW.md](WINNING-FLOW.md).
+The product flow supports multiple Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is deployed; see [asset setup](../contracts/aqua-executor/docs/ETHEREUM-SEPOLIA.md) and [historical enforcement receipts](../contracts/aqua-executor/docs/ethereum-sepolia-demo.md). Base Sepolia remains historical evidence. The 16-field report remains bound to one strategy, while AquaGuardV2 maintains the Maker-scoped active strategy hash. Accepting an active report for strategy B atomically prevents strategy A from executing, even while A's earlier report remains unexpired.
+
 
 ## What is implemented
 
-[`workflow/guard-report`](../workflow/guard-report/) contains a public report delivery workflow, a `TeeRuntime.usingTheDons()` integration hook, SDK tests and an unsigned Guard deployment / configuration tool. It uses the existing 16-field, 512-byte [v1 report](GUARD-REPORT-V1.md). It does not yet evaluate Provider secrets, register a confidential handler or implement the two-strategy mandate.
+[`workflow/guard-report`](../workflow/guard-report/) contains a public report delivery workflow, a `TeeRuntime.usingTheDons()` integration hook, SDK tests and an unsigned Guard deployment / configuration tool. It uses the existing 16-field, 512-byte [v1 report](GUARD-REPORT-V1.md). The separate `market-maker-auth` workflow implements Provider/Maker secret intersection and confidential cron/HTTP handlers. Real TEE execution remains unverified.
 
 | Evidence | Status | What it establishes |
 |---|---|---|
@@ -16,7 +17,7 @@ Updated 2026-09-12. The project owner selected **B: public derived report → DO
 | Workflow compilation | Local SDK / Javy WASM build | The public entry point compiles; no execution or attestation claim |
 | CRE CLI simulation / broadcast | Pending account authentication | No new Chainlink delivery receipt exists yet |
 | Production DON delivery | Pending deployment access and assigned identity | No production workflow ID / owner has been provisioned |
-| Confidential workflow execution | Pending access and evaluator integration | No real TEE execution or attestation evidence exists yet |
+| Confidential workflow execution | Evaluator implemented; pending real access | No real TEE execution or attestation evidence exists yet |
 
 The owner confirmed that neither a CRE account nor Confidential Workflows access is currently available. CLI v1.33.0 `cre whoami --non-interactive` exits 1 with `authentication required: no credentials found`. Build and SDK mocks work without that login. The original adapter increment did not broadcast transactions or redeploy contracts. The subsequent Sepolia asset migration deploys Router / Guard V2 and runs synthetic-report swaps; it still does not establish CRE delivery. Once an account exists, follow the [delivery runbook](../workflow/guard-report/README.md).
 
@@ -45,7 +46,7 @@ The Guard's `view extruction()` returns the unchanged registers and `(nextPC, 0)
 
 The historical deployment uses **Base Sepolia, chain ID 84532**, in [`deployments/84532.json`](../contracts/aqua-executor/deployments/84532.json). Current commands use **Ethereum Sepolia, 11155111**, canonical Aqua / WETH / Circle USDC and a newly deployed pinned router in [`deployments/11155111.json`](../contracts/aqua-executor/deployments/11155111.json). Do not mix the two domains or their records.
 
-## Three distinct receiver configurations
+## Distinct receiver configurations
 
 | Profile | Forwarder | Identity | Use |
 |---|---|---|---|
@@ -66,6 +67,6 @@ The current browser stores drafts locally, and the delivery smoke test processes
 
 ## Relationship to the product mandate
 
-[`PRODUCT-HANDOFF.md`](PRODUCT-HANDOFF.md), [`TOPIC-DILIGENCE.md`](TOPIC-DILIGENCE.md) and the Defensive Strategy B fixture in [`WINNING-FLOW.md`](WINNING-FLOW.md) describe the next product integration. The current transport test retains zero-fee XYC and mWETH / mUSDC. It does not implement `activeStrategyHash`, taker `expectedSequence`, two-strategy selection, cumulative quotas, combined wallet exposure, percentage valuation or Provider profit sharing.
+The [current architecture](ARCHITECTURE.md) and [mandate API](STRATEGY-MANDATE-API.md) define the product integration. The historical Base test retains zero-fee XYC and mock assets; the Ethereum Sepolia run uses WETH / Circle USDC and concentrated Guard V2. The current Guard implements `activeStrategyHash`, with local atomic-switch tests. Taker `expectedSequence`, cumulative quotas, combined wallet exposure and Provider profit sharing remain outside this contract.
 
 The v1 nonce rejects stale report writes; it does **not** bind a taker to a quoted report revision. The Guard uses whichever valid report is current during the swap. Product JSON and Maker-facing direction labels require an explicit conversion into the existing taker-oriented ABI. Those changes need a new agreed contract / compiler interface and tests before the full mandate demo; adding them to JSON alone would not enforce them.
