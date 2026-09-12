@@ -1,6 +1,6 @@
 FROM oven/bun:1.4.2 AS bun-runtime
 
-FROM node:22-bookworm-slim
+FROM node:20-bookworm-slim
 
 ENV NODE_ENV=production
 ENV MANDATE_STATE_DIR=/data/mandates

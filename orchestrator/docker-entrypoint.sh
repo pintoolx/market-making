@@ -21,4 +21,8 @@ SECRET_MAKER_LIMITS=$SECRET_MAKER_LIMITS
 SECRET_ENVELOPE_PRIVATE_KEY=$SECRET_ENVELOPE_PRIVATE_KEY
 EOF
 
+# Validate the renewable CLI credential and populate CRE's runtime context
+# before the HTTP service begins accepting confidential requests.
+cre whoami >/dev/null
+
 exec node src/server.mjs
