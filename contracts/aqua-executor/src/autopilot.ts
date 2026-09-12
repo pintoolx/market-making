@@ -112,13 +112,20 @@ export async function autopilotTick(ctx: Ctx, d: Deployment, sessionId: string, 
     const pending = state.pending!
     if (!options.execute) return { action: 'resume', dryRun: true, request: pending.request }
     const result = await executeRequest(ctx, d, pending.request, options)
+    let minedAt: number | undefined
+    if (result.outcome === 'rebalanced') {
+      const primary = result.transactions.find(tx => tx.step === 'primary' && tx.status === 'success')
+      if (!primary) throw new Error('completed rollover is missing its successful transaction')
+      const block = await monitorRead(() => ctx.pc.getBlock({ blockNumber: BigInt(primary.blockNumber) }))
+      minedAt = Number(block.timestamp)
+    }
     const store = new ExecutionStore(options.stateDir)
     try {
       const saved = store.get<AutoState>('autopilot', sessionId)!
       if (saved.pending?.request.requestId === pending.request.requestId) {
         if (result.status === 'failed') saved.halted = result.outcome
         if (result.outcome === 'rebalanced') {
-          saved.rebalances++; saved.lastAt = pending.request.action === 'rebalance' ? pending.request.strategy.program.deadline - policy.ttlSec : 0
+          saved.rebalances++; saved.lastAt = minedAt!
           saved.anchorPriceE18 = pending.anchorPriceE18
         }
         delete saved.pending; store.put('autopilot', sessionId, saved)
@@ -131,12 +138,13 @@ export async function autopilotTick(ctx: Ctx, d: Deployment, sessionId: string, 
   const p = status.session.plan.rebalances?.at(-1)?.strategy ?? status.session.plan.strategy
   const s = compileExecution(p)
   const block = await monitorRead(() => ctx.pc.getBlock({ blockTag: 'latest' }))
-  const now = Math.floor(Date.now() / 1000)
-  if (now - Number(block.timestamp) > 60 || Number(block.timestamp) > now + 5) throw new MonitorDataError('stale or future chain snapshot')
   const [raw, decimals] = await monitorRead(() => Promise.all([rawBalances(ctx, d, s, block.number),
     Promise.all(s.tokens.map(address => ctx.pc.readContract({ address, abi: erc20Abi, functionName: 'decimals', blockNumber: block.number })))]))
   if (raw.some(b => b.tokensCount !== 2)) return { action: 'hold', reason: 'inventory-not-active' }
   const prices = await monitorRead(options.getPrices), balances = raw.map(b => b.balance)
+  // Reads can cross a second or stall. Validate both snapshots against the clock after all reads.
+  const now = Math.floor(Date.now() / 1000)
+  if (now - Number(block.timestamp) > 60 || Number(block.timestamp) > now + 5) throw new MonitorDataError('stale or future chain snapshot')
   let risk: ReturnType<typeof evaluateRisk>
   try { risk = evaluateRisk(status.session.plan.policy, balances, decimals, prices, now) }
   catch (e) { throw new MonitorDataError(e instanceof Error ? e.message : 'invalid oracle data') }
