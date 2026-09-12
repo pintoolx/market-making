@@ -1,0 +1,13 @@
+{
+  "asOf": 1789152136,
+  "source": "fabricated demo prices; not a market feed",
+  "mode": "simulated",
+  "usdE8": {
+    "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13": "1000000000000",
+    "0xa66378d3f585fd34e875cccea69061c46bce5ecc": "100000000"
+  },
+  "evidence": {
+    "scenario": "ETH reference 2500 to 10000 USD; USDC reference 1 USD",
+    "phase": "adverse"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "asOf": 1789130477,
+  "source": "Chainlink Base mainnet ETH/USD and USDC/USD",
+  "mode": "live",
+  "usdE8": {
+    "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13": "254606860000",
+    "0xa66378d3f585fd34e875cccea69061c46bce5ecc": "99984987"
+  },
+  "evidence": {
+    "chainId": 8453,
+    "blockNumber": "51181333",
+    "blockTimestamp": 1789152013,
+    "fetchedAt": 1789152012,
+    "sequencerProxy": "0xBCF85224fc0756B9Fa45aA7892530B47e10b6433",
+    "sequencerStartedAt": "1782491507",
+    "observations": [
+      {
+        "token": "0x051a2cae44c673c576b75b5df6f8543bf5d5cc13",
+        "proxy": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+        "roundId": "55340232221128657513",
+        "updatedAt": 1789151693,
+        "answer": "254606860000",
+        "decimals": 8,
+        "maxAgeSec": 1320
+      },
+      {
+        "token": "0xa66378d3f585fd34e875cccea69061c46bce5ecc",
+        "proxy": "0x7e860098F58bBFC8648a4311b374B1D669a2bc6B",
+        "roundId": "55340232221128654871",
+        "updatedAt": 1789130477,
+        "answer": "99984987",
+        "decimals": 8,
+        "maxAgeSec": 86520
+      }
+    ]
+  }
+}

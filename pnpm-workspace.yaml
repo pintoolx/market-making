@@ -1,3 +1,4 @@
 packages:
   - frontend
-  # Coming next: the Chainlink confidential workflow (TEE) and the Aqua execution service.
+  - contracts/aqua-executor
+  # The Chainlink confidential workflow will join when it has a package.
