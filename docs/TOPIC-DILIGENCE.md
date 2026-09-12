@@ -151,6 +151,8 @@ Strategy 參數由 hash 識別，上架後不能修改；改參數要 `dock()` �
 
 ## 建議鎖定的閉環
 
+2026-09-12 deployment 決定：final filmed run 以 Ethereum Sepolia 的 WETH／Circle testnet USDC 為目標。Base Sepolia 的 mWETH／mUSDC 交易保留為既有 regression evidence 與緊急 fallback；不得在同一組 final evidence 中混用兩條鏈或把 mock token 標成 canonical asset。
+
 題目維持 marketplace 的角色模型，但錄影只做一個 Maker、兩個 Provider strategy、兩種市場狀態：
 
 ```mermaid

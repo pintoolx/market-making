@@ -1,230 +1,131 @@
-# ETHOnline winning flow: Confidential Toxic-Flow Shield
+# ETHOnline winning flow: Confidential Strategy Mandate
 
-> 2026-09-12 更新：這份流程保留為 **Defensive Strategy B 的測試 fixture**，不再是整個作品的題目。作品主線已收斂為 Confidential Strategy Mandate：同一個 Maker balance 支援兩套 Provider strategies，TEE 依雙方私密條件切換短效授權。決策依據與完整競品分析見 [TOPIC-DILIGENCE.md](TOPIC-DILIGENCE.md)。
-
-狀態：Defensive Strategy B 的目標整合 fixture，定義方向語意、跨模組需求與驗收證據。本文的產品 JSON、`expectedSequence` 和 Ethereum Sepolia 範例，不等同目前已實作的 Guard ABI。第一步 CRE transport check 沿用 Base Sepolia 84532、mWETH / mUSDC、零費率 XYC 與 16 欄位 v1；完整雙策略及 sequence 約束尚待合約／workflow 一起整合。範圍對照見 [CRE-GUARD-INTEGRATION.md](CRE-GUARD-INTEGRATION.md)。
+狀態：2026-09-12 團隊主線。這份文件定義唯一 demo、跨模組語意與驗收證據。舊版 USDC／USDT Toxic-Flow Shield 僅保留為 Defensive Strategy 的研究來源，不再是作品題目。
 
 ## 一句話
 
-PinTool lets a Maker use a Provider's private risk intelligence to stop toxic flow without revealing either party's rules or giving up custody of liquidity.
+PinTool lets two Strategy Providers compete for one Maker balance without revealing their trading logic or the Maker's private risk limits.
+
+## 為什麼需要 Chainlink 與 Aqua
+
+- Chainlink Confidential Workflow 在 TEE 內讀取 Provider A、Provider B 與 Maker 的私密條件，產生短效 mandate。
+- PinTool 的 deterministic validator 保證 Provider 結果只能收緊 Maker 硬上限。
+- PinTool Guard 在每筆 SwapVM 執行時檢查最新 mandate。
+- Aqua 讓兩套已 ship 的策略共用同一份 Maker wallet balance；regime 改變時不需要先搬移資產。
+
+鏈上可看到 active strategy、額度、期限、commitment 與交易。Provider signals、thresholds、feature weights，以及 Maker 原始風險限制不得離開 TEE。
+
+MVP 若只能使用 workflow owner 預先配置的 Vault DON secrets，必須如實描述。網站表單內容在證明端到端加密路徑前，不得宣稱已直接送入正式 TEE。
 
 ## 固定情境
 
-- Pair：USDC / USDT。
-- Aqua position：Maker 以自己的錢包提供雙向流動性。
-- Provider 的秘密：如何從價格、流動性與時間訊號判定 USDT 已有脫鉤風險，以及何時恢復報價。
-- Maker 的秘密：最多願意累積多少 USDT、單筆上限、總額度及報告有效期限。
-- TEE 的工作：結合兩方秘密與市場輸入，產生最小、可逐筆 enforce 的 Guard report。
-- 公開結果：允許方向、逐筆上限、到期時間、版本與 commitment。原始門檻、權重及推理過程不離開 TEE。
+- Network：Ethereum Sepolia。
+- Pair：WETH／Circle testnet USDC。
+- Strategy A — Tight Market：Provider A 的窄 spread、normal-market execution envelope。
+- Strategy B — Defensive Market：Provider B 的寬 spread、低曝險 execution envelope。
+- Maker mandate：capital budget、maximum WETH exposure、maximum WETH inventory、maximum fill、expiry。
+- Base Sepolia 的 mWETH／mUSDC 部署只保留為歷史回歸證據與 fallback，不作 final filmed run。
 
-這個策略不宣稱預測脫鉤或保證獲利。它證明的是：當 Provider 的私密模型判定風險成立時，Maker 的公開執行邊界會在不揭露原始規則的情況下收緊。
+測試市場狀態必須標明為可重現 fixture，不能宣稱是 live market data 或收益證明。
 
-## 可重現的策略規則
+## 唯一 demo 閉環
 
-第一版不讓 LLM 自由決定金額。Agent 只把 Provider 的自然語言規則整理成結構化候選，最後結果由 TEE 裡的確定性函式產生：
+### Normal regime
 
-```text
-providerCap = providerModel(marketSnapshot).maxUSDTInventory
-effectiveCap = min(providerCap, maker.maxUSDTInventory)
+1. Provider A 與 B 的 policy 已配置為 confidential workflow secrets。
+2. Maker 提交私密 mandate。
+3. handlerInTee 取得三份秘密與 normal-market fixture。
+4. Agent 產生結構化候選，deterministic validator 套用 Maker 硬上限。
+5. CRE 將短效 mandate 寫入 Guard：activeStrategyHash = A。
+6. 使用同一 Maker wallet：
+   - Strategy A 的 Aqua swap 成功並產生 ERC-20 transfer。
+   - Strategy B 的 Aqua swap 被 Guard revert，Maker 餘額不變。
 
-allowMakerReceiveUSDT =
-  reportIsFresh
-  AND tradeUSDCValue <= maker.maxSwapUSDC
-  AND maker.currentUSDTValue + tradeUSDCValue <= effectiveCap
+### High-volatility regime
 
-allowMakerPayUSDT = reportIsFresh AND tradeUSDCValue <= maker.maxSwapUSDC
-```
+1. 同一 workflow 以 high-volatility fixture 再執行。
+2. 新 sequence 原子地將 activeStrategyHash 從 A 切成 B。
+3. 使用同一 Maker wallet：
+   - Strategy A 被 Guard revert。
+   - Strategy B 的 Aqua swap 成功。
+4. 前端並排顯示兩次 report、strategy hashes、交易 receipt 與 Maker balance delta。
 
-Maker 的硬上限永遠優先；Provider model 只能進一步收緊。若 token、版本、時間、數值或模型輸出不合法，採 fail closed。
+## 2–4 分鐘影片
 
-### 錄影用固定 fixture
+1. **0:00–0:25 — Problem**：Aqua 讓一份餘額支援很多策略，但 Maker 不知道哪個私密策略此刻可以安全使用資金。
+2. **0:25–0:55 — Two-sided privacy**：展示兩個 Provider commitment 與 Maker 私密 mandate；不展示原始內容。
+3. **0:55–1:25 — Confidential decision**：CRE CLI 證明 handlerInTee 執行，logs 不含秘密；Guard 收到 sequence 1。
+4. **1:25–1:55 — Normal execution**：A 成交、B revert，顯示同一 Maker address 與 token balance。
+5. **1:55–2:25 — Regime transition**：市場 fixture 改變，sequence 2 將 active strategy 切到 B。
+6. **2:25–3:05 — Enforcement reversal**：A revert、B 成交；顯示真實交易與餘額。
+7. **3:05–3:25 — Close**：private intelligence、private risk limits、shared self-custodial liquidity、verifiable enforcement。
 
-這些數字是可重現的測試輸入，不是收益承諾或即時市場資料：
+## 必須統一的方向語意
 
-| | Normal report | Risk report |
-|---|---:|---:|
-| USDT reference price | 1.000 USDC | 0.985 USDC |
-| Provider 私密模型產生的 inventory cap | 600 USDC | 280 USDC |
-| Maker 私密 inventory cap | 350 USDC | 350 USDC |
-| Maker 現有 USDT value | 250 USDC | 250 USDC |
-| Test trade | Maker receives 50 USDC value of USDT | Maker receives 50 USDC value of USDT |
-| Effective cap | 350 USDC | 280 USDC |
-| 結果 | 300 ≤ 350，Allowed | 300 > 280，Blocked |
+合約與 API 使用 taker 視角的 tokenIn → tokenOut；產品畫面同時顯示 Maker 的餘額結果。不得只寫 buy／sell。
 
-同一份 risk report 下，再執行 `Maker pays 50 USDC value of USDT`，inventory 從 250 降到 200，因此 Allowed。這三筆檢查形成 baseline success、toxic-flow rejection、safe unwind success。
+- Taker WETH → USDC：Maker 收到 WETH、付出 USDC。
+- Taker USDC → WETH：Maker 收到 USDC、付出 WETH。
 
-## 永遠使用 Maker 視角描述方向
+## Mandate v2 的最低欄位
 
-禁止只寫 `buy USDT`、`sell USDT`、`USDC → USDT`，因為評審無法知道那是 Maker 還是 Taker 的視角。
+- schemaVersion、chainId、guard、router、maker
+- activeStrategyHash、strategyAHash、strategyBHash
+- sequence、validAfter、validUntil、allowedDirections
+- maxWethPerSwap、maxUsdcPerSwap、maxPostWethBalance、maxPostUsdcBalance
+- providerACommitment、providerBCommitment、makerPolicyCommitment
+- marketSnapshotId、decisionDigest
 
-| 畫面用語 | Taker 動作 | Maker 餘額結果 | 風險狀態下 |
-|---|---|---|---|
-| **Maker receives USDT** | Taker pays USDT and receives USDC | Maker 的 USDT 增加 | Blocked |
-| **Maker pays USDT** | Taker pays USDC and receives USDT | Maker 的 USDT 減少 | Allowed |
+所有金額以 atomic integer 字串傳送，時間為 Unix seconds。Report 必須綁定 chain、Guard、router、Maker、兩個完整 program hash、sequence 與期限。
 
-## 2–4 分鐘影片的唯一閉環
+### 為什麼不能直接沿用 GuardReportV1
 
-### 1. Problem（0:00–0:20）
-
-Maker 想使用專家的做市策略，但 Provider 不願公開訊號與門檻，Maker 也不願交出自己的資金限制。公開所有規則會洩漏 edge，把資金交給黑盒則要求過多信任。
-
-### 2. Two private inputs（0:20–0:55）
-
-1. Provider 在 Studio 發布 **Toxic-Flow Shield**，公開說明用途與收費；脫鉤判斷邏輯只送入 confidential workflow。
-2. Maker 選取策略，輸入資金額度、最大 USDT inventory、單筆上限與有效期限。
-3. 畫面只呈現各自可見的內容，不展示另一方原始輸入。
-
-### 3. Confidential decision（0:55–1:25）
-
-1. CRE 以 `handlerInTee` 解密兩方輸入。
-2. Agent 或模型只能提出結構化候選決策。
-3. 確定性 validator 檢查 Maker 硬上限、輸出 schema、時間與版本。
-4. CRE CLI 顯示 confidential handler 成功執行；logs 不得含原始秘密。
-5. 初始 report 允許雙向成交，Guard 收到 report 後發生鏈上 state change。
-
-### 4. Baseline Aqua execution（1:25–1:50）
-
-1. Maker ship 一個含 curve、fee 與 `Extruction(PinToolGuard)` 的 SwapVM strategy。
-2. Test Taker 完成一筆真實 swap。
-3. 畫面顯示 strategy hash、transaction hash 與 Maker 前後 token balance。
-
-### 5. Risk transition（1:50–2:25）
-
-1. 市場輸入顯示 USDT 偏離參考價格；測試資料必須清楚說明來源。
-2. 同一個 confidential workflow 再次執行。
-3. TEE 不公開 Provider 門檻或 Maker 上限，只輸出：`Maker receives USDT = blocked`、`Maker pays USDT = allowed`、上限與到期時間。
-4. Chainlink report 更新同一個 Guard strategy state，畫面顯示 report digest 與 state-change transaction。
-
-### 6. Prove enforcement（2:25–3:05）
-
-1. Taker 嘗試把 USDT 賣給 Maker；Guard revert，Maker 沒有增加 USDT。
-2. Taker 用 USDC 買走 Maker 的 USDT；Aqua swap 成功，Maker 的 USDT 減少。
-3. 並排顯示失敗 receipt、成功 transaction 與前後餘額。
-
-### 7. Close（3:05–3:25）
-
-重申三個保證：Provider edge 保密、Maker policy 保密、資金始終由 Maker 自己保管。鏈上只保留足以執行與稽核的最小結果。
-
-## 跨模組契約 v1
-
-所有整數以十進位字串傳輸，時間為 Unix seconds，token amount 使用最小單位。不要使用 JS `number` 承載 atomic amount。
-
-### TEE 輸入 envelope
-
-```json
-{
-  "schemaVersion": "1",
-  "requestId": "0x...",
-  "chainId": "11155111",
-  "maker": "0x...",
-  "strategyHash": "0x...",
-  "providerVersion": "1",
-  "providerCommitment": "0x...",
-  "makerPolicyVersion": "1",
-  "makerPolicyCommitment": "0x...",
-  "marketSnapshotId": "0x...",
-  "issuedAt": "...",
-  "nonce": "..."
-}
-```
-
-Provider policy、Maker policy 與需要保密的市場回應透過 confidential input／secret 取得，不得塞進公開 envelope 或一般 logs。
-
-### Guard report
-
-```json
-{
-  "schemaVersion": "1",
-  "requestId": "0x...",
-  "chainId": "11155111",
-  "maker": "0x...",
-  "strategyHash": "0x...",
-  "sequence": "2",
-  "issuedAt": "...",
-  "expiresAt": "...",
-  "allowMakerReceiveUSDT": false,
-  "allowMakerPayUSDT": true,
-  "maxSwapUSDCAtomic": "100000000",
-  "remainingUSDTCapacityAtomic": "0",
-  "providerCommitment": "0x...",
-  "makerPolicyCommitment": "0x...",
-  "marketSnapshotId": "0x...",
-  "decisionDigest": "0x..."
-}
-```
-
-每次 quote／swap 的 `takerData` 必須攜帶 `expectedSequence`。Guard 只在它等於目前 report sequence 時執行；若 Chainlink report 在 quote 後更新，swap 必須以 `StaleMandate` revert，不能悄悄改用新參數。
-
-合約層不要依賴 JSON。TEE adapter 必須把同一組欄位 ABI encode 成固定 struct，並由 report digest 綁定完整內容。
-
-### Guard 必須拒絕
-
-- caller 不是核准的 Chainlink Forwarder；
-- workflow identity 不符；
-- `chainId`、Maker 或 `strategyHash` 不符；
-- `sequence` 沒有遞增；
-- `takerData.expectedSequence` 與目前 report sequence 不符；
-- report 已過期或 `issuedAt` 在不合理未來；
-- report 放寬 Maker 隨 Aqua strategy ship 的硬上限；
-- swap 方向被關閉；
-- swap amount 或成交後 inventory 超過有效上限。
+目前 GuardReportV1 以 (maker, strategyHash) 分別更新策略。它可證明單一策略的方向與額度 enforcement，但無法用一筆狀態更新原子地切換 A／B。主 demo 需要 Maker-scoped activeStrategyHash，或一個可原子更新兩套狀態的 batch report。不得用兩筆彼此獨立的 report delivery 假裝沒有中間狀態。
 
 ## 前端狀態機
 
-```text
-POLICY_INPUT
-  → POLICY_REVIEW
-  → TEE_EVALUATING
-  → APPROVED | REJECTED
-  → AWAITING_MAKER_SIGNATURE
-  → AQUA_ACTIVE_NORMAL
-  → BASELINE_SWAP_SETTLED
-  → RISK_REEVALUATING
-  → GUARD_REPORT_UPDATED
-  → TOXIC_SWAP_BLOCKED + UNWIND_SWAP_SETTLED
-```
+CHOOSE_TWO_PROVIDERS → PRIVATE_MANDATE → REVIEW → TEE_EVALUATING → MANDATE_ACTIVE → SWAP_A_SETTLED + SWAP_B_BLOCKED → REGIME_REEVALUATING → MANDATE_SWITCHED → SWAP_A_BLOCKED + SWAP_B_SETTLED
 
-前端不能再用 `setTimeout` 把狀態自行變成成功。每次前進需由以下其中一種真實證據觸發：CRE CLI／workflow response、wallet signature、transaction receipt、contract read 或 revert receipt。
+前端不得以 setTimeout 產生 approved、active、settled 或 blocked。每次前進必須由 workflow response、contract read、confirmed receipt 或 revert receipt 觸發。
 
 ## 各人最小交付
 
 ### Confidential workflow
 
-- 真實註冊並使用 `handlerInTee`。
-- 至少處理一項真實 sensitive input。
-- 輸出 v1 report；敏感值不出現在 console、error 或 public report。
-- 提供 normal 與 risk 兩次可重現執行。
-- Agent 輸出後必須經 deterministic validator，不讓自由文字直接控制資金。
+- 程式碼必須 push 進本 repo 的 workflow branch。
+- 真實註冊並使用 handlerInTee，至少讀取一項 Vault DON secret。
+- Provider A、Provider B 與 Maker policy 經 deterministic validator 合成。
+- 產生 normal 與 high-volatility 兩次可重現結果。
+- 公開 logs 不含秘密；保留 CLI output 與 delivery receipt。
 
 ### Aqua／contracts
 
-- 官方 Aqua／SwapVM contract 或允許的 redeployment。
-- Maker ship 的 program 包含實際 curve 與 Guard Extruction。
-- Guard 可接收 report 並更新鏈上狀態。
-- 一筆 baseline token transfer 成功。
-- risk report 後，一筆 Maker receives USDT 失敗、一筆 Maker pays USDT 成功。
-- 保存所有 hash、receipt 與前後 balance。
+- 從 1inch 官方 Aqua／SwapVM source 部署或使用符合獎項要求的 official contracts。
+- Ethereum Sepolia 使用 WETH 與 Circle testnet USDC。
+- 同一 Maker wallet ship Strategy A 與 B。
+- Guard 以一筆 state change 原子切換 active strategy。
+- 保存 A success／B revert，切換後 A revert／B success 的 receipt 與 balance delta。
+- Base Sepolia 證據保留作 fallback，不得混成 Ethereum Sepolia final evidence。
 
 ### Frontend／integration
 
-- 使用同一組方向語意，不顯示含糊的 buy／sell。
-- 以真實 receipt 驅動畫面狀態。
-- 顯示 report digest、Guard update tx、Aqua strategy hash、swap tx 和 balance delta。
-- Provider 與 Maker 原始私密輸入不可出現在另一方頁面或公開 evidence。
-- 失敗是正式產品狀態：顯示 Guard 拒絕原因類別與餘額未變，不顯示假 transaction hash。
+- Maker 必須選兩位 Provider，再提交一份共同 mandate。
+- 顯示 regime、active strategy、report digest、sequence、expiry、兩個 strategy hash、交易與餘額變化。
+- API 或 evidence 缺失時顯示錯誤，不產生假成功。
+- Provider 與 Maker 原始私密輸入不得出現在另一方畫面或公開 evidence。
 
-## 最終 go / no-go
+## Go / no-go
 
 錄影前必須一次跑過：
 
-- [ ] CRE CLI 證明 confidential handler 真實執行。
-- [ ] normal report 改變 Guard state。
-- [ ] 官方 Aqua／SwapVM 參與實際 token transfer。
-- [ ] baseline swap 成功且餘額改變。
-- [ ] risk report 再次改變 Guard state。
-- [ ] Maker receives USDT 被 Guard revert，餘額不變。
-- [ ] Maker pays USDT 成功，Maker USDT 減少。
-- [ ] 公開 logs 與 UI 找不到 Provider／Maker 原始秘密。
-- [ ] README 清楚區分既有 PinTool 與本次新增成果。
+- [ ] repo 中可見真實 confidential workflow implementation。
+- [ ] handlerInTee 讀取秘密且 logs 無洩漏。
+- [ ] normal report 原子啟用 A。
+- [ ] A swap 成功、B swap Guard revert。
+- [ ] high-volatility report 原子啟用 B。
+- [ ] A swap Guard revert、B swap 成功。
+- [ ] 四筆結果都能由 receipt 與 Maker balance 獨立驗證。
+- [ ] 前端只由真實 evidence 前進。
+- [ ] README 清楚區分既有 PinTool、Base fallback 與 ETHOnline 新成果。
 
-少掉前六項中的任何一項，影片就只是在展示 UI 或彼此獨立的 sponsor integration，不構成得獎閉環。
+少掉 confidential execution、原子切換或 Aqua 真實 transfer 其中任何一項，作品就還不是完整 sponsor 閉環。

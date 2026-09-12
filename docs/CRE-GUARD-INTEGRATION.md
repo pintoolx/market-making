@@ -2,6 +2,8 @@
 
 Updated 2026-09-12. The project owner selected **B: public derived report → DON → forwarder → Guard**, retaining the tested Base Sepolia router and Guard ABI. This selects the transport direction; the workflow owner still needs to agree the product report semantics.
 
+**Mainline update, 2026-09-12:** the final product flow now targets two Provider strategies on one Maker balance and an atomic active-strategy switch. Ethereum Sepolia with WETH and Circle testnet USDC is the intended filmed deployment; the Base Sepolia setup below remains the tested transport fallback. The current 16-field report and Guard are single-strategy v1 components. They do not yet implement the Maker-scoped activeStrategyHash required by [WINNING-FLOW.md](WINNING-FLOW.md).
+
 ## What is implemented
 
 [`workflow/guard-report`](../workflow/guard-report/) contains a public report delivery workflow, a `TeeRuntime.usingTheDons()` integration hook, SDK tests and an unsigned Guard deployment / configuration tool. It uses the existing 16-field, 512-byte [v1 report](GUARD-REPORT-V1.md). It does not yet evaluate Provider secrets, register a confidential handler or implement the two-strategy mandate.

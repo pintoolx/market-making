@@ -1,6 +1,6 @@
 # ETHOnline：雙方私密規則合成做市策略
 
-狀態：2026-09-11 工作草案。已決定 Chainlink + 1inch Aqua；本文件提出第一個模板與交接介面，尚未代表團隊確認實作可行或完成整合。品牌、From Scratch／Continuity 身分尚待依實際沿用成果判定。
+狀態：2026-09-12 主線規格。已決定 Chainlink + 1inch Aqua；Maker 選兩位 Provider、TEE 產生短效 active-strategy mandate。Ethereum Sepolia 的 WETH／Circle testnet USDC 是 final target，既有 Base Sepolia mock-token deployment 保留為 fallback。完整 demo 與最新介面以 [WINNING-FLOW.md](WINNING-FLOW.md) 為準。
 
 ## 名稱與 repo 邊界
 
@@ -16,7 +16,7 @@ Strategy Provider 提供私密做市邏輯，Maker 提供私密資金與風險�
 
 價值是讓雙方合作而不直接交換完整規則。TEE 外的成交參數、數量、時機仍可能公開並洩漏部分資訊；不能宣稱永久隱藏完整策略或保證不虧損。
 
-成功標準：同一份 Provider 策略，在不同 Maker policy 下產生不同額度，或明確拒絕；通過的方案有真實 Aqua swap，拒絕的方案沒有新策略啟用。
+成功標準：同一個 Maker wallet 已 ship 兩套 Provider strategies；normal regime 只允許 A，高波動 regime 原子切換成只允許 B。兩個狀態都要各有一筆真實 Aqua transfer 與一筆 Guard rejection。
 
 ## ETHOnline 主線
 
@@ -28,7 +28,7 @@ Strategy Provider 提供私密做市邏輯，Maker 提供私密資金與風險�
 
 Defensive Strategy B 採 **Confidential Toxic-Flow Shield**，以 adverse-flow 風險作為可理解的 high-vol regime。Provider 私下定義風險判斷；Maker 私下定義 inventory、單筆成交、資金與報告時效上限。TEE 只輸出可逐筆執行的方向、額度與 active strategy hash，PinTool Guard 經由 SwapVM Extruction 在每筆 Aqua swap 強制執行。
 
-錄影只做兩套固定執行 envelope：正常狀態允許 Strategy A、阻擋 B；高波動狀態阻擋 A、允許 Defensive Strategy B。兩套策略使用同一個 Maker wallet。Toxic-Flow Shield 的方向測試仍以 [WINNING-FLOW.md](WINNING-FLOW.md) 為 fixture 參考。
+錄影只做兩套固定執行 envelope：正常狀態允許 Strategy A、阻擋 B；高波動狀態阻擋 A、允許 Defensive Strategy B。兩套策略使用同一個 Maker wallet。舊 Toxic-Flow Shield 只作為 B 的研究來源，不再使用 USDC／USDT 單策略流程。
 
 MVP 不宣稱這套規則有超額收益或能預測脫鉤；它證明雙方秘密可以被合成為自託管且可驗證的執行邊界。任何測試價格、額度、門檻都必須說明資料來源，不能把 synthetic fixture 說成 live market data。
 
@@ -37,7 +37,7 @@ MVP 不宣稱這套規則有超額收益或能預測脫鉤；它證明雙方秘�
 | 來源 | 私密輸入 | 對外顯示 |
 |---|---|---|
 | Provider | 脫鉤訊號、判斷門檻、方向切換與恢復規則 | 作者、模板用途、策略版本與 commitment |
-| Maker | 資金上限、USDT inventory、單筆成交與資料時效限制 | 本人可看完整 policy；其他人只看必要 commitment |
+| Maker | 資金上限、WETH inventory、單筆成交與資料時效限制 | 本人可看完整 policy；其他人只看必要 commitment |
 | 市場來源 | 本身通常公開；包含來源、時間、價格及單位 | 資料來源與時間戳 |
 | TEE 輸出 | 細部拒絕理由僅授權 Maker 可看 | 啟用所需參數、交易結果、版本與 report 關聯 |
 
@@ -49,7 +49,7 @@ MVP 不宣稱這套規則有超額收益或能預測脫鉤；它證明雙方秘�
 2. Provider evaluator 依私密邏輯產生結構化風險候選；Agent 若有參與，不可直接控制資金。
 3. 確定性 Validator 檢查候選結果、Maker 硬上限、方向語意、版本與時效。
 4. TEE 只能縮小額度或關閉方向，不能放寬 Maker 隨策略上架的硬限制。
-5. 方向一律使用 Maker 視角：`Maker receives USDT` 會增加 USDT inventory；`Maker pays USDT` 會減少 USDT inventory。
+5. API／合約使用 Taker 的 tokenIn → tokenOut；產品畫面同時顯示 Maker 餘額結果。例如 Taker WETH → USDC 等於 Maker receives WETH。
 6. 通過後生成綁定 Maker、strategy hash、sequence、市場快照與期限的 Guard report；拒絕結果不得帶可執行 payload。
 7. Quote 與 swap 都要帶同一個 `expectedSequence`；report 在兩者之間更新時，swap 應以 stale mandate 明確 revert。
 
@@ -66,7 +66,7 @@ MVP 不宣稱這套規則有超額收益或能預測脫鉤；它證明雙方秘�
 - `APPROVE`：包含兩個 Maker 方向的允許狀態、單筆上限、剩餘 inventory capacity、sequence、期限與 decision digest。
 - `REJECT`：包含對外安全的 `reasonCode`；詳細 policy 門檻不進公開 logs。沒有 Guard update payload。
 
-完整 v1 欄位以 [WINNING-FLOW.md](WINNING-FLOW.md) 為準。所有整數以十進位字串傳送，金額使用 token 最小單位，時間為 Unix seconds；不可用 JS `number` 承載 atomic amount。
+雙策略 mandate v2 欄位以 [WINNING-FLOW.md](WINNING-FLOW.md) 為準；現有單策略 GuardReportV1 只保留 transport 與 enforcement 回歸測試。所有整數以十進位字串傳送，金額使用 token 最小單位，時間為 Unix seconds；不可用 JS `number` 承載 atomic amount。
 
 pengu 的 adapter 負責 token 地址排序、decimals、價格倒數與 sqrtPrice scaling，以及 fee 單位轉換。必須固定 SDK／合約版本，確認實際部署支援哪些 instructions。
 
@@ -83,9 +83,9 @@ pengu 的 adapter 負責 token 地址排序、decimals、價格倒數與 sqrtPri
 ## 產品流程
 
 1. Provider：選模板、填私密規則、提交；看到版本與已接收狀態。
-2. Maker：選 Provider、填額度與限制；只看自己的 policy。
+2. Maker：選兩位 Provider、填一份共同額度與限制；只看自己的 policy。
 3. 評估：顯示資料時間、處理狀態；不顯示另一方原始條件。
-4. 核准：顯示兩個 Maker 方向、單筆上限、剩餘 inventory capacity 與期限，確認並啟用。
+4. 核准：顯示 market regime、active strategy hash、另一套 blocked strategy、單筆上限與期限。
 5. 拒絕：顯示「目前條件無法形成可執行策略」，Maker 可查看授權的詳細原因。
 6. 成交：顯示 token 餘額變化、策略識別與 swap 交易；測試 taker 明確標示為測試。
 
