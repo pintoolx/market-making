@@ -13,6 +13,8 @@ A Chainlink CRE workflow whose confidential part runs in a TEE. It reads the Pro
 
 ## Agree first
 
+The [Guard report v1 proposal](../docs/GUARD-REPORT-V1.md) provides a draft ABI and shared encoding fixture for review with the contracts owner. Its fields and initial template are not yet agreed.
+
 The report format between this workflow and the Guard contract. Keep the agreed schema in [`docs/`](../docs/) so both sides build against the same thing.
 
 ## Background

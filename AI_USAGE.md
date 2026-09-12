@@ -46,6 +46,10 @@ The original frontend work listed below was generated or substantially edited wi
 - Reviewed every iteration in the browser. Automated checks of the Provider and Maker flows were run by Claude Code.
 - Is building the confidential workflow (Chainlink TEE) and the Aqua execution side.
 
+## Guard interface proposal
+
+OpenAI Codex assisted with `docs/GUARD-REPORT-V1.md`, the ABI and synthetic encoding fixture in `docs/guard-report-v1/`, and links from the contracts / workflow READMEs. The proposal was checked against the pinned SwapVM source and Chainlink consumer-contract documentation. It remains subject to the two owners' agreement; the separate Guard prototype implements the proposed defaults, and neither the proposal nor its synthetic demo establishes confidential execution.
+
 ## Existing code
 
 Everything in `frontend/` before commit `33ff065` comes from the existing PinTool app: the Solana workflow canvas, the earlier marketplace components, Supabase sign-in and the shared UI components.

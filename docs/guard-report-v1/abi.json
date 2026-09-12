@@ -1,0 +1,72 @@
+[
+  {
+    "name": "report",
+    "type": "tuple",
+    "components": [
+      {
+        "name": "schemaVersion",
+        "type": "uint16"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256"
+      },
+      {
+        "name": "guard",
+        "type": "address"
+      },
+      {
+        "name": "router",
+        "type": "address"
+      },
+      {
+        "name": "maker",
+        "type": "address"
+      },
+      {
+        "name": "strategyHash",
+        "type": "bytes32"
+      },
+      {
+        "name": "token0",
+        "type": "address"
+      },
+      {
+        "name": "token1",
+        "type": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint64"
+      },
+      {
+        "name": "validAfter",
+        "type": "uint48"
+      },
+      {
+        "name": "validUntil",
+        "type": "uint48"
+      },
+      {
+        "name": "allowedDirections",
+        "type": "uint8"
+      },
+      {
+        "name": "maxAmount0PerSwap",
+        "type": "uint128"
+      },
+      {
+        "name": "maxAmount1PerSwap",
+        "type": "uint128"
+      },
+      {
+        "name": "maxPostBalance0",
+        "type": "uint128"
+      },
+      {
+        "name": "maxPostBalance1",
+        "type": "uint128"
+      }
+    ]
+  }
+]
