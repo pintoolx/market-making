@@ -13,7 +13,7 @@ test('local simulator always runs the HTTP TEE handler with a Sepolia broadcast'
     const child = new EventEmitter();
     child.stdout = new PassThrough(); child.stderr = new PassThrough(); child.kill = () => {};
     const fileArg = args[args.indexOf('--http-payload') + 1];
-    invocation = { executable, args, options, body: JSON.parse(readFileSync(fileArg.slice(1), 'utf8')) };
+    invocation = { executable, args, options, body: JSON.parse(readFileSync(fileArg, 'utf8')) };
     queueMicrotask(() => { child.stdout.end('Workflow Simulation Result'); child.stderr.end(); child.emit('close', 0); });
     return child;
   } });

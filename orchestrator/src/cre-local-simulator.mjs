@@ -38,7 +38,7 @@ export async function simulateCREWorkflow(config, payload, dependencies = {}) {
   try {
     await writeFile(payloadPath, `${JSON.stringify(payload)}\n`, { mode: 0o600 });
     const args = ['workflow', 'simulate', config.workflowDir, '--non-interactive', '--trigger-index', '1',
-      '--http-payload', `@${payloadPath}`, '--target', config.target, '--broadcast'];
+      '--http-payload', payloadPath, '--target', config.target, '--broadcast'];
     const makeChild = dependencies.spawnImpl ?? spawn;
     const env = config.toolPath ? { ...process.env, PATH: `${config.toolPath}:${process.env.PATH ?? ''}` } : process.env;
     await (dependencies.runImpl ?? run)(makeChild(config.executable, args, {
