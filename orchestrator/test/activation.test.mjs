@@ -52,6 +52,7 @@ test('preparation is unsigned and idempotent; only a matching onchain ship becom
   assert.equal(f.synced, 1);
   assert.equal((await activationCatalog(f.stateDir))[`${releaseId}.v1`].strategyHash, f.plan.strategyHash);
   assert.equal((await activationStore(f.stateDir).read(id)).transactionHash, hash);
+  assert.equal((await activationCatalog(f.stateDir))[`${releaseId}.v1`].shipTransaction, hash);
   assert.equal((await f.service.confirm(id, { transactionHash: hash })).transactionHash, hash);
   await assert.rejects(f.service.prepare({ ...f.input, id: id.replace(/1$/, '2') }), /already enabled/);
 });

@@ -67,6 +67,22 @@ npm run execute -- --network ethereum-sepolia --state-dir .state/executor/111551
   --request releases/sepolia-maker-v1/featured-defensive-market.ship.json
 ```
 
+## Wallet trading
+
+The web application's `/trade` page lists confirmed wallet activations and quotes their exact shipped program. Traders connect their own wallet, approve only the required input amount if necessary, review a fresh quote, and sign the swap themselves. Quotes enforce 0.5% slippage and a five-minute transaction deadline; the Guard is checked again before signing and during settlement. Pending transaction hashes survive a reload. A trading link from a mandate also records the verified settlement in that mandate's activity.
+
+For integrations that supply their own wallet interface, prepare unsigned calldata with public RPC reads only:
+
+```bash
+npm run prepare:wallet-swap -- \
+  --ship-transaction "$SHIP_TRANSACTION" --strategy-hash "$STRATEGY_HASH" \
+  --maker "$MAKER_ADDRESS" --taker "$TAKER_ADDRESS" \
+  --token-in "$INPUT_TOKEN_ADDRESS" --amount-in 250000 \
+  --output unsigned-swap.json
+```
+
+The output contains an exact-amount approval only when needed, the quote, minimum output, deadline, and unsigned transaction. No signing key is loaded and no transaction is broadcast. Generate a fresh file before wallet submission; expired calldata must not be reused.
+
 ## Strategy params: the TEE hand-off
 
 `AquaStrategyParams` (`src/types.ts`) is the contract between the TEE agent and this executor. The JSON entry accepts it as `request.strategy` for ship/rebalance. The fixed demos still use `src/fixed-params.ts`: 30 bps XYC on mWETH/mUSDC, 1h expiry, ship 2 mWETH + 5000 mUSDC. Actual TEE service integration is separate from this validated input interface.

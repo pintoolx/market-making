@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
@@ -434,6 +435,7 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
           {'readiness' in strategy && <small>Guard: {!fresh(strategy) ? 'not verified' : strategy.readiness?.authorized ? 'authorized' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'not verified'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'not verified'}</small>}
           {strategy.strategyHash && <CopyStrategyHash value={strategy.strategyHash} />}
           <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Evaluate profile</Secondary>
+          <Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trading page ↗</Link>
         </div>
       </article>)}
     </section>

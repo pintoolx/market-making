@@ -34,7 +34,7 @@ export async function activationCatalog(stateDir) {
   for (const record of await activationStore(stateDir).confirmed()) {
     const id = `${record.plan.release.id}.v${record.plan.release.version}`;
     if (entries[id] && entries[id].strategyHash !== record.plan.strategyHash) throw new Error('Conflicting activated version');
-    entries[id] = { ...record.plan.catalogEntry, maker: record.maker };
+    entries[id] = { ...record.plan.catalogEntry, maker: record.maker, shipTransaction: record.transactionHash };
   }
   return entries;
 }
