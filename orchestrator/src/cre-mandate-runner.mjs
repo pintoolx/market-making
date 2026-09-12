@@ -114,6 +114,11 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     transactionHash: evidence.transactionHash,
     explorerUrl: transactionUrl,
   }];
+  if (accepted.marketEvaluation) {
+    const scenario = accepted.marketEvaluation.observation.scenarioId;
+    events[0].detail += ` Market input: synthetic ${scenario} scenario; real finalized Sepolia balances.`;
+    events[0].marketEvaluation = accepted.marketEvaluation;
+  }
   if (active && !accepted.unchanged) events.push({
     id: `${evidence.transactionHash}-active`,
     type: 'strategy-activated',
@@ -139,6 +144,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     mandateId,
     maker,
     regime: 'unknown', // A public authorization does not disclose the private rule or market regime.
+    ...(accepted.marketEvaluation ? { marketEvaluation: accepted.marketEvaluation } : {}),
     strategies,
     evidence: {
       chainId: config.chainId,

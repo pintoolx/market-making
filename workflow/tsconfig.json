@@ -3,13 +3,22 @@
     "target": "esnext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ESNext"],
+    "lib": [
+      "ESNext"
+    ],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["bun-types"]
+    "types": [
+      "bun-types"
+    ]
   },
-  "include": ["src/**/*.ts", "market-maker-auth/main.ts", "scripts/preview-market-observation.ts"]
+  "include": [
+    "src/**/*.ts",
+    "market-maker-auth/main.ts",
+    "scripts/preview-market-observation.ts",
+    "market-scenarios/main.ts"
+  ]
 }

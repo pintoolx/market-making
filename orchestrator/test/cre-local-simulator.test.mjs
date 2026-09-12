@@ -39,3 +39,18 @@ test('local simulator exposes only a validated public unchanged marker', async (
     runImpl: async () => `log prefix ${JSON.stringify({ kind: 'cre-authorization-unchanged', strategyHash, reportDigest })}\n` });
   assert.equal(result.unchanged, true); assert.equal(result.reportDigest, reportDigest);
 });
+
+test('scenario outputs must match the request and cannot enter a live run', async () => {
+  const { keccak256, stringToHex } = await import('viem');
+  const config = { ...localSimulatorConfig({ CRE_PROJECT_DIR: '/workspace/workflow' }), scenarioId: 'stress-v1' };
+  const payload = { requestId: 'scenario-1', maker: `0x${'11'.repeat(20)}`, strategyHash: `0x${'22'.repeat(32)}` };
+  const observation = { source: 'synthetic-scenario', scenarioId: 'stress-v1', maker: payload.maker, chainId: 11155111 };
+  const marker = { kind: 'cre-market-scenario', ...payload, observation, inputDigest: keccak256(stringToHex(JSON.stringify(observation))) };
+  const deps = data => ({ spawnImpl: () => ({}), runImpl: async () => JSON.stringify(data) });
+  const result = await simulateCREWorkflow(config, payload, deps(marker));
+  assert.equal(result.marketEvaluation.inputDigest, marker.inputDigest);
+  await assert.rejects(simulateCREWorkflow(config, payload, deps({ ...marker, requestId: 'other' })), /mismatched/);
+  await assert.rejects(simulateCREWorkflow(config, payload, deps({ ...marker, inputDigest: `0x${'00'.repeat(32)}` })), /mismatched/);
+  await assert.rejects(simulateCREWorkflow({ ...config, scenarioId: undefined }, payload, deps(marker)), /Unexpected synthetic/);
+  await assert.rejects(simulateCREWorkflow(config, payload, deps({})), /Missing/);
+});
