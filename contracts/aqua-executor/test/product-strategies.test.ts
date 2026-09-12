@@ -8,8 +8,8 @@ import { DEMO_ACCOUNTS, SEPOLIA } from '../src/sepolia.ts'
 test('the Sepolia product catalog pins two guarded strategies sharing one Maker balance', () => {
   const items = buildProductStrategies(loadDeployment(SEPOLIA.chainId), DEMO_ACCOUNTS.maker)
   assert.deepEqual(items.map(item => [item.listingId, item.strategyHash]), [
-    ['featured-tight-market', '0x3c9b9724581aa371f0c0df6889c7243cb32c692f32af10b1ffd88dbe66deae79'],
-    ['featured-defensive-market', '0x4ff3a91ec6ca9204376de326e192eded5a8838a03315c4e85590d89aa7d09b5d'],
+    ['featured-tight-market', '0x99dad96884c19410b5d92c805de6a515f57a2d019848ccfd2676067a383ba9f6'],
+    ['featured-defensive-market', '0xb63a853b04bb2a043cc27c86f21490225f0fd8455281bae3d089c4f099e0c43e'],
   ])
   assert.equal(new Set(items.map(item => item.request.strategy.maker)).size, 1)
   assert.equal(new Set(items.map(item => JSON.stringify(item.request.strategy.amounts))).size, 1)

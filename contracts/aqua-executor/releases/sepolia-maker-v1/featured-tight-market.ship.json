@@ -29,8 +29,8 @@
       "caps": {
         "maxAmount0PerSwap": "400000000000000",
         "maxAmount1PerSwap": "1000000",
-        "maxPostBalance0": "4000000000000000",
-        "maxPostBalance1": "10000000"
+        "maxPostBalance0": "6000000000000000",
+        "maxPostBalance1": "20000000"
       }
     },
     "meta": {

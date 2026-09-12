@@ -21,7 +21,7 @@ type Recipe = {
   name: string
   range: { min: string; max: string }
   salt: string
-  caps: { maxAmount0PerSwap: string; maxAmount1PerSwap: string }
+  caps: { maxAmount0PerSwap: string; maxAmount1PerSwap: string; maxPostBalance0: string; maxPostBalance1: string }
 }
 
 const RECIPES: Recipe[] = [
@@ -30,14 +30,14 @@ const RECIPES: Recipe[] = [
     name: 'Tight Market',
     range: { min: '2300', max: '2700' },
     salt: '2026091201',
-    caps: { maxAmount0PerSwap: '400000000000000', maxAmount1PerSwap: '1000000' },
+    caps: { maxAmount0PerSwap: '400000000000000', maxAmount1PerSwap: '1000000', maxPostBalance0: '6000000000000000', maxPostBalance1: '20000000' },
   },
   {
     listingId: 'featured-defensive-market',
     name: 'Defensive Market',
     range: { min: '1800', max: '3200' },
     salt: '2026091202',
-    caps: { maxAmount0PerSwap: '200000000000000', maxAmount1PerSwap: '500000' },
+    caps: { maxAmount0PerSwap: '200000000000000', maxAmount1PerSwap: '500000', maxPostBalance0: '4400000000000000', maxPostBalance1: '11000000' },
   },
 ]
 
@@ -59,9 +59,7 @@ export function buildProductStrategies(deployment: Deployment, maker: Hex): Prod
       tokens: typedTokens,
       amounts,
       program: { kind: 'concentrated', feeBps: 0, deadline: MAKER_STRATEGY_DEADLINE, salt: recipe.salt, ...bounds },
-      guard: { address: guard.address, version: 2, caps: {
-        ...recipe.caps, maxPostBalance0: amounts[0]!, maxPostBalance1: amounts[1]!,
-      } },
+      guard: { address: guard.address, version: 2, caps: recipe.caps },
       meta: { producer: 'fixed-params', strategyVersion: 1, paramsRevision: index + 1 },
     }
     const compiled = compileExecution(strategy)
