@@ -1,4 +1,4 @@
 packages:
   - frontend
   - contracts/aqua-executor
-  # The Chainlink confidential workflow will join when it has a package.
+  # workflow/guard-report uses an isolated Bun lockfile for the CRE toolchain.
