@@ -87,3 +87,9 @@ Railway supplies `PORT`. After deployment, open `/health`, add the generated HTT
 ## Versioned LP integration
 
 See [LP releases and readiness](../docs/LP-RELEASES.md) for signed Provider publication routes, immutable versions, required provisioning and readiness configuration. Live market acquisition now happens inside the CRE workflow; `MANDATE_MARKET_SNAPSHOT` and `MANDATE_MARKET_SNAPSHOT_FILE` are no longer authorization inputs to the direct runner. `regime` is `unknown` because a public report does not prove which private rule matched.
+
+## Maker wallet activation
+
+The service exposes unsigned activation preparation and onchain confirmation through `/v1/activations`. It invokes the existing SwapVM compiler with Bun; the image includes the compiler, pinned SDK and Guard artifacts. No Maker or Taker signing key is needed for these endpoints. The connected browser wallet submits approvals and ship transactions.
+
+Keep `MANDATE_STATE_DIR/activations` on the persistent volume. Only confirmed entries join the execution catalog. The staging simulator restores their policy bindings before evaluation, so a Railway restart does not require manually recreating catalog variables. `CRE_PROJECT_DIR` must point to the writable staging workflow project. This activation path currently supports `MANDATE_STRATEGY_MAKER` on Ethereum Sepolia and one confirmed program per published version.

@@ -114,6 +114,9 @@ importers:
 
   orchestrator:
     dependencies:
+      '@1inch/swap-vm-sdk':
+        specifier: 0.4.4
+        version: 0.4.4(assert@2.1.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(zod@4.4.3)
       viem:
         specifier: 2.56.3
         version: 2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)

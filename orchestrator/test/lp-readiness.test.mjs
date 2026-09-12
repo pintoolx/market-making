@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { assessReadiness, readLpReadiness } from '../src/lp-readiness.mjs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { activationStore } from '../src/activation-store.mjs';
 
 const hash = `0x${'1'.repeat(64)}`;
 const base = () => ({ report: { schemaVersion: 1, nonce: 1n, allowedDirections: 3, validAfter: 99, validUntil: 200 }, activeHash: hash, strategyHash: hash,
@@ -15,7 +19,7 @@ test('only ship, current authorization, available funding and unexpired program 
   ]) assert.equal(assessReadiness({ ...base(), ...changes }).phase, 'not-ready');
 });
 
-test('RPC reads share one block and reject wrong-domain or stale data', async () => {
+test('RPC reads share one block and reject wrong-domain or stale data', async t => {
   const maker = '0x' + '2'.repeat(40), guard = '0x' + '3'.repeat(40), router = '0x' + '4'.repeat(40), aqua = '0x' + '5'.repeat(40);
   const config = { chainId: 11155111, guard, router, aqua, strategies: [{ id: 's', strategyHash: hash, programDeadline: 300 }] };
   const calls = [];
@@ -33,6 +37,14 @@ test('RPC reads share one block and reject wrong-domain or stale data', async ()
   assert.equal(snapshot.phase, 'ready-for-quote');
   assert.equal(snapshot.validUntil, new Date(130000).toISOString());
   assert.equal(calls.length, 8); assert.ok(calls.every(c => c.blockNumber === 42n));
+  // A wallet-confirmed release is not present in the environment's original catalog.
+  const stateDir = await mkdtemp(join(tmpdir(), 'activation-readiness-'));
+  t.after(() => rm(stateDir, { recursive: true, force: true }));
+  const release = { id: `${maker.slice(2)}-clmm`, version: 1, digest: hash };
+  await activationStore(stateDir).insert({ id: '00000000-0000-4000-8000-000000000001', maker, transactionHash: hash,
+    plan: { release, strategyHash: hash, catalogEntry: { release, strategyHash: hash, programDeadline: 300 } } });
+  const activated = await readLpReadiness({ ...config, stateDir, strategies: [] }, maker, { listingId: `${release.id}.v1`, strategyHash: hash }, { client, nowMs: () => 100000 });
+  assert.equal(activated.phase, 'ready-for-quote');
   await assert.rejects(readLpReadiness(config, maker, { listingId: 's', strategyHash: hash }, { client, nowMs: () => 200000 }), /stale/);
   report.router = maker;
   await assert.rejects(readLpReadiness(config, maker, { listingId: 's', strategyHash: hash }, { client, nowMs: () => 100000 }), /domain/);

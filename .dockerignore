@@ -11,9 +11,12 @@
 contracts/*
 !contracts/aqua-executor
 contracts/aqua-executor/*
+!contracts/aqua-executor/src
 !contracts/aqua-executor/artifacts
 contracts/aqua-executor/artifacts/*
 !contracts/aqua-executor/artifacts/AquaGuardV2.json
+!contracts/aqua-executor/artifacts/AquaGuard.json
+!contracts/aqua-executor/artifacts/GuardTestForwarder.json
 !contracts/aqua-executor/deployments
 contracts/aqua-executor/deployments/*
 !contracts/aqua-executor/deployments/11155111.json
