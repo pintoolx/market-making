@@ -53,6 +53,8 @@ The web app is exported as a static site (`output: "export"`).
 ## Docs
 
 - [Product spec and interfaces](docs/PRODUCT-HANDOFF.md)
+- [Winning integration and video flow](docs/WINNING-FLOW.md)
+- [ETHOnline topic diligence and prior-art analysis](docs/TOPIC-DILIGENCE.md)
 - [Aqua maker strategy research](docs/AQUA-MAKER-RESEARCH.md)
 - [What Aqua can enforce per swap, and the Guard design](docs/AQUA-STRATEGY-DEEP-DIVE.md)
 - [User stories and UX walkthrough](docs/UX-USER-STORIES.md)
