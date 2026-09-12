@@ -7,6 +7,7 @@ import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
 import { addMandateStrategy, createMandate, getMandate, type MandateState } from './mandateClient';
+import { sealForConfidentialWorkflow } from './confidentialEnvelope';
 import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
 import { readPublished, usePublishedListings, type Listing } from './publishedStore';
 import { useProposals } from './proposalStore';
@@ -80,7 +81,17 @@ const percentageError = (value: string) => {
   const n = toNumber(value);
   return !value.trim() ? '' : !(n > 0 && n <= 100) ? 'Enter a percentage between 1 and 100.' : '';
 };
+const validityError = (value: string) => {
+  const n = toNumber(value);
+  return !value.trim() ? '' : !Number.isInteger(n) || n < 1 || n > 10 ? 'Enter 1 to 10 whole minutes.' : '';
+};
 const shortHash = (value: string) => `${value.slice(0, 8)}…${value.slice(-6)}`;
+const decimalToAtomic = (value: string, decimals: number): string => {
+  const [whole, fraction = ''] = value.replace(/,/g, '').trim().split('.');
+  const combined = `${whole}${(fraction + '0'.repeat(decimals)).slice(0, decimals)}`.replace(/^0+(?=\d)/, '');
+  return combined || '0';
+};
+const percentageToBps = (value: string): number => Number(decimalToAtomic(value, 2));
 
 export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const account = useAccount();
@@ -140,8 +151,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   };
   const openStrategy = (listing: Listing) => { setSelected([listing]); go('detail'); };
 
-  const valid = [budget, maxWethInventory, maxTrade, validityMinutes].every(value => value.trim() && !positiveError(value))
+  const valid = [budget, maxWethInventory, maxTrade].every(value => value.trim() && !positiveError(value))
     && !!exposure.trim() && !percentageError(exposure)
+    && !!validityMinutes.trim() && !validityError(validityMinutes)
     && toNumber(maxWethInventory) <= toNumber(budget)
     && toNumber(maxTrade) <= toNumber(budget);
 
@@ -157,16 +169,20 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
     go('submitting');
     try {
+      const publicKey = process.env.NEXT_PUBLIC_CONFIDENTIAL_WORKFLOW_PUBLIC_KEY?.trim();
+      if (!publicKey) throw new Error('Confidential workflow encryption is not configured.');
+      const makerLimitsEnvelope = sealForConfidentialWorkflow({
+        schemaVersion: 2,
+        maxBudget1: decimalToAtomic(budget, 6),
+        maxToken0ShareBps: percentageToBps(exposure),
+        maxToken0Value1: decimalToAtomic(maxWethInventory, 6),
+        maxSwapValue1: decimalToAtomic(maxTrade, 6),
+        maxTtlSec: Number(validityMinutes) * 60,
+      }, publicKey, account.address);
       const state = await createMandate({
         maker: account.address,
         providerStrategyIds: selected.map(item => item.id),
-        policy: {
-          capitalBudgetUsdc: budget.trim(),
-          maxWethExposurePct: exposure.trim(),
-          maxWethInventoryUsdc: maxWethInventory.trim(),
-          maxSwapUsdc: maxTrade.trim(),
-          validityMinutes: validityMinutes.trim(),
-        },
+        makerLimitsEnvelope,
       });
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
@@ -265,7 +281,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
           <label>Maximum WETH exposure (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={event => setExposure(event.target.value)} /></label>
           <label>Maximum WETH inventory (USDC value)<FormInput inputMode="decimal" value={maxWethInventory} aria-invalid={!!positiveError(maxWethInventory) || toNumber(maxWethInventory) > toNumber(budget)} onChange={event => setMaxWethInventory(event.target.value)} /></label>
           <label>Maximum amount per swap (USDC)<FormInput inputMode="decimal" value={maxTrade} aria-invalid={!!positiveError(maxTrade) || toNumber(maxTrade) > toNumber(budget)} onChange={event => setMaxTrade(event.target.value)} /></label>
-          <label>Mandate validity (minutes)<FormInput inputMode="numeric" value={validityMinutes} aria-invalid={!!positiveError(validityMinutes)} onChange={event => setValidityMinutes(event.target.value)} /><span className={aqua.hint}>Trading stops when the latest authorization expires.</span></label>
+          <label>Mandate validity (minutes)<FormInput inputMode="numeric" value={validityMinutes} aria-invalid={!!validityError(validityMinutes)} onChange={event => setValidityMinutes(event.target.value)} /><span className={validityError(validityMinutes) ? aqua.fieldError : aqua.hint}>{validityError(validityMinutes) || 'Trading stops when the latest authorization expires.'}</span></label>
         </fieldset>
         <Primary type="submit" disabled={!valid}>Review mandate</Primary>
       </form>

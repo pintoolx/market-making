@@ -2,30 +2,31 @@
 
 # Confidential workflow (Chainlink CRE, TEE)
 
-A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It reads two confidential inputs — the Provider's strategy and the Maker's risk limits — as Vault DON secrets, intersects them at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). The TEE never handles Maker funds.
+A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It reads the Provider strategy and envelope private key from Vault DON, opens browser-sealed Maker limits inside the TEE, intersects both policies at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). The TEE never handles Maker funds.
 
 The workflow has two entry points:
 
 - A cron trigger continuously reevaluates the configured strategy.
-- An authorized HTTP trigger performs on-demand evaluation for a public Maker, strategy hash and market snapshot.
+- An authorized HTTP trigger performs on-demand evaluation for a public Maker, strategy hash, market snapshot and encrypted Maker envelope.
 
-Both handlers enter the TEE before fetching Provider and Maker secrets, then call the shared report delivery seam. The separate [`guard-report/`](guard-report/) package verifies encoding, DON delivery and Guard readback. CLI simulation is not production DON or TEE attestation. See the [system architecture](../docs/ARCHITECTURE.md) and [transport verification boundary](../docs/CRE-GUARD-INTEGRATION.md).
+Both handlers enter the TEE before fetching secrets, then call the shared report delivery seam. Cron retains a provisioned Maker secret for scheduled operation; the product HTTP path decrypts the Maker envelope dynamically. The separate [`guard-report/`](guard-report/) package verifies encoding, DON delivery and Guard readback. CLI simulation is not production DON or TEE attestation. See the [system architecture](../docs/ARCHITECTURE.md) and [transport verification boundary](../docs/CRE-GUARD-INTEGRATION.md).
 
 ## Layout
 
 ```
 workflow/
 ├── project.yaml                 CRE project settings (RPCs per target)
-├── secrets.yaml                 logical secret ids → env vars (PROVIDER_STRATEGY, MAKER_LIMITS)
+├── secrets.yaml                 Provider policies, cron limits and envelope private key
 ├── .env.example                 local simulation secrets (copy to .env — gitignored)
 ├── market-maker-auth/           the CRE workflow (cre init --template hello-confidential-workflows-ts)
 │   ├── workflow.ts              cron + HTTP handlerInTee callbacks: getSecrets → intersect → publish
 │   ├── workflow.test.ts         handler tests with a fake TeeRuntime
-│   ├── http-request.example.json public on-demand trigger payload
+│   ├── http-request.example.json public identity, observation and synthetic ciphertext
 │   ├── config.staging.json      public config: schedule, trigger signer, default identity and publishMode
 │   └── workflow.yaml
 ├── src/
-│   ├── types.ts                 zod schemas for both secrets, the snapshot and GuardReportV1
+│   ├── confidential-envelope.ts authenticated envelope decryption inside the TEE
+│   ├── types.ts                 policy schemas, the snapshot and GuardReportV1
 │   ├── intersect.ts             pure computeAuthorization() — no runtime, no clock, no I/O
 │   ├── intersect.test.ts        15 cases: incompatible sides, exhausted inventory, expiry, rule order
 │   ├── encode.ts                ABI encoder, golden-tested against docs/guard-report-v1/example.json
@@ -52,7 +53,7 @@ bun run check:leak            # simulate + leak scan
 
 `simulate` prints the TEE notice box, the complete `GuardReportV1` payload the Guard would
 receive (dry-run), its 512-byte ABI encoding and `keccak256` hash, and a public one-line
-result. HTTP trigger input is visible to Workflow DON nodes and therefore contains no private policy. No deployment access is needed to simulate; deploying needs `cre account access`
+result. HTTP trigger input is visible to Workflow DON nodes and therefore contains ciphertext rather than plaintext Maker limits. No deployment access is needed to simulate; deploying needs `cre account access`
 and Confidential Workflows private-beta enrollment.
 
 ## Confidentiality boundary
@@ -60,7 +61,7 @@ and Confidential Workflows private-beta enrollment.
 | Stays in the enclave | Leaves the enclave |
 |---|---|
 | Provider rules, thresholds, TTL preferences, inventory ceilings | the 16-field `GuardReportV1` (public by design) |
-| Maker budget, token0 share, per-swap tolerances, TTL | `allowedDirections`, nonce, validity window in the result string |
+| Maker budget, WETH-value ceiling, per-swap tolerance, TTL | `allowedDirections`, nonce, validity window in the result string |
 | matched rule id, which side bound each cap (`DecisionTrace`) | — |
 
 Enforcement: `scripts/check-no-leak.sh` runs the simulation and fails if any scalar from the
@@ -86,7 +87,7 @@ maker)` — those are listed explicitly so reviewers see exactly what is reveale
 
 - Replace `authorizedEVMAddress` with the EVM address used to sign CRE HTTP trigger requests. An empty or placeholder authorization is not valid production configuration.
 - Deploy a production Guard with the official forwarder and assigned workflow identity, then replace the zero Guard placeholder in `config.production.json`. Never point the production target at the simulation receiver.
-- Upload `PROVIDER_STRATEGY` and `MAKER_LIMITS` through Vault DON and remove simulation-only secret values.
+- Upload Provider strategies, cron Maker limits and `ENVELOPE_PRIVATE_KEY` through Vault DON. Publish only the matching X25519 public key to the web application.
 - Use `publishMode: don-report` with a Guard deployed for the official forwarder and assigned workflow identity.
 - Supply live market observations and Maker balances through a verified data path. The checked-in HTTP fixture and cron defaults are deterministic local inputs.
 - Remove simulation-only report logging before deployment.

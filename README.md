@@ -90,7 +90,7 @@ The web application, mandate API, Aqua executor, Guard contracts and confidentia
 
 Local simulation runs the same `handlerInTee` workflow code but is not a hardware TEE. Deployment access and a production receiver bound to the assigned workflow identity remain the final production infrastructure step.
 
-Provider policies and Maker limits are intended to remain confidential. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
+Provider policies remain Vault DON secrets, while Maker limits are sealed in the browser and opened only inside the confidential workflow. Deployed programs, authorization bounds, receipts and completed trades are public. Repeated public output can reveal information over time, and risk limits do not guarantee profit or a maximum loss. See the [CRE and Guard integration](docs/CRE-GUARD-INTEGRATION.md) for the exact boundary.
 
 ## Documentation
 

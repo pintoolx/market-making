@@ -5,8 +5,8 @@ import { decodeEventLog, decodeFunctionData, encodeAbiParameters, keccak256, par
 
 const HEX32 = /^0x[0-9a-f]{64}$/i;
 const ADDRESS = /^0x[0-9a-f]{40}$/i;
-const POSITIVE = /^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
 const STRATEGY_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/;
+const HEX = /^[0-9a-f]+$/i;
 const routerAbi = parseAbi([
   'struct Order { address maker; uint256 traits; bytes data; }',
   'function swap(Order order, address tokenIn, address tokenOut, uint256 amount, bytes takerTraitsAndData) returns (uint256 amountIn, uint256 amountOut, bytes32 orderHash)',
@@ -26,33 +26,24 @@ function exactKeys(value, allowed, label) {
   const unknown = Object.keys(value).filter(key => !allowed.includes(key));
   if (unknown.length) throw new HttpError(400, `${label} contains unknown fields.`);
 }
-function decimal(value, label, { percentage = false } = {}) {
-  if (typeof value !== 'string' || !POSITIVE.test(value) || Number(value) <= 0 || (percentage && Number(value) > 100)) {
-    throw new HttpError(400, `${label} is invalid.`);
-  }
-  return value;
+function envelope(value) {
+  const sealed = object(value, 'Maker limits envelope');
+  exactKeys(sealed, ['version', 'ephemeralPublicKey', 'nonce', 'ciphertext'], 'Maker limits envelope');
+  if (sealed.version !== 1 || typeof sealed.ephemeralPublicKey !== 'string' || sealed.ephemeralPublicKey.length !== 64 || !HEX.test(sealed.ephemeralPublicKey)
+    || typeof sealed.nonce !== 'string' || sealed.nonce.length !== 48 || !HEX.test(sealed.nonce)
+    || typeof sealed.ciphertext !== 'string' || sealed.ciphertext.length < 32 || sealed.ciphertext.length > 8192
+    || sealed.ciphertext.length % 2 !== 0 || !HEX.test(sealed.ciphertext)) throw new HttpError(400, 'Maker limits envelope is invalid.');
+  return sealed;
 }
 
 export function parseCreate(input) {
   const body = object(input, 'Request');
-  exactKeys(body, ['maker', 'providerStrategyIds', 'policy'], 'Request');
+  exactKeys(body, ['maker', 'providerStrategyIds', 'makerLimitsEnvelope'], 'Request');
   if (typeof body.maker !== 'string' || !ADDRESS.test(body.maker) || /^0x0{40}$/i.test(body.maker)) throw new HttpError(400, 'Maker address is invalid.');
   if (!Array.isArray(body.providerStrategyIds) || body.providerStrategyIds.length < 1 || body.providerStrategyIds.length > 12
     || body.providerStrategyIds.some(id => typeof id !== 'string' || !STRATEGY_ID.test(id))
     || new Set(body.providerStrategyIds).size !== body.providerStrategyIds.length) throw new HttpError(400, 'Provider strategy IDs are invalid.');
-  const policy = object(body.policy, 'Policy');
-  exactKeys(policy, ['capitalBudgetUsdc', 'maxWethExposurePct', 'maxWethInventoryUsdc', 'maxSwapUsdc', 'validityMinutes'], 'Policy');
-  const parsed = {
-    capitalBudgetUsdc: decimal(policy.capitalBudgetUsdc, 'Capital budget'),
-    maxWethExposurePct: decimal(policy.maxWethExposurePct, 'WETH exposure', { percentage: true }),
-    maxWethInventoryUsdc: decimal(policy.maxWethInventoryUsdc, 'WETH inventory'),
-    maxSwapUsdc: decimal(policy.maxSwapUsdc, 'Maximum swap'),
-    validityMinutes: decimal(policy.validityMinutes, 'Validity'),
-  };
-  if (Number(parsed.maxWethInventoryUsdc) > Number(parsed.capitalBudgetUsdc) || Number(parsed.maxSwapUsdc) > Number(parsed.capitalBudgetUsdc)) {
-    throw new HttpError(400, 'Inventory and swap limits cannot exceed the capital budget.');
-  }
-  return { maker: body.maker.toLowerCase(), providerStrategyIds: body.providerStrategyIds, policy: parsed };
+  return { maker: body.maker.toLowerCase(), providerStrategyIds: body.providerStrategyIds, makerLimitsEnvelope: envelope(body.makerLimitsEnvelope) };
 }
 
 export function validateState(value, expected) {
@@ -142,6 +133,7 @@ export function createService(config, dependencies = {}) {
   const aquaSwap = dependencies.verifyAquaSwap ?? ((hash, strategyHash, status) => verifyAquaSwap(config.rpcUrl, config.router, hash, strategyHash, status));
   const stateDir = resolve(config.stateDir);
   const statePath = id => join(stateDir, `${id}.json`);
+  const envelopePath = id => join(stateDir, `${id}.maker-envelope.json`);
   const save = async state => {
     await mkdir(stateDir, { recursive: true });
     const target = statePath(state.mandateId), temporary = `${target}.${process.pid}.tmp`;
@@ -149,7 +141,15 @@ export function createService(config, dependencies = {}) {
     await rename(temporary, target);
   };
   const load = async id => JSON.parse(await readFile(statePath(id), 'utf8'));
-  const accept = async (output, requiredStrategyIds = [], expectedMaker) => {
+  const loadEnvelope = async id => { try { return JSON.parse(await readFile(envelopePath(id), 'utf8')); } catch { return null; } };
+  const saveEnvelope = async (id, sealed) => {
+    if (!sealed) return;
+    await mkdir(stateDir, { recursive: true });
+    const target = envelopePath(id), temporary = `${target}.${process.pid}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(sealed)}\n`, { mode: 0o600 });
+    await rename(temporary, target);
+  };
+  const accept = async (output, requiredStrategyIds = [], expectedMaker, sealed) => {
     const state = validateState(output, config);
     if (expectedMaker && state.maker.toLowerCase() !== expectedMaker.toLowerCase()) throw new Error('runner response is for a different Maker');
     const returnedIds = new Set(state.strategies.map(strategy => strategy.listingId));
@@ -165,23 +165,25 @@ export function createService(config, dependencies = {}) {
     }
     const verified = await Promise.all([...claims].map(([hash, status]) => receipt(hash, status)));
     if (verified.some(result => result?.chainId !== undefined && result.chainId !== config.chainId)) throw new Error('RPC returned evidence from the wrong chain');
+    await saveEnvelope(state.mandateId, sealed);
     await save(state);
     return state;
   };
   return {
     async create(input) {
       const parsed = parseCreate(input);
-      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds, parsed.maker);
+      return accept(await runner({ action: 'create', input: parsed }), parsed.providerStrategyIds, parsed.maker, parsed.makerLimitsEnvelope);
     },
     async get(id) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
       let current;
       try { current = await load(id); } catch {}
+      const sealed = current ? await loadEnvelope(id) : null;
       let output;
-      try { output = await runner({ action: 'get', mandateId: id, current }); }
+      try { output = await runner({ action: 'get', mandateId: id, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) }); }
       catch (error) { if (current) output = current; else throw error; }
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [], current?.maker);
+      return accept(output, [], current?.maker, sealed);
     },
     async add(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');
@@ -189,9 +191,10 @@ export function createService(config, dependencies = {}) {
       if (typeof body.providerStrategyId !== 'string' || !STRATEGY_ID.test(body.providerStrategyId)) throw new HttpError(400, 'Provider strategy ID is invalid.');
       let current;
       try { current = await load(id); } catch { throw new HttpError(404, 'Mandate not found.'); }
-      const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId, current });
+      const sealed = await loadEnvelope(id);
+      const output = await runner({ action: 'add-strategy', mandateId: id, providerStrategyId: body.providerStrategyId, current, ...(sealed ? { makerLimitsEnvelope: sealed } : {}) });
       if (output.mandateId !== id) throw new Error('runner returned the wrong mandate');
-      return accept(output, [body.providerStrategyId], current.maker);
+      return accept(output, [body.providerStrategyId], current.maker, sealed);
     },
     async recordExecution(id, input) {
       if (!STRATEGY_ID.test(id)) throw new HttpError(400, 'Mandate ID is invalid.');

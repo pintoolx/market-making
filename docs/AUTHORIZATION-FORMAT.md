@@ -11,10 +11,10 @@ Implementation: [`workflow/src/types.ts`](../workflow/src/types.ts) (schemas),
 ## 1. Where the authorization sits
 
 ```
-Provider strategy (secret JSON) ─┐
-                                 ├─► TEE handler ──► GuardReportV1 ──► DON signs ──► Keystone forwarder
-Maker limits (secret JSON) ──────┘   (cron, Nitro)    (512-byte ABI)                  │
-Market snapshot (public) ────────┘                                                    ▼
+Provider strategy (Vault DON secret) ─┐
+Browser-sealed Maker limits ──────────┼─► TEE handler ──► GuardReportV1 ──► DON signs ──► Keystone forwarder
+Envelope key (Vault DON secret) ──────┘   (Nitro)          (512-byte ABI)                  │
+Market snapshot (public) ─────────────┘                                                    ▼
                                                                  AquaGuard.onReport(metadata, report)
                                                                                       │ stores bounds
                                                                                       ▼
@@ -49,9 +49,11 @@ Integers in JSON fixtures and logs are decimal strings; addresses are plain EVM 
 
 ## 3. Confidential inputs (what the TEE reads, never publishes)
 
-Two secrets, one JSON document each (`secrets.yaml`: `PROVIDER_STRATEGY`, `MAKER_LIMITS`),
-fetched with a single `runtime.getSecrets([...])` call. Quotas that shaped this: 2 KB per
-secret, 27 KB per workflow, 5 secret calls per execution.
+The product HTTP path fetches two Vault DON secrets in one `runtime.getSecrets([...])`
+call: the selected `PROVIDER_STRATEGY` and `ENVELOPE_PRIVATE_KEY`. The Maker limits arrive
+as authenticated ciphertext and are opened only inside the TEE. The scheduled cron path
+retains a provisioned `MAKER_LIMITS` secret. Quotas that shaped this are 2 KB per secret,
+27 KB per workflow and 5 secret calls per execution.
 
 **Provider strategy** — an ordered rule list; the first rule whose `when` matches the market
 snapshot wins, none matching = paused.
@@ -70,7 +72,8 @@ snapshot wins, none matching = paused.
 |---|---|
 | `maxBudget1` | Max capital deployed, in token1 atomic (e.g. 10 000 USDC). |
 | `maxToken0ShareBps` | Max share of that budget that may sit in token0 (6000 = 60 %). |
-| `maxAmount0PerSwap` / `maxAmount1PerSwap` | Per-fill ceilings the Maker tolerates. |
+| `maxToken0Value1` | Absolute WETH inventory ceiling stated in token1 value. The stricter of this and the percentage ceiling is used. |
+| `maxSwapValue1` | Per-fill ceiling stated in token1 value; converted to both token amounts at the observed mid price. |
 | `maxTtlSec` | Maker's upper bound on report lifetime. |
 
 **Market snapshot** (public, supplied by the authorized trigger or scheduled workflow configuration): `midPrice` (token1 per token0), `volatilityBps`, the Maker's
@@ -81,10 +84,10 @@ snapshot wins, none matching = paused.
 | Output | Rule |
 |---|---|
 | matched rule | first `rules[i]` whose every stated `when` bound holds; `null` → paused. |
-| `maxAmount0PerSwap` | `min(rule.maxAmount0PerSwap, maker.maxAmount0PerSwap)` |
-| `maxAmount1PerSwap` | `min(rule.maxAmount1PerSwap, maker.maxAmount1PerSwap)` |
+| `maxAmount0PerSwap` | `min(rule.maxAmount0PerSwap, maker.maxSwapValue1 converted to token0)` |
+| `maxAmount1PerSwap` | `min(rule.maxAmount1PerSwap, maker.maxSwapValue1)` |
 | `maxPostBalance1` | `min(provider.inventory.maxBalance1, maker.maxBudget1)` |
-| `maxPostBalance0` | `min(provider.inventory.maxBalance0, makerCeiling0)` where `makerCeiling0 = maxBudget1 × share / 10 000` converted to token0 at `midPrice` |
+| `maxPostBalance0` | `min(provider.inventory.maxBalance0, makerCeiling0)` where `makerCeiling0` is the stricter of the percentage and absolute WETH-value ceilings, converted at `midPrice` |
 | direction bit 1 (Maker buys token0) | `rule.allowMakerBuyToken0 && balance0 < maxPostBalance0` |
 | direction bit 2 (Maker sells token0) | `rule.allowMakerSellToken0 && balance1 < maxPostBalance1` |
 | paused (`allowedDirections = 0`) | no rule matched · rule opens neither side · either per-swap cap is 0 · both inventories already at/over cap. **Paused reports carry all-zero caps** (allowed by the Guard, reveals nothing extra). |

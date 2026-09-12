@@ -15,7 +15,7 @@ The application exposes the two sides of the PinTool market:
 
 - Published listing metadata and profile preferences currently persist in browser storage.
 - Provider drafts remain in session storage until publication.
-- Private Provider policy and Maker limits must cross the confidential service boundary; browser storage is not a confidentiality mechanism.
+- Maker limits are sealed in the browser for the confidential workflow. Provider policies are provisioned through Vault DON; plaintext private inputs never enter the mandate service.
 - Confirmed mandate state comes from `NEXT_PUBLIC_MANDATE_API_URL`. The UI never generates transaction receipts or treats requested actions as confirmed.
 
 ## Integration points
@@ -34,4 +34,4 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Set `NEXT_PUBLIC_PRIVY_APP_ID` and `NEXT_PUBLIC_MANDATE_API_URL` in `frontend/.env.local`. The application runs on port 3200.
+Set `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_MANDATE_API_URL` and `NEXT_PUBLIC_CONFIDENTIAL_WORKFLOW_PUBLIC_KEY` in `frontend/.env.local`. The application runs on port 3200.

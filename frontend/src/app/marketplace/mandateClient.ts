@@ -1,3 +1,5 @@
+import type { ConfidentialEnvelope } from './confidentialEnvelope';
+
 export type MarketRegime = 'normal' | 'high-volatility' | 'unknown';
 export type StrategyStatus = 'active' | 'standby' | 'paused';
 
@@ -42,13 +44,7 @@ export type MandateState = {
 export type EvaluateMandateInput = {
   maker: string;
   providerStrategyIds: string[];
-  policy: {
-    capitalBudgetUsdc: string;
-    maxWethExposurePct: string;
-    maxWethInventoryUsdc: string;
-    maxSwapUsdc: string;
-    validityMinutes: string;
-  };
+  makerLimitsEnvelope: ConfidentialEnvelope;
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_MANDATE_API_URL?.replace(/\/$/, '');

@@ -12,9 +12,9 @@ PinTool Market Making connects private strategy policies to self-custodial liqui
 ## Runtime flow
 
 ```text
-Provider policy in Vault DON ─┐
-                              ├─ Chainlink Confidential Workflow
-Maker limits in Vault DON ────┘              │
+Provider policy in Vault DON ─────┐
+                                  ├─ Chainlink Confidential Workflow
+Browser-sealed Maker limits ──────┘              │
                                              ▼
                                   GuardReportV1 + receipt
                                              │
@@ -23,7 +23,7 @@ Maker wallet ── Aqua strategy ── PinTool Guard ── SwapVM execution
 
 The web application calls the PinTool mandate service. The service delegates confidential work to an isolated runner and independently verifies every transaction receipt before returning public state. It never creates placeholder transaction hashes or treats a planned action as confirmed.
 
-The workflow supports scheduled reevaluation and an authorized HTTP trigger. HTTP trigger input is visible to Workflow DON nodes, so it contains only public execution identity and market observations. Provider policy and Maker limits remain Vault DON secrets fetched after execution enters the TEE.
+The workflow supports scheduled reevaluation and an authorized HTTP trigger. HTTP trigger input is visible to Workflow DON nodes, so Maker limits are sealed in the browser with an ephemeral X25519 key and XChaCha20-Poly1305. Authenticated context binds each envelope to its Maker address, preventing reuse for another wallet. The trigger carries only public execution identity, market observations and ciphertext. After execution enters the TEE, the workflow fetches the envelope private key and Provider policy from Vault DON, opens the Maker envelope and computes the intersection. The mandate service stores the sealed envelope separately from public mandate state and never returns it to the web application.
 
 ## Components
 
@@ -40,7 +40,7 @@ The workflow supports scheduled reevaluation and an authorized HTTP trigger. HTT
 
 The confidential inputs are Provider rules and Maker limits. Strategy names, deployed programs, authorization bounds, transaction receipts and completed trades are public. Repeated public outputs may reveal information about confidential inputs over time. Short authorization lifetimes limit future use but do not erase history or provide a quantified resistance-to-inference guarantee.
 
-The workflow source and compiled binary are public. Confidential Workflows protect the data processed in the TEE, not the source code itself. No private value may be logged, returned from the TEE or placed directly in an HTTP trigger payload.
+The workflow source and compiled binary are public. Confidential Workflows protect the data processed in the TEE, not the source code itself. No plaintext private value may be logged, returned from the TEE or placed directly in an HTTP trigger payload.
 
 ## Execution invariants
 
@@ -53,6 +53,6 @@ The workflow source and compiled binary are public. Confidential Workflows prote
 
 ## Deployment state
 
-The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. Its public records verify the Aqua lifecycle, successful guarded swaps and an expected rejected swap. The deployed receiver predates Maker-scoped atomic strategy switching, so the current Guard artifact requires a fresh deployment before that capability is enabled.
+The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet USDC, Aqua and the pinned SwapVM router. Its public records verify two strategies sharing one Maker balance, successful guarded swaps, Maker-scoped atomic strategy switching and the expected rejection of an inactive strategy.
 
 A production Chainlink deployment also requires Confidential Workflows access, Vault DON secrets, an authorized HTTP trigger signing key and a Guard configured for the official forwarder and workflow identity. Network, contract and Explorer evidence must always resolve to the same chain.

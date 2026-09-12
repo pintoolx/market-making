@@ -10,8 +10,8 @@ const tx = h('a');
 const state = { mandateId: 'mandate-http', maker: '0x1111111111111111111111111111111111111111', regime: 'normal', strategies: [{ listingId: 'featured-tight-market', name: 'Tight Market', strategyHash: h('b'), status: 'active', maxAmountPerSwapAtomic: '100000000' }],
   evidence: { chainId: 84532, networkName: 'Base Sepolia', reportDigest: h('c'), reportTransactionHash: tx,
     reportExplorerUrl: `https://sepolia.basescan.org/tx/${tx}`, sequence: '1', expiresAt: '2026-09-12T12:00:00.000Z' }, events: [] };
-const input = { maker: '0x1111111111111111111111111111111111111111', providerStrategyIds: ['featured-tight-market'], policy: {
-  capitalBudgetUsdc: '1000', maxWethExposurePct: '60', maxWethInventoryUsdc: '350', maxSwapUsdc: '100', validityMinutes: '10' } };
+const input = { maker: '0x1111111111111111111111111111111111111111', providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope: {
+  version: 1, ephemeralPublicKey: '11'.repeat(32), nonce: '22'.repeat(24), ciphertext: '33'.repeat(48) } };
 
 test('HTTP API serves the frontend contract and rejects other origins', async t => {
   const config = { port: 0, allowedOrigin: 'http://localhost:3200', runner: '/unused', runnerTimeoutMs: 1000,

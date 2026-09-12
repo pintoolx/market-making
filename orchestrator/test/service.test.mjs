@@ -18,12 +18,12 @@ const state = {
 };
 const router = '0x2222222222222222222222222222222222222222';
 const config = { chainId: 84532, networkName: 'Base Sepolia', explorerUrl: 'https://sepolia.basescan.org', rpcUrl: 'http://rpc.invalid', router, stateDir: '', runner: '/unused', runnerTimeoutMs: 1000 };
-const input = { maker: inputMaker, providerStrategyIds: ['featured-tight-market'], policy: {
-  capitalBudgetUsdc: '1000', maxWethExposurePct: '60', maxWethInventoryUsdc: '350', maxSwapUsdc: '100', validityMinutes: '10' } };
+const makerLimitsEnvelope = { version: 1, ephemeralPublicKey: '11'.repeat(32), nonce: '22'.repeat(24), ciphertext: '33'.repeat(48) };
+const input = { maker: inputMaker, providerStrategyIds: ['featured-tight-market'], makerLimitsEnvelope };
 
-test('private policy is validated for forwarding without broadening its limits', () => {
+test('sealed Maker limits are validated without exposing their contents', () => {
   assert.deepEqual(parseCreate(input), input);
-  assert.throws(() => parseCreate({ ...input, policy: { ...input.policy, maxSwapUsdc: '1001' } }), HttpError);
+  assert.throws(() => parseCreate({ ...input, makerLimitsEnvelope: { ...makerLimitsEnvelope, nonce: 'bad' } }), HttpError);
   assert.throws(() => parseCreate({ ...input, debug: true }), HttpError);
 });
 
@@ -81,8 +81,10 @@ test('service forwards secrets only to runner, verifies receipt, and persists pu
   assert.deepEqual(calls[0], { action: 'create', input });
   assert.deepEqual(receipts, [[tx, '0x1']]);
   const saved = await readFile(join(dir, 'mandate-01.json'), 'utf8');
-  assert.ok(!saved.includes('capitalBudgetUsdc'));
+  assert.ok(!saved.includes(makerLimitsEnvelope.ciphertext));
   assert.equal(JSON.parse(saved).evidence.reportTransactionHash, tx);
+  const sealed = await readFile(join(dir, 'mandate-01.maker-envelope.json'), 'utf8');
+  assert.deepEqual(JSON.parse(sealed), makerLimitsEnvelope);
 });
 
 test('service rejects evidence for a different strategy than the user selected', async () => {
@@ -121,10 +123,10 @@ test('get and add pass only previously verified public state to the runner', asy
   await service.create(input);
   await service.get(state.mandateId);
   await service.add(state.mandateId, { providerStrategyId: 'featured-defensive-market' });
-  assert.deepEqual(calls[1], { action: 'get', mandateId: state.mandateId, current: state });
+  assert.deepEqual(calls[1], { action: 'get', mandateId: state.mandateId, current: state, makerLimitsEnvelope });
   assert.equal(calls[2].current.mandateId, state.mandateId);
   assert.equal(calls[2].providerStrategyId, 'featured-defensive-market');
-  assert.ok(!JSON.stringify(calls[2].current).includes('capitalBudgetUsdc'));
+  assert.deepEqual(calls[2].makerLimitsEnvelope, makerLimitsEnvelope);
 });
 
 test('service records only verified Aqua settlement and Guard rejection receipts', async () => {

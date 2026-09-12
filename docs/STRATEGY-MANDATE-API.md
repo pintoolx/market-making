@@ -2,13 +2,13 @@
 
 Status: active integration contract. This is PinTool's orchestration and status service, not an official Chainlink or 1inch endpoint. `NEXT_PUBLIC_MANDATE_API_URL` supplies its base URL.
 
-The implementation lives in `orchestrator/`. It connects to Chainlink and Aqua through the runner protocol and verifies report and activity receipts through an independent Ethereum Sepolia RPC. Maker policy is forwarded only to the confidential runner; it is never written to service state or ordinary logs. Update the runner, chain ID, RPC and Explorer settings together.
+The implementation lives in `orchestrator/`. It connects to Chainlink and Aqua through the runner protocol and verifies report and activity receipts through an independent Ethereum Sepolia RPC. Maker limits are encrypted in the browser. The service validates and forwards the sealed envelope, stores it separately from public mandate state and never receives plaintext. Update the runner, chain ID, RPC and Explorer settings together.
 
 The frontend creates mandates and reads confirmed state and activity. Workflow and contract tooling drive market fixtures, CRE delivery and test-taker swaps; these are not exposed as product actions. The service must never present an expected outcome as confirmed evidence.
 
 For the hackathon path, configure `MANDATE_RUNNER` with `orchestrator/bin/cre-local-simulation-runner`. Each create or add-strategy request invokes the confidential HTTP handler through `cre workflow simulate --broadcast`, waits for the matching `ReportAccepted` event on Ethereum Sepolia, verifies the receipt, and only then returns the public mandate state. This path requires CRE CLI authentication and a funded Sepolia signer, but it does not require a deployed workflow or Confidential Workflows deployment access.
 
-Raw Provider policy and Maker limits must use a verified confidential input path. When that transport is unavailable, the service must reject the request and must not leave plaintext in ordinary backend logs.
+Raw Provider policy and Maker limits must use a verified confidential input path. The current web application seals Maker limits for a Vault DON key before calling this API. When that transport is unavailable, the frontend rejects the request instead of sending plaintext to an ordinary backend.
 
 ## Create a mandate
 
@@ -21,17 +21,16 @@ Raw Provider policy and Maker limits must use a verified confidential input path
     "featured-tight-market",
     "featured-defensive-market"
   ],
-  "policy": {
-    "capitalBudgetUsdc": "1000",
-    "maxWethExposurePct": "60",
-    "maxWethInventoryUsdc": "350",
-    "maxSwapUsdc": "100",
-    "validityMinutes": "10"
+  "makerLimitsEnvelope": {
+    "version": 1,
+    "ephemeralPublicKey": "64 hexadecimal characters",
+    "nonce": "48 hexadecimal characters",
+    "ciphertext": "authenticated XChaCha20-Poly1305 ciphertext"
   }
 }
 ```
 
-`providerStrategyIds` must contain at least one entry; the product does not require exactly two. Initial onboarding submits the strategy chosen on its detail page. Makers may add compatible strategies later.
+`providerStrategyIds` must contain at least one entry; the product does not require exactly two. Initial onboarding submits the strategy chosen on its detail page. Makers may add compatible strategies later. The encrypted plaintext uses Maker limits schema v2: token1-denominated capital, WETH-value, per-swap and validity ceilings. The TEE converts value ceilings to WETH atomic units at the same market snapshot used for strategy evaluation.
 
 The response must represent an initial report already accepted by the Guard:
 

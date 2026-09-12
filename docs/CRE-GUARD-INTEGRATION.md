@@ -54,7 +54,7 @@ A local workflow simulation does not prove production TEE execution or DON conse
 
 Provider rules and Maker limits are confidential inputs. The report intentionally publishes direction flags, caps, validity, Maker, strategy hash and token pair. Aqua programs and completed trades are also public. Repeated outputs may reveal information about the original policies over time; expiry limits future use of an authorization but does not erase prior reports.
 
-HTTP trigger payloads are visible to Workflow DON nodes and therefore contain only public request identity and market observations. Private inputs are fetched from Vault DON after execution enters the TEE. No secret value may be logged, returned or embedded in a report.
+HTTP trigger payloads are visible to Workflow DON nodes. Provider policies and the envelope private key are fetched from Vault DON after execution enters the TEE; Maker limits arrive only as browser-sealed ciphertext. No plaintext secret may be logged, returned or embedded in a report.
 
 ## Configuration
 
