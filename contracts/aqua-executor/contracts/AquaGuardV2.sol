@@ -130,7 +130,9 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         saved.report = r;
         saved.digest = digest;
         bytes32 previous = activeStrategyHash[r.maker];
-        bytes32 next = r.allowedDirections == 0 ? bytes32(0) : r.strategyHash;
+        bytes32 next = r.allowedDirections != 0 ? r.strategyHash
+            : previous == r.strategyHash ? bytes32(0)
+            : previous;
         if (previous != next) {
             activeStrategyHash[r.maker] = next;
             emit ActiveStrategyChanged(r.maker, previous, next);

@@ -120,7 +120,7 @@ export async function runDirectMandate(request, config, dependencies = {}) {
     maxAmountPerSwapAtomic: evidence.report.maxAmount1PerSwap.toString(),
   };
   const strategies = creating ? [selectedState] : [
-    ...current.strategies.filter(item => item.listingId !== listingId).map(item => ({ ...item, status: 'standby' })),
+    ...current.strategies.filter(item => item.listingId !== listingId).map(item => ({ ...item, status: active ? 'standby' : item.status })),
     selectedState,
   ];
   return {

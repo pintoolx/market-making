@@ -99,12 +99,17 @@ test('Guard v2 atomically switches the single active strategy for one Maker bala
   assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), first.strategyHash)
   await quote(ctx, d, first, first.tokens[1]!, first.tokens[0]!, 10_000_000n)
 
-  await f.submit(second, {}, caps)
+  await f.submit(second, { allowedDirections: 0 }, caps)
+  assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), first.strategyHash)
+  await quote(ctx, d, first, first.tokens[1]!, first.tokens[0]!, 10_000_000n)
+  await assert.rejects(quote(ctx, d, second, second.tokens[1]!, second.tokens[0]!, 10_000_000n), strategyNotActive)
+
+  await f.submit(second, { nonce: 2n }, caps)
   assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), second.strategyHash)
   await assert.rejects(quote(ctx, d, first, first.tokens[1]!, first.tokens[0]!, 10_000_000n), strategyNotActive)
   await quote(ctx, d, second, second.tokens[1]!, second.tokens[0]!, 10_000_000n)
 
-  await f.submit(second, { nonce: 2n, allowedDirections: 0 }, caps)
+  await f.submit(second, { nonce: 3n, allowedDirections: 0 }, caps)
   assert.equal(await ctx.pc.readContract({ address: guard, abi: artifact.abi, functionName: 'activeStrategyHash', args: [ctx.maker.account.address] }), zeroHash)
   await assert.rejects(quote(ctx, d, second, second.tokens[1]!, second.tokens[0]!, 10_000_000n), strategyNotActive)
 

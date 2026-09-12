@@ -47,7 +47,7 @@ The workflow source and compiled binary are public. Confidential Workflows prote
 - Assets remain in the Maker wallet and are made available to Aqua through virtual balances and token approvals.
 - A report is bound to one chain, Guard, router, Maker, strategy hash and token pair.
 - A Guard authorization expires, uses a strictly increasing nonce and cannot exceed the Maker-approved public envelope.
-- A strategy set contains at least one strategy. AquaGuardV2 maintains one active strategy hash per Maker; accepting another active report atomically replaces it, and a paused report clears it.
+- A strategy set contains at least one strategy. AquaGuardV2 maintains one active strategy hash per Maker; accepting another active report atomically replaces it, while a paused report clears only that same strategy if it is active.
 - The service reports an accepted authorization or swap only after an independent RPC confirms its receipt and status.
 - Risk limits constrain execution; they do not guarantee profit or a maximum loss.
 

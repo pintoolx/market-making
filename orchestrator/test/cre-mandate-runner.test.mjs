@@ -75,3 +75,32 @@ test('direct CRE runner rejects unprovisioned strategies and policy values', asy
   await assert.rejects(runDirectMandate({ action: 'create', input: { maker, providerStrategyIds: ['featured-tight-market'], policy: { ...policy, maxSwapUsdc: '101' } } }, config), /do not match/);
   await assert.rejects(runDirectMandate({ action: 'add-strategy' }, config), /Current mandate state/);
 });
+
+test('a paused candidate does not replace the currently active strategy in public state', async () => {
+  const current = {
+    mandateId: 'mandate-existing',
+    maker,
+    regime: 'normal',
+    strategies: [{ listingId: 'featured-tight-market', name: 'Tight Market', strategyHash, status: 'active', maxAmountPerSwapAtomic: '100000000' }],
+    evidence: {},
+    events: [],
+  };
+  const state = await runDirectMandate({
+    action: 'add-strategy',
+    mandateId: current.mandateId,
+    providerStrategyId: 'featured-defensive-market',
+    current,
+  }, config, {
+    currentBlock: async () => 50n,
+    trigger: async () => ({ workflowExecutionId: 'execution-paused', status: 'ACCEPTED' }),
+    observe: async () => ({
+      transactionHash: txHash,
+      digest,
+      report: { maker, strategyHash: defensiveHash, nonce: 2n, validUntil: 1_900_000_000, allowedDirections: 0, maxAmount1PerSwap: 0n },
+    }),
+  });
+  assert.deepEqual(state.strategies.map(item => [item.listingId, item.status]), [
+    ['featured-tight-market', 'active'],
+    ['featured-defensive-market', 'paused'],
+  ]);
+});
