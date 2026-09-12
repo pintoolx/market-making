@@ -22,5 +22,13 @@
     "workflowId": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "workflowOwner": "0x0000000000000000000000000000000000000000",
     "gasLimit": "500000"
-  }
+  },
+  "providerBindings": [
+    {
+      "strategyHash": "0xe62b16ccab80feeffac14d62ea9e5934c00278f1ee79f659a5da372105194d93",
+      "provider": "0x24f93609de41a839f411d18f3ee242c5089caad7",
+      "strategyId": "24f93609de41a839f411d18f3ee242c5089caad7-clmm.v1",
+      "envelopeHash": "0x37cf6f183743eafabaf4e509b00c4c042ac346a0c2decde0ff2e48a1e3fef410"
+    }
+  ]
 }
