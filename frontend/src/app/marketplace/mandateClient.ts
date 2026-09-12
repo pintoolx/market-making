@@ -1,11 +1,12 @@
-export type MarketRegime = 'normal' | 'high-volatility';
-export type StrategySlot = 'A' | 'B';
+export type MarketRegime = 'normal' | 'high-volatility' | 'unknown';
+export type StrategyStatus = 'active' | 'standby' | 'paused';
 
-export type StrategyDecision = {
-  slot: StrategySlot;
+export type MandateStrategy = {
   listingId: string;
+  name: string;
+  provider?: string;
   strategyHash: `0x${string}`;
-  allowed: boolean;
+  status: StrategyStatus;
   maxAmountPerSwapAtomic: string;
 };
 
@@ -19,29 +20,27 @@ export type ChainEvidence = {
   expiresAt: string;
 };
 
-export type MandateEvaluation = {
-  mandateId: string;
-  regime: MarketRegime;
-  activeSlot: StrategySlot;
-  decisions: [StrategyDecision, StrategyDecision];
-  evidence: ChainEvidence;
+export type MandateEvent = {
+  id: string;
+  type: 'report-accepted' | 'strategy-activated' | 'swap-settled' | 'swap-rejected';
+  title: string;
+  detail: string;
+  occurredAt: string;
+  transactionHash?: `0x${string}`;
+  explorerUrl?: string;
 };
 
-export type SwapEvidence = {
-  status: 'settled' | 'blocked';
-  slot: StrategySlot;
-  transactionHash: `0x${string}`;
-  explorerUrl: string;
-  tokenIn: 'WETH' | 'USDC';
-  tokenOut: 'WETH' | 'USDC';
-  makerWethDeltaAtomic: string;
-  makerUsdcDeltaAtomic: string;
-  revertReason?: string;
+export type MandateState = {
+  mandateId: string;
+  regime: MarketRegime;
+  strategies: MandateStrategy[];
+  evidence: ChainEvidence;
+  events: MandateEvent[];
 };
 
 export type EvaluateMandateInput = {
   maker: string;
-  providerStrategies: Array<{ slot: StrategySlot; listingId: string }>;
+  providerStrategyIds: string[];
   policy: {
     capitalBudgetUsdc: string;
     maxWethExposurePct: string;
@@ -54,19 +53,17 @@ export type EvaluateMandateInput = {
 const API_BASE = process.env.NEXT_PUBLIC_MANDATE_API_URL?.replace(/\/$/, '');
 
 function getApiBase(): string {
-  if (!API_BASE) {
-    throw new Error('Mandate service is not configured. Set NEXT_PUBLIC_MANDATE_API_URL.');
-  }
+  if (!API_BASE) throw new Error('Mandate service is not configured. Set NEXT_PUBLIC_MANDATE_API_URL.');
   return API_BASE;
 }
 
-async function request<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${getApiBase()}${path}`, {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(getApiBase() + path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init.headers },
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
   const body = await response.json().catch(() => null) as { message?: string } | null;
-  if (!response.ok) throw new Error(body?.message || `Request failed with status ${response.status}.`);
+  if (!response.ok) throw new Error(body?.message || 'Request failed with status ' + response.status + '.');
   if (!body) throw new Error('The mandate service returned an empty response.');
   return body as T;
 }
@@ -75,43 +72,26 @@ function isHex(value: unknown): value is `0x${string}` {
   return typeof value === 'string' && /^0x[0-9a-f]+$/i.test(value);
 }
 
-function validateEvaluation(value: MandateEvaluation): MandateEvaluation {
-  const slots = Array.isArray(value.decisions) ? value.decisions.map(item => item?.slot).sort().join('') : '';
-  const allowed = Array.isArray(value.decisions) ? value.decisions.filter(item => item?.allowed) : [];
-  if (!value.mandateId || !['normal', 'high-volatility'].includes(value.regime)
-    || !['A', 'B'].includes(value.activeSlot) || slots !== 'AB' || allowed.length !== 1
-    || allowed[0].slot !== value.activeSlot || !value.decisions.every(item => isHex(item.strategyHash))
+function validateState(value: MandateState): MandateState {
+  const active = Array.isArray(value.strategies) ? value.strategies.filter(item => item?.status === 'active') : [];
+  if (!value.mandateId || !['normal', 'high-volatility', 'unknown'].includes(value.regime)
+    || !Array.isArray(value.strategies) || value.strategies.length === 0 || active.length > 1
+    || !value.strategies.every(item => item?.listingId && item?.name && isHex(item.strategyHash))
     || !value.evidence || !isHex(value.evidence.reportDigest)
     || !isHex(value.evidence.reportTransactionHash) || !value.evidence.reportExplorerUrl
-    || !value.evidence.networkName || !value.evidence.sequence || !value.evidence.expiresAt) {
+    || !value.evidence.networkName || !value.evidence.sequence || !value.evidence.expiresAt
+    || !Array.isArray(value.events)) {
     throw new Error('The mandate service returned incomplete or inconsistent onchain evidence.');
   }
   return value;
 }
 
-function validateSwap(value: SwapEvidence, requestedSlot: StrategySlot): SwapEvidence {
-  if (!['settled', 'blocked'].includes(value.status) || value.slot !== requestedSlot
-    || !isHex(value.transactionHash) || !value.explorerUrl
-    || !['WETH', 'USDC'].includes(value.tokenIn) || !['WETH', 'USDC'].includes(value.tokenOut)
-    || value.tokenIn === value.tokenOut || typeof value.makerWethDeltaAtomic !== 'string'
-    || typeof value.makerUsdcDeltaAtomic !== 'string') {
-    throw new Error('The mandate service returned incomplete swap evidence.');
-  }
-  return value;
+export async function createMandate(input: EvaluateMandateInput): Promise<MandateState> {
+  const state = await request<MandateState>('/v1/mandates', { method: 'POST', body: JSON.stringify(input) });
+  return validateState(state);
 }
 
-export async function evaluateMandate(input: EvaluateMandateInput): Promise<MandateEvaluation> {
-  return validateEvaluation(await request('/v1/mandates/evaluate', { method: 'POST', body: JSON.stringify(input) }));
-}
-
-export async function transitionMandate(mandateId: string): Promise<MandateEvaluation> {
-  return request<MandateEvaluation>(`/v1/mandates/${encodeURIComponent(mandateId)}/transition`, { method: 'POST' }).then(validateEvaluation);
-}
-
-export async function executeStrategySwap(mandateId: string, slot: StrategySlot): Promise<SwapEvidence> {
-  const result = await request<SwapEvidence>(`/v1/mandates/${encodeURIComponent(mandateId)}/swaps`, {
-    method: 'POST',
-    body: JSON.stringify({ slot }),
-  });
-  return validateSwap(result, slot);
+export async function getMandate(mandateId: string): Promise<MandateState> {
+  const state = await request<MandateState>('/v1/mandates/' + encodeURIComponent(mandateId));
+  return validateState(state);
 }
