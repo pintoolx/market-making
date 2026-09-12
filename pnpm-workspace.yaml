@@ -1,4 +1,5 @@
 packages:
   - frontend
+  - orchestrator
   - contracts/aqua-executor
   # workflow/guard-report uses an isolated Bun lockfile for the CRE toolchain.

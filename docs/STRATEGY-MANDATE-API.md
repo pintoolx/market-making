@@ -2,6 +2,8 @@
 
 狀態：2026-09-12 integration contract。這是 PinTool 團隊需要提供的 orchestration／status service，不是 Chainlink 或 1inch 的官方 endpoint。Base URL 由 `NEXT_PUBLIC_MANDATE_API_URL` 提供。
 
+實作位於 `orchestrator/`。目前預設驗證既有 Base Sepolia contract flow；它透過 stdin runner protocol 接 Chainlink／Aqua 執行端，並使用獨立 RPC 驗證 report 與 activity transaction receipts。Maker policy 只轉交 confidential runner，不寫入 service state 或一般 log。pengu 的 Ethereum Sepolia deployment 完成後，HTTP contract 不變，只需一起更新 runner、chain ID、RPC 與 explorer 設定。
+
 前端只建立 mandate、讀取已確認狀態與 activity。市場 fixture、CRE delivery 與 test-taker swap 由 workflow／contract tooling 驅動，不暴露成產品操作。Service 不得回傳「預期會成功」的結果冒充已確認 evidence。
 
 原始 Provider policy 與 Maker mandate 必須走經驗證的 confidential input path；若 transport 尚未完成，service 必須拒絕請求，不能把 plaintext 留在一般 backend logs。
