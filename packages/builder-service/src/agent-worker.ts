@@ -4,10 +4,11 @@ import type { DeploymentProfile } from '@pintool/strategy-builder'
 import { createStore } from './store.ts'
 import { createTurns, type ClaimedTurn } from './turns.ts'
 import { createDesignAgent } from './design-agent.ts'
+import { createArtifacts } from './artifacts.ts'
 
 /** One durable turn; called by a long-lived worker, never owned by an HTTP connection. */
 export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal) {
-  const turns = createTurns(pool), store = createStore(pool, profile.id, turn), abort = new AbortController()
+  const turns = createTurns(pool), store = createStore(pool, profile.id, turn), artifacts = createArtifacts(pool, profile, turn), abort = new AbortController()
   const combined = AbortSignal.any([abort.signal, AbortSignal.timeout(180000), ...(signal ? [signal] : [])])
   let heartbeatBusy = false
   const heartbeat = setInterval(async () => {
@@ -32,6 +33,8 @@ export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, mode
         patch: (requestId, expectedRevision, patch) => store.patch(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, patch }),
         restore: (requestId, expectedRevision, revision) => store.restore(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, revision }),
         history: () => store.history(turn.owner, turn.draftId),
+        compile: (requestId, expectedRevision) => artifacts.compile(turn.owner, requestId, { draftId: turn.draftId, expectedRevision }),
+        compilations: () => artifacts.list(turn.owner, turn.draftId),
       } })
     const result = await agent.stream({ messages, abortSignal: combined })
     let text = '', pending = '', lastFlush = Date.now()

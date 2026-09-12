@@ -74,6 +74,8 @@ test('validation keeps missing input, incompatible deployments, metadata spoofin
     { ...a, spec: { ...a.spec, baseToken: { ...a.spec.baseToken!, decimals: 6 } } },
     { ...a, spec: { ...a.spec, model: { kind: 'concentrated', relativeWidthBps: 500 } } },
     { ...a, spec: { ...a.spec, privatePolicy: { rules: [] } } },
+    { ...a, spec: { ...a.spec, guardEnvelope: { maxAmountBasePerSwap: '1' } } },
+    { ...a, allocations: { baseAtomic: '1' } },
     { ...a, allocations: { ...a.allocations!, baseAtomic: String(caps.maxPostBalance0 + 1n) } }]) {
     assert.equal(validateStrategy(bad, profile, nowSec).ready, false)
     assert.throws(() => compileBuilderStrategy(bad, profile, nowSec))

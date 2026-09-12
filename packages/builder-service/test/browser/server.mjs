@@ -40,7 +40,7 @@ console.log('Builder browser fixture ready on localhost:3311');
 
 const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
 function fixtureModel(draft, content) {
-  const slow = content.includes('慢慢'), narrow = content.includes('2700');
+  const slow = content.includes('慢慢'), narrow = content.includes('2700'), partial = content.includes('單項');
   const edits = narrow ? [{ field: 'maxPrice', value: '2700' }] : [
     { field: 'baseToken', value: 'WETH' }, { field: 'quoteToken', value: 'USDC' }, { field: 'curve', value: 'concentrated' },
     { field: 'minPrice', value: '2200' }, { field: 'maxPrice', value: '2800' }, { field: 'feeBps', value: '0' },
@@ -48,16 +48,18 @@ function fixtureModel(draft, content) {
     { field: 'maxPostBalanceBase', value: '2' }, { field: 'maxPostBalanceQuote', value: '5000' },
     { field: 'deadline', value: String(Math.floor(Date.now() / 1000) + 604800) },
   ];
+  const selectedEdits = partial ? edits.filter(e => ['baseToken', 'quoteToken', 'maxAmountBasePerSwap'].includes(e.field)) : edits;
   let step = 0;
   return new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ async start(c) {
     c.enqueue({ type: 'stream-start', warnings: [] }); await delay(120);
     if (step === 0) c.enqueue({ type: 'tool-call', toolCallId: randomUUID(), toolName: 'inspectStrategy', input: JSON.stringify({ view: 'current' }) });
     else if (step === 1 && !slow) c.enqueue({ type: 'tool-call', toolCallId: randomUUID(), toolName: 'createOrPatchDraft', input: JSON.stringify({
-      expectedRevision: draft.revision, operation: 'patch', restoreRevision: null, edits, requirements: [],
+      expectedRevision: draft.revision, operation: 'patch', restoreRevision: null, edits: selectedEdits, requirements: [],
     }) });
     else {
       c.enqueue({ type: 'text-start', id: 'reply' });
       const text = slow ? '我正在逐項比較策略的風險與限制，還沒有修改任何設定。'.repeat(20)
+        : partial ? '已保存單筆 WETH 上限 0.05，其他限制尚未設定。'
         : `已保存策略設定。\n\n- 固定區間：**2200–${narrow ? '2700' : '2800'} USDC/WETH**\n- 單筆上限：0.05 WETH / 125 USDC\n- 成交後庫存：2 WETH / 5000 USDC\n\n仍是草稿，尚未發布。`;
       for (let i = 0; i < text.length; i += 10) { c.enqueue({ type: 'text-delta', id: 'reply', delta: text.slice(i, i + 10) }); await delay(slow ? 80 : 30); }
       c.enqueue({ type: 'text-end', id: 'reply' });

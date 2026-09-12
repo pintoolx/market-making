@@ -1,13 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
-import { contentDigest, digestJson, draftSchema, patchDraft, patchSchema, restoreDraft, idSchema, revisionSchema,
+import { contentDigest, draftSchema, patchDraft, patchSchema, restoreDraft, idSchema, revisionSchema,
   type StrategyDraft, type Diff } from '@pintool/strategy-builder'
 import { transaction } from './database.ts'
 import { conflict, notFound, ServiceError } from './errors.ts'
 import { assertTurnLease, supersedeTurns, type TurnLease } from './turn-lease.ts'
 
-const ownerSchema = z.string().regex(/^wallet:0x[0-9a-f]{40}$/)
+import { mutation as transactRequest, ownerSchema } from './requests.ts'
 const createSchema = z.object({ title: z.string().min(1).max(120), kind: z.enum(['template', 'maker']) }).strict()
 const editSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, patch: patchSchema }).strict()
 const restoreSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, revision: revisionSchema }).strict()
@@ -19,22 +19,9 @@ export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
   idSchema.parse(profileId)
 
   async function mutation<T>(owner: string, requestId: string, operation: string, input: unknown, work: (client: PoolClient) => Promise<T>): Promise<T> {
-    ownerSchema.parse(owner); idSchema.parse(requestId)
-    const digest = digestJson(input)
-    return transaction(pool, async client => {
-      // A concurrent duplicate waits for the first transaction. Failed work rolls this insert back too.
-      await client.query(`INSERT INTO builder.requests(owner, request_id, operation, input_digest) VALUES ($1,$2,$3,$4)
-        ON CONFLICT (owner, request_id) DO NOTHING`, [owner, requestId, operation, digest])
-      const row = (await client.query('SELECT operation, input_digest, response FROM builder.requests WHERE owner=$1 AND request_id=$2 FOR UPDATE', [owner, requestId])).rows[0]!
-      if (row.operation !== operation || row.input_digest !== digest) throw conflict('idempotency-key-reused')
-      if (row.response !== null) return row.response as T
-      // The first response and every retry have the same JSON representation,
-      // including timestamps and omitted optional fields.
-      const encoded = JSON.stringify(await work(client))
-      await client.query('UPDATE builder.requests SET response=$3 WHERE owner=$1 AND request_id=$2', [owner, requestId, encoded])
-      return JSON.parse(encoded) as T
-    })
+    return transactRequest(pool, owner, requestId, operation, input, work)
   }
+
   async function read(client: Pick<PoolClient, 'query'>, owner: string, id: string, lock = false) {
     ownerSchema.parse(owner); idSchema.parse(id)
     const row = (await client.query<DraftRow>(`SELECT snapshot, digest FROM builder.drafts WHERE id=$1 AND owner=$2${lock ? ' FOR UPDATE' : ''}`, [id, owner])).rows[0]

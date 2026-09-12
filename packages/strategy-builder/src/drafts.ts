@@ -48,6 +48,13 @@ export function patchDraft(current: StrategyDraft, input: unknown, context: { ow
   // Template allowances are enforced by the application before patching a pinned instance.
   // This pure layer cannot independently authorize changes to somebody else's publication.
   if (before.templatePin && patch.spec) throw new DraftConflict('pinned template spec requires the template permission validator')
+  const priced = before.spec.model && before.spec.model.kind !== 'xyc'
+  for (const name of ['baseToken', 'quoteToken'] as const) {
+    if (before.spec[name] && patch.spec?.[name] && before.spec[name]!.address !== patch.spec[name]!.address &&
+      (before.allocations || before.spec.guardEnvelope || priced)) {
+      throw new DraftConflict('changing a pair with existing amounts or price intent requires a new draft')
+    }
+  }
   const requirements = new Map(before.requirements.map(r => [r.id, r]))
   for (const id of patch.removeRequirementIds ?? []) requirements.delete(id)
   const inserted = new Set<string>()
@@ -60,6 +67,7 @@ export function patchDraft(current: StrategyDraft, input: unknown, context: { ow
     requirements.set(next.id, { ...next, userAcceptedAlternative: unchanged ? previous.userAcceptedAlternative : false })
   }
   const spec = { ...before.spec, ...patch.spec }
+  if (patch.spec?.guardEnvelope) spec.guardEnvelope = { ...before.spec.guardEnvelope, ...patch.spec.guardEnvelope }
   if (patch.spec?.model && before.spec.model?.kind === patch.spec.model.kind) {
     spec.model = { ...before.spec.model, ...patch.spec.model }
     if (spec.model.kind === 'concentrated' && patch.spec.model.kind === 'concentrated') {
@@ -73,7 +81,8 @@ export function patchDraft(current: StrategyDraft, input: unknown, context: { ow
     }
   }
   const candidate = draftSchema.parse({ ...before, spec,
-    maker: patch.maker ?? before.maker, allocations: patch.allocations ?? before.allocations,
+    maker: patch.maker ?? before.maker,
+    allocations: patch.allocations ? { ...before.allocations, ...patch.allocations } : before.allocations,
     requirements: [...requirements.values()], updatedAt: context.now })
   const diff = diffDrafts(before, candidate)
   if (!diff.length) return { draft: before, diff, changed: false }

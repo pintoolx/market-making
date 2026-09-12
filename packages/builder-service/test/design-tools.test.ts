@@ -67,3 +67,16 @@ test('agent cannot inject private fields, silently retarget funded pairs or assi
   assert.throws(() => editToPatch(input([{ field: 'allocationBase', value: '1' }, { field: 'allocationQuote', value: '2' }]),
     { ...d, kind: 'template' }, profile, 'second'), /maker-allocation-not-template/)
 })
+
+test('design tools accept a single new limit or allocation and normalize curve selection before its parameters', () => {
+  const d = draft()
+  const cap = editToPatch(input([{ field: 'maxAmountBasePerSwap', value: '0.05' }]), d, profile, 'single-cap')
+  assert.deepEqual(cap.spec?.guardEnvelope, { maxAmountBasePerSwap: '50000000000000000' })
+  const first = patchDraft(d, cap, { owner: d.owner, expectedRevision: 1, now: d.updatedAt }).draft
+  const quote = editToPatch(input([{ field: 'maxAmountQuotePerSwap', value: '125' }]), first, profile, 'second-cap')
+  assert.deepEqual(quote.spec?.guardEnvelope, { maxAmountBasePerSwap: '50000000000000000', maxAmountQuotePerSwap: '125000000' })
+  assert.deepEqual(editToPatch(input([{ field: 'allocationBase', value: '1' }]), d, profile, 'base-only').allocations, { baseAtomic: '1000000000000000000' })
+  const curve = editToPatch(input([{ field: 'referencePrice', value: '2500' }, { field: 'amplification', value: '1' }, { field: 'curve', value: 'pegged' }]), d, profile, 'switch')
+  assert.deepEqual(curve.spec?.model, { kind: 'pegged', referencePrice: '2500', amplification: '1' })
+  assert.throws(() => editToPatch(input([{ field: 'relativeWidthBps', value: '500' }, { field: 'maxPrice', value: '2700' }]), d, profile, 'ambiguous'), /choose-fixed-or-relative/)
+})

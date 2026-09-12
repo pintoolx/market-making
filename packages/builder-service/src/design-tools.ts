@@ -8,6 +8,8 @@ export interface DesignRepository {
   patch(requestId: string, expectedRevision: number, patch: DraftPatch): Promise<{ draft: StrategyDraft; diff: unknown; changed: boolean }>
   restore(requestId: string, expectedRevision: number, revision: number): Promise<{ draft: StrategyDraft; diff: unknown; changed: boolean }>
   history(): Promise<unknown>
+  compile?(requestId: string, expectedRevision: number): Promise<unknown>
+  compilations?(): Promise<unknown>
 }
 const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
   'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
@@ -39,6 +41,13 @@ export function editToPatch(input: z.infer<typeof designEditSchema>, draft: Stra
   let modelChanged = false, capsChanged = false, allocationsChanged = false
   const integer = (v: string) => { if (!/^(0|[1-9]\d{0,14})$/.test(v)) throw new Error('use-integer-units'); return Number(v) }
   const pair = { baseToken: draft.spec.baseToken, quoteToken: draft.spec.quoteToken }
+  const curve = input.edits.find(e => e.field === 'curve')?.value
+  if (curve !== undefined) {
+    if (!['xyc','concentrated','pegged'].includes(curve)) throw new Error('unsupported-curve')
+    if (model.kind !== curve) for (const key of Object.keys(model)) delete model[key]
+    model.kind = curve; modelChanged = true
+  }
+  if (input.edits.some(e => e.field === 'relativeWidthBps') && input.edits.some(e => e.field === 'minPrice' || e.field === 'maxPrice')) throw new Error('choose-fixed-or-relative-range')
   // Resolve pair edits before any human-to-atomic amount conversion, independent of edit ordering.
   for (const e of input.edits) if (e.field === 'baseToken' || e.field === 'quoteToken') {
     const token = resolveProfileToken(e.value, profile)
@@ -51,11 +60,8 @@ export function editToPatch(input: z.infer<typeof designEditSchema>, draft: Stra
     seen.add(field)
     if (field === 'title') spec.title = value
     else if (field === 'baseToken' || field === 'quoteToken') continue
-    else if (field === 'curve') {
-      if (!['xyc','concentrated','pegged'].includes(value)) throw new Error('unsupported-curve')
-      if (model.kind !== value) for (const key of Object.keys(model)) delete model[key]
-      model.kind = value; modelChanged = true
-    } else if (['minPrice','maxPrice','relativeWidthBps','referencePrice','amplification'].includes(field)) {
+    else if (field === 'curve') continue
+    else if (['minPrice','maxPrice','relativeWidthBps','referencePrice','amplification'].includes(field)) {
       if (!model.kind) throw new Error('choose-curve-before-parameters')
       model[field] = field === 'relativeWidthBps' ? integer(value) : value; modelChanged = true
       if (field === 'relativeWidthBps') { delete model.minPrice; delete model.maxPrice; delete model.snapshot }
@@ -133,9 +139,17 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         return { revision: draft.revision, readyForCompilation: draft.kind === 'maker' && result.ready, templateFieldsComplete: draft.kind === 'template' && result.ready,
           errors: result.errors, missingFields: result.missingFields, requirements: assessRequirements(draft) }
       }) }),
-    inspectStrategy: tool({ description: 'Read authoritative current strategy state or its revision history. Use at the beginning of a turn and after conflicts; model text cannot establish completion.',
-      strict: true, inputSchema: z.object({ view: z.enum(['current','history']) }).strict(), execute: ({ view }) => safe(async () => {
+    compileStrategy: tool({ description: 'Compile and independently decode a complete owned Maker instance, storing an immutable artifact tied to this revision and deployment manifest. This performs no RPC or wallet action and does not make registration ready. Provider templates must first be instantiated by a Maker; never request Maker assets while authoring a Provider template.',
+      strict: true, inputSchema: z.object({ expectedRevision: z.number().int().positive() }).strict(), execute: ({ expectedRevision }, options) => safe(async () => {
         const draft = await read()
+        if (draft.kind !== 'maker') throw new Error('maker-instance-required')
+        if (!repository.compile) throw new Error('preparation-unavailable')
+        return repository.compile('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision)
+      }) }),
+    inspectStrategy: tool({ description: 'Read authoritative current strategy state or its revision history. Use at the beginning of a turn and after conflicts; model text cannot establish completion.',
+      strict: true, inputSchema: z.object({ view: z.enum(['current','history','compilations']) }).strict(), execute: ({ view }) => safe(async () => {
+        const draft = await read()
+        if (view === 'compilations') return { draft: visibleDraft(draft), compilations: await repository.compilations?.() ?? [] }
         return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : visibleDraft(draft)
       }) }),
     exportStrategy: tool({ description: 'Export the current public draft as a portable non-executable specification. No private policy, signature or transaction is included. Executable artifact export requires the later compiler/simulation stage.',

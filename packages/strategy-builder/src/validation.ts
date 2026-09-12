@@ -34,6 +34,9 @@ export function validateStrategy(input: unknown, profile: DeploymentProfile, now
   const need = (field: string, value: unknown) => { if (value === undefined) missingFields.push(field) }
   need('spec.baseToken', spec.baseToken); need('spec.quoteToken', spec.quoteToken); need('spec.model', spec.model)
   need('spec.feeBps', spec.feeBps); need('spec.deadline', spec.deadline); need('spec.guardEnvelope', spec.guardEnvelope)
+  if (spec.guardEnvelope) for (const field of ['maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const) {
+    need(`spec.guardEnvelope.${field}`, spec.guardEnvelope[field])
+  }
   for (const name of ['baseToken', 'quoteToken'] as const) {
     const token = spec[name]
     if (!token) continue
@@ -67,11 +70,13 @@ export function validateStrategy(input: unknown, profile: DeploymentProfile, now
   }
   if (draft.kind === 'maker') {
     need('maker', draft.maker); need('allocations', draft.allocations)
+    if (draft.allocations) { need('allocations.baseAtomic', draft.allocations.baseAtomic); need('allocations.quoteAtomic', draft.allocations.quoteAtomic) }
     if (draft.allocations && spec.guardEnvelope) {
-      if (BigInt(draft.allocations.baseAtomic) > BigInt(spec.guardEnvelope.maxPostBalanceBase) ||
-        BigInt(draft.allocations.quoteAtomic) > BigInt(spec.guardEnvelope.maxPostBalanceQuote)) error('inventory-above-envelope', 'allocations', '初始 allocation 超出不可變 Guard envelope')
+      for (const [amount, cap] of [[draft.allocations.baseAtomic, spec.guardEnvelope.maxPostBalanceBase], [draft.allocations.quoteAtomic, spec.guardEnvelope.maxPostBalanceQuote]]) {
+        if (amount !== undefined && cap !== undefined && BigInt(amount) > BigInt(cap)) error('inventory-above-envelope', 'allocations', '初始 allocation 超出不可變 Guard envelope')
+      }
     }
-  }
+  } else if (draft.maker || draft.allocations) error('template-instance-fields', 'allocations', 'Provider 模板不可包含 Maker 地址或資產配置')
   const ready = !errors.length && !missingFields.length
   return { ready, errors, missingFields, validated: ready ? {
     draft, contentDigest: contentDigest(draft), manifestHash: digestJson(profile), profile: structuredClone(profile),

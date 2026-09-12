@@ -23,7 +23,7 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 
 ## Offline regression checks
 
-`pnpm typecheck:builder-service` passed. `pnpm test:builder-service` passed 23 tests using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
+`pnpm typecheck:builder-service` passed. `pnpm test:builder-service` passed 28 tests using real PostgreSQL 16.15 and deterministic AI SDK fixtures where a live model is not needed. CI targets PostgreSQL 18.6. Coverage includes:
 
 - Atomic/idempotent acceptance, owner isolation, strict client input and one active turn per draft.
 - Multiple workers, expired-lease recovery after a new pool, three-attempt limit, cancellation, and late worker rejection even when it supplies the latest draft revision.
@@ -33,6 +33,20 @@ Ignored local evidence files: `.cache/builder/live-design-eval.json` and `.cache
 - Provider exception redaction before SDK logging and no credentials/leases in model tool context.
 - Privy JWT signatures/claims, app/user/session binding, refreshed access tokens, forged identities, and combined wallet/session ownership through HTTP.
 - Owned validation results and active-turn discovery for browser recovery.
+- Deterministic immutable Maker artifacts for all three curves, exact decoder equality, duplicate requests, ownership, edits/restores/manifest invalidation, partial/template rejection and cancelled worker authority.
+- Actual AI SDK compiler tool execution in the durable worker; compilation/list/read through the authenticated HTTP API.
+
+## Incremental design and curve changes
+
+`packages/builder-service/scripts/eval-incremental-agent.ts` passed seven additional consecutive real OpenAI turns using a disposable PostgreSQL database. It starts with a public XYC template and only one WETH swap cap; the first two turns explicitly leave unconfirmed caps/deadline absent. The third completes the caps/deadline. The next two switch to Pegged (2500 reference, amplification 1) and then fixed-range CLMM (2200–2800). Turn six tightens only the WETH swap cap from 0.05 to 0.04. Turn seven discusses contradictory 0.04/0.1 requirements and leaves the entire draft unchanged at revision 7.
+
+The script asserts exact atomic caps, metadata, model parameters, deadline and absent Maker assets after every turn. Incomplete drafts remain invalid for compilation until all required caps exist. Evidence is in ignored `.cache/builder/live-incremental-eval.json`. This broadens actual model design coverage to all three curves; it is not a model-driven simulation/repair or publication test.
+
+## Real model compiler path
+
+`eval-design-api.ts --maker-compile` passed five real OpenAI turns through signed HTTP login, persisted worker events and the actual compiler. It creates an XYC Maker draft with explicit fixture allocations, compiles it, tightens the WETH cap and recompiles, then changes to Pegged and CLMM with fresh compilations. After every compiled turn the script reads the owned artifact API, asserts one current artifact at the saved revision, checks exact decoded caps/curve, and verifies previous artifacts are stale. Registration readiness remains false throughout. Evidence is in ignored `.cache/builder/live-maker-compile-eval.json`.
+
+These Maker allocations are public fixture values; no wallet inventory was read and no chain transaction was sent. This verifies model-to-compiler delivery and revision integrity, not wallet funding, Provider instantiation or simulation success.
 
 ## Browser checks
 
