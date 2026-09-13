@@ -1,0 +1,588 @@
+{
+  "modelId": "gpt-5.6-sol",
+  "recordedAt": "2026-09-13T00:00:37.322Z",
+  "mode": "real-openai-local-authenticated-http-postgres",
+  "policyMode": "synthetic-ciphertext-not-TEE-verified",
+  "publicChainWrites": 0,
+  "externalMarketRead": {
+    "source": "https://api.kraken.com/0/public/Depth?pair=ETHUSDC&count=1#ETH-USDC-proxy",
+    "observedAt": "2026-09-12T23:59:46.000Z",
+    "baseToken": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+    "quoteToken": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "price": "2525.985"
+  },
+  "providerVersion": {
+    "schemaVersion": 1,
+    "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+    "version": 1,
+    "provider": "0xb5ab4994f5318210f92d68c42cbdfce3a3cba02f",
+    "manifestHash": "0xda340fac0c8f61dae1ffa1644930d950fe975d5811dffaeede03175c455c6fb6",
+    "source": {
+      "draftId": "ad95e9ce-bd9f-4b67-917e-cae56d8191d6",
+      "revision": 2,
+      "contentDigest": "0xcd88578c15a09501b8bc9bbb426711e6c6aa0c7a561032151d98ea7ebb6a3a75"
+    },
+    "spec": {
+      "title": "Public local fork fixture",
+      "profileId": "sepolia-standing-v2",
+      "baseToken": {
+        "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "symbol": "WETH",
+        "decimals": 18
+      },
+      "quoteToken": {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "symbol": "USDC",
+        "decimals": 6
+      },
+      "model": {
+        "kind": "concentrated",
+        "minPrice": "2200",
+        "maxPrice": "2800"
+      },
+      "feeBps": 0,
+      "deadline": 1789343994,
+      "modifiers": [],
+      "guardEnvelope": {
+        "maxAmountBasePerSwap": "5000000000000000",
+        "maxAmountQuotePerSwap": "12500000",
+        "maxPostBalanceBase": "20000000000000000",
+        "maxPostBalanceQuote": "50000000"
+      }
+    },
+    "requirements": [],
+    "permissions": {
+      "tightenCaps": true,
+      "shortenDeadline": true,
+      "narrowConcentratedRange": true,
+      "peggedReferencePrice": null,
+      "peggedAmplification": null
+    },
+    "policy": {
+      "keyId": "0x58db910afb0e6212f682c0f3b8785f7b21d732e4bb29f2d844eb1ae6a3c67b72",
+      "envelopeDigest": "0x28760f8a09998dd284f25980ffb044933973256ab81afd44a3bea3a750ef1655"
+    },
+    "createdAt": "2026-09-12T23:59:54.719Z"
+  },
+  "evidence": [
+    {
+      "turn": 1,
+      "content": "我是套用 Provider 模板的 Maker。只讀目前草稿與模板權限，說明我能調整哪些參數，還有哪些是鎖定的；不要改草稿，也不要要求我提供 Provider 私密政策。",
+      "reply": "已只讀目前草稿與模板權限，**未修改草稿**。\n\n### 你可以調整\n\n- **策略標題**\n- **個人資產配置**\n  - 目前：`0.01 WETH`、`25 USDC`\n- **收窄集中流動性價格區間**\n  - 原始範圍：`2200–2800 USDC/WETH`\n  - 可提高下限或降低上限，但不能擴大超過原始範圍\n- **縮短 deadline**\n  - 目前上限：Unix `1789343994`\n  - 可設得更早，不能延後超過模板原值\n- **收緊四項 Guard 公開上限**\n  - 單筆 base 上限：目前 `0.005 WETH`\n  - 單筆 quote 上限：目前 `12.5 USDC`\n  - 交易後 base 餘額上限：目前 `0.02 WETH`\n  - 交易後 quote 餘額上限：目前 `50 USDC`\n\n上述限額即使先收緊，之後仍可放寬回**原始模板界線**，但不能超過原始授權。\n\n### 鎖定、不可調整\n\n- 部署 profile：`sepolia-standing-v2`\n- 交易對及方向：base 為 **WETH**、quote 為 **USDC**\n- 曲線種類：**concentrated**\n- 費率：`0 bps`\n- modifiers\n- 不可把價格區間擴至 `2200–2800` 之外\n- 不可延長 deadline 或放寬 Guard caps 超過模板原值\n- 不可自行升級至 Provider 的其他模板版本\n\n這份模板目前**未撤下**，但狀態顯示 **registrationReady = false**；套用草稿不等於已註冊、Guard 已授權或策略已可成交。若要改交易對、曲線、費率或突破原始界線，需要選擇另一份模板或建立新策略。",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
+        "owner": "wallet:0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "revision": 1,
+        "kind": "maker",
+        "maker": "0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "25000000"
+        },
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [],
+        "salt": "1082720550305906652",
+        "createdAt": "2026-09-12T23:59:55.263Z",
+        "updatedAt": "2026-09-12T23:59:55.263Z"
+      },
+      "publicContext": {
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "provider": "0xb5ab4994f5318210f92d68c42cbdfce3a3cba02f",
+        "permissions": {
+          "tightenCaps": true,
+          "shortenDeadline": true,
+          "narrowConcentratedRange": true,
+          "peggedReferencePrice": null,
+          "peggedAmplification": null
+        },
+        "baseline": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "boundsComparedTo": "original-published-version",
+        "makerEditable": [
+          "title",
+          "allocations"
+        ],
+        "lockedSpecFields": [
+          "profileId",
+          "baseToken",
+          "quoteToken",
+          "model.kind",
+          "feeBps",
+          "modifiers"
+        ],
+        "withdrawn": false,
+        "registrationReady": false
+      },
+      "toolEvents": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "content": "請把 CLMM 價格範圍縮到 2300～2700 USDC/WETH，單筆 USDC 公開上限改為 10 USDC，個人標題改成「我的 CLMM」，其他全部保留。請保存並驗證。",
+      "reply": "已保存並通過草稿驗證（revision 2）。\n\n變更如下：\n\n- 標題：**我的 CLMM**\n- CLMM 價格範圍：**2300～2700 USDC/WETH**\n- 單筆 USDC 公開上限：**10 USDC**\n- 其他參數與配置均保留不變\n\n驗證結果：\n\n- 無錯誤\n- 無缺漏欄位\n- 已可進入編譯階段\n- 硬性需求仍需在編譯產物階段複核\n\n目前只完成草稿保存與驗證，尚未編譯、模擬、註冊或進行任何鏈上授權。",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
+        "owner": "wallet:0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "revision": 2,
+        "kind": "maker",
+        "maker": "0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "25000000"
+        },
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "spec": {
+          "title": "我的 CLMM",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2300",
+            "maxPrice": "2700"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "10000000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [
+          {
+            "id": "req-b301fd31-d39f-4795-a330-daedc7a458e9-0",
+            "text": "CLMM 價格範圍必須為 2300～2700 USDC/WETH，單筆 USDC 公開上限必須為 10 USDC；其餘策略參數保留。",
+            "priority": "must",
+            "sourceMessageId": "b301fd31-d39f-4795-a330-daedc7a458e9",
+            "capabilityIds": [],
+            "userAcceptedAlternative": false
+          }
+        ],
+        "salt": "1082720550305906652",
+        "createdAt": "2026-09-12T23:59:55.263Z",
+        "updatedAt": "2026-09-13T00:00:12.171Z"
+      },
+      "publicContext": {
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "provider": "0xb5ab4994f5318210f92d68c42cbdfce3a3cba02f",
+        "permissions": {
+          "tightenCaps": true,
+          "shortenDeadline": true,
+          "narrowConcentratedRange": true,
+          "peggedReferencePrice": null,
+          "peggedAmplification": null
+        },
+        "baseline": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "boundsComparedTo": "original-published-version",
+        "makerEditable": [
+          "title",
+          "allocations"
+        ],
+        "lockedSpecFields": [
+          "profileId",
+          "baseToken",
+          "quoteToken",
+          "model.kind",
+          "feeBps",
+          "modifiers"
+        ],
+        "withdrawn": false,
+        "registrationReady": false
+      },
+      "toolEvents": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "createOrPatchDraft"
+        },
+        {
+          "ok": true,
+          "name": "validateStrategy"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "content": "我想把價格上界加到 2900。請先檢查 Provider 權限；如果超過原始上限就不要改，說明可行替代，不要另建草稿。",
+      "reply": "已檢查 Provider 模板權限。原始價格上限為 **2800 USDC/WETH**，Maker 只獲准在原始 **2200～2800** 範圍內收窄，不能提高至 2900。\n\n因此我**沒有修改草稿，也沒有另建草稿**。目前仍為 **2300～2700 USDC/WETH**。\n\n可行替代：\n\n- 將上界提高至最高允許的 **2800**\n- 維持目前 **2700**\n- 若必須使用 **2900**，需改選授權涵蓋該上界的另一模板，或另行建立非此模板約束的新策略",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
+        "owner": "wallet:0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "revision": 2,
+        "kind": "maker",
+        "maker": "0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "25000000"
+        },
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "spec": {
+          "title": "我的 CLMM",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2300",
+            "maxPrice": "2700"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "10000000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [
+          {
+            "id": "req-b301fd31-d39f-4795-a330-daedc7a458e9-0",
+            "text": "CLMM 價格範圍必須為 2300～2700 USDC/WETH，單筆 USDC 公開上限必須為 10 USDC；其餘策略參數保留。",
+            "priority": "must",
+            "sourceMessageId": "b301fd31-d39f-4795-a330-daedc7a458e9",
+            "capabilityIds": [],
+            "userAcceptedAlternative": false
+          }
+        ],
+        "salt": "1082720550305906652",
+        "createdAt": "2026-09-12T23:59:55.263Z",
+        "updatedAt": "2026-09-13T00:00:12.171Z"
+      },
+      "publicContext": {
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "provider": "0xb5ab4994f5318210f92d68c42cbdfce3a3cba02f",
+        "permissions": {
+          "tightenCaps": true,
+          "shortenDeadline": true,
+          "narrowConcentratedRange": true,
+          "peggedReferencePrice": null,
+          "peggedAmplification": null
+        },
+        "baseline": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "boundsComparedTo": "original-published-version",
+        "makerEditable": [
+          "title",
+          "allocations"
+        ],
+        "lockedSpecFields": [
+          "profileId",
+          "baseToken",
+          "quoteToken",
+          "model.kind",
+          "feeBps",
+          "modifiers"
+        ],
+        "withdrawn": false,
+        "registrationReady": false
+      },
+      "toolEvents": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "content": "請回復到最初套用模板的 revision 1，然後只把 Maker 配置改為 20 USDC，WETH 配置不變。保存並驗證；不要發布、註冊或交易。",
+      "reply": "已完成保存並驗證，目前為 **revision 4**。\n\n- 已回復到最初套用模板的 **revision 1** 設定\n- WETH 配置維持：**0.01 WETH**\n- USDC 配置改為：**20 USDC**\n- 其他策略參數均維持 revision 1\n\n驗證結果：\n\n- 無錯誤\n- 無缺漏欄位\n- 可進入編譯階段\n- 硬性需求仍標示為需在編譯產物階段複核\n\n依照要求，**未發布、未註冊、未交易**，也未執行編譯或鏈上操作。",
+      "draft": {
+        "schemaVersion": 1,
+        "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
+        "owner": "wallet:0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "revision": 4,
+        "kind": "maker",
+        "maker": "0x9339d44b69392e42a960fdad7e59e044aa0f71be",
+        "allocations": {
+          "baseAtomic": "10000000000000000",
+          "quoteAtomic": "20000000"
+        },
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "spec": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "requirements": [
+          {
+            "id": "req-30274632-1592-4a2b-a083-93b4f561f19e-0",
+            "text": "Maker 配置必須為 0.01 WETH 與 20 USDC；其餘內容維持最初套用模板的 revision 1。",
+            "priority": "must",
+            "sourceMessageId": "30274632-1592-4a2b-a083-93b4f561f19e",
+            "capabilityIds": [],
+            "userAcceptedAlternative": false
+          }
+        ],
+        "salt": "1082720550305906652",
+        "createdAt": "2026-09-12T23:59:55.263Z",
+        "updatedAt": "2026-09-13T00:00:31.907Z"
+      },
+      "publicContext": {
+        "templatePin": {
+          "templateId": "3a205c86-2372-4457-a532-1a278c78f434",
+          "version": 1,
+          "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
+        },
+        "provider": "0xb5ab4994f5318210f92d68c42cbdfce3a3cba02f",
+        "permissions": {
+          "tightenCaps": true,
+          "shortenDeadline": true,
+          "narrowConcentratedRange": true,
+          "peggedReferencePrice": null,
+          "peggedAmplification": null
+        },
+        "baseline": {
+          "title": "Public local fork fixture",
+          "profileId": "sepolia-standing-v2",
+          "baseToken": {
+            "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+            "symbol": "WETH",
+            "decimals": 18
+          },
+          "quoteToken": {
+            "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+            "symbol": "USDC",
+            "decimals": 6
+          },
+          "model": {
+            "kind": "concentrated",
+            "minPrice": "2200",
+            "maxPrice": "2800"
+          },
+          "feeBps": 0,
+          "deadline": 1789343994,
+          "modifiers": [],
+          "guardEnvelope": {
+            "maxAmountBasePerSwap": "5000000000000000",
+            "maxAmountQuotePerSwap": "12500000",
+            "maxPostBalanceBase": "20000000000000000",
+            "maxPostBalanceQuote": "50000000"
+          }
+        },
+        "boundsComparedTo": "original-published-version",
+        "makerEditable": [
+          "title",
+          "allocations"
+        ],
+        "lockedSpecFields": [
+          "profileId",
+          "baseToken",
+          "quoteToken",
+          "model.kind",
+          "feeBps",
+          "modifiers"
+        ],
+        "withdrawn": false,
+        "registrationReady": false
+      },
+      "toolEvents": [
+        {
+          "ok": true,
+          "name": "inspectStrategy"
+        },
+        {
+          "ok": true,
+          "name": "createOrPatchDraft"
+        },
+        {
+          "ok": true,
+          "name": "createOrPatchDraft"
+        },
+        {
+          "ok": true,
+          "name": "validateStrategy"
+        }
+      ]
+    }
+  ]
+}

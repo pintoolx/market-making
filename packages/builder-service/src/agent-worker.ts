@@ -39,6 +39,7 @@ export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, mode
         patch: (requestId, expectedRevision, patch) => store.patch(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, patch }),
         restore: (requestId, expectedRevision, revision) => store.restore(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, revision }),
         history: () => store.history(turn.owner, turn.draftId),
+        templateContext: expectedRevision => store.templateContext(turn.owner, turn.draftId, expectedRevision),
         compile: (requestId, expectedRevision) => artifacts.compile(turn.owner, requestId, { draftId: turn.draftId, expectedRevision }),
         compilations: () => artifacts.list(turn.owner, turn.draftId),
         ...(preparation.simulationEnabled ? { simulate: (requestId: string, expectedRevision: number, artifactId: string) =>

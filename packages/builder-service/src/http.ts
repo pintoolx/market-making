@@ -12,6 +12,7 @@ import { createSimulations } from './simulations.ts'
 import { createPreviews } from './previews.ts'
 import { scenarioInputSchema } from 'aqua-executor/builder-preview'
 import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
+import { createTemplates, type TemplateOptions } from './templates.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -30,13 +31,14 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
 export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string },
-  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter } = {}) {
+  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'> } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
   const simulations = artifacts ? createSimulations(pool, sepoliaStandingProfile) : undefined
   const previews = artifacts ? createPreviews(pool, sepoliaStandingProfile) : undefined
   const inventory = artifacts && dependencies.inventoryAdapter ? createInventoryReader(pool, sepoliaStandingProfile, dependencies.inventoryAdapter) : undefined
+  const templates = artifacts && dependencies.templates ? createTemplates(pool, sepoliaStandingProfile, { ...dependencies.templates, origin: config.origin }) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -80,6 +82,23 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
       if (route === '/capabilities' && !post) return send({ profileId: config.profileId, capabilities: getCapabilities() })
       const requestId = request.headers['idempotency-key']
       if (post && (typeof requestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(requestId))) throw new ServiceError('idempotency-key-required')
+      if (route === '/templates' || route === '/templates/prepare' || route === '/templates/publish' || route === '/templates/instantiate' || route === '/templates/withdraw') {
+        if (!templates) throw new ServiceError('templates-unavailable', 503)
+        limit(request, 120)
+        if (route === '/templates' && !post) return send({ templates: await templates.list() })
+        if (post && route !== '/templates') {
+          const input = await readJson(request), key = requestId as string
+          if (route === '/templates/prepare') return send(await templates.prepare(actor.owner, key, input))
+          if (route === '/templates/publish') return send(await templates.publish(actor.owner, key, input))
+          if (route === '/templates/withdraw') return send(await templates.withdraw(actor.owner, key, input))
+          return send(await templates.instantiate(actor.owner, key, input))
+        }
+      }
+      const templateVersion = route.match(/^\/templates\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/versions\/([1-9][0-9]{0,15})$/)
+      if (templateVersion && !post) {
+        if (!templates) throw new ServiceError('templates-unavailable', 503)
+        return send(await templates.get(templateVersion[1]!, Number(templateVersion[2])))
+      }
       if (route === '/conversations') return send(post ? await store.create(actor.owner, requestId as string, await readJson(request)) : { conversations: await store.list(actor.owner) })
       const newTurn = route.match(/^\/conversations\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/turns$/)
       if (newTurn && post) {

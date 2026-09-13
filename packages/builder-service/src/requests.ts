@@ -6,6 +6,16 @@ import { conflict } from './errors.ts'
 
 export const ownerSchema = z.string().regex(/^wallet:0x[0-9a-f]{40}$/)
 
+/** Read an already committed response before expensive work outside a transaction.
+ * mutation still performs the authoritative concurrent deduplication at commit. */
+export async function requestReceipt<T>(pool: Pool, owner: string, requestId: string, operation: string, input: unknown): Promise<T | undefined> {
+  ownerSchema.parse(owner); idSchema.parse(requestId)
+  const row = (await pool.query('SELECT operation,input_digest,response FROM builder.requests WHERE owner=$1 AND request_id=$2', [owner, requestId])).rows[0]
+  if (!row) return undefined
+  if (row.operation !== operation || row.input_digest !== digestJson(input)) throw conflict('idempotency-key-reused')
+  return row.response === null ? undefined : row.response as T
+}
+
 /** Dedupe and response commit with the mutation; failed work releases its request key. */
 export async function mutation<T>(pool: Pool, owner: string, requestId: string, operation: string, input: unknown,
   work: (client: PoolClient) => Promise<T>): Promise<T> {
