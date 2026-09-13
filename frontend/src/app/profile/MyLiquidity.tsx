@@ -7,12 +7,18 @@ import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import { listMandates, type MandateSummary } from '../marketplace/mandateClient';
 import { ADAPTIVE_PROFILE_IDS } from '../marketplace/mandatePresentation';
+import { ListingGrid, StrategyCardShell } from '../marketplace/ui';
 import aqua from '../marketplace/aqua.module.css';
+import page from '../marketplace/page.module.css';
+import primary from '../components/shared/Primary.module.css';
 import secondary from '../components/shared/Secondary.module.css';
-import styles from './liquidity.module.css';
+import liquidity from './liquidity.module.css';
 
 const nameOf = (item: MandateSummary) => item.strategies.every(strategy => ADAPTIVE_PROFILE_IDS.some(id => id === strategy.listingId))
   ? 'Adaptive Market Maker' : item.strategies.map(strategy => strategy.name).join(' + ');
+const activityOf = (value: string | null) => value
+  ? `${new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })} UTC`
+  : 'Not recorded';
 
 export default function MyLiquidity({ account }: { account: Account }) {
   const [items, setItems] = useState<MandateSummary[]>([]);
@@ -52,18 +58,27 @@ export default function MyLiquidity({ account }: { account: Account }) {
 
   return <>
     <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>My liquidity</h2><span className={aqua.muted}>{items.length} {items.length === 1 ? 'setup' : 'setups'}</span></div>
-    <div className={aqua.proposalList}>
-      {items.map(item => <article key={item.mandateId} className={`${aqua.panel} ${styles.card}`}>
-        <div className={aqua.panelHead}>
-          <div className={styles.identity}><span className={aqua.eyebrow}>{item.networkName}</span><h3 className={aqua.proposalTitle}>{nameOf(item)}</h3></div>
-          <Link className={`${secondary.secondary} ${styles.manage}`} href={`/maker?mandate=${encodeURIComponent(item.mandateId)}`}>Manage liquidity</Link>
-        </div>
-        <div className={styles.details}>
-          <span>Last activity {item.lastActivityAt ? <time dateTime={item.lastActivityAt}>{new Date(item.lastActivityAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time> : 'not recorded'}</span>
-          {walletKey.includes(',') && <span>Wallet {item.maker.slice(0, 6)}…{item.maker.slice(-4)}</span>}
-          <span title={item.mandateId}>Reference {item.mandateId.slice(8, 16)}</span>
-        </div>
-      </article>)}
-    </div>
+    <ListingGrid>
+      {items.map(item => {
+        const tags = <>
+          <span className={`${page.tag} ${aqua.chip}`}>{item.networkName}</span>
+          <span className={`${page.tag} ${aqua.chip}`}>Private mandate</span>
+        </>;
+        const action = <Link className={primary.primary} href={`/maker?mandate=${encodeURIComponent(item.mandateId)}`}>Manage liquidity</Link>;
+
+        return <StrategyCardShell key={item.mandateId} tags={tags} title={nameOf(item)} action={action}>
+          <p className={aqua.summary}>One Maker balance governed by your private liquidity limits.</p>
+          <div className={aqua.cardRule}>
+            <span className={aqua.eyebrow}>Latest activity</span>
+            <div className={liquidity.details}>
+              <span><time dateTime={item.lastActivityAt ?? undefined}>{activityOf(item.lastActivityAt)}</time></span>
+              <span>Report {item.reportSequence}</span>
+              {walletKey.includes(',') && <span>Wallet {item.maker.slice(0, 6)}…{item.maker.slice(-4)}</span>}
+              <span title={item.mandateId}>Reference {item.mandateId.slice(8, 16)}</span>
+            </div>
+          </div>
+        </StrategyCardShell>;
+      })}
+    </ListingGrid>
   </>;
 }

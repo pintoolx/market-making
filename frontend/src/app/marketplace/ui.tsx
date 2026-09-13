@@ -46,17 +46,21 @@ export function StrategyCardShell({ tags, title, children, action }: {
 
 export function ListingCard({ listing, action }: { listing: Listing; action?: React.ReactNode }) {
   const tags = <>
-        <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.label}</span>
+        <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.mechanism}</span>
+        <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.category}</span>
         {listing.version && <span className={`${styles.tag} ${aqua.chip}`}>Version {listing.version}</span>}
         {listing.mine && <span className={`${styles.tag} ${aqua.chip} ${aqua.mineTag}`}>Your strategy</span>}
         {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Accepting liquidity</span>}
   </>;
 
   return <StrategyCardShell tags={tags} title={listing.name} action={action}>
+      <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
+      <div className={aqua.cardRule}>
+        <span className={aqua.eyebrow}>Strategy provider</span>
       {(listing.ensName || listing.ensSelection) && <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>}
       {listing.ensStatus === 'historical' && <p className={aqua.muted}>Previously published under this name. ENS now points to another version.</p>}
       <ProviderIdentity listing={listing} />
       {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Proposed profit share: ${listing.feePct}% · collection not enabled`}</p>}
-      <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
+      </div>
   </StrategyCardShell>;
 }
