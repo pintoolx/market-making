@@ -145,6 +145,22 @@ test('stopping a subscription cancels unsent work and blocks stale delivery', as
   assert.deepEqual((await pool.query('SELECT status,error_code FROM builder.report_deliveries WHERE id=$1', [evaluated.deliveryId])).rows[0], { status: 'failed', error_code: 'subscription-stale' })
 })
 
+test('event claims serialize active work for one subscription', async () => {
+  const f = await fixture(), events = createEventDelivery(pool, profile), enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  const first = await events.ingest({ source: 'market.serial', eventId: 'serial-1', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  const second = await events.ingest({ source: 'market.serial', eventId: 'serial-2', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  assert.ok(first.jobs.length >= 1); assert.ok(second.jobs.length >= 1)
+  const ownJobs = (await pool.query('SELECT id,event_id FROM builder.evaluation_jobs WHERE subscription_id=$1 AND event_id=ANY($2::text[]) ORDER BY event_id', [enabled.subscription.id, ['serial-1', 'serial-2']])).rows
+  assert.equal(ownJobs.length, 2)
+  const firstJob = String(ownJobs.find(row => row.event_id === 'serial-1')!.id), secondJob = String(ownJobs.find(row => row.event_id === 'serial-2')!.id)
+  const token = randomUUID()
+  await pool.query("UPDATE builder.evaluation_jobs SET state='running',lease_token=$2,lease_until=clock_timestamp()+interval '1 minute' WHERE id=$1", [firstJob, token])
+  const candidate = await events.claimEvaluation()
+  if (candidate && candidate.subscriptionId !== enabled.subscription.id) await pool.query("UPDATE builder.evaluation_jobs SET state='pending',attempts=GREATEST(attempts-1,0),lease_token=NULL,lease_until=NULL,available_at=clock_timestamp() WHERE id=$1 AND lease_token=$2", [candidate.id, candidate.token])
+  assert.equal((await pool.query('SELECT state FROM builder.evaluation_jobs WHERE id=$1', [secondJob])).rows[0].state, 'pending')
+  await pool.query("UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL WHERE id=ANY($1::text[])", [[firstJob, secondJob]])
+})
+
 test('the resident worker applies source reorg identities before claiming evaluation work', async () => {
   const f = await fixture(), sourceName = 'chain.sepolia.reorg', oldEvent = { source: sourceName, eventId: 'old-log', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString() }
   const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ should: 'not-run' }), report: { should: 'not-run' } }) })
