@@ -18,7 +18,7 @@ export type Account = {
   addresses: string[];
   /** Wallet was created by Privy for an email login, so it starts empty. */
   embedded: boolean;
-  /** e.g. "Email" or "Wallet · MetaMask". */
+  /** e.g. "Email" or "Wallet". */
   method: string;
   signMessage?: (message: string) => Promise<`0x${string}`>;
   getAccessToken?: () => Promise<string | null>;
@@ -26,22 +26,22 @@ export type Account = {
   evmWallet?: (address?: string) => Promise<WalletClient>;
 };
 
-const WALLET_NAMES: Record<string, string> = { metamask: 'MetaMask', coinbase_wallet: 'Coinbase Wallet', rainbow: 'Rainbow', wallet_connect: 'WalletConnect', rabby_wallet: 'Rabby', okx_wallet: 'OKX Wallet', phantom: 'Phantom' };
-const walletName = (type: string) => WALLET_NAMES[type] ?? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
 function usePrivyAccount(): Account {
   const { ready, authenticated, login, user, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
   const email = user?.email?.address;
-  const addresses = [...new Set([
-    user?.wallet?.address,
-    ...(user?.linkedAccounts.flatMap(account => account.type === 'wallet' && account.chainType === 'ethereum'
+  const linkedWallets = user?.linkedAccounts.flatMap(account =>
+    account.type === 'wallet' && account.chainType === 'ethereum'
       ? [account.address]
-      : []) ?? []),
-  ].filter((address): address is string => Boolean(address)))];
+      : []
+  ) ?? [];
+  const addresses = [...new Set([user?.wallet?.address, ...linkedWallets].filter((address): address is string => Boolean(address)))];
+
   // Privy marks its embedded wallet as "privy"; any other client type means the user connected their own wallet.
   const embedded = user?.wallet?.walletClientType === 'privy';
-  const method = user?.wallet && !embedded ? `Wallet · ${walletName(user.wallet.walletClientType ?? 'wallet')}` : email ? 'Email' : 'Unknown';
+  // Product-neutral label: platform logic doesn't depend on the exact wallet brand.
+  const method = user?.wallet && !embedded ? 'Wallet' : email ? 'Email' : 'Unknown';
+
   const signMessage = async (message: string): Promise<`0x${string}`> => {
     const wallet = wallets.find(item => item.address.toLowerCase() === user?.wallet?.address?.toLowerCase());
     if (!wallet) throw new Error('Connect your Provider wallet before signing.');
@@ -50,6 +50,7 @@ function usePrivyAccount(): Account {
     if (typeof signature !== 'string' || !/^0x[0-9a-f]{130}$/i.test(signature)) throw new Error('Wallet returned an invalid signature.');
     return signature as `0x${string}`;
   };
+
   const evmWallet = async (address = user?.wallet?.address): Promise<WalletClient> => {
     const wallet = wallets.find(item => item.address.toLowerCase() === address?.toLowerCase());
     if (!wallet) throw new Error('Connect the selected Ethereum wallet before continuing.');
@@ -57,9 +58,25 @@ function usePrivyAccount(): Account {
     const provider = await wallet.getEthereumProvider();
     return createWalletClient({ account: wallet.address as `0x${string}`, chain: sepolia, transport: custom(provider) });
   };
-  const ensWallet = () => evmWallet();
-  return { enabled: true, ready, authenticated, login, userId: user?.id, email, address: user?.wallet?.address, addresses, embedded, method, signMessage, getAccessToken, ensWallet, evmWallet };
 
+  const ensWallet = () => evmWallet();
+
+  return {
+    enabled: true,
+    ready,
+    authenticated,
+    login,
+    userId: user?.id,
+    email,
+    address: user?.wallet?.address,
+    addresses,
+    embedded,
+    method,
+    signMessage,
+    getAccessToken,
+    ensWallet,
+    evmWallet,
+  };
 }
 
 function useNoAccount(): Account {
