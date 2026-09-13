@@ -34,6 +34,16 @@ the worker. Set `BUILDER_EVENT_EVALUATOR_URL`,
 enabling `BUILDER_EVENT_WORKER_ENABLED`. The runtime uses the HTTPS event
 gateway adapter for the two trusted operations:
 
+For an EVM log trigger, set `BUILDER_EVENT_EVM_ADDRESS` and
+`BUILDER_EVENT_EVM_FROM_BLOCK` together. The resident worker then polls
+`BUILDER_EVENT_EVM_RPC_URL` (or the mandate RPC), waits for
+`BUILDER_EVENT_EVM_CONFIRMATIONS` (default `2`), chunks backfill requests and
+persists its cursor and a bounded block hash history. A changed history hash
+marks the old inbox identities reorged before replaying the affected range.
+`BUILDER_EVENT_EVM_TOPIC0` is an optional first-topic filter. This adapter only
+provides public log facts; the evaluator still fetches trusted state and the
+delivery gateway remains required.
+
 ```json
 {
   "schemaVersion": 1,

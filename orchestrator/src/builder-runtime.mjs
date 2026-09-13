@@ -16,7 +16,7 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
   const {
     database, migrate, builderHandler, runDesignTurn, createTurns, openAIModel,
     nativeInventoryAdapter, krakenTemplatePrice, runEventWorker,
-    createHttpEventGateway,
+    createHttpEventGateway, createEvmLogSource,
   } = await import('../../packages/builder-service/src/index.ts');
   const { createSignedEventIngress } = await import('../../packages/builder-service/src/event-adapters.ts');
 
@@ -62,6 +62,23 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
     throw new Error('Builder event gateway requires evaluator URL, delivery URL and token together');
   const configuredEventGateway = eventWorkerEnabled && evaluatorUrl && deliveryUrl && gatewayToken
     ? createHttpEventGateway({ evaluatorUrl, deliveryUrl, token: gatewayToken, timeoutMs: integer(env.BUILDER_EVENT_GATEWAY_TIMEOUT_MS, 120000) }) : undefined;
+  const eventSourceAddress = env.BUILDER_EVENT_EVM_ADDRESS?.trim();
+  const eventSourceFromBlock = env.BUILDER_EVENT_EVM_FROM_BLOCK?.trim();
+  const configuredEventSourceValues = [eventSourceAddress, eventSourceFromBlock].filter(Boolean).length;
+  if (eventWorkerEnabled && configuredEventSourceValues > 0 && configuredEventSourceValues < 2)
+    throw new Error('Builder EVM event source requires address and from block together');
+  const configuredEventSource = eventWorkerEnabled && eventSourceAddress && eventSourceFromBlock
+    ? createEvmLogSource({
+      source: env.BUILDER_EVENT_EVM_SOURCE?.trim() || `chain.${profile?.chainId ?? config.chainId}.evm`,
+      rpcUrl: env.BUILDER_EVENT_EVM_RPC_URL?.trim() || config.rpcUrl,
+      chainId: profile?.chainId ?? config.chainId,
+      address: eventSourceAddress,
+      fromBlock: bigintValue(eventSourceFromBlock, 'BUILDER_EVENT_EVM_FROM_BLOCK'),
+      confirmations: integer(env.BUILDER_EVENT_EVM_CONFIRMATIONS, 2),
+      maxBlockRange: bigintValue(env.BUILDER_EVENT_EVM_MAX_BLOCK_RANGE?.trim() || '2000', 'BUILDER_EVENT_EVM_MAX_BLOCK_RANGE'),
+      maxReorgDepth: bigintValue(env.BUILDER_EVENT_EVM_MAX_REORG_DEPTH?.trim() || '128', 'BUILDER_EVENT_EVM_MAX_REORG_DEPTH'),
+      ...(env.BUILDER_EVENT_EVM_TOPIC0?.trim() ? { topics: [env.BUILDER_EVENT_EVM_TOPIC0.trim()] } : {}),
+    }) : undefined;
 
   const shutdown = new AbortController();
   const tasks = [];
@@ -108,7 +125,7 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
       pollMs: integer(env.BUILDER_EVENT_POLL_MS, 1000),
       leaseMs: integer(env.BUILDER_EVENT_LEASE_MS, 30000),
       signal: shutdown.signal,
-      ...(dependencies.eventSources ? { sources: dependencies.eventSources } : {}),
+      ...(dependencies.eventSources ? { sources: dependencies.eventSources } : (configuredEventSource ? { sources: [configuredEventSource] } : {})),
       ...(dependencies.outboxDispatch ? { outbox: dependencies.outboxDispatch } : {}),
       onError: logError,
     }).catch(logError));
@@ -138,4 +155,9 @@ function integer(value, fallback) {
   const result = Number(value);
   if (!Number.isSafeInteger(result) || result < 1) throw new Error('invalid Builder worker timing');
   return result;
+}
+
+function bigintValue(value, label) {
+  if (!/^\d+$/.test(value)) throw new Error(`${label} must be a non-negative integer`);
+  return BigInt(value);
 }

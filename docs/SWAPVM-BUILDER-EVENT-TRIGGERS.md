@@ -2,7 +2,7 @@
 
 The design uses standing authorization and event-driven reevaluation. It does not renew reports every ten minutes. This specification defines worker and recovery requirements; deployed behavior must be supported by implementation and environment evidence.
 
-The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health, lease-based outbox dispatch and resident worker persistence in migrations 010–013. Signed event ingress and source normalizers are available as deployment adapters; CRE and chain delivery adapters remain deployment-provided, and without a verified delivery adapter the service fails closed.
+The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health, lease-based outbox dispatch and resident worker persistence in migrations 010–013. Signed event ingress, market/log normalizers and a confirmed EVM log source with bounded backfill/reorg replay are available as deployment adapters; CRE and chain delivery adapters remain deployment-provided, and without a verified delivery adapter the service fails closed.
 
 ## Contract and delivery semantics
 

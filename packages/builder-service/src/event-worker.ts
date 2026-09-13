@@ -22,7 +22,7 @@ export async function runEventWorker(pool: Pool, profile: DeploymentProfile, dep
   if (!Number.isInteger(pollMs) || pollMs < 50 || pollMs > 60000 || !Number.isInteger(leaseMs) || leaseMs < 100 || leaseMs > 300000) throw new Error('invalid event worker timing')
   const service = createEventDelivery(pool, profile, dependencies)
   const outbox = options.outbox ? createOutboxDispatcher(pool, options.outbox, { leaseMs }) : null
-  const sources = options.sources ?? [], sourceHealth = new Map<string, 'healthy' | 'error'>()
+  const sources = options.sources ?? [], sourceHealth = new Map<string, 'healthy' | 'error'>(), sourceCursors = new Map<string, Record<string, unknown> | undefined>(), initializedSources = new Set<string>()
   let nextSourcePoll = 0
   while (!signal.aborted) {
     let worked = false
@@ -30,16 +30,24 @@ export async function runEventWorker(pool: Pool, profile: DeploymentProfile, dep
       nextSourcePoll = Date.now() + pollMs
       for (const source of sources) {
         try {
-          const batch = await source.poll(signal)
+          if (!initializedSources.has(source.source)) {
+            const saved = await service.cursor(source.source)
+            sourceCursors.set(source.source, saved?.cursor)
+            initializedSources.add(source.source)
+          }
+          const batch = await source.poll(signal, sourceCursors.get(source.source))
+          for (const eventId of batch.reorgedEventIds ?? []) await service.markReorg(source.source, eventId)
           for (const event of batch.events) { if (signal.aborted) break; await service.ingest(event) }
           const health = sourceHealth.get(source.source) === 'error' ? 'recovered' : 'healthy'
-          await service.health(source.source, { cursor: batch.cursor ?? {}, observedAt: batch.observedAt ?? new Date().toISOString(), health })
+          await service.health(source.source, { chainId: batch.chainId, cursor: batch.cursor ?? {}, blockHash: batch.blockHash, observedAt: batch.observedAt ?? new Date().toISOString(), health })
+          sourceCursors.set(source.source, batch.cursor ?? sourceCursors.get(source.source) ?? {})
           sourceHealth.set(source.source, 'healthy')
           worked ||= batch.events.length > 0
         } catch (error) {
+          if (signal.aborted) break
           sourceHealth.set(source.source, 'error')
           options.onError?.(error)
-          try { await service.health(source.source, { cursor: {}, observedAt: new Date().toISOString(), health: 'error', errorCode: 'source-unavailable' }) }
+          try { await service.health(source.source, { cursor: sourceCursors.get(source.source) ?? {}, observedAt: new Date().toISOString(), health: 'error', errorCode: 'source-unavailable' }) }
           catch (healthError) { options.onError?.(healthError) }
         }
       }
