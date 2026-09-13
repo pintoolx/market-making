@@ -32,7 +32,7 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
     setError(e instanceof BuilderError ? e.message : 'The version or inputs could not be verified. Check the amounts and retry.');
   };
   async function choose(item: TemplateItem) {
-    const ticket = ++epoch.current; setBusy('Verifying Provider signature'); setError(''); setSelected(null);
+    const ticket = ++epoch.current; setBusy('Verifying provider signature'); setError(''); setSelected(null);
     try {
       const saved = await verifyPublishedTemplate(await api.template(item.templateId, item.version), item.templateId, item.version, item.digest);
       if (!live.current || ticket !== epoch.current) return;
@@ -43,7 +43,7 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
   }
   async function apply() {
     if (!selected || busy) return;
-    const ticket = epoch.current; setBusy('Creating Maker draft'); setError('');
+    const ticket = epoch.current; setBusy('Creating liquidity draft'); setError('');
     try {
       const base = selected.template.spec.baseToken!, quote = selected.template.spec.quoteToken!;
       const allocations = allocationSchema.parse({ baseAtomic: String(scaledDecimal(baseAmount, base.decimals)), quoteAtomic: String(scaledDecimal(quoteAmount, quote.decimals)) });
@@ -78,36 +78,36 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
     finally { if (live.current && ticket === epoch.current) setBusy(''); }
   }
   const unavailable = selected && (selected.withdrawnAt || !selected.currentManifest || !selected.template.spec.deadline || selected.template.spec.deadline * 1000 <= Date.now());
-  return <BuilderDialog title="Choose Provider template" onClose={onClose}>
+  return <BuilderDialog title="Choose a published strategy" onClose={onClose}>
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!selected ? <div className={styles.catalog}>
-      <p>Select an immutable version and create your Maker draft. Continue refining it in the conversation.</p>
-      {!items.length && <p>{busy || 'No published templates yet. Design and publish your own version; you can also use it yourself.'}</p>}
+      <p>Select a specific version, add your liquidity amounts and refine the settings its provider made editable.</p>
+      {!items.length && <p>{busy || 'No published strategies are available yet.'}</p>}
       {items.map(item => <button className={styles.templateCard} key={`${item.templateId}-${item.version}`} disabled={!!busy} onClick={() => void choose(item)}>
         <span>{item.baseToken.symbol} / {item.quoteToken.symbol} · {item.model === 'concentrated' ? 'CLMM' : item.model.toUpperCase()}</span><strong>{item.title}</strong>
-        <small>Version {item.version} · {item.withdrawnAt ? 'Withdrawn' : item.deadline * 1000 <= Date.now() ? 'Expired' : 'Available to inspect and use'} · Provider {item.provider.slice(0, 8)}…{item.provider.slice(-4)}</small>
+        <small>Version {item.version} · {item.withdrawnAt ? 'Withdrawn' : item.deadline * 1000 <= Date.now() ? 'Expired' : 'Available'} · Provider {item.provider.slice(0, 8)}…{item.provider.slice(-4)}</small>
       </button>)}
     </div> : <div className={styles.catalogDetail}>
       <button disabled={!!busy || !!applyPending.current || !!withdrawPending.current} onClick={() => { epoch.current++; setSelected(null); setError(''); }}>← Back to versions</button>
-      <h3>{selected.template.spec.title} <span>Version {selected.template.version}</span></h3><p>Provider signature verified. Once selected, your pinned version will not update automatically.</p>
+      <h3>{selected.template.spec.title} <span>Version {selected.template.version}</span></h3><p>Provider signature verified. Your liquidity remains pinned to this version if the provider publishes an update.</p>
       <StrategyDetails spec={selected.template.spec} requirements={selected.template.requirements} />
-      <details><summary>Maker permissions and Provider identity</summary><p className={styles.address}>{selected.template.provider}</p><ul>
-        <li>Personal title and allocations may be changed</li><li>{selected.template.permissions.tightenCaps ? 'May tighten the four Guard limits' : 'The four Guard limits are fixed'}</li>
+      <details><summary>Provider and editable settings</summary><p className={styles.address}>{selected.template.provider}</p><ul>
+        <li>Personal title and liquidity amounts may be changed</li><li>{selected.template.permissions.tightenCaps ? 'May tighten the four public swap limits' : 'The four public swap limits are fixed'}</li>
         <li>{selected.template.permissions.shortenDeadline ? 'The deadline may be shortened' : 'The deadline is fixed'}</li>
         {selected.template.spec.model?.kind === 'concentrated' && <li>{selected.template.permissions.narrowConcentratedRange ? 'The original CLMM range may be narrowed' : 'The CLMM range is fixed'}</li>}
         {selected.template.spec.model?.kind === 'pegged' && <><li>Reference price: {selected.template.permissions.peggedReferencePrice ? `${selected.template.permissions.peggedReferencePrice.min}–${selected.template.permissions.peggedReferencePrice.max}` : 'Fixed'}</li><li>Amplification: {selected.template.permissions.peggedAmplification ? `${selected.template.permissions.peggedAmplification.min}–${selected.template.permissions.peggedAmplification.max}` : 'Fixed'}</li></>}
         <li>The pair, curve type, fee and other program settings are fixed</li></ul></details>
-      {unavailable ? <p className={styles.notice}>{selected.withdrawnAt ? 'The Provider withdrew this version.' : 'This version has expired or uses an outdated deployment profile.'} New instances cannot use it, but the version remains available for inspection.</p> : <>
-        <h4>Your Maker allocation</h4><fieldset disabled={!!busy || !!applyPending.current}><div className={styles.formGrid}>
+      {unavailable ? <p className={styles.notice}>{selected.withdrawnAt ? 'The provider withdrew this version.' : 'This version has expired or uses unsupported contracts.'} New liquidity cannot use it, but you can still inspect its settings.</p> : <>
+        <h4>Your liquidity</h4><fieldset disabled={!!busy || !!applyPending.current}><div className={styles.formGrid}>
           <label>{selected.template.spec.baseToken!.symbol} allocation<input aria-label={`${selected.template.spec.baseToken!.symbol} Maker allocation`} inputMode="decimal" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} maxLength={80} /></label>
           <label>{selected.template.spec.quoteToken!.symbol} allocation<input aria-label={`${selected.template.spec.quoteToken!.symbol} Maker allocation`} inputMode="decimal" value={quoteAmount} onChange={e => setQuoteAmount(e.target.value)} maxLength={80} /></label>
         </div><label>Personal strategy title<input value={title} onChange={e => setTitle(e.target.value)} maxLength={120} /></label></fieldset>
         {selected.template.spec.model?.kind === 'concentrated' && selected.template.spec.model.relativeWidthBps && <p className={styles.notice}>Application fixes the range using Kraken ETH/USDC as the test-token reference. The range will not automatically track the market.</p>}
-        <p className={styles.helper}>Allocations use WETH; ETH cannot count as WETH. Creating a draft does not transfer tokens. Balance checks, compilation, simulation and wallet actions remain. Encrypted policies still need trusted workflow verification.</p>
-        <button className={styles.primary} disabled={!!busy || !baseAmount || !quoteAmount || !title.trim()} onClick={() => void apply()}>{busy || (applyPending.current ? 'Retry creating this draft' : 'Use template and continue designing')}</button>
+        <p className={styles.helper}>Enter WETH rather than native ETH. Creating this draft does not transfer tokens or enable trading.</p>
+        <button className={styles.primary} disabled={!!busy || !baseAmount || !quoteAmount || !title.trim()} onClick={() => void apply()}>{busy || (applyPending.current ? 'Retry creating this draft' : 'Use this version')}</button>
       </>}
       {selected.template.provider === address.toLowerCase() && !selected.withdrawnAt && <div className={styles.withdraw}>
-        <h4>Withdraw this version</h4><p>Stop new Maker instances while retaining existing drafts and history. Withdrawal is permanent and does not revoke existing onchain standing authorization.</p>
+        <h4>Withdraw this version</h4><p>Stop new liquidity from using this version. Existing drafts, history and onchain authorizations remain unchanged.</p>
         <label className={styles.checkbox}><input type="checkbox" checked={withdrawChecked} disabled={!!busy} onChange={e => setWithdrawChecked(e.target.checked)} />I understand that withdrawing this version does not revoke existing trading authorizations</label>
         <button disabled={!!busy || !withdrawChecked || !!applyPending.current} onClick={() => void withdraw()}>{withdrawPending.current ? 'Retry withdrawal confirmation' : 'Sign and withdraw version'}</button>
       </div>}

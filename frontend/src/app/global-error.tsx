@@ -13,20 +13,13 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
     window.location.href = '/';
   };
 
-  const handleReload = () => {
-    window.location.reload();
-  };
-
   return (
     <html>
       <body>
         <div className={styles.container}>
           <div className={styles.content}>
-            <div className={styles.icon}>💥</div>
-            <h1 className={styles.title}>Application Error</h1>
-            <p className={styles.message}>
-              A critical error occurred that prevented the application from loading properly.
-            </p>
+            <h1 className={styles.title}>PinTool couldn&apos;t load this page</h1>
+            <p className={styles.message}>Your wallet and funds are unaffected. Try loading the page again or return home.</p>
 
             {process.env.NODE_ENV === 'development' && error && (
               <details className={styles.errorDetails}>
@@ -42,11 +35,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               <button onClick={reset} className={`${styles.button} ${styles.primary}`}>
                 Try Again
               </button>
-              <button onClick={handleReload} className={`${styles.button} ${styles.secondary}`}>
-                Reload Page
-              </button>
               <button onClick={handleGoHome} className={`${styles.button} ${styles.secondary}`}>
-                Go to Home
+                Go home
               </button>
             </div>
           </div>

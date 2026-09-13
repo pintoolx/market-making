@@ -25,7 +25,7 @@ import StrategyLink from './StrategyLink';
 import ProviderIdentity from './ProviderIdentity';
 import MakerActivation from './MakerActivation';
 
-const STEPS = ['Choose a strategy', 'Set private limits', 'Review', 'Monitor'];
+const STEPS = ['Choose a strategy', 'Add liquidity and limits', 'Review', 'Monitor'];
 
 type Phase = 'choose' | 'detail' | 'activate' | 'limits' | 'review' | 'submitting' | 'monitor';
 
@@ -136,14 +136,14 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
     if (restoredMaker.current === restoreKey || openingLinkedStrategy.current) return;
     if (linkedMandateId && !/^mandate-[a-f0-9-]{36}$/.test(linkedMandateId)) {
-      setError('This mandate link is invalid.'); return;
+      setError('This liquidity link is invalid.'); return;
     }
     let current = true;
     setRefreshing(true);
     getMandate(linkedMandateId)
       .then(state => {
         if (!current || openingLinkedStrategy.current) return;
-        if (state.maker.toLowerCase() !== makerAddress.toLowerCase()) throw new Error('This mandate belongs to a different Maker wallet.');
+        if (state.maker.toLowerCase() !== makerAddress.toLowerCase()) throw new Error('This liquidity setup belongs to a different wallet.');
         restoredMaker.current = restoreKey;
         saveMandateReference(state.maker, state.mandateId);
         setError('');
@@ -151,7 +151,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         setSelected([]);
         setPhase('monitor');
       })
-      .catch(() => { if (current && linkedMandateId) setError('Unable to open this mandate. Check the link and Maker wallet, then reload.'); })
+      .catch(() => { if (current && linkedMandateId) setError('Unable to open this liquidity setup. Check the link and connected wallet, then reload.'); })
       .finally(() => { if (current) setRefreshing(false); });
     return () => { current = false; };
   }, [makerAddress, linkedMandateId, linkedId]);
@@ -188,7 +188,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
   const submit = async () => {
     if (!makerAddress || selected.length === 0) {
-      setError('Log in with the Maker wallet before creating the mandate.');
+      setError('Connect the wallet that will provide liquidity before continuing.');
       return;
     }
     go('submitting');
@@ -215,7 +215,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       router.replace(`/maker?mandate=${encodeURIComponent(state.mandateId)}`);
       go('monitor');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The mandate could not be created.');
+      setError(reason instanceof Error ? reason.message : 'Your liquidity setup could not be created.');
       setPhase('review');
     }
   };
@@ -227,7 +227,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     try {
       setMandate(await getMandate(mandate.mandateId));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The mandate status could not be refreshed.');
+      setError(reason instanceof Error ? reason.message : 'Your liquidity status could not be refreshed.');
     } finally {
       setRefreshing(false);
     }
@@ -279,25 +279,25 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         : null;
 
   const currentStep = ['choose', 'detail', 'activate'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
-  const title = phase === 'choose' ? 'Find a strategy for your liquidity.'
+  const title = phase === 'choose' ? 'Choose a strategy for your liquidity.'
     : phase === 'detail' ? selected[0]?.name ?? 'Strategy details.'
-      : phase === 'activate' ? 'Enable liquidity from your wallet.'
-      : phase === 'limits' ? 'Set your capital boundaries.'
-      : phase === 'review' ? 'Review your mandate.'
-        : phase === 'submitting' ? reevaluating ? 'Re-evaluating execution.' : 'Creating your mandate.'
-          : 'Your liquidity mandate.';
+      : phase === 'activate' ? 'Add liquidity from your wallet.'
+      : phase === 'limits' ? 'Set your liquidity limits.'
+      : phase === 'review' ? 'Review your setup.'
+        : phase === 'submitting' ? reevaluating ? 'Checking current conditions.' : 'Securing your setup.'
+          : 'Your liquidity.';
 
   // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
   if ((phase === 'choose' && (linkedMandateId || linkedId)) || loadingLinked) {
     const backHref = linkedMandateId ? '/profile?tab=making' : '/maker';
     const waitingForAccount = !account.ready || executableCatalog === null;
     return <section className={aqua.flow}>
-      <Link className={aqua.backLink} href={backHref}>← {linkedMandateId ? 'My liquidity' : 'Strategy marketplace'}</Link>
-      <PageHead eyebrow={linkedMandateId ? 'My liquidity' : 'Strategy setup'} title={linkedMandateId ? 'Your liquidity' : 'Set up your strategy'} />
+      <Link className={aqua.backLink} href={backHref}>← {linkedMandateId ? 'My liquidity' : 'All strategies'}</Link>
+      <PageHead eyebrow={linkedMandateId ? 'My liquidity' : 'Liquidity setup'} title={linkedMandateId ? 'Your liquidity' : 'Set up your liquidity'} />
       {error ? <p role="alert" className={aqua.errorNotice}>{error}</p>
         : waitingForAccount ? <p role="status">Loading your workspace…</p>
-          : !account.authenticated ? <Primary onClick={account.login}>Connect Maker wallet</Primary>
-            : !makerAddress ? <p>Connect the Maker wallet for this setup.</p>
+          : !account.authenticated ? <Primary onClick={account.login}>Connect liquidity wallet</Primary>
+            : !makerAddress ? <p>This setup belongs to a different liquidity wallet. Connect that wallet to continue.</p>
               : <p role="status">{linkedMandateId ? 'Loading your liquidity…' : 'Loading your strategy…'}</p>}
     </section>;
   }
@@ -305,23 +305,23 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   return <section className={aqua.flow}>
     {phase === 'monitor' && <Link href="/profile?tab=making" className={aqua.backLink}>← My liquidity</Link>}
     {previousStep && <button type="button" className={aqua.backLink} onClick={() => go(previousStep.phase)}>← {previousStep.label}</button>}
-    <PageHead eyebrow="Maker Marketplace" title={title} accent={phase === 'monitor' ? 'One balance, guarded continuously.' : undefined} headingRef={heading}>
-      {phase === 'choose' && 'Explore strategies built for self-custodial liquidity on Aqua.'}
-      {phase === 'detail' && 'Review what the strategy does, how it executes and what can go wrong before using it.'}
-      {phase === 'limits' && 'The Provider never receives your original WETH exposure, inventory or fill limits.'}
-      {phase === 'review' && 'The confidential workflow will check whether this strategy fits your private limits.'}
-      {phase === 'submitting' && (reevaluating ? 'Re-evaluating the strategy against current conditions and your existing mandate.' : 'Checking Provider policies against your limits and waiting for the Guard report to be confirmed.')}
-      {phase === 'monitor' && 'Track the current execution profile and every confirmed authorization or trade.'}
+    <PageHead eyebrow="Liquidity" title={title} headingRef={heading}>
+      {phase === 'choose' && 'Compare pricing models, confidential inputs and risks before assigning WETH / USDC liquidity.'}
+      {phase === 'detail' && 'Review its public pricing model, confidential inputs and main risk before adding liquidity.'}
+      {phase === 'limits' && 'Your strategy provider never sees the limits you enter here.'}
+      {phase === 'review' && 'PinTool will privately check the strategy against your limits before authorizing it.'}
+      {phase === 'submitting' && (reevaluating ? 'Checking this strategy against current market conditions and your saved limits.' : 'Checking the strategy against your limits and confirming the resulting authorization onchain.')}
+      {phase === 'monitor' && 'See what can trade now, change your limits and review confirmed activity.'}
     </PageHead>
     <Steps steps={STEPS} current={currentStep} />
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
     {phase === 'choose' && <>
-      <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <ListingGrid>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
       </ListingGrid>
+      <EnsStrategySearch />
     </>}
 
     {phase === 'activate' && selected[0]?.releaseId && makerAddress && <MakerActivation key={`${makerAddress}:${selected[0].id}`} listing={selected[0]} maker={makerAddress} account={account}
@@ -333,31 +333,31 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       }} />}
 
     {phase === 'activate' && !makerAddress && <div className={aqua.panel}>
-      {account.authenticated ? <p>Connect the configured Maker wallet to enable this strategy.</p> : <Primary onClick={account.login}>Connect Maker wallet</Primary>}
+      {account.authenticated ? <p>This strategy belongs to a different liquidity wallet. Connect that wallet to continue.</p> : <Primary onClick={account.login}>Connect liquidity wallet</Primary>}
     </div>}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>
       <form className={aqua.panel} noValidate onSubmit={event => { event.preventDefault(); savePolicy(); }}>
         <fieldset className={aqua.privateField}>
-          <legend>Your private mandate</legend>
-          <p className={aqua.muted}>These limits govern every execution profile produced by this strategy.</p>
-          <label>Capital budget (USDC)<FormInput inputMode="decimal" value={budget} aria-invalid={!!positiveError(budget)} onChange={event => setBudget(event.target.value)} /></label>
-          <label>Maximum WETH exposure (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={event => setExposure(event.target.value)} /></label>
+          <legend>Your private limits</legend>
+          <p className={aqua.muted}>These limits apply to every trading mode used by this strategy.</p>
+          <label>Capital available (USDC)<FormInput inputMode="decimal" value={budget} aria-invalid={!!positiveError(budget)} onChange={event => setBudget(event.target.value)} /></label>
+          <label>Maximum share held as WETH (%)<FormInput inputMode="decimal" value={exposure} aria-invalid={!!percentageError(exposure)} onChange={event => setExposure(event.target.value)} /></label>
           <label>Maximum WETH inventory (USDC value)<FormInput inputMode="decimal" value={maxWethInventory} aria-invalid={!!positiveError(maxWethInventory) || toNumber(maxWethInventory) > toNumber(budget)} onChange={event => setMaxWethInventory(event.target.value)} /></label>
-          <label>Maximum amount per swap (USDC)<FormInput inputMode="decimal" value={maxTrade} aria-invalid={!!positiveError(maxTrade) || toNumber(maxTrade) > toNumber(budget)} onChange={event => setMaxTrade(event.target.value)} /></label>
-          <p className={aqua.hint}>Your authorization stays in effect until changed or revoked. New execution conditions require a confirmed Guard update.</p>
+          <label>Maximum swap size (USDC)<FormInput inputMode="decimal" value={maxTrade} aria-invalid={!!positiveError(maxTrade) || toNumber(maxTrade) > toNumber(budget)} onChange={event => setMaxTrade(event.target.value)} /></label>
+          <p className={aqua.hint}>These limits stay in effect until you change or revoke them. PinTool updates the onchain authorization only when the strategy conditions or your limits change.</p>
         </fieldset>
-        <Primary type="submit" disabled={!valid}>Review mandate</Primary>
+        <Primary type="submit" disabled={!valid}>Review limits</Primary>
       </form>
-      <aside className={aqua.explanation}><h2>Your limits remain in control</h2><ul className={aqua.trustList}><li>Funds remain in your Maker wallet.</li><li>The Provider policy may narrow your limits, never expand them.</li><li>Every execution profile inherits the same mandate.</li></ul><h3>Execution pair</h3><p>WETH / USDC</p></aside>
+      <aside className={aqua.explanation}><h2>Limits enforced on every swap</h2><ul className={aqua.trustList}><li>Capital limits the total USDC this strategy may use.</li><li>Exposure and inventory limits cap the WETH your wallet may hold.</li><li>Maximum swap size applies to every trading mode.</li></ul><h3>Market</h3><p>WETH / USDC</p></aside>
     </div>}
 
     {phase === 'review' && <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <StrategySet selected={selected} />
-        {selected.filter(item => item.ensSelection).map(item => <p key={item.id} className={aqua.hint}>{item.ensSelection!.name} · version {item.version} is pinned. A later ENS update will not change this mandate.</p>)}
+        {selected.filter(item => item.ensSelection).map(item => <p key={item.id} className={aqua.hint}>{item.ensSelection!.name} · version {item.version} is pinned. A later ENS update will not change this liquidity setup.</p>)}
         <PolicyMetrics budget={budget} exposure={exposure} maxWethInventory={maxWethInventory} maxTrade={maxTrade} />
-        <div className={aqua.actionRow}><Primary onClick={submit}>Create confidential mandate</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
+        <div className={aqua.actionRow}><Primary onClick={submit}>Apply private limits</Primary><Secondary onClick={() => go('limits')}>Edit limits</Secondary></div>
       </div>
       <PrivacyRoute />
     </div>}
@@ -377,11 +377,11 @@ function PolicyMetrics({ budget, exposure, maxWethInventory, maxTrade }: { budge
 }
 
 function PrivacyRoute() {
-  return <aside className={aqua.privacyRoute}><span className={aqua.eyebrow}>Disclosure boundary</span><h2>Only an execution authorization leaves the TEE.</h2><div><span>Provider policies</span><strong>Confidential</strong></div><div><span>Maker limits</span><strong>Confidential</strong></div><div><span>Authorization</span><strong>Public and enforceable</strong></div></aside>;
+  return <aside className={aqua.privacyRoute}><span className={aqua.eyebrow}>What becomes public</span><h2>Only the resulting authorization is published.</h2><div><span>Strategy rules</span><strong>Confidential</strong></div><div><span>Your liquidity limits</span><strong>Confidential</strong></div><div><span>Execution authorization</span><strong>Public and enforceable</strong></div></aside>;
 }
 
 function RuntimePanel({ reevaluating }: { reevaluating: boolean }) {
-  return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>Chainlink Confidential Workflow</span><h2>{reevaluating ? 'Re-evaluating execution' : 'Evaluating your strategy'}</h2><p>Applying your hard limits and waiting for the resulting PinTool Guard state to be confirmed onchain.</p></div><ol className={aqua.runtimeSteps}><li data-done>Strategy policy received</li><li data-done>Maker mandate received</li><li data-active>Private policies being evaluated</li><li>Guard confirmation</li></ol></div>;
+  return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>Chainlink Confidential Workflow</span><h2>{reevaluating ? 'Checking current conditions' : 'Evaluating strategy and liquidity limits'}</h2><p>PinTool is applying both sets of private rules and confirming the resulting authorization onchain.</p></div><ol className={aqua.runtimeSteps}><li data-done>Strategy rules received</li><li data-done>Liquidity limits received</li><li data-active>Private rules being evaluated</li><li>Authorization confirmed</li></ol></div>;
 }
 
 function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReevaluate, onEdit }: { mandate: MandateState; refreshing: boolean; reevaluating: boolean; onRefresh: () => void; onReevaluate: (profileId?: string) => void; onEdit: () => void }) {
@@ -401,34 +401,41 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
   const { name, adaptive, profiles, profileName } = presentMandate(mandate.strategies);
   return <div className={aqua.monitorLayout}>
     <section className={aqua.panel}>
-      <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Report nonce {mandate.evidence.sequence}</span><h2>{name}</h2></div></div>
-      <div className={aqua.intentRows}><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div><div><span>Pair</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Authorization</span><strong>{mandate.evidence.expiresAt === null ? 'Until changed or revoked' : 'Update limits to continue'}</strong></div></div>
-      <div className={aqua.actionRow}><Primary disabled={reevaluating} onClick={() => onReevaluate()}>{reevaluating ? 'Evaluating…' : 'Re-evaluate strategy'}</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Secondary><Secondary disabled={reevaluating} onClick={onEdit}>Update limits</Secondary></div>
+      <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Current authorization</span><h2>{name}</h2></div></div>
+      <div className={aqua.intentRows}><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div><div><span>Market</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Limits</span><strong>{mandate.evidence.expiresAt === null ? 'Active until changed' : 'Update required'}</strong></div></div>
+      <div className={aqua.actionRow}><Primary disabled={reevaluating} onClick={() => onReevaluate()}>{reevaluating ? 'Checking…' : 'Check conditions now'}</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh'}</Secondary><Secondary disabled={reevaluating} onClick={onEdit}>Change limits</Secondary></div>
     </section>
 
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
-      <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Execution profiles</h2><span className={aqua.muted}>{adaptive ? 'One strategy · one shared balance' : 'Self-custodial liquidity'}</span></div>
+      <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Strategy modes</h2><span className={aqua.muted}>{adaptive ? 'One strategy · one wallet balance' : 'Self-custodial liquidity'}</span></div>
       {profiles.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
         <div><span className={aqua.eyebrow} title={strategy.provider}>{adaptive ? name : /^0x[a-f0-9]{40}$/i.test(strategy.provider ?? '') ? shortHash(strategy.provider!) : strategy.provider ?? 'Independent Provider'}</span><strong>{strategy.name}</strong></div>
         <div className={aqua.rosterStatus}>
-          <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to verify'}</span>
-          {'readiness' in strategy && <small>Guard: {!fresh(strategy) ? 'not verified' : strategy.readiness?.authorized ? 'authorized' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'shipped' : 'not verified'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'checked' : 'not verified'}</small>}
+          <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to check'}</span>
+          {'readiness' in strategy && <small>Authorization: {!fresh(strategy) ? 'check required' : strategy.readiness?.authorized ? 'active' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'ready' : 'check required'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'ready' : 'check required'}</small>}
           {strategy.strategyHash && <CopyStrategyHash value={strategy.strategyHash} />}
         </div>
         <div className={aqua.rosterActions}>
-          <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Evaluate profile</Secondary>
-          <Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trading page ↗</Link>
+          <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Check this mode</Secondary>
+          <Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trade page ↗</Link>
         </div>
       </article>)}
     </section>
 
     <section className={aqua.activityPanel} aria-labelledby="mandate-activity-title">
       <div className={aqua.sectionTop}><h2 id="mandate-activity-title" className={aqua.sectionTitle}>Recent activity</h2><span className={aqua.muted}>{mandate.events.length} events</span></div>
-      {mandate.events.length ? <ol className={aqua.activityList}>{mandate.events.map(event => <li key={event.id}><div><strong>{event.title.replace('Tight Market', 'Tight profile').replace('Defensive Market', 'Defensive profile')}</strong><span>{event.detail}</span></div><div><time dateTime={event.occurredAt}>{now === 0 ? '—' : new Date(event.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>{event.explorerUrl && <a href={event.explorerUrl} target="_blank" rel="noreferrer">Transaction ↗</a>}</div></li>)}</ol> : <p className={aqua.muted}>Confirmed mandate activity will appear here.</p>}
+      {mandate.events.length ? <ol className={aqua.activityList}>{mandate.events.map(event => {
+        const title = event.title.replace('Tight Market', 'Tight mode').replace('Defensive Market', 'Defensive mode').replace('Guard authorization confirmed', 'Authorization updated');
+        const detail = event.detail.startsWith('CRE execution ') ? 'PinTool published the new execution authorization on Ethereum Sepolia.'
+          : event.detail === 'The strategy may execute within the confirmed Guard limits.' ? 'This strategy mode passed its private checks and is available for trading.'
+            : event.detail === 'Aqua executed within the current Guard authorization.' ? 'Aqua settled the swap within the active authorization.'
+              : event.detail === 'The inactive strategy was rejected by the Guard onchain.' ? 'PinTool blocked the swap because this strategy mode was inactive.' : event.detail;
+        return <li key={event.id}><div><strong>{title}</strong><span>{detail}</span></div><div><time dateTime={event.occurredAt}>{now === 0 ? '—' : new Date(event.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>{event.explorerUrl && <a href={event.explorerUrl} target="_blank" rel="noreferrer">Transaction ↗</a>}</div></li>;
+      })}</ol> : <p className={aqua.muted}>Confirmed activity will appear here.</p>}
     </section>
 
-    <p className={aqua.muted}>Readiness is a short-lived chain snapshot. Each trade still requires a fresh quote and Guard checks. A saved listing or accepted report alone does not mean liquidity can trade.</p>
-    <div className={aqua.evidence}><div><span>Guard transaction</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View Guard transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua execution</span><strong>{profiles.length} {profiles.length === 1 ? 'profile' : 'profiles'} · one Maker balance</strong></div><div><span>Current profile</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to verify'}</strong></div></div>
+    <p className={aqua.muted}>Availability reflects the latest confirmed onchain state. Every swap is checked again against the active strategy and your limits.</p>
+    <div className={aqua.evidence}><div><span>Latest authorization</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View authorization transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua setup</span><strong>{profiles.length} {profiles.length === 1 ? 'strategy mode uses' : 'strategy modes share'} this wallet&apos;s liquidity</strong></div><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div></div>
   </div>;
 }
 

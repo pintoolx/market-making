@@ -24,7 +24,7 @@ type Tab = 'providing' | 'making' | 'account';
 
 function Tabs({ tab, setTab, showAccount }: { tab: Tab; setTab: (tab: Tab) => void; showAccount: boolean }) {
   return <div className={aqua.filters} aria-label="Profile sections">
-    <Secondary aria-pressed={tab === 'providing'} onClick={() => setTab('providing')}>Providing</Secondary>
+    <Secondary aria-pressed={tab === 'providing'} onClick={() => setTab('providing')}>My strategies</Secondary>
     <Secondary aria-pressed={tab === 'making'} onClick={() => setTab('making')}>My liquidity</Secondary>
     {showAccount && <Secondary aria-pressed={tab === 'account'} onClick={() => setTab('account')}>Account</Secondary>}
   </div>;
@@ -43,7 +43,7 @@ function Providing() {
   const router = useRouter();
   const { published: allPublished, unpublish } = usePublishedListings();
   const published = allPublished.filter(item => item.mine);
-  if (!published.length) return <Empty title="No strategies yet" text="Start from one of six Aqua templates and publish your first strategy." action="Open Provider Studio" href="/studio" />;
+  if (!published.length) return <Empty title="No published strategies" text="Choose a template or build your own strategy, then publish a version for makers." action="Create a strategy" href="/studio" />;
   return <>
     <div className={aqua.sectionTop}>
       <h2 className={aqua.sectionTitle}>Strategies you provide</h2>
@@ -51,7 +51,7 @@ function Providing() {
     </div>
     <ListingGrid>
       {published.map(item => <ListingCard key={item.id} listing={item} action={<div className={aqua.cardButtons}>
-        <Primary onClick={() => router.push(`/studio?edit=${item.template.id}`)}>Edit</Primary>
+        <Primary onClick={() => router.push(`/studio?edit=${item.template.id}`)}>Edit strategy</Primary>
         {!item.releaseId && <ConfirmButton label="Unpublish" confirmLabel="Yes, unpublish" onConfirm={() => unpublish(item.template.id)} />}
       </div>} />)}
     </ListingGrid>
@@ -88,15 +88,15 @@ export default function ProfilePage() {
                 <div className={aqua.identityText}>
                   <h1>{signedIn ? name : 'Your profile'}</h1>
                   <p>{signedIn
-                    ? <>{account.method}{account.address && <> · <CopyAddress address={account.address} short /></>}</>
-                    : account.enabled ? 'Log in at the top right to put your name on strategies and keep your profile.' : 'Login is not configured: add NEXT_PUBLIC_PRIVY_APP_ID.'}</p>
+                    ? account.address ? <CopyAddress address={account.address} short /> : account.email ?? 'Signed in'
+                    : account.enabled ? 'Log in to manage your strategies, liquidity and public profile.' : 'Login is temporarily unavailable.'}</p>
                 </div>
               </div>
               <Tabs tab={current} setTab={selectTab} showAccount={signedIn} />
               {current === 'account'
                 ? <><AccountDetails key={account.userId} profile={profile} onSave={save} loginMethod={account.method} email={account.email} wallet={account.address} walletNote={account.embedded ? 'Created by Privy for your email login' : undefined} />
                   <EnsWorkspace key={account.address} account={account} mode="identity" />
-                  <details><summary>Advanced · Publish for another Provider</summary><EnsPublisher key={account.address} account={account} /></details></>
+                  <details><summary>Advanced · Publish for another provider</summary><EnsPublisher key={account.address} account={account} /></details></>
                 : current === 'making' ? <MyLiquidity key={`${account.authenticated}:${account.addresses.map(address => address.toLowerCase()).sort().join(',')}`} account={account} /> : <Providing />}
             </>}
           </section>

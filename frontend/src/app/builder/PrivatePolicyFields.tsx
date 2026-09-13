@@ -10,7 +10,7 @@ export default function PrivatePolicyFields({ value, onChange, draft }: { value:
     const rules = [...value.rules]; [rules[index], rules[index + by]] = [rules[index + by]!, rules[index]!]; onChange({ ...value, rules });
   };
   return <section className={styles.privatePanel} aria-label="Private policy editor">
-    <div className={styles.privateHeading}><span className={styles.eyebrow}>PRIVATE POLICY</span><h3>Set your private trading conditions here.</h3>
+    <div className={styles.privateHeading}><span className={styles.eyebrow}>Confidential execution rules</span><h3>Choose when this strategy may trade.</h3>
       <p>The first matching rule applies; no match pauses trading. Rules are encrypted in your browser and cleared when you close this dialog. They are not sent to the strategy conversation.</p></div>
     {value.rules.map((rule, i) => <fieldset key={rule.id} className={styles.rule}>
       <legend>Rule {i + 1}</legend><div className={styles.ruleActions}>
@@ -24,8 +24,8 @@ export default function PrivatePolicyFields({ value, onChange, draft }: { value:
         <label>Maximum volatility · bps<input aria-label={`Rule ${i + 1} Maximum volatility`} inputMode="numeric" autoComplete="off" value={rule.volatilityBpsMax} onChange={e => change(i, { volatilityBpsMax: e.target.value })} placeholder="No limit" maxLength={16} /></label>
       </div><small>Bounds are inclusive. Empty conditions match any market. 100 bps = 1%. Volatility uses the root sum of squared returns over 30 minutes.</small>
       <div className={styles.checks}>
-        <label><input type="checkbox" checked={rule.allowMakerBuyBase} onChange={e => change(i, { allowMakerBuyBase: e.target.checked })} aria-label={`Rule ${i + 1} Allow Maker to buy ${base.symbol}`} />Allow Maker to buy {base.symbol} (paying {quote.symbol})</label>
-        <label><input type="checkbox" checked={rule.allowMakerSellBase} onChange={e => change(i, { allowMakerSellBase: e.target.checked })} aria-label={`Rule ${i + 1} Allow Maker to sell ${base.symbol}`} />Allow Maker to sell {base.symbol} (receiving {quote.symbol})</label>
+        <label><input type="checkbox" checked={rule.allowMakerBuyBase} onChange={e => change(i, { allowMakerBuyBase: e.target.checked })} aria-label={`Rule ${i + 1} Allow the liquidity wallet to buy ${base.symbol}`} />Allow the liquidity wallet to buy {base.symbol} with {quote.symbol}</label>
+        <label><input type="checkbox" checked={rule.allowMakerSellBase} onChange={e => change(i, { allowMakerSellBase: e.target.checked })} aria-label={`Rule ${i + 1} Allow the liquidity wallet to sell ${base.symbol}`} />Allow the liquidity wallet to sell {base.symbol} for {quote.symbol}</label>
       </div><div className={styles.formGrid}>
         <label>Per-swap {base.symbol} limit<input aria-label={`Rule ${i + 1} ${base.symbol} per-swap limit`} inputMode="decimal" autoComplete="off" value={rule.maxAmountBase} onChange={e => change(i, { maxAmountBase: e.target.value })} maxLength={80} /></label>
         <label>Per-swap {quote.symbol} limit<input aria-label={`Rule ${i + 1} ${quote.symbol} per-swap limit`} inputMode="decimal" autoComplete="off" value={rule.maxAmountQuote} onChange={e => change(i, { maxAmountQuote: e.target.value })} maxLength={80} /></label>
@@ -38,6 +38,6 @@ export default function PrivatePolicyFields({ value, onChange, draft }: { value:
     <h4>Private inventory limits</h4><div className={styles.formGrid}>
       <label>Maximum after swap {base.symbol}<input aria-label={`${base.symbol} Private inventory limits`} inputMode="decimal" autoComplete="off" value={value.maxBalanceBase} onChange={e => onChange({ ...value, maxBalanceBase: e.target.value })} maxLength={80} /></label>
       <label>Maximum after swap {quote.symbol}<input aria-label={`${quote.symbol} Private inventory limits`} inputMode="decimal" autoComplete="off" value={value.maxBalanceQuote} onChange={e => onChange({ ...value, maxBalanceQuote: e.target.value })} maxLength={80} /></label>
-    </div><p className={styles.helper}>Authorization updates after event-triggered reevaluation. Standing authorization does not expire from inactivity. These rules do not guarantee daily cumulative limits or maximum loss.</p>
+    </div><p className={styles.helper}>PinTool updates authorization when a monitored condition changes. These rules cap individual swaps and inventory; they do not enforce a daily loss limit.</p>
   </section>;
 }

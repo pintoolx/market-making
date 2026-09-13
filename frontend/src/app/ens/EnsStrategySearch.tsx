@@ -40,19 +40,20 @@ export default function EnsStrategySearch({ onSelect }: { onSelect?: (result: En
     request<{ names: { name: string; verified: boolean }[] }>('/v1/ens/names').then(data => { if (alive) setKnown(data.names); }).catch(() => { /* Explicit name resolution remains available when indexing fails. */ });
     return () => { alive = false; };
   }, []);
-  return <section className={`${aqua.panel} ${styles.workspace}`} aria-label="Find a strategy by ENS">
-    <h2>Find a strategy by ENS</h2>
+  return <section className={`${aqua.panel} ${styles.workspace}`} aria-label="Open a shared strategy">
+    <h2>Open a shared strategy</h2>
+    <p>Enter its ENS name to open the exact version selected by its provider.</p>
     <form className={styles.search} onSubmit={e => { e.preventDefault(); void resolve(name); }} aria-busy={busy}>
       <label>Strategy name<FormInput required value={name} autoComplete="off" spellCheck={false} placeholder="eth-usdc.alice.pintool.eth" onChange={e => { generation.current++; setBusy(false); setName(e.target.value); setResult(null); setError(''); }} /></label>
-      <Primary type="submit" disabled={busy}>{busy ? 'Verifying…' : 'Resolve strategy'}</Primary>
+      <Primary type="submit" disabled={busy}>{busy ? 'Verifying…' : 'Find strategy'}</Primary>
     </form>
-    <p className={aqua.hint}>Checks Sepolia ENS ownership, the published version and its Provider signature. You choose and keep a specific version.</p>
+    <p className={aqua.hint}>PinTool verifies the name, provider signature and published version before opening it.</p>
     {known.length > 0 && <div className={styles.knownNames} aria-label="Published strategy names">{known.map(item => <button type="button" key={item.name} disabled={busy} onClick={() => { setName(item.name); void resolve(item.name); }}>{item.name}{!item.verified && ' · refresh to verify'}</button>)}</div>}
     {error && <p role="alert" className={`${aqua.fieldError} ${styles.feedback}`}>{error}</p>}
     {result && <div className={styles.result}>
       <strong className={styles.name}>{result.name}</strong><p>{result.manifest.release.name} · version {result.pointer.version}</p>
       <p>{result.manifest.release.summary}</p>
-      <p className={styles.feedback}>Provider signature verified · Sepolia block {result.blockNumber}</p>
+      <p className={styles.feedback}>Provider verified · Ethereum Sepolia block {result.blockNumber}</p>
       {onSelect ? <Primary onClick={() => onSelect(result)}>Review this version</Primary>
         : <StrategyLink id={`${result.pointer.releaseId}.v${result.pointer.version}`} ens={result.name}>Review this version</StrategyLink>}
     </div>}

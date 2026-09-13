@@ -18,7 +18,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
   const [latest, setLatest] = useState<PublicRelease | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState('Adaptive range');
-  const [summary, setSummary] = useState('A single WETH / USDC price range, authorized when 30-minute volatility is within my limit.');
+  const [summary, setSummary] = useState('Quotes WETH / USDC within a defined range while market volatility remains within the strategy\'s private limit.');
   const [below, setBelow] = useState('5');
   const [above, setAbove] = useState('5');
   const [fill0, setFill0] = useState('0.0004');
@@ -60,8 +60,8 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
     setError(''); setSaved(false);
     let stage: 'preparing' | 'signing' | 'saving' = 'preparing';
     try {
-      if (!provider || !account.signMessage || !loaded) throw new Error('Connect your Provider wallet and load the current version first.');
-      if (!publicKey) throw new Error('The confidential workflow public key is not configured.');
+      if (!provider || !account.signMessage || !loaded) throw new Error('Connect the wallet that will publish this strategy and reload the current version.');
+      if (!publicKey) throw new Error('Secure publication is temporarily unavailable.');
       // viem parseUnits rounds excess precision, so reject it before conversion.
       const atomic = (value: string, decimals: number) => {
         if (!new RegExp(`^(0|[1-9][0-9]*)(\\.[0-9]{1,${decimals}})?$`).test(value)) throw new Error('Token amounts exceed supported precision.');
@@ -103,35 +103,35 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
 
   return <section className={aqua.flow}>
     <button className={aqua.backLink} onClick={onBack}>← All templates</button>
-    <h1>Publish a CLMM version</h1>
-    <p className={aqua.muted}>Ethereum Sepolia · WETH / USDC · one price range · zero swap fee. Revenue sharing is not enabled.</p>
-    {latest && <p>Saved version {latest.version} · {latest.state}. Public parameters below are restored from that version.</p>}
+    <h1>Create an adaptive range strategy</h1>
+    <p className={aqua.muted}>WETH / USDC · Ethereum Sepolia · 1inch Aqua</p>
+    {latest && <p>Version {latest.version} is {latest.state}. Its public settings are shown below.</p>}
     <form className={aqua.panel} onSubmit={event => { event.preventDefault(); void publish('published'); }}>
       <fieldset disabled={busy}>
-        <legend>Public execution envelope</legend>
+        <legend>Public strategy details</legend>
         <label>Strategy name<FormInput required maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
         <label>Description<textarea required maxLength={600} value={summary} onChange={e => setSummary(e.target.value)} /></label>
         <div className={aqua.structuredFields}>
           {[
-            ['Range below reference (%)', below, setBelow], ['Range above reference (%)', above, setAbove],
-            ['Maximum WETH per fill', fill0, setFill0], ['Maximum USDC per fill', fill1, setFill1],
+            ['Range below reference price (%)', below, setBelow], ['Range above reference price (%)', above, setAbove],
+            ['Maximum WETH per swap', fill0, setFill0], ['Maximum USDC per swap', fill1, setFill1],
             ['Maximum WETH inventory', inventory0, setInventory0], ['Maximum USDC inventory', inventory1, setInventory1],
           ].map(([label, value, setter]) => <label key={label as string}>{label as string}<FormInput required inputMode="decimal" value={value as string} onChange={e => (setter as (v: string) => void)(e.target.value)} /></label>)}
         </div>
       </fieldset>
       <fieldset disabled={busy} className={aqua.privateField}>
-        <legend>Private activation policy</legend>
-        <p>Allow both Maker directions when 30-minute realized volatility is at or below this limit. Kraken one-minute returns use the fixed RSS formula. Each observation is evaluated independently; hysteresis and automatic range renewal are not enabled.</p>
-        <label>Volatility limit (%)<FormInput inputMode="decimal" value={threshold} onChange={e => setThreshold(e.target.value)} /></label>
-        <p className={aqua.hint}>The limit is encrypted in this browser before submission and cleared after success. Unsubmitted inputs stay in memory only and are lost on leaving this editor. Re-enter the limit when creating a new version; the service cannot return its plaintext. The current runtime is a local CRE simulator, whose operator can access decrypted inputs; TEE confidentiality has not been verified.</p>
+        <legend>Confidential execution rule</legend>
+        <p>Allow swaps only while 30-minute market volatility remains at or below your limit. PinTool evaluates this rule without publishing the limit.</p>
+        <label>Maximum volatility (%)<FormInput inputMode="decimal" value={threshold} onChange={e => setThreshold(e.target.value)} /></label>
+        <p className={aqua.hint}>This value is encrypted before submission and never appears in the public strategy version. Enter it again whenever you publish a new version.</p>
       </fieldset>
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
-      {saved && <p role="status">Version {latest?.version} {latest?.state === 'withdrawn' ? 'withdrawn from new provisioning. To stop an existing strategy, its Maker must revoke its Guard authorization or dock it in Aqua.' : 'saved. The Maker-specific program must be provisioned, shipped and authorized before it can quote.'}</p>}
+      {saved && <p role="status">Version {latest?.version} {latest?.state === 'withdrawn' ? 'is no longer available to new makers. Existing liquidity must be disabled separately.' : 'is published. Makers can now review it and add liquidity.'}</p>}
       <div className={aqua.actionRow}>
-        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect Provider wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? `Retry saving version ${(latest?.version ?? 0) + 1}` : `Sign and publish version ${(latest?.version ?? 0) + 1}`}</Primary>}
-        {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Withdraw listing</Secondary>}
+        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect publishing wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? `Retry saving version ${(latest?.version ?? 0) + 1}` : `Sign and publish version ${(latest?.version ?? 0) + 1}`}</Primary>}
+        {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Stop new liquidity</Secondary>}
       </div>
-      {!publicKey && <p className={aqua.muted}>Publication is waiting for a configured workflow encryption key.</p>}
+      {!publicKey && <p className={aqua.muted}>Secure publication is temporarily unavailable.</p>}
     </form>
     {latest?.state === 'published' && <EnsWorkspace key={provider} account={account} release={latest} />}
   </section>;

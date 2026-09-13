@@ -30,14 +30,14 @@ export default function EnsPublisher({ account }: { account: Account }) {
       await verifyManifest(manifest, rootName);
       const tx = ensTransactions(ensClient, await account.ensWallet(), setProgress);
       await tx.publishPointer(rootName, owner.name, manifest.pointer);
-      setSuccess(`Published approved version ${version}. Existing Maker selections remain unchanged.`);
+      setSuccess(`Published approved version ${version}. Existing maker selections remain unchanged.`);
       window.dispatchEvent(new Event('pintool:published-changed'));
     } catch (e) { setError(ensError(e)); }
     finally { setBusy(false); }
   };
   return <section className={`${aqua.panel} ${styles.workspace}`}>
-    <h2>Publish on behalf of a Provider</h2>
-    <p>Use your delegated wallet to update a strategy entry to a version its Provider has already signed.</p>
+    <h2>Publish on behalf of a provider</h2>
+    <p>Use a delegated wallet to update an ENS strategy name to a version its provider has already signed.</p>
     <form onSubmit={e => { e.preventDefault(); void publish(); }} aria-busy={busy}>
       <fieldset disabled={busy}><legend>Approved version</legend>
         <label>Strategy ENS name<FormInput required autoComplete="off" spellCheck={false} value={name} onChange={e => setName(e.target.value)} placeholder="eth-usdc.alice.pintool.eth" /></label>

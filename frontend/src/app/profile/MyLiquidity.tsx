@@ -45,14 +45,14 @@ export default function MyLiquidity({ account }: { account: Account }) {
   }, [account.authenticated, walletKey, revision]);
 
   if (!account.authenticated) return <div className={aqua.empty}>
-    <h2>Your liquidity, in one place.</h2><p>Log in to view and manage your strategies.</p>
+    <h2>Manage your liquidity</h2><p>Log in to see the strategies using liquidity from your wallets.</p>
     <Primary onClick={account.login}>Log in</Primary>
   </div>;
   if (!walletKey) return <p>Connect an Ethereum wallet to view your liquidity.</p>;
   if (loading) return <p role="status">Loading your liquidity…</p>;
   if (error) return <div className={aqua.errorNotice} role="alert"><strong>Unable to load your liquidity</strong><span>{error}</span><Secondary onClick={() => setRevision(value => value + 1)}>Retry</Secondary></div>;
   if (!items.length) return <div className={aqua.empty}>
-    <h2>No liquidity strategies yet</h2><p>Choose a strategy and set your limits to get started.</p>
+    <h2>No active liquidity</h2><p>Choose a strategy, add wallet liquidity and set your private limits.</p>
     <Link className={secondary.secondary} href="/maker">Explore strategies</Link>
   </div>;
 
@@ -62,19 +62,17 @@ export default function MyLiquidity({ account }: { account: Account }) {
       {items.map(item => {
         const tags = <>
           <span className={`${page.tag} ${aqua.chip}`}>{item.networkName}</span>
-          <span className={`${page.tag} ${aqua.chip}`}>Private mandate</span>
+          <span className={`${page.tag} ${aqua.chip}`}>Private limits</span>
         </>;
         const action = <Link className={primary.primary} href={`/maker?mandate=${encodeURIComponent(item.mandateId)}`}>Manage liquidity</Link>;
 
         return <StrategyCardShell key={item.mandateId} tags={tags} title={nameOf(item)} action={action}>
-          <p className={aqua.summary}>One Maker balance governed by your private liquidity limits.</p>
+          <p className={aqua.summary}>WETH / USDC liquidity is governed by your private capital, inventory and per-swap limits.</p>
           <div className={aqua.cardRule}>
             <span className={aqua.eyebrow}>Latest activity</span>
             <div className={liquidity.details}>
               <span><time dateTime={item.lastActivityAt ?? undefined}>{activityOf(item.lastActivityAt)}</time></span>
-              <span>Report {item.reportSequence}</span>
               {walletKey.includes(',') && <span>Wallet {item.maker.slice(0, 6)}…{item.maker.slice(-4)}</span>}
-              <span title={item.mandateId}>Reference {item.mandateId.slice(8, 16)}</span>
             </div>
           </div>
         </StrategyCardShell>;

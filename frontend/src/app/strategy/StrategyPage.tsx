@@ -77,24 +77,29 @@ export default function StrategyPage() {
     catch { setCopied('Copy the URL from your browser to share this version.'); }
   };
   const action = <>
-    {!account.authenticated ? <Primary onClick={account.login}>Connect Maker wallet</Primary>
-      : !catalog || checkingNames ? <Primary disabled>{catalogError ? 'Availability unavailable' : 'Checking availability…'}</Primary>
+    {!account.authenticated ? <Primary onClick={account.login}>Connect liquidity wallet</Primary>
+      : !catalog || checkingNames ? <Primary disabled>{catalogError ? 'Unable to check availability' : 'Checking availability…'}</Primary>
         : listing?.ensError ? <p role="alert" className={aqua.muted}>{listing.ensError} Open the strategy again from the marketplace to review it by publication ID.</p>
-          : executable || canActivate ? <Link href={useLink} className={primary.primary}>{executable ? 'Use this strategy' : 'Enable this strategy'}</Link>
-            : <p className={aqua.muted}>This strategy is not available for the connected wallet.</p>}
+          : executable || canActivate ? <Link href={useLink} className={primary.primary}>{executable ? 'Use this strategy' : 'Add liquidity'}</Link>
+            : <p className={aqua.muted}>This strategy is linked to a different liquidity wallet. Choose another strategy or connect that wallet.</p>}
   </>;
 
-  return <div className={`${styles.page} ${aqua.page}`}><SiteHeader role="maker" />
-    <main className={`${styles.main} ${aqua.flow}`}>
-      <Link href={back} className={aqua.backLink}>← Strategy marketplace</Link>
-      <PageHead eyebrow="Strategy details" title={listing?.name ?? 'Strategy details'}>Review this version before using it with your liquidity.</PageHead>
-      {error && <p role="alert" className={aqua.errorNotice}>{error}</p>}
-      {!listing && !error && <p role="status">Loading strategy…</p>}
-      {listing && <>
-        <div className={aqua.actionRow}><Secondary onClick={copy}>Copy strategy link</Secondary><span role="status">{copied}</span></div>
-        <StrategyDetails listing={{ ...listing, executionReady: executable }} action={action} />
-        {checkingNames && <p role="status" className={aqua.muted}>Checking ENS names…</p>}
-        {listing.ensError && <p role="status" className={aqua.muted}>{listing.ensError} The publication version is still shown above.</p>}
-      </>}
-    </main><SiteFooter /></div>;
+  return <div className={`${styles.page} ${aqua.page}`}>
+    <SiteHeader role="maker" />
+    <main className={styles.mainScroll}>
+      <div className={`${styles.main} ${aqua.flow}`}>
+        <Link href={back} className={aqua.backLink}>← All strategies</Link>
+        <PageHead eyebrow="WETH / USDC · Ethereum Sepolia" title={listing?.name ?? 'Strategy details'}>Review its pricing model, confidential inputs and main risk before adding liquidity.</PageHead>
+        {error && <p role="alert" className={aqua.errorNotice}>{error}</p>}
+        {!listing && !error && <p role="status">Loading strategy…</p>}
+        {listing && <>
+          <div className={aqua.actionRow}><Secondary onClick={copy}>Copy strategy link</Secondary><span role="status">{copied}</span></div>
+          <StrategyDetails listing={{ ...listing, executionReady: executable }} action={action} />
+          {checkingNames && <p role="status" className={aqua.muted}>Checking ENS names…</p>}
+          {listing.ensError && <p role="status" className={aqua.muted}>{listing.ensError} The publication version is still shown above.</p>}
+        </>}
+      </div>
+    </main>
+    <SiteFooter />
+  </div>;
 }

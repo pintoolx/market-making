@@ -71,7 +71,7 @@ const configuredApi = process.env.NEXT_PUBLIC_MANDATE_API_URL?.replace(/\/$/, ''
 const API_BASE = !configuredApi || configuredApi === RETIRED_API ? PRODUCTION_API : configuredApi;
 
 export function getApiBase(): string {
-  if (!API_BASE) throw new Error('Mandate service is not configured. Set NEXT_PUBLIC_MANDATE_API_URL.');
+  if (!API_BASE) throw new Error('Liquidity services are temporarily unavailable.');
   return API_BASE;
 }
 
@@ -82,7 +82,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const body = await response.json().catch(() => null) as { message?: string } | null;
   if (!response.ok) throw new Error(body?.message || 'Request failed with status ' + response.status + '.');
-  if (!body) throw new Error('The mandate service returned an empty response.');
+  if (!body) throw new Error('PinTool returned an empty response. Please retry.');
   return body as T;
 }
 
@@ -100,7 +100,7 @@ function validateState(value: MandateState): MandateState {
     || !value.evidence.networkName || !value.evidence.sequence
     || (value.evidence.expiresAt !== null && (typeof value.evidence.expiresAt !== 'string' || Number.isNaN(Date.parse(value.evidence.expiresAt))))
     || !Array.isArray(value.events)) {
-    throw new Error('The mandate service returned incomplete or inconsistent onchain evidence.');
+    throw new Error('PinTool could not verify the latest onchain authorization. Please retry.');
   }
   return value;
 }
@@ -117,7 +117,7 @@ export async function getExecutableStrategies(maker?: string): Promise<Executabl
   const value = await request<Partial<ExecutableStrategyCatalog>>(path);
   if (!Array.isArray(value.strategies)
     || !value.strategies.every(item => item?.id && item?.name && item?.provider && isHex(item.strategyHash))) {
-    throw new Error('The mandate service returned an invalid strategy catalog.');
+    throw new Error('PinTool could not verify the available strategies. Please retry.');
   }
   return value as ExecutableStrategyCatalog;
 }

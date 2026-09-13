@@ -84,17 +84,17 @@ export default function TemplatePublisher({ api, draft, signMessage, onClose, on
     } catch (e) { failure(e); }
     finally { if (live.current) setBusy(''); }
   }
-  return <BuilderDialog title="Publish Provider template" onClose={onClose}>
+  return <BuilderDialog title="Publish a strategy version" onClose={onClose}>
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {published ? <div className={styles.publicationComplete}><span className={styles.eyebrow}>VERSION PUBLISHED</span><h3>{published.template.spec.title} · Version {published.template.version}</h3>
-      <p>Template saved. Makers can select this version to create their own drafts. The private form has been cleared.</p><p>The encrypted policy still requires trusted workflow verification. Publication does not register liquidity or authorize swaps.</p><button className={styles.primary} onClick={onClose}>Back to strategy</button></div> : <>
-      <section className={styles.publicReview}><span className={styles.eyebrow}>PUBLIC VERSION</span><h3>{draft.spec.title}</h3><p>{base.symbol} / {quote.symbol} · Draft v{draft.revision} · Zero fee</p>
+    {published ? <div className={styles.publicationComplete}><span className={styles.eyebrow}>Version published</span><h3>{published.template.spec.title} · Version {published.template.version}</h3>
+      <p>Makers can now select this version. Your confidential form has been cleared from this browser.</p><p>Publishing does not add maker liquidity or authorize swaps.</p><button className={styles.primary} onClick={onClose}>Back to strategy</button></div> : <>
+      <section className={styles.publicReview}><span className={styles.eyebrow}>Public version</span><h3>{draft.spec.title}</h3><p>{base.symbol} / {quote.symbol} · Draft v{draft.revision} · Zero fee</p>
         <StrategyDetails spec={draft.spec} requirements={draft.requirements} />
-        <p>The version includes its public curve, Guard limits and requirements. Makers still need to compile, simulate and review their own allocations.</p>
-        <fieldset disabled={!!busy || !!review}><label>Publish to template<select value={templateId ?? ''} onChange={e => { setTemplateId(e.target.value || null); clearReview(); }}>
-          <option value="">Create a new template</option>{series.map(t => <option key={t.templateId} value={t.templateId}>{t.title} · Current version {t.version}</option>)}</select></label>
-          <h4>Public parameters Makers may adjust</h4><div className={styles.checks}>
-            <label><input type="checkbox" checked={permissions.tightenCaps} onChange={e => { setPermissions(p => ({ ...p, tightenCaps: e.target.checked })); clearReview(); }} />May tighten the four Guard limits</label>
+        <p>This version includes the public pricing model, swap limits and requirements. Makers add their own liquidity and complete separate checks before trading.</p>
+        <fieldset disabled={!!busy || !!review}><label>Version history<select value={templateId ?? ''} onChange={e => { setTemplateId(e.target.value || null); clearReview(); }}>
+          <option value="">Start a new strategy</option>{series.map(t => <option key={t.templateId} value={t.templateId}>{t.title} · Current version {t.version}</option>)}</select></label>
+          <h4>Settings makers may adjust</h4><div className={styles.checks}>
+            <label><input type="checkbox" checked={permissions.tightenCaps} onChange={e => { setPermissions(p => ({ ...p, tightenCaps: e.target.checked })); clearReview(); }} />May tighten the four public swap limits</label>
             <label><input type="checkbox" checked={permissions.shortenDeadline} onChange={e => { setPermissions(p => ({ ...p, shortenDeadline: e.target.checked })); clearReview(); }} />May shorten the strategy deadline</label>
             {draft.spec.model?.kind === 'concentrated' && <label><input type="checkbox" checked={permissions.narrowConcentratedRange} onChange={e => { setPermissions(p => ({ ...p, narrowConcentratedRange: e.target.checked })); clearReview(); }} />May narrow the fixed price range</label>}
           </div>

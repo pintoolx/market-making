@@ -54,7 +54,7 @@ export class BuilderError extends Error {
       'agent-turn-active': 'This strategy is still responding. Wait or stop generation first.', 'draft-changed': 'The strategy changed. Reload before submitting again.',
       'revision-or-template-conflict': 'The strategy version changed. Review the latest parameters before editing.', 'agent-hourly-budget': 'This wallet has reached its hourly conversation limit. Try again later.',
       'design-unavailable': 'Strategy conversations are unavailable. You can still view saved drafts.', 'not-found': 'This strategy was not found or is not accessible to this wallet.',
-      'templates-unavailable': 'Template publication and application are unavailable.', 'template-withdrawn': 'The Provider withdrew this version. New instances cannot use it.',
+      'templates-unavailable': 'Strategy publication and selection are temporarily unavailable.', 'template-withdrawn': 'The provider withdrew this version. New liquidity cannot use it.',
       'template-version-changed': 'A newer version was published. Request a fresh publication review.', 'publication-intent-expired': 'The publication review expired. Review and sign again.',
       'template-price-unavailable': 'Trusted market data is unavailable. Try applying the template again later.', 'template-price-stale': 'Market data is stale. Apply the template again to obtain fresh data.',
       'invalid-publication-signature': 'The publication signature does not match the wallet or reviewed content.', 'invalid-withdrawal-signature': 'The withdrawal signature does not match this version.',
@@ -64,7 +64,7 @@ export class BuilderError extends Error {
       'inventory-unavailable': 'Inventory reads are unavailable.', 'inventory-read-unavailable': 'Onchain inventory could not be verified. Try reading it again later.',
       'inventory-busy': 'Inventory reads are busy. Try again shortly.', 'simulation-unavailable': 'Simulation is unavailable or temporarily unable to run.',
       'simulation-artifact-stale': 'The draft or compilation changed. Return to the strategy and compile again.', 'simulation-hourly-budget': 'The hourly simulation limit has been reached. Try again later.',
-      'strategy-incomplete-or-invalid': 'Public parameters or Maker allocations are incomplete. Complete them in the conversation first.', 'compile-rejected': 'The compiler rejected these parameters. Review the curve and amounts in the conversation.',
+      'strategy-incomplete-or-invalid': 'Public parameters or liquidity amounts are incomplete. Complete them in the conversation first.', 'compile-rejected': 'The compiler rejected these parameters. Review the curve and amounts in the conversation.',
       'requirement-review-required': 'Review each strategy requirement before publication.', 'requirement-interpretation-required': 'Requirements need a concrete interpretation before review.',
       'requirement-review-expired': 'The requirement review expired. Prepare it again.', 'requirement-review-mismatch': 'The strategy or deployment profile changed. Prepare a new review.',
       'requirement-review-already-confirmed': 'This requirement review is already complete. Use the latest revision.', 'requirement-compilation-required': 'Compile the current revision before reviewing requirements.',
@@ -76,7 +76,7 @@ export class BuilderError extends Error {
       'binding-proof-mismatch': 'The Guard report does not match this strategy revision.', 'authorization-binding-expired': 'The binding review expired. Verify the Guard report again.',
       'authorization-binding-mismatch': 'The binding or strategy revision changed. Verify it again.', 'authorization-binding-integrity': 'The authorization binding could not be verified. Reload and retry.',
       'invalid-authorization-binding-signature': 'The Guard binding signature does not match this Maker wallet.', 'transaction-plan-integrity': 'The transaction plan failed its integrity checks. Prepare it again.',
-      'wallet-ownership-required': 'Connect the Maker wallet that owns this strategy before preparing transactions.',
+      'wallet-ownership-required': 'Connect the liquidity wallet that owns this strategy before preparing transactions.',
     } as Record<string, string>)[code] ?? 'Unable to connect to the strategy workspace. Please retry.');
   }
 }

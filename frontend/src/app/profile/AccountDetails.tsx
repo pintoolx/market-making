@@ -30,7 +30,7 @@ export default function AccountDetails({ profile, onSave, loginMethod, email, wa
   return (
     <section className={aqua.panel} aria-labelledby="basic-info-title">
       <div className={aqua.panelHead}>
-        <h2 id="basic-info-title" className={aqua.sectionTitle}>Basic information</h2>
+        <h2 id="basic-info-title" className={aqua.sectionTitle}>Public profile</h2>
         {!editing && <Secondary onClick={startEditing}>Edit</Secondary>}
       </div>
 
@@ -63,7 +63,7 @@ export default function AccountDetails({ profile, onSave, loginMethod, email, wa
         <dt>Email</dt><dd>{email ?? <span className={aqua.muted}>Not linked</span>}</dd>
         <dt>Wallet</dt><dd className={aqua.walletRow}>{wallet ? <><CopyAddress address={wallet} />{walletNote && <span className={aqua.muted}>{walletNote}</span>}</> : <span className={aqua.muted}>Not linked</span>}</dd>
       </dl>
-      <p className={aqua.muted}>Photo, name, bio and X handle are saved in this browser for now. Email and wallet come from your login.</p>
+      <p className={aqua.muted}>Your public profile is saved on this device. Your email and wallet come from your Privy login.</p>
     </section>
   );
 }

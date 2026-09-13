@@ -108,8 +108,8 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   const events = [{
     id: accepted.unchanged ? `${accepted.workflowExecutionId}-unchanged` : `${evidence.transactionHash}-report`,
     type: accepted.unchanged ? 'authorization-unchanged' : 'report-accepted',
-    title: accepted.unchanged ? 'Execution conditions unchanged' : 'Guard authorization confirmed',
-    detail: accepted.unchanged ? 'The confidential evaluation confirmed the existing authorization. No new transaction was submitted.' : `CRE execution ${accepted.workflowExecutionId} delivered mandate sequence ${evidence.report.nonce}.`,
+    title: accepted.unchanged ? 'Execution conditions unchanged' : 'Authorization updated',
+    detail: accepted.unchanged ? 'The confidential evaluation confirmed the existing authorization. No new transaction was submitted.' : 'PinTool published the new execution authorization on Ethereum Sepolia.',
     occurredAt: new Date().toISOString(),
     transactionHash: evidence.transactionHash,
     explorerUrl: transactionUrl,
@@ -122,8 +122,8 @@ export async function runDirectMandate(request, config, dependencies = {}) {
   if (active && !accepted.unchanged) events.push({
     id: `${evidence.transactionHash}-active`,
     type: 'strategy-activated',
-    title: `${listing.name} authorized`,
-    detail: 'Guard accepted the authorization. Aqua liquidity, funding and program readiness are checked separately.',
+    title: `${listing.name} available for trading`,
+    detail: 'This strategy mode passed its private checks. Liquidity and wallet balances are checked again before every swap.',
     occurredAt: new Date().toISOString(),
     transactionHash: evidence.transactionHash,
     explorerUrl: transactionUrl,

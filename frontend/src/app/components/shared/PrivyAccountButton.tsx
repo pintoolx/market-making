@@ -74,6 +74,6 @@ function ConnectedAccountButton() {
 }
 
 export default function PrivyAccountButton() {
-  if (!PRIVY_APP_ID) return <button className={styles.button} type="button" disabled title="Set NEXT_PUBLIC_PRIVY_APP_ID"><WalletIcon />Privy setup</button>;
+  if (!PRIVY_APP_ID) return <button className={styles.button} type="button" disabled title="Login is temporarily unavailable"><WalletIcon />Login unavailable</button>;
   return <ConnectedAccountButton />;
 }

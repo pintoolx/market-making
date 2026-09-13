@@ -85,45 +85,45 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
     window.dispatchEvent(new Event('pintool:published-changed'));
   });
 
-  return <section className={`${aqua.panel} ${styles.workspace}`} aria-label={mode === 'identity' ? 'Provider name' : 'Strategy name and sharing'} aria-busy={busy}>
-    <div className={styles.heading}><div><h2>{mode === 'identity' ? 'Provider name' : 'Name and sharing'}</h2></div><Secondary disabled={loading || busy} onClick={() => void refresh()}>Refresh ENS</Secondary></div>
-    <p>{mode === 'identity' ? 'Choose a verifiable name for your Provider profile.' : 'Give this published version a name Makers can find and share.'}</p>
+  return <section className={`${aqua.panel} ${styles.workspace}`} aria-label={mode === 'identity' ? 'Strategy provider name' : 'Strategy name and sharing'} aria-busy={busy}>
+    <div className={styles.heading}><div><h2>{mode === 'identity' ? 'Strategy provider name' : 'Shareable strategy name'}</h2></div><Secondary disabled={loading || busy} onClick={() => void refresh()}>Refresh ENS</Secondary></div>
+    <p>{mode === 'identity' ? 'Claim an ENS name that verifies strategies published by this wallet.' : 'Give this published version an ENS name that makers can open and verify.'}</p>
     {loading && <p role="status" className={styles.skeleton}>Checking the platform namespace…</p>}
     {statusError && <div role="status" className={styles.notice}><p>{statusError}</p><p>ENS names are temporarily unavailable. Try Refresh ENS in a moment.</p></div>}
-    {!account.authenticated && <Primary onClick={account.login}>Connect Provider wallet</Primary>}
+    {!account.authenticated && <Primary onClick={account.login}>Connect publishing wallet</Primary>}
     {status && account.authenticated && !status.provider && mode === 'identity' && <form onSubmit={e => { e.preventDefault(); void act(async tx => {
-      await tx.claimProvider(root, providerLabel); await refresh(); setSuccess('Your Provider namespace is ready.');
+      await tx.claimProvider(root, providerLabel); await refresh(); setSuccess('Your provider name is ready.');
     }); }}>
-      <fieldset disabled={busy}><legend>Claim your Provider name</legend>
-        <label>Provider label<FormInput required autoComplete="off" spellCheck={false} minLength={3} maxLength={32} value={providerLabel} onChange={e => setProviderLabel(e.target.value)} placeholder="alice" /></label>
-        <p className={aqua.hint}>{providerLabel || 'alice'}.{root} · one Provider name per wallet. Registration uses Sepolia ETH for gas.</p>
-        <Primary type="submit">Claim Provider name</Primary>
+      <fieldset disabled={busy}><legend>Claim your provider name</legend>
+        <label>Name<FormInput required autoComplete="off" spellCheck={false} minLength={3} maxLength={32} value={providerLabel} onChange={e => setProviderLabel(e.target.value)} placeholder="alice" /></label>
+        <p className={aqua.hint}>{providerLabel || 'alice'}.{root} · one provider name per wallet. Registration uses Sepolia ETH for gas.</p>
+        <Primary type="submit">Claim name</Primary>
       </fieldset>
     </form>}
-    {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Set your Provider name in Profile →</Link></p>}
-    {status?.provider && mode === 'identity' && <div className={styles.identity}><strong>{status.provider.name}</strong><span>{account.address}</span><Link href="/studio">Name a strategy in Provider Studio →</Link></div>}
-    {status?.provider && mode === 'strategy' && !latest && <p>Publish a strategy version to set its shareable name.</p>}
+    {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Claim your provider name in Profile →</Link></p>}
+    {status?.provider && mode === 'identity' && <div className={styles.identity}><strong>{status.provider.name}</strong><span>{account.address}</span><Link href="/studio">Create a strategy →</Link></div>}
+    {status?.provider && mode === 'strategy' && !latest && <p>Publish a strategy version before assigning a shareable name.</p>}
     {status?.provider && mode === 'strategy' && latest && <>
-      <div className={styles.identity}><strong>{status.provider.name}</strong><span>Provider wallet {account.address}</span></div>
+      <div className={styles.identity}><strong>{status.provider.name}</strong><span>Publishing wallet {account.address}</span></div>
       <fieldset disabled={busy}>
-        <legend>Strategy address</legend>
-        <label>Strategy name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
+        <legend>Shareable ENS name</legend>
+        <label>Name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
         <p className={styles.name}>{name}</p>
-        <p>{latest?.state === 'published' ? `Saved publication: ${latest.name}, version ${latest.version}.` : 'Publish a strategy version in Provider Studio to connect it to this name.'}</p>
-        <div className={aqua.actionRow}><Primary disabled={!latest || latest.state !== 'published'} onClick={approve}>Approve version for ENS</Primary><Secondary disabled={!latest || latest.state !== 'published'} onClick={publish}>Publish approved version</Secondary></div>
+        <p>{latest?.state === 'published' ? `Published strategy: ${latest.name}, version ${latest.version}.` : 'Publish a strategy version in Strategy Studio before assigning this name.'}</p>
+        <div className={aqua.actionRow}><Primary disabled={!latest || latest.state !== 'published'} onClick={approve}>Sign this version</Primary><Secondary disabled={!latest || latest.state !== 'published'} onClick={publish}>Publish ENS name</Secondary></div>
         {currentVersion && <p role="status">ENS currently points to version {currentVersion}.</p>}
-        <p className={aqua.hint}>Approval creates the strategy name if needed and signs its public manifest. Publishing updates the name onchain. Existing Makers keep their selected version.</p>
+        <p className={aqua.hint}>First sign the public version, then publish its ENS record onchain. Existing makers remain pinned to the version they selected.</p>
       </fieldset>
       <details className={styles.advanced}><summary>Advanced · Publisher permissions</summary>
       <form onSubmit={e => { e.preventDefault(); void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, true); setSuccess('Publisher can update this strategy’s version record.'); }); }}>
         <fieldset disabled={busy}><legend>Delegate version updates</legend>
           <label>Publisher wallet<FormInput required value={delegateAddress} autoComplete="off" spellCheck={false} placeholder="0x…" onChange={e => setDelegateAddress(e.target.value)} /></label>
-          <p className={aqua.hint}>This grants access to {RELEASE_KEY} on {name}. The publisher must use a version you have signed. It grants no Maker asset or Guard permissions.</p>
+          <p className={aqua.hint}>This grants access to the {RELEASE_KEY} record on {name}. The publisher can use only versions you have signed and cannot access maker funds.</p>
           <div className={aqua.actionRow}><Primary type="submit">Authorize publisher</Primary><Secondary type="button" onClick={() => void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, false); setSuccess('Publisher access revoked and checked onchain.'); })}>Revoke publisher</Secondary></div>
         </fieldset>
       </form>
       </details>
-      <p><Link href={`/strategy?ens=${encodeURIComponent(name)}`}>Open this strategy as a Maker →</Link></p>
+      <p><Link href={`/strategy?ens=${encodeURIComponent(name)}`}>Open the shared strategy →</Link></p>
       <p className={aqua.hint}>PinTool manages the parent namespace. Your resolver permissions control its records; parent administrators retain control of the name hierarchy.</p>
     </>}
     <ActionFeedback progress={progress} error={error} success={success} />

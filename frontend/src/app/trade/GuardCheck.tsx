@@ -95,8 +95,8 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
   });
   if (!available && !pending && !completed) return null;
   return <details open={!!pending || !!completed}>
-    <summary>Verify enforcement onchain</summary>
-    <p>The Guard blocks this strategy in preflight. Submitting the request can produce a failed transaction receipt and spends Sepolia gas. If authorization changes before mining, the trade may execute at your specified minimum.</p>
+    <summary>Advanced · Verify a blocked swap</summary>
+    <p>PinTool already predicts that this strategy is inactive. Submit the swap only if you want an onchain rejection receipt; it spends Sepolia gas and could execute if authorization changes before mining.</p>
     {!pending && !completed && <>
       <label>Minimum received ({direction === 'USDC' ? 'WETH' : 'USDC'})<FormInput aria-label="Minimum received for verification" inputMode="decimal" value={minimum} onChange={e => setMinimum(e.target.value)} disabled={busy} /></label>
       <Secondary disabled={busy || !minimum} onClick={() => void submit(needsApproval)}>{needsApproval ? `Approve ${direction} for verification` : 'Submit verification in wallet'}</Secondary>

@@ -101,13 +101,13 @@ export default function MakerActivation({ listing, maker, account, onReady }: { 
     current.current!.pending = undefined; setPending(null); remember(); await load(value.id);
   };
   const sign = (kind: 'ship' | 'approval', index = 0) => act(kind === 'ship' ? 'Waiting for activation signature…' : 'Waiting for token approval…', async () => {
-    if (!plan || !account.evmWallet) throw new Error('Connect your Maker wallet.');
+    if (!plan || !account.evmWallet) throw new Error('Connect the wallet that will provide liquidity.');
     if (pending) { await wait(pending, plan); return; }
     const value = await load(plan.id);
     if (value.transactionHash) return;
     if (value.programDeadline <= Math.floor(Date.now() / 1000)) throw new Error('This program has expired. Prepare a new activation.');
     const wallet = await account.evmWallet(maker);
-    if (!wallet.account || wallet.account.address.toLowerCase() !== maker.toLowerCase() || await wallet.getChainId() !== sepolia.id) throw new Error('Select the Maker wallet on Ethereum Sepolia.');
+    if (!wallet.account || wallet.account.address.toLowerCase() !== maker.toLowerCase() || await wallet.getChainId() !== sepolia.id) throw new Error('Select your liquidity wallet on Ethereum Sepolia.');
     let hash: Hex;
     if (kind === 'approval') {
       const { request: tx } = await client.simulateContract({ account: wallet.account, address: value.tokens[index], abi: erc20Abi, functionName: 'approve', args: [value.aqua, BigInt(value.amounts[index])] });
@@ -124,46 +124,46 @@ export default function MakerActivation({ listing, maker, account, onReady }: { 
   const approved = plan?.funding?.every(f => BigInt(f.allowance) >= BigInt(f.required)) ?? false;
   return <div className={aqua.decisionGrid}>
     <div className={aqua.panel}>
-      <h2>Enable {listing.name}</h2>
+      <h2>Add liquidity to {listing.name}</h2>
       <p>Version {listing.version} · WETH / USDC · Ethereum Sepolia</p>
       {!plan && pending ? <Primary disabled={!!busy} onClick={() => void act('Restoring activation…', async () => { await load(current.current!.id); })}>Restore pending transaction</Primary> : !plan ? <form onSubmit={e => { e.preventDefault(); void prepare(); }}>
         <fieldset disabled={!loaded || !!busy}>
-          <legend>Liquidity allocation</legend>
+          <legend>Liquidity amounts</legend>
           <label>WETH amount<FormInput required inputMode="decimal" value={weth} onChange={e => setWeth(e.target.value)} /></label>
           <label>USDC amount<FormInput required inputMode="decimal" value={usdc} onChange={e => setUsdc(e.target.value)} /></label>
         </fieldset>
-        <Primary disabled={!loaded || !!busy} type="submit">{busy || 'Review activation'}</Primary>
+        <Primary disabled={!loaded || !!busy} type="submit">{busy || 'Review liquidity'}</Primary>
       </form> : <>
         <dl className={aqua.intentRows}>
-          <div><dt>Allocation</dt><dd>{formatUnits(BigInt(plan.amounts[0]), 18)} WETH + {formatUnits(BigInt(plan.amounts[1]), 6)} USDC</dd></div>
-          <div><dt>Price range (USDC per WETH)</dt><dd>{Number(plan.range.min).toFixed(2)}–{Number(plan.range.max).toFixed(2)}</dd></div>
+          <div><dt>Liquidity available</dt><dd>{formatUnits(BigInt(plan.amounts[0]), 18)} WETH + {formatUnits(BigInt(plan.amounts[1]), 6)} USDC</dd></div>
+          <div><dt>Trading range (USDC per WETH)</dt><dd>{Number(plan.range.min).toFixed(2)}–{Number(plan.range.max).toFixed(2)}</dd></div>
           <div><dt>Reference price</dt><dd>{plan.reference.price} USDC</dd></div>
           <div><dt>Program ends</dt><dd>{new Date(plan.programDeadline * 1000).toISOString().slice(0, 10)} UTC</dd></div>
           <div><dt>Strategy hash</dt><dd><code title={plan.strategyHash}>{shortHash(plan.strategyHash)}</code></dd></div>
         </dl>
         {plan.funding?.map((f, i) => <p key={f.token}>{i === 0 ? 'WETH' : 'USDC'} balance: {formatUnits(BigInt(f.balance), i === 0 ? 18 : 6)} · {BigInt(f.allowance) >= BigInt(f.required) ? 'Aqua approval ready' : 'Approval required'}</p>)}
         <div className={aqua.actionRow}>
-          {ready ? <Primary disabled={!!busy} onClick={() => void act('Loading strategy…', onReady)}>Set private limits</Primary>
+          {ready ? <Primary disabled={!!busy} onClick={() => void act('Loading strategy…', onReady)}>Continue to private limits</Primary>
             : pending ? <Primary disabled={!!busy} onClick={() => void act('Confirming transaction…', () => wait(pending, plan))}>Retry confirmation</Primary>
               : <>
                 {plan.funding?.map((f, i) => BigInt(f.allowance) < BigInt(f.required) && <Secondary key={f.token} disabled={!!busy} onClick={() => void sign('approval', i)}>Approve {i === 0 ? 'WETH' : 'USDC'} in wallet</Secondary>)}
-                <Primary disabled={!!busy || !funded || !approved} onClick={() => void sign('ship')}>Sign and enable strategy</Primary>
+                <Primary disabled={!!busy || !funded || !approved} onClick={() => void sign('ship')}>Sign and add liquidity</Primary>
               </>}
           <Secondary disabled={!!busy} onClick={() => void act('Refreshing balances…', async () => { await load(plan.id); })}>Refresh balances</Secondary>
           {!ready && !pending && <Secondary disabled={!!busy} onClick={() => { current.current = null; localStorage.removeItem(key); setPlan(null); setError(''); }}>Edit allocation</Secondary>}
         </div>
-        {!ready && !funded && <p>Add sufficient WETH and USDC to your Maker wallet, then refresh balances.</p>}
+        {!ready && !funded && <p>Add sufficient WETH and USDC to your liquidity wallet, then refresh balances.</p>}
         {(pending?.hash || plan.transactionHash) && <a href={`https://sepolia.etherscan.io/tx/${pending?.hash || plan.transactionHash}`} target="_blank" rel="noreferrer">View wallet transaction ↗</a>}
-        {ready && <p role="status">Aqua registration confirmed. Set your private limits next; trading still requires Guard authorization.</p>}
+        {ready && <p role="status">Liquidity added to Aqua. Set your private limits next before the strategy can trade.</p>}
       </>}
       {busy && <p role="status">{busy}</p>}
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
     </div>
     <aside className={aqua.explanation}>
-      <h2>Your wallet provides the liquidity</h2>
-      <p>Aqua registers the amounts this strategy can use. Your tokens stay in your wallet until a trade settles.</p>
-      <p>Token approval and strategy registration are separate wallet transactions. Review and sign each request in your wallet.</p>
-      <p>The Provider&apos;s published version fixes this price range. Your private mandate can narrow execution, and Guard must authorize the strategy before it trades.</p>
+      <h2>What these transactions allow</h2>
+      <p>Aqua records the maximum WETH and USDC this strategy can use. Your tokens stay in your wallet until a trade settles.</p>
+      <p>Token approval and adding the strategy to Aqua are separate wallet transactions. Review and sign each one.</p>
+      <p>The provider fixes the public price range. Your private limits can restrict it further, and PinTool must authorize the strategy before it trades.</p>
     </aside>
   </div>;
 }

@@ -6,8 +6,8 @@ export const FEATURED: Listing[] = [
   {
     id: 'featured-adaptive-market-maker',
     name: 'Adaptive Market Maker',
-    summary: 'Adapts between tighter and defensive WETH / USDC execution profiles as market conditions and your private mandate change.',
-    template: AQUA_TEMPLATES[1],
+    summary: 'Switches between tight and defensive WETH / USDC quoting as market conditions change, while respecting your private liquidity limits.',
+    template: { ...AQUA_TEMPLATES[1], privateInputs: 'Volatility threshold used to select tight, defensive or paused mode.' },
     mine: false,
     provider: 'PinTool Strategies',
     providerAvatar: '/pintoolAvatar.svg',
@@ -16,7 +16,7 @@ export const FEATURED: Listing[] = [
   {
     id: 'featured-adaptive-range',
     name: 'Adaptive Range',
-    summary: 'Concentrates WETH / USDC liquidity around a private reference range and recenters when conditions change.',
+    summary: 'Quotes WETH / USDC inside a defined range and recenters when its confidential market condition is met.',
     template: AQUA_TEMPLATES[1],
     mine: false,
     provider: 'PinTool Strategies',
@@ -34,7 +34,7 @@ export const FEATURED: Listing[] = [
   {
     id: 'featured-inventory-recovery',
     name: 'Inventory Recovery',
-    summary: 'Adjusts WETH / USDC quoting to move inventory back toward the Maker’s target allocation.',
+    summary: 'Adjusts WETH / USDC quoting to move inventory back toward the maker’s target allocation.',
     template: AQUA_TEMPLATES[4],
     mine: false,
     provider: 'PinTool Strategies',

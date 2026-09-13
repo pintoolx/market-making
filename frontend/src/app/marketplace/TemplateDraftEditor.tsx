@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Primary from '../components/shared/Primary';
-import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import type { AquaTemplate } from './aquaTemplates';
 import aqua from './aqua.module.css';
@@ -75,7 +74,7 @@ export default function TemplateDraftEditor({ template, owner, onBack }: { templ
     <div><span className={aqua.eyebrow}>{template.label}</span><h1>{template.name}</h1><p>{template.summary}</p></div>
     <form className={aqua.panel} onSubmit={e => { e.preventDefault(); save(); }}>
       <fieldset disabled={!loaded}>
-        <legend>Public design</legend>
+        <legend>Public strategy details</legend>
         <label>Strategy name<FormInput required maxLength={80} value={name} onChange={e => { setName(e.target.value); changed(); }} /></label>
         <label>Description<textarea required maxLength={600} value={description} onChange={e => { setDescription(e.target.value); changed(); }} /></label>
         <div className={aqua.structuredFields}>{definition.map(field => <label key={field.key}>{field.label}
@@ -83,11 +82,10 @@ export default function TemplateDraftEditor({ template, owner, onBack }: { templ
             : <FormInput required type={field.min !== undefined ? 'number' : 'text'} min={field.min} max={field.max} step={field.step} maxLength={120} value={values[field.key]} onChange={e => { setValues(v => ({ ...v, [field.key]: e.target.value })); changed(); }} />}
         </label>)}</div>
       </fieldset>
-      <p className={aqua.hint}>Only public design parameters are saved in this browser. Keep private signals and risk rules out of this draft.</p>
-      <div className={aqua.actionRow}><Primary type="submit" disabled={!loaded}>Save draft</Primary><Secondary type="button" onClick={onBack}>All templates</Secondary></div>
-      {saved && <p role="status">Draft saved in this browser.</p>}
+      <p className={aqua.hint}>Only these public settings are saved on this device. This template does not collect confidential rules.</p>
+      <div className={aqua.actionRow}><Primary type="submit" disabled={!loaded}>Save design</Primary></div>
+      {saved && <p role="status">Design saved on this device.</p>}
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
-      <p className={aqua.muted}>You can keep editing this design. Onchain publication for this template is not available yet.</p>
     </form>
   </section>;
 }

@@ -9,7 +9,7 @@ export default function StrategyDetails({ spec, requirements = [] }: { spec: Str
       {model?.kind === 'concentrated' && <><dt>{model.relativeWidthBps ? 'Range fixed at application' : 'Fixed price range'}</dt><dd>{model.relativeWidthBps ? `Market price ±${model.relativeWidthBps / 100}%` : `${model.minPrice}–${model.maxPrice}`} {spec.quoteToken?.symbol}/{spec.baseToken?.symbol}</dd></>}
       {model?.kind === 'pegged' && <><dt>Reference price / amplification</dt><dd>{model.referencePrice} / {model.amplification}</dd></>}
       <dt>Fee</dt><dd>{(spec.feeBps ?? 0) / 100}%</dd><dt>Latest strategy deadline</dt><dd>{spec.deadline ? new Date(spec.deadline * 1000).toLocaleString('en-US') : 'Not set'}</dd></dl>
-    <table><caption>Public Guard limits</caption><thead><tr><th>Token</th><th>Maximum per swap</th><th>Post-swap inventory</th></tr></thead><tbody>{tokens.map((token, i) => token && <tr key={token.address}>
+    <table><caption>Public swap limits</caption><thead><tr><th>Token</th><th>Maximum per swap</th><th>Post-swap inventory</th></tr></thead><tbody>{tokens.map((token, i) => token && <tr key={token.address}>
       <th scope="row">{token.symbol}</th><td>{formatUnits(BigInt((i === 0 ? caps?.maxAmountBasePerSwap : caps?.maxAmountQuotePerSwap) ?? '0'), token.decimals)}</td>
       <td>{formatUnits(BigInt((i === 0 ? caps?.maxPostBalanceBase : caps?.maxPostBalanceQuote) ?? '0'), token.decimals)}</td></tr>)}</tbody></table>
     {model?.kind === 'pegged' && <p>Initial execution prices also depend on allocations. The reference price is not a guaranteed fill price.</p>}

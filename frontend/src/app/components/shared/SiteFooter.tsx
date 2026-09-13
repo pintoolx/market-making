@@ -6,7 +6,7 @@ import PrivacyPolicy from './legal/PrivacyPolicy';
 import TermsOfService from './legal/TermsOfService';
 import styles from './SiteFooter.module.css';
 
-const UPDATED = 'September 11, 2026';
+const UPDATED = 'September 13, 2026';
 
 // Shared footer for the ETHOnline pages (/, /studio, /maker, /profile). Policies open in a dialog.
 export default function SiteFooter() {

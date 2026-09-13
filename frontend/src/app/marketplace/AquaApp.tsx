@@ -24,63 +24,63 @@ export default function AquaApp({ screen }: { screen: Screen }) {
   const home = <div className={aqua.home}>
     <section className={aqua.homeTop} aria-label="Choose a role">
       <div className={aqua.homeIntro}>
-        <span className={aqua.eyebrow}>Private strategies · self-custodial liquidity</span>
-        <h1>Private strategies.<span>One maker balance.</span></h1>
-        <p>Discover a private market-making strategy, apply your own capital limits, and keep control of liquidity in your wallet. Add more strategies when you are ready.</p>
+        <span className={aqua.eyebrow}>Confidential market making · self-custodial liquidity</span>
+        <h1>Run private market-making strategies.<span>Keep liquidity in your wallet.</span></h1>
+        <p>Strategy providers submit encrypted trading rules. Makers submit encrypted capital limits. PinTool authorizes only the swaps that satisfy both.</p>
       </div>
       <div className={aqua.roleChoices}>
         <article className={`${styles.card} ${aqua.roleCard}`}>
           <div className={styles.cardBg} aria-hidden="true" />
           <div className={aqua.roleBody}>
             <span className={aqua.roleNumber}>Strategy Provider</span>
-            <h2>I provide strategy</h2>
-            <ul><li>Start from Aqua execution templates</li><li>Define structured private conditions</li><li>Publish strategies for Makers to use</li></ul>
+            <h2>Design strategies</h2>
+            <ul><li>Start from a supported market-making model</li><li>Add your signals, rules and limits</li><li>Publish verifiable versions for makers</li></ul>
           </div>
-          <div className={aqua.roleAction}><Primary onClick={() => goTo('provider')}>Open Provider Studio</Primary></div>
+          <div className={aqua.roleAction}><Primary onClick={() => goTo('provider')}>Create a strategy</Primary></div>
         </article>
         <article className={`${styles.card} ${aqua.roleCard}`}>
           <div className={styles.cardBg} aria-hidden="true" />
           <div className={aqua.roleBody}>
             <span className={aqua.roleNumber}>Maker</span>
-            <h2>I provide liquidity</h2>
-            <ul><li>Inspect a strategy before using it</li><li>Set your own capital boundaries</li><li>Keep funds in your own wallet</li></ul>
+            <h2>Put liquidity to work</h2>
+            <ul><li>Compare published strategies</li><li>Set limits without revealing them</li><li>Keep funds in your wallet until settlement</li></ul>
           </div>
-          <div className={aqua.roleAction}><Primary onClick={() => goTo('maker')}>Explore strategies</Primary></div>
+          <div className={aqua.roleAction}><Primary onClick={() => goTo('maker')}>Choose a strategy</Primary></div>
         </article>
       </div>
     </section>
     <section className={aqua.architecture} aria-labelledby="architecture-title">
       <div className={aqua.architectureHeading}>
-        <span className={aqua.eyebrow}>How it works</span>
-        <h2 id="architecture-title">Private inputs meet inside the TEE.</h2>
-        <p>The strategy logic stays hidden. The Maker keeps custody of funds.</p>
+        <span className={aqua.eyebrow}>Private matching and settlement</span>
+        <h2 id="architecture-title">From private rules to an authorized swap.</h2>
+        <p>Provider logic and maker limits are encrypted separately and evaluated inside Chainlink&apos;s TEE.</p>
       </div>
       <div className={aqua.architectureDiagram}>
         <div className={`${aqua.archNode} ${aqua.providerNode}`}>
           <span className={aqua.archStep}>Strategy Provider</span>
-          <strong>Private maker logic</strong>
+          <strong>Private strategy policy</strong>
           <small>Signals · pricing rules · adjustment thresholds</small>
         </div>
         <div className={`${aqua.archConnector} ${aqua.providerConnector}`} aria-hidden="true"><span>encrypted</span></div>
         <div className={`${aqua.archNode} ${aqua.makerNode}`}>
           <span className={aqua.archStep}>Maker</span>
-          <strong>Private risk boundaries</strong>
+          <strong>Private liquidity limits</strong>
           <small>Capital limit · inventory exposure · allowed assets</small>
         </div>
         <div className={`${aqua.archConnector} ${aqua.makerConnector}`} aria-hidden="true"><span>encrypted</span></div>
         <div className={`${aqua.archNode} ${aqua.teeNode}`}>
           <span className={aqua.archStep}>Chainlink TEE</span>
-          <strong>Evaluate compatibility</strong>
-          <small>Combine constraints · reject conflicts · produce intent</small>
+          <strong>Evaluate privately</strong>
+          <small>Combine rules · reject conflicts · authorize execution</small>
         </div>
-        <div className={`${aqua.archConnector} ${aqua.outputConnector}`} aria-hidden="true"><span>approved intent</span></div>
+        <div className={`${aqua.archConnector} ${aqua.outputConnector}`} aria-hidden="true"><span>authorization</span></div>
         <div className={`${aqua.archNode} ${aqua.aquaNode}`}>
           <span className={aqua.archStep}>1inch Aqua / SwapVM</span>
-          <strong>Execute maker strategy</strong>
-          <small>Uses authorized virtual balances from the Maker wallet</small>
+          <strong>Settle approved swaps</strong>
+          <small>Uses only the liquidity authorized by the maker</small>
         </div>
       </div>
-      <p className={aqua.custodyNote}><strong>Funds path:</strong> Maker wallet → Aqua settlement. Funds never enter the TEE.</p>
+      <p className={aqua.custodyNote}><strong>Funds stay separate:</strong> The TEE evaluates rules; Aqua settles swaps directly from the maker wallet.</p>
     </section>
   </div>;
 

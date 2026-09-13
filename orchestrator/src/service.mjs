@@ -262,7 +262,7 @@ export function createService(config, dependencies = {}) {
       const explorerUrl = `${config.explorerUrl}/tx/${body.transactionHash}`;
       current.events = [{ id: `${body.transactionHash}-${body.outcome}`, type: body.outcome === 'settled' ? 'swap-settled' : 'swap-rejected',
         title: body.outcome === 'settled' ? `${strategy.name} swap settled` : `${strategy.name} swap blocked`,
-        detail: body.outcome === 'settled' ? 'Aqua executed within the current Guard authorization.' : 'The inactive strategy was rejected by the Guard onchain.',
+        detail: body.outcome === 'settled' ? 'Aqua settled the swap within the active authorization.' : 'PinTool blocked the swap because this strategy mode was inactive.',
         occurredAt: evidence.occurredAt, transactionHash: body.transactionHash.toLowerCase(), explorerUrl }, ...current.events];
       await save(current);
       return current;

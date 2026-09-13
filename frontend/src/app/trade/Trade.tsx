@@ -31,7 +31,7 @@ export default function Trade() {
   return <div className={`${styles.page} ${aqua.page}`}>
     <SiteHeader />
     <main className={styles.mainScroll}><div className={styles.main}>
-      {PRIVY_APP_ID ? <TradeForm /> : <p>Wallet connection is not configured.</p>}
+      {PRIVY_APP_ID ? <TradeForm /> : <p>Wallet login is temporarily unavailable.</p>}
     </div></main>
     <SiteFooter />
   </div>;
@@ -157,8 +157,8 @@ function TradeForm() {
   const outputSymbol = direction === 'USDC' ? 'WETH' : 'USDC';
   const expired = !!quote && now / 1000 >= quote.deadline - 15;
   return <section className={aqua.flow}>
-    <Link href={returnMandate ? `/maker?mandate=${encodeURIComponent(returnMandate)}` : '/maker'}>← {returnMandate ? 'Back to mandate' : 'Back to strategies'}</Link>
-    <div className={aqua.sectionTop}><div><span className={aqua.eyebrow}>Ethereum Sepolia · Aqua</span><h1>Trade with a Maker</h1><p>Get a quote from a published strategy and settle from your wallet.</p></div></div>
+    <Link className={aqua.backLink} href={returnMandate ? `/maker?mandate=${encodeURIComponent(returnMandate)}` : '/maker'}>← {returnMandate ? 'Back to liquidity' : 'Back to strategies'}</Link>
+    <div className={aqua.sectionTop}><div><span className={aqua.eyebrow}>WETH / USDC · Ethereum Sepolia</span><h1>Swap with a strategy</h1><p>Choose a strategy with available liquidity, review its quote and settle from your wallet.</p></div></div>
     <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <form className={aqua.tradeForm} onSubmit={e => { e.preventDefault(); void review(); }}>
@@ -171,7 +171,7 @@ function TradeForm() {
           </fieldset>
           {!pending && <Primary type="submit" disabled={!!busy || guardCheckPending || !choice || !wallet || !amount}>{busy || 'Review quote'}</Primary>}
         </form>
-        {loaded && !choices.length && <p>No wallet-activated strategies are available yet.</p>}
+        {loaded && !choices.length && <p>No strategies currently have liquidity available for trading.</p>}
         {quote && <>
           <dl className={aqua.intentRows}>
             <div><dt>You receive</dt><dd>{formatUnits(quote.output, direction === 'USDC' ? 18 : 6)} {outputSymbol}</dd></div>
@@ -190,9 +190,9 @@ function TradeForm() {
         <GuardCheck onPendingChange={setGuardCheckPending} available={!busy && !pending && !!error && !!inactiveStrategy && inactiveStrategy === selected} choice={choice} wallet={wallet} amount={amount} direction={direction} />
       </div>
       <aside className={aqua.explanation}>
-        <h2>{choice?.name || 'Direct settlement'}</h2>
-        <p>The Maker supplies liquidity. You pay from your trading wallet and receive the other token in the same transaction.</p>
-        <p>Guard checks authorization, trade size and inventory on every swap. A quote can become unavailable if those conditions change.</p>
+        <h2>{choice?.name || 'How settlement works'}</h2>
+        <p>The maker supplies liquidity. You pay from your trading wallet and receive the other token in the same transaction.</p>
+        <p>PinTool checks authorization, swap size and maker inventory before every settlement. If any condition changes, you must request a new quote.</p>
         {choice && <><p>Maker <code>{short(choice.maker)}</code></p><p>Strategy <code title={choice.strategyHash}>{short(choice.strategyHash)}</code></p><a href={`https://sepolia.etherscan.io/tx/${choice.shipTransaction}`} target="_blank" rel="noreferrer">View Aqua activation ↗</a></>}
       </aside>
     </div>

@@ -56,11 +56,11 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
   return <StrategyCardShell tags={tags} title={listing.name} action={action}>
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
       <div className={aqua.cardRule}>
-        <span className={aqua.eyebrow}>Strategy provider</span>
+        <span className={aqua.eyebrow}>Provided by</span>
       {(listing.ensName || listing.ensSelection) && <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>}
       {listing.ensStatus === 'historical' && <p className={aqua.muted}>Previously published under this name. ENS now points to another version.</p>}
       <ProviderIdentity listing={listing} />
-      {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Proposed profit share: ${listing.feePct}% · collection not enabled`}</p>}
+      {listing.feePct === 0 && <p className={aqua.feeLine}>No strategy fee</p>}
       </div>
   </StrategyCardShell>;
 }

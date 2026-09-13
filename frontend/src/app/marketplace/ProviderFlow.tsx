@@ -14,7 +14,7 @@ import aqua from './aqua.module.css';
 import styles from './page.module.css';
 
 const CATEGORIES = ['All', 'Base strategy', 'Strategy modifier', 'Capital policy'] as const;
-const STEPS = ['Choose a template', 'Write private logic', 'Publish'];
+const STEPS = ['Choose a template', 'Configure strategy', 'Publish a version'];
 
 function StudioCard({ mechanism, category, title, description, privateInputs, action, onSelect }: {
   mechanism: string;
@@ -33,7 +33,7 @@ function StudioCard({ mechanism, category, title, description, privateInputs, ac
   return <StrategyCardShell tags={tags} title={title} action={<Primary onClick={onSelect}>{action}</Primary>}>
     <p className={aqua.summary}>{description}</p>
     <div className={aqua.cardRule}>
-      <span className={aqua.eyebrow}>You define</span>
+      <span className={aqua.eyebrow}>Confidential inputs</span>
       <p>{privateInputs}</p>
     </div>
   </StrategyCardShell>;
@@ -68,8 +68,8 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const optionCount = visible.length + (builderMatches ? 1 : 0);
 
   return <section className={aqua.flow}>
-    <PageHead eyebrow="Provider Studio" title="Start with a template." accent="Make it your own.">
-      Each template is an Aqua mechanism. Pick the one closest to your idea, then describe the logic only you know.
+    <PageHead eyebrow="Strategy Studio" title="Choose a market-making model.">
+      Each template defines how swaps are priced. You set its public parameters and confidential execution rules.
     </PageHead>
     <Steps steps={STEPS} current={0} />
     <div className={aqua.search}>
@@ -77,7 +77,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
         fullWidth
         value={query}
         onChange={event => setQuery(event.target.value)}
-        placeholder="Search by strategy or mechanism"
+        placeholder="Search templates"
         aria-label="Search templates"
       />
       <div className={aqua.filters} aria-label="Template categories">
@@ -96,22 +96,22 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
         title={template.name}
         description={template.summary}
         privateInputs={template.privateInputs}
-        action="Use template"
+        action="Customize template"
         onSelect={() => open(template.id)}
       />)}
       {builderMatches && <StudioCard
         mechanism="Custom"
         category="Strategy builder"
         title="Build your own"
-        description="Compose a market-making strategy from supported Aqua mechanisms with the strategy assistant."
-        privateInputs="The mechanisms, parameters and private logic that shape your strategy."
-        action="Open Strategy Builder"
+        description="Build a market-making strategy by combining supported models, limits and conditions."
+        privateInputs="The models, parameters and confidential rules that shape your strategy."
+        action="Open strategy builder"
         onSelect={() => router.push('/builder')}
       />}
     </ListingGrid>
     {optionCount === 0 && <div className={aqua.empty}>
-      <h3>No matching strategies</h3>
-      <p>Try a mechanism such as CLMM, or clear the search and filters.</p>
+      <h3>No matching templates</h3>
+      <p>Try another name or clear the filters.</p>
       <Secondary onClick={() => { setQuery(''); setCategory('All'); }}>Clear filters</Secondary>
     </div>}
   </section>;

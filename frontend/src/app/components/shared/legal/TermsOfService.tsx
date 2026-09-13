@@ -4,7 +4,7 @@ export default function TermsOfService() {
       <p>By using PinTool you agree to these terms. If you do not agree, do not use the service.</p>
 
       <h2>1. Nature of the service</h2>
-      <p>PinTool is a non-custodial interface. Strategy Providers describe market-making strategies; Makers choose a strategy and set their own limits. PinTool never holds your funds or your private keys. Every transaction that moves your tokens is signed by you in your own wallet.</p>
+      <p>PinTool is a non-custodial interface. Strategy providers publish market-making strategies; makers choose a strategy, add liquidity and set their own limits. PinTool never holds your funds or private keys. Every transaction that moves your tokens is signed in your wallet.</p>
 
       <h2>2. Risks and third-party dependencies</h2>
       <ul>
@@ -20,7 +20,7 @@ export default function TermsOfService() {
         <li>Review every transaction before you sign it.</li>
         <li>Keep your wallet, seed phrase and login secure.</li>
         <li>Make sure your use of PinTool is legal where you live.</li>
-        <li>Strategy Providers are responsible for the accuracy of their public descriptions.</li>
+        <li>Strategy providers are responsible for the accuracy of their public descriptions.</li>
       </ul>
 
       <h2>4. No financial advice</h2>
@@ -33,7 +33,7 @@ export default function TermsOfService() {
       <p>To the fullest extent permitted by law, PinTool and its contributors are not liable for losses arising from your use of the service, including trading losses, failed transactions or third-party failures.</p>
 
       <h2>7. Fees</h2>
-      <p>PinTool does not currently charge its own fees. A Strategy Provider may set a performance fee, shown on each listing as a share of the Maker&apos;s profit; it applies only when the Maker makes a profit. Network gas and protocol fees may apply to your transactions.</p>
+      <p>PinTool does not currently charge a strategy fee. Network gas and third-party protocol fees may apply to your transactions.</p>
 
       <h2>8. Changes</h2>
       <p>We may update these terms. Continued use after an update means you accept the new terms.</p>

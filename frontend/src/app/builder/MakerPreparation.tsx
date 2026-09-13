@@ -144,15 +144,15 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
     await api.revokeAutomationConsent(consent.id, await signMessage(message), crypto.randomUUID());
     await load();
   }
-  return <BuilderDialog title="Maker inventory and swap simulation" onClose={onClose}>
+  return <BuilderDialog title="Review liquidity and test execution" onClose={onClose}>
     <div className={styles.preparation}>
       <p>{draft.spec.title} · Draft v{draft.revision} · Ethereum Sepolia</p>
-      <p>Read inventory, verify compilation and check settlement in an isolated environment. These checks do not request asset signatures or submit onchain transactions.</p>
+      <p>Check wallet capacity, verify the compiled strategy and test settlement before signing any asset transaction.</p>
       {error && <p role="alert" className={styles.error}>{error}</p>}
       {stale && <p className={styles.notice}>The draft has changed. These are historical records. Close this dialog and open preparation from the latest strategy.</p>}
       {busy && <p role="status">{busy}</p>}
       <button disabled={!!busy} onClick={() => void act('Refresh preparation history', load)}>Refresh preparation history</button>
-      <section aria-label="Maker inventory checks"><h3>1. Wallet and Aqua inventory</h3>
+      <section aria-label="Maker inventory checks"><h3>1. Check wallet liquidity</h3>
         <button disabled={!!busy || stale} onClick={() => void act('Verifying onchain inventory', readInventory)}>Read current inventory</button>
         {inventory && <div className={styles.inventoryResult}>
           <strong>{evidenceLabel(inventory.inventory.mode)}</strong><p>Block {inventory.inventory.blockNumber} · {new Date(inventory.inventory.observedAt).toLocaleString('en-US')} · Not finalized</p>
@@ -165,26 +165,26 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
                 <td>{units(t.allowanceToAquaAtomic, t.decimals)}{amount && BigInt(t.allowanceToAquaAtomic) < BigInt(amount) && <small>Insufficient allowance</small>}</td></tr>;
             })}</tbody></table></div>
           <details><summary>Known strategy virtual inventory ({inventory.inventory.strategies.length})</summary>
-            {inventory.inventory.strategies.map(s => <div key={s.strategyHash}><p className={styles.address}>{s.strategyHash}</p><p>{stateLabel[s.state]}{s.selectedByGuard ? ' · Selected by Guard' : ''}</p>
+            {inventory.inventory.strategies.map(s => <div key={s.strategyHash}><p className={styles.address}>{s.strategyHash}</p><p>{stateLabel[s.state]}{s.selectedByGuard ? ' · Currently authorized' : ''}</p>
               <ul>{s.balances.map(b => { const t = inventory.inventory.tokens.find(t => t.address === b.token)!; return <li key={b.token}>{t.symbol}: virtual inventory {units(b.virtualBalanceAtomic, t.decimals)}; inventory/balance/allowance capacity {units(b.inventoryAndAllowanceCapacityAtomic, t.decimals)}</li>; })}</ul></div>)}
             {!inventory.inventory.strategies.length && <p>No known strategy hashes are available. The wallet may still have other capital commitments.</p>}
-            {inventory.knownArtifactsTruncated && <p>The compiled history exceeds the read limit. Showing up to 40 known hashes plus the hash selected by Guard.</p>}
+            {inventory.knownArtifactsTruncated && <p>Showing the 40 most recent compiled strategies plus the currently authorized strategy.</p>}
           </details>
           <p className={styles.notice}>Strategies share the same wallet funds; their capacities cannot be added together. Ship records virtual inventory without depositing funds. Dock does not revoke allowances. These reads do not prove uncommitted funds or trading authorization. Recheck before signing.</p>
         </div>}
       </section>
-      <section aria-label="Strategy compilation"><h3>2. Compile and decode</h3><p>Compilation binds the current allocations, draft revision and deployment profile. Recheck after editing or restoring a strategy.</p>
+      <section aria-label="Strategy compilation"><h3>2. Compile the strategy</h3><p>Compilation binds this revision to its liquidity amounts and execution contracts. Recompile after changing or restoring the strategy.</p>
         <button disabled={!!busy || stale} onClick={() => void act('Compiling and verifying program', compile)}>{compileKey.current ? 'Retry compilation confirmation' : 'Compile current draft'}</button>
-        {artifact && <div className={styles.compilationResult}><strong>Current v{draft.revision} compilation saved</strong><p>{artifact.payload.decoded.kind} · {artifact.payload.decoded.feeBps === 0 ? 'Zero fee' : `Fixed LP input fee · ${artifact.payload.decoded.feeBps} bps`} · Guard checks every swap</p>
-          <dl><dt>Program hash</dt><dd>{artifact.payload.programHash}</dd><dt>Order / Aqua strategy hash</dt><dd>{artifact.payload.strategyHash}</dd><dt>Guard</dt><dd>{artifact.payload.decoded.guard}</dd></dl>
+        {artifact && <div className={styles.compilationResult}><strong>Current v{draft.revision} compilation saved</strong><p>{artifact.payload.decoded.kind} · {artifact.payload.decoded.feeBps === 0 ? '0% fee' : `Fixed LP input fee · ${artifact.payload.decoded.feeBps} bps`} · Authorization checked on every swap</p>
+          <dl><dt>Program hash</dt><dd>{artifact.payload.programHash}</dd><dt>Aqua strategy hash</dt><dd>{artifact.payload.strategyHash}</dd><dt>Authorization contract</dt><dd>{artifact.payload.decoded.guard}</dd></dl>
           <details><summary>View instructions and program</summary><ol>{artifact.payload.decoded.instructions.map(i => <li key={i.pc}>{i.name} · opcode 0x{i.opcode.toString(16).padStart(2, '0')}</li>)}</ol><pre>{artifact.payload.program}</pre></details>
-          <p>The server checks curve parameters; this view also verifies the revision, hashes, Guard and public limits. Compilation alone does not establish that all requirements are met or that trading is authorized.</p></div>}
+          <p>PinTool verifies the curve, revision, program hashes, authorization contract and public limits. Compilation does not enable trading.</p></div>}
         {!!artifacts.length && <details><summary>Compilation history ({artifacts.length})</summary><ul>{artifacts.map(a => <li key={a.artifactId}>v{a.revision} · {a.artifactId === artifact?.artifactId && !stale ? 'Current version' : 'Historical record; not valid for current registration'}</li>)}</ul></details>}
       </section>
-      <section aria-label="Swap simulation"><h3>3. Background swap simulation</h3>
+      <section aria-label="Swap simulation"><h3>3. Test swaps</h3>
         <p>An isolated fork uses synthetic funds and authorization to test both directions, limits, revocation and docking. It does not verify TEE policy execution or sufficient live balances.</p>
         <button className={styles.primary} disabled={!!busy || stale || !artifact || (pending && !simulationKey.current)} onClick={() => void act('Scheduling background simulation', simulate)}>{simulationKey.current ? 'Retry simulation confirmation' : 'Simulate current compilation'}</button>
-        {!runs.length && <p>No simulation history yet. Compile the current Maker draft first.</p>}
+        {!runs.length && <p>No simulation history yet. Compile the current liquidity draft first.</p>}
         {runs.map(run => <article key={run.id} className={styles.simulationCard}>
           <h4>v{run.revision} · {simulationState(run.state)}{!run.current || stale ? ' · Earlier revision' : ''}</h4>
           <p>{evidenceLabel(run.mode)}{run.mode ? ` · ${run.caseCount - run.skippedCaseCount} cases run out of ${run.caseCount}` : ''}</p>
