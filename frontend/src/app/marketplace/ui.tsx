@@ -31,9 +31,11 @@ export function StrategyCardShell({ tags, title, children, action }: {
   children: React.ReactNode;
   action?: React.ReactNode;
 }) {
+  const bodyClassName = action ? styles.cardBody : `${styles.cardBody} ${aqua.cardBodyEnd}`;
+
   return <article className={`${styles.card} ${aqua.card}`}>
     <div className={styles.cardBg} aria-hidden="true" />
-    <div className={`${styles.cardBody} ${action ? '' : aqua.cardBodyEnd}`}>
+    <div className={bodyClassName}>
       <div className={styles.tagRow}>{tags}</div>
       <h3 className={styles.cardTitle}>{title}</h3>
       {children}
