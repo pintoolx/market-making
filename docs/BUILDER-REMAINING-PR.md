@@ -8,14 +8,27 @@ this branch to Railway or change existing Maker positions as part of review.
 The full product acceptance remains in `SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md`.
 Its merge/rollout completion criterion is deferred by this newer instruction.
 
-Work to verify in this batch:
+Implemented and locally verified in this batch:
 
 - Two-phase Builder evaluation and delivery through the existing confidential
   workflow, with a persisted report identity and exact nonce.
 - Trusted binding of a compiled Maker instance to the signed Provider version
   and current Maker consent; no manual strategy catalog changes.
 - Event routing, selection, delivery ordering and uncertain-receipt recovery.
-- Wallet preparation/execution and requirement evidence for the resulting flow.
+- Browser first-consent and stop-updates flows, including the corrected revoke
+  signature message. Wallet plans remain unsigned.
+- Actual CRE CLI evaluation through signed template/consent and PostgreSQL,
+  with live market/Guard reads and no broadcast. See `BUILDER-CRE-DELIVERY.md`.
+
+Keep this as one draft PR while the remaining product acceptance is incomplete:
+
+- [ ] Wallet transaction execution, replacement and failed-readback recovery.
+- [ ] Consented source-outage pause and recovery, with delivery evidence.
+- [ ] Complete requirement-to-settlement acceptance.
+- [ ] New public Sepolia lifecycle matrix and resident-worker recovery evidence.
+
+Do not treat passing the integration checks as completion of these items. No
+rollout or public-chain write was performed in this batch.
 
 Keep local simulation, fork evidence and public Sepolia evidence distinct. CRE
 deployment, activation and secret upload remain outside this authorization.

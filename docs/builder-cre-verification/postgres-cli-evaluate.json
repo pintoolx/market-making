@@ -1,0 +1,29 @@
+{
+  "mode": "real-cli-and-postgres-evaluation-with-live-guard-reads",
+  "publicMarketSource": "kraken-and-sepolia",
+  "observedGuardBlock": "11696584",
+  "chainWrites": 0,
+  "providerSignatureVerified": true,
+  "makerConsentVerified": true,
+  "firstActivationQueued": true,
+  "allocatedNonce": "1",
+  "deliveryStatus": "pending",
+  "publicCandidate": {
+    "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+    "maker": "0x6a04a5dfcc1cdc8b24a95d66ce56ccdf5b5af0a5",
+    "nonce": "1789311071",
+    "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+    "token0": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+    "token1": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "chainId": "11155111",
+    "validAfter": "1789311071",
+    "validUntil": "0",
+    "strategyHash": "0x75ecbd2220b58bc5fc2e96e251b7aa9db912cf3fba4f2c1db092ed8ece7b53bd",
+    "schemaVersion": "2",
+    "maxPostBalance0": "10000000000000000",
+    "maxPostBalance1": "25000000",
+    "allowedDirections": "3",
+    "maxAmount0PerSwap": "500000000000000",
+    "maxAmount1PerSwap": "1000000"
+  }
+}

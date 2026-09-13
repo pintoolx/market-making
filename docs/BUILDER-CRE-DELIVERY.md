@@ -86,10 +86,40 @@ work. Monitoring degradation alone does not revoke an existing standing report.
 `node workflow/scripts/simulate-builder-public.mjs` runs the actual CLI with
 public synthetic policy/encryption fixtures, no wallet key and no broadcast.
 `docs/builder-cre-verification/public-cli-evaluate.json` records its public result.
+For the full read-only integration probe, run:
+
+```sh
+BUILDER_TEST_DATABASE_URL=postgresql://pintool_test@127.0.0.1:55442/postgres \
+  node workflow/scripts/verify-builder-pg-evaluation.mjs \
+  docs/builder-cre-verification/postgres-cli-evaluate.json
+```
+
+The database account needs permission to create disposable databases. This probe
+accepts localhost only, creates and drops its own database, and uses unfunded
+synthetic Provider/Maker wallets and a public encryption fixture. It publishes a
+signed template, compiles a Maker instance, verifies signed consent, queues the
+first evaluation and invokes the actual bridge and CLI. Public Kraken/Sepolia
+reads are live, including the Guard nonce and activation state. The recorded
+delivery remains `pending`, with no broadcaster attempt and no chain write.
+The candidate's timestamp nonce is provisional; the database allocates the
+delivery nonce, which the delivery phase must preserve exactly.
+
 Bun tests cover the workflow/ABI/protocol; PostgreSQL tests cover signed input
 loading, first authorization, exact large nonces, multiple Makers and uncertain
 broadcast recovery. Process and RPC tests exercise invalid output, bounded
 execution, receipt mismatches, reorgs and later reports.
+
+The three browser acceptance flows cover design, Provider publication and Maker
+preparation against the local API/database. Preparation includes first consent
+without a pre-existing report binding and signed cancellation of automatic
+updates. The browser harness uses deterministic model/inventory/simulation
+adapters; it is not evidence of real wallet asset transactions or settlement.
+
+Review validation for this batch: 96 Builder service tests passed (one optional
+fork test skipped), 58 orchestrator tests passed (one optional test skipped),
+66 workflow tests and 16 report-delivery tests passed, and all three browser
+flows passed. Builder/frontend/workflow/report type checks passed. GitHub checks
+are tracked on the PR separately from these local results.
 
 These changes do not complete the entire product goal. Full wallet transaction
 execution/replacement recovery, consented source-outage pause/recovery, complete

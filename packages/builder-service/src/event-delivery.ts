@@ -223,7 +223,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       } catch (error) {
         result = { status: 'failed', reason: error instanceof ServiceError ? error.code : 'evaluation-failed' }
       }
-      if (result.nonceFloor !== undefined && (!/^(0|[1-9][0-9]{0,19})$/.test(result.nonceFloor) || BigInt(result.nonceFloor) > 18446744073709551615n)) result = { status: 'failed', reason: 'invalid-evaluation-nonce' }
+      if (result.nonceFloor !== undefined && (typeof result.nonceFloor !== 'string' || !/^(0|[1-9][0-9]{0,19})$/.test(result.nonceFloor) || BigInt(result.nonceFloor) > 18446744073709551615n)) result = { status: 'failed', reason: 'invalid-evaluation-nonce' }
       if (result.status === 'changed' && (!result.reportHash || !result.report || typeof result.report !== 'object')) result = { status: 'failed', reason: 'invalid-evaluation-result' }
       return transaction(pool, async client => {
         if (!await lockJobEvent(client, jobId)) throw conflict('event-reorged')
