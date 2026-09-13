@@ -246,7 +246,12 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     },
     async pendingDeliveries(limit = 20) {
       if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new ServiceError('invalid-request')
-      return (await pool.query(`SELECT id FROM builder.report_deliveries WHERE status='pending' AND next_attempt_at<=clock_timestamp() ORDER BY created_at,id LIMIT $1`, [limit])).rows.map(row => String(row.id))
+      return (await pool.query(`SELECT d.id FROM builder.report_deliveries d
+        WHERE d.status='pending' AND d.next_attempt_at<=clock_timestamp()
+        AND NOT EXISTS (SELECT 1 FROM builder.report_deliveries earlier
+          WHERE earlier.subscription_id=d.subscription_id AND earlier.status IN ('pending','broadcast')
+          AND (earlier.created_at<d.created_at OR (earlier.created_at=d.created_at AND earlier.id<d.id)))
+        ORDER BY d.created_at,d.id LIMIT $1`, [limit])).rows.map(row => String(row.id))
     },
     /**
      * Reports marked broadcast may have been sent successfully immediately
