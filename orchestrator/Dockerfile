@@ -1,6 +1,6 @@
 FROM oven/bun:1.4.2 AS bun-runtime
 
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 
 ENV NODE_ENV=production
 ENV HOME=/home/node
@@ -28,6 +28,20 @@ COPY orchestrator/package.json orchestrator/package.json
 RUN cd /workspace/orchestrator \
     && npm install --omit=dev --ignore-scripts --no-audit --no-fund \
     && ln -s /workspace/orchestrator/node_modules /workspace/node_modules
+
+# The Builder is TypeScript-first and uses Node's built-in erasable type
+# stripping. Keep the workspace packages in the image and expose them through
+# the same package names used by local pnpm development.
+COPY packages/strategy-builder/package.json packages/strategy-builder/package.json
+COPY packages/strategy-builder/src packages/strategy-builder/src
+COPY packages/strategy-builder/profiles packages/strategy-builder/profiles
+COPY packages/builder-service/package.json packages/builder-service/package.json
+COPY packages/builder-service/src packages/builder-service/src
+COPY packages/builder-service/migrations packages/builder-service/migrations
+COPY contracts/aqua-executor/package.json contracts/aqua-executor/package.json
+RUN mkdir -p /workspace/node_modules/@pintool \
+    && ln -s /workspace/packages/strategy-builder /workspace/node_modules/@pintool/strategy-builder \
+    && ln -s /workspace/contracts/aqua-executor /workspace/node_modules/aqua-executor
 
 COPY orchestrator orchestrator
 COPY shared shared

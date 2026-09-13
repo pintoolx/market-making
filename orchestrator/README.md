@@ -86,6 +86,14 @@ onchain commitment in the Guard ABI.
 
 The production `mandate-service` is connected to `pintoolx/market-making`, branch `main`. Pushes and merged PRs on that branch trigger Railway deployment automatically. The repository root is the build context; `railway.json` selects `orchestrator/Dockerfile` and checks `/health`.
 
+The same process mounts the Builder API at `/v1/builder/*`. When
+`DATABASE_URL` is present, startup applies the additive Builder migrations
+under an advisory lock before accepting HTTP requests. The process owns the
+durable design-turn loop and can start simulation and event loops through
+explicit feature flags. Builder requests never open a second port or receive a
+signing key. The image uses Node 24 because the Builder and its workspace
+compiler are TypeScript-first and use Node's erasable type stripping.
+
 Mount persistent storage at `/data` so verified mandate state and sealed Maker input sidecars under `/data/mandates` survive deployments. Startup initializes the mounted directory and then drops to the `node` user before creating CRE credentials or starting the server. Keep this filesystem-backed service at one replica.
 
 The image includes the report ABI, test fixture and Sepolia deployment JSON imported by the workflow. Workflow typechecking runs during the image build, preventing missing compile inputs from reaching the live service. A successful health check alone is not end-to-end verification.
@@ -102,7 +110,20 @@ MANDATE_NETWORK_NAME=Ethereum Sepolia
 MANDATE_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 MANDATE_EXPLORER_URL=https://sepolia.etherscan.io
 MANDATE_STATE_DIR=/data/mandates
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+BUILDER_ENABLED=true
+BUILDER_DESIGN_ENABLED=true
+BUILDER_OPENAI_MODEL=gpt-5.6-sol
+BUILDER_INVENTORY_ENABLED=false
+BUILDER_SIMULATION_ENABLED=false
+BUILDER_EVENT_WORKER_ENABLED=false
+# Optional public key used by the separate Provider policy editor.
+BUILDER_WORKFLOW_PUBLIC_KEY=<64-hex-byte-workflow-key>
+# Optional signed gateway ingress for public market/EVM events.
+BUILDER_EVENT_INGRESS_SECRET=<gateway-shared-secret>
+BUILDER_EVENT_INGRESS_MAX_AGE_SECONDS=300
 CRE_AUTH_CONFIG_B64=<base64-encoded CRE CLI credential file>
+OPENAI_API_KEY=<Railway secret; never log or include in tool context>
 CRE_ETH_PRIVATE_KEY=<funded Sepolia report signer>
 SECRET_PROVIDER_STRATEGY=<private Provider policy JSON>
 SECRET_PROVIDER_STRATEGY_DEFENSIVE=<private Provider policy JSON>
@@ -112,6 +133,13 @@ MANDATE_GUARD_ADDRESS=<current Guard deployment>
 MANDATE_STRATEGY_CATALOG=<listing-to-strategy JSON>
 MANDATE_MARKET_SNAPSHOT=<public market-state JSON>
 ```
+
+`BUILDER_EVENT_WORKER_ENABLED` is deliberately off until a trusted evaluator
+and delivery adapter is injected. Enabling the resident loop without those
+adapters fails closed: events are retained and no Guard report is fabricated.
+Signed ingress can be enabled independently for queueing and replay. Run the
+event worker as one replica with the `/data` volume so its leases, cursors and
+outbox survive a restart.
 
 Railway supplies `PORT`. After deployment, open `/health`, add the generated HTTPS origin to the frontend as `NEXT_PUBLIC_MANDATE_API_URL`, and rebuild the static frontend. A healthy process proves only that configuration parsing and HTTP serving work; create a mandate to verify CRE compilation, simulated confidential execution, official-forwarder delivery and onchain evidence. This mode is CRE local simulation, not production DON execution or TEE attestation.
 

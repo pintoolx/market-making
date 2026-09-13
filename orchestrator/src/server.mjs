@@ -8,6 +8,7 @@ import { normalizeRoot } from '../../shared/ens/schema.mjs';
 import { createActivationService } from './activation-service.mjs';
 import { activationCatalog } from './activation-store.mjs';
 import { resolve } from 'node:path';
+import { createBuilderRuntime } from './builder-runtime.mjs';
 
 const integer = (value, fallback) => value === undefined ? fallback : Number(value);
 
@@ -77,10 +78,11 @@ export function makeServer(config, dependencies = {}) {
   const activation = createActivationService(config, registry, dependencies);
   const ens = createEnsService(config, registry, dependencies);
   const service = createService(config, { ...dependencies, validateEnsSelections: (...args) => ens.validateSelections(...args) });
+  const builder = dependencies.builderHandler;
   return createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', config.allowedOrigin);
     response.setHeader('Vary', 'Origin');
-    response.setHeader('Access-Control-Allow-Headers', 'content-type');
+    response.setHeader('Access-Control-Allow-Headers', 'content-type,authorization,idempotency-key,x-privy-access-token');
     response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     response.setHeader('Cache-Control', 'no-store');
     if (request.method === 'OPTIONS') { response.writeHead(204); return response.end(); }
@@ -89,6 +91,13 @@ export function makeServer(config, dependencies = {}) {
     }
     try {
       const url = new URL(request.url ?? '/', 'http://localhost');
+      if (url.pathname.startsWith('/v1/builder/')) {
+        if (!builder) {
+          response.writeHead(503, { 'content-type': 'application/json' });
+          return response.end(JSON.stringify({ message: 'Builder service is unavailable.' }));
+        }
+        if (await builder(request, response)) return;
+      }
       if (url.pathname === '/v1/activations' || url.pathname.startsWith('/v1/activations/')) {
         let result;
         try {
@@ -209,5 +218,14 @@ export function makeServer(config, dependencies = {}) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = configFromEnv();
-  makeServer(config).listen(config.port, () => console.log(`PinTool mandate service listening on :${config.port}`));
+  const builderRuntime = await createBuilderRuntime(config);
+  const server = makeServer(config, builderRuntime.enabled ? { builderHandler: builderRuntime.handler } : {});
+  await builderRuntime.start();
+  const stop = async () => {
+    server.close(() => {});
+    await builderRuntime.close();
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+  server.listen(config.port, () => console.log(`PinTool mandate service listening on :${config.port}`));
 }

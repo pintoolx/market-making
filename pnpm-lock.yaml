@@ -132,9 +132,24 @@ importers:
       '@1inch/swap-vm-sdk':
         specifier: 0.4.4
         version: 0.4.4(assert@2.1.0)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3))(zod@4.4.3)
+      '@ai-sdk/openai':
+        specifier: 4.0.66
+        version: 4.0.66(zod@4.4.3)
+      ai:
+        specifier: 7.0.99
+        version: 7.0.99(zod@4.4.3)
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
+      pg:
+        specifier: 8.23.0
+        version: 8.23.0
       viem:
         specifier: 2.56.3
         version: 2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.4.3)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
   packages/strategy-builder:
     dependencies:

@@ -10,7 +10,7 @@ function fixture() {
     allocations: { baseAtomic: '10000000000000000', quoteAtomic: '25000000' },
     spec: { title: 'Requirement review', profileId: profile.id, baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'concentrated', minPrice: '2200', maxPrice: '2800' },
       feeBps: 0, deadline: 2_000_000_000, guardEnvelope: { maxAmountBasePerSwap: '5000000000000000', maxAmountQuotePerSwap: '12500000', maxPostBalanceBase: '20000000000000000', maxPostBalanceQuote: '50000000' } },
-    requirements: [{ id: 'per-swap', text: '每筆 WETH 不超過 0.005', priority: 'must', sourceMessageId: 'message-1', capabilityIds: ['guard.per-swap'] }] })
+    requirements: [{ id: 'per-swap', text: 'Each WETH input is at most 0.005', priority: 'must', sourceMessageId: 'message-1', capabilityIds: ['guard.per-swap'] }] })
 }
 const parameter = (field: Extract<RequirementCriterion, {type:'parameter'}>['field'], expected: string,
   relation: 'equal' | 'at-most' | 'at-least' = 'equal'): RequirementCriterion => ({ type: 'parameter', field, expected, relation })
@@ -21,13 +21,13 @@ test('proposed parameter meanings use exact token units and separate configured 
   assert.equal(compare(parameter('maxAmountBasePerSwap', '0.004999999999999999', 'at-most')).matchesDraft, false)
   assert.equal(compare(parameter('maxAmountQuotePerSwap', '12.500001', 'at-most')).matchesDraft, true)
   assert.equal(compare(parameter('maxAmountQuotePerSwap', '12.499999', 'at-most')).matchesDraft, false)
-  assert.match(compare(parameter('maxPostBalanceBase', '0.02')).limitation, /不是每日累計/)
+  assert.match(compare(parameter('maxPostBalanceBase', '0.02')).limitation, /not a daily cumulative/)
   const allocation = compare(parameter('allocationQuote', '25'))
   assert.equal(allocation.matchesDraft, true); assert.equal(allocation.enforcement, 'preflight_only')
-  assert.match(allocation.limitation, /不代表獨立保留/)
+  assert.match(allocation.limitation, /not independently reserved/)
   assert.equal(compare(parameter('baseToken', 'USDC')).matchesDraft, false)
   assert.equal(compare(parameter('curve', 'concentrated')).matchesDraft, true)
-  assert.match(compare(parameter('minPrice', '2200', 'at-least')).limitation, /並非每筆外部市場/)
+  assert.match(compare(parameter('minPrice', '2200', 'at-least')).limitation, /not an external market-price check on every swap/)
   assert.equal(compare(parameter('maxAmountQuotePerSwap', '0.0000001')).enforcement, 'unsupported')
   assert.equal(compare(parameter('feeBps', '0.1')).enforcement, 'unsupported')
   assert.equal(compare(parameter('curve', 'concentrated', 'at-least')).enforcement, 'unsupported')
@@ -63,12 +63,12 @@ test('only explicit complete decisions can acknowledge interpreted requirements;
 test('mechanism descriptions, missing fields and unsupported effects never claim an active authorization or user confirmation', () => {
   const draft = fixture()
   const policy = assessRequirementCriterion({ type: 'mechanism', capabilityId: 'policy.market-rules' }, draft)
-  assert.equal(policy.matchesDraft, null); assert.equal(policy.enforcement, 'informational'); assert.match(policy.limitation, /不進對話/)
+  assert.equal(policy.matchesDraft, null); assert.equal(policy.enforcement, 'informational'); assert.match(policy.limitation, /never enter the conversation/)
   const standing = assessRequirementCriterion({ type: 'mechanism', capabilityId: 'guard.standing' }, draft)
-  assert.equal(standing.matchesDraft, null); assert.match(standing.limitation, /不會.*自動到期/)
+  assert.equal(standing.matchesDraft, null); assert.match(standing.limitation, /does not automatically expire/)
   assert.equal(assessRequirementCriterion(parameter('referencePrice', '2500'), draft).matchesDraft, null)
   const unavailable = assessRequirementCriterion({ type: 'unsupported', topic: 'daily-cumulative-budget' }, draft)
-  assert.equal(unavailable.matchesDraft, false); assert.match(unavailable.limitation, /不能用單筆上限替代/)
+  assert.equal(unavailable.matchesDraft, false); assert.match(unavailable.limitation, /cannot replace a daily budget with a per-swap cap/)
   assert.equal(assessRequirementCriteria(draft)[0]!.needsInterpretation, true)
   draft.requirements[0]!.criteria = [parameter('maxAmountBasePerSwap', '0.005', 'at-most')]
   draft.requirements[0]!.userAcceptedAlternative = true

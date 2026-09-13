@@ -60,3 +60,23 @@ test('configured wallet trading preserves a complete activation reference and re
     assert.throws(() => configFromEnv({ ...env, MANDATE_STRATEGY_CATALOG: JSON.stringify({ strategy: { ...entry, ...patch } }) }));
   }
 });
+
+test('Builder handler is mounted under the existing mandate service without a second listener', async t => {
+  const config = { port: 0, allowedOrigin: 'http://localhost:3200', runner: '/unused', runnerTimeoutMs: 1000,
+    chainId: 84532, networkName: 'Base Sepolia', rpcUrl: 'http://unused', explorerUrl: 'https://sepolia.basescan.org', router: `0x${'22'.repeat(20)}`,
+    strategyMaker: `0x${'11'.repeat(20)}`, strategies: [], stateDir: await mkdtemp(join(tmpdir(), 'pintool-builder-mount-')) };
+  const builderHandler = async (request, response) => {
+    if (request.url !== '/v1/builder/capabilities') return false;
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ mounted: true }));
+    return true;
+  };
+  const server = makeServer(config, { builderHandler });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${base}/v1/builder/capabilities`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { mounted: true });
+  assert.equal((await fetch(`${base}/v1/builder/unknown`)).status, 404);
+});
