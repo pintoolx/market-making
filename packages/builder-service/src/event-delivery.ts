@@ -49,9 +49,17 @@ async function readSubscription(client: Pick<PoolClient, 'query'>, owner: string
   if (!row) throw notFound()
   return subscription(row)
 }
+async function cancelUnsent(client: Pick<PoolClient, 'query'>, subscriptionId: string) {
+  await client.query(`UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='subscription-stopped'
+    WHERE subscription_id=$1 AND state IN ('pending','running')`, [subscriptionId])
+  await client.query(`UPDATE builder.report_deliveries SET status='failed',error_code='subscription-stopped',updated_at=clock_timestamp()
+    WHERE subscription_id=$1 AND status='pending'`, [subscriptionId])
+}
 /** Durable event inbox, evaluation queue and change-only standing report delivery. */
 export function createEventDelivery(pool: Pool, profile: DeploymentProfile, dependencies: EventDeliveryDependencies = {}) {
   async function currentSnapshot(client: PoolClient, sub: SubscriptionRow, event: PublicEvent) {
+    const live = await readSubscription(client, sub.owner, sub.id, true)
+    if (live.state !== 'enabled' || live.generation !== sub.generation || live.revision !== sub.revision) throw conflict('event-subscription-stopped')
     const draft = await readOwnedDraft(client, sub.owner, sub.draftId, true)
     if (draft.revision !== sub.revision) throw conflict('event-subscription-stale')
     const artifact = await readCompiledArtifact(client, profile, sub.owner, sub.artifactId, true)
@@ -87,7 +95,10 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         const id = randomUUID(), generation = Number(latest.generation) + 1
         const switched = await client.query(`UPDATE builder.event_subscriptions SET state='stopped',stopped_at=clock_timestamp(),updated_at=clock_timestamp()
           WHERE owner=$1 AND state='enabled' RETURNING id,revision`, [owner])
-        for (const row of switched.rows) await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.switched',$2,$3) ON CONFLICT DO NOTHING", [owner, row.id, row.revision])
+        for (const row of switched.rows) {
+          await cancelUnsent(client, String(row.id))
+          await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.switched',$2,$3) ON CONFLICT DO NOTHING", [owner, row.id, row.revision])
+        }
         const row = (await client.query(`INSERT INTO builder.event_subscriptions(id,owner,draft_id,revision,artifact_id,consent_id,generation)
           VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`, [id, owner, draft.id, draft.revision, value.artifactId, value.consentId, generation])).rows[0]
         await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.enabled',$2,$3)", [owner, id, draft.revision])
@@ -108,6 +119,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       return mutation(pool, owner, requestId, 'event-subscription.stop', value, async client => {
         const sub = await readSubscription(client, owner, value.subscriptionId, true)
         if (sub.state !== 'stopped') {
+          await cancelUnsent(client, sub.id)
           await client.query("UPDATE builder.event_subscriptions SET state='stopped',stopped_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1 AND owner=$2", [sub.id, owner])
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.stopped',$2,$3) ON CONFLICT DO NOTHING", [owner, sub.id, sub.revision])
         }
@@ -140,8 +152,13 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async claimEvaluation(leaseMs = 30000) {
       if (!Number.isInteger(leaseMs) || leaseMs < 100 || leaseMs > 300000) throw new ServiceError('invalid-request')
       const token = randomUUID()
-      const row = (await pool.query(`WITH next_job AS (SELECT id FROM builder.evaluation_jobs WHERE available_at<=clock_timestamp()
-        AND (state='pending' OR (state='running' AND lease_until<clock_timestamp())) ORDER BY available_at,created_at,id FOR UPDATE SKIP LOCKED LIMIT 1)
+      const row = (await pool.query(`WITH next_job AS (SELECT j.id FROM builder.evaluation_jobs j
+        JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
+        WHERE s.state='enabled' AND j.available_at<=clock_timestamp()
+        AND (j.state='pending' OR (j.state='running' AND j.lease_until<clock_timestamp()))
+        AND NOT EXISTS (SELECT 1 FROM builder.evaluation_jobs active
+          WHERE active.subscription_id=j.subscription_id AND active.owner=j.owner AND active.state='running' AND active.lease_until>clock_timestamp())
+        ORDER BY j.available_at,j.created_at,j.id FOR UPDATE OF j,s SKIP LOCKED LIMIT 1)
         UPDATE builder.evaluation_jobs j SET state='running',lease_token=$1,lease_until=clock_timestamp()+$2::integer*interval '1 millisecond',attempts=attempts+1
         FROM next_job n WHERE j.id=n.id RETURNING j.*, $1 AS claimed_token`, [token, leaseMs])).rows[0]
       return row ? { id: String(row.id), token, owner: String(row.owner), subscriptionId: String(row.subscription_id), generation: Number(row.generation), source: String(row.source), eventId: String(row.event_id), payload: row.payload } : null
@@ -169,6 +186,10 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
           WHERE j.id=$1 AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
         if (!current) throw conflict('lease-lost')
         const sub = subscription(current), now = new Date().toISOString()
+        if (sub.state !== 'enabled') {
+          await client.query("UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='subscription-stopped' WHERE id=$1 AND lease_token=$2", [jobId, token])
+          return { result: { status: 'paused' as const, reason: 'subscription-stopped', observedAt: now } }
+        }
         if (result.status === 'changed' && result.reportHash === sub.lastReportHash) result = { status: 'unchanged', observedAt: result.observedAt }
         if (result.status === 'changed') {
           const artifactRow = (await client.query('SELECT payload FROM builder.compiled_artifacts WHERE id=$1 AND owner=$2', [sub.artifactId, sub.owner])).rows[0]
@@ -197,9 +218,20 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         const row = (await client.query(`UPDATE builder.report_deliveries SET status='broadcast',attempts=attempts+1,updated_at=clock_timestamp() WHERE id=$1 AND status='pending' AND next_attempt_at<=clock_timestamp() RETURNING *`, [deliveryId])).rows[0]
         if (!row) return null
         const sub = await readSubscription(client, String(row.owner), String(row.subscription_id))
+        const live = await readSubscription(client, sub.owner, sub.id, true)
+        const draft = live.state === 'enabled' ? await readOwnedDraft(client, live.owner, live.draftId, true) : null
+        const artifact = draft && draft.revision === live.revision ? await readCompiledArtifact(client, profile, live.owner, live.artifactId, true) : null
+        const consent = draft && artifact?.current ? await readActiveAutomationConsent(client, live.owner, live.draftId, live.revision) : null
+        const binding = draft && artifact?.current ? await readAuthorizationBinding(client, live.owner, live.draftId, live.revision, live.artifactId) : null
+        const ready = live.state === 'enabled' && live.generation === sub.generation && live.revision === sub.revision && !!draft && draft.revision === live.revision && !!artifact?.current && artifact.payload.draftId === draft.id && artifact.payload.revision === draft.revision && !!consent && consent.id === live.consentId && !!binding && binding.strategyHash.toLowerCase() === artifact.payload.strategyHash.toLowerCase() && binding.manifestHash === artifact.payload.manifestHash && binding.contentDigest === artifact.payload.contentDigest && binding.guard.toLowerCase() === profile.guard.toLowerCase() && binding.router.toLowerCase() === profile.router.toLowerCase()
+        if (!ready) {
+          await client.query("UPDATE builder.report_deliveries SET status='failed',error_code='subscription-stale',updated_at=clock_timestamp() WHERE id=$1 AND status='broadcast'", [deliveryId])
+          return { stale: true as const }
+        }
         return { row, sub }
       })
       if (!claimed) return { status: 'already-processing' as const }
+      if ('stale' in claimed) return { status: 'stale' as const }
       try {
         if (!dependencies.deliver) throw new ServiceError('delivery-unavailable', 503)
         const receipt = await dependencies.deliver({ subscription: claimed.sub, report: claimed.row.payload, reportHash: claimed.row.report_hash as `0x${string}`, nonce: String(claimed.row.nonce) })
