@@ -1,11 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
-import { contentDigest, draftSchema, patchDraft, patchSchema, restoreDraft, idSchema, revisionSchema,
+import { assertTemplateInstance, contentDigest, draftSchema, patchDraft, patchSchema, patchTemplateInstance, restoreDraft, idSchema, revisionSchema,
   type StrategyDraft, type Diff } from '@pintool/strategy-builder'
 import { transaction } from './database.ts'
 import { conflict, notFound, ServiceError } from './errors.ts'
 import { assertTurnLease, supersedeTurns, type TurnLease } from './turn-lease.ts'
+import { readTemplateContext } from './templates.ts'
 
 import { mutation as transactRequest, ownerSchema } from './requests.ts'
 const createSchema = z.object({ title: z.string().min(1).max(120), kind: z.enum(['template', 'maker']) }).strict()
@@ -73,6 +74,21 @@ export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
     get(owner: string, draftId: string) {
       return lease ? transaction(pool, client => read(client, owner, draftId, true)) : read(pool, owner, draftId)
     },
+    templateContext(owner: string, draftId: string, expectedRevision: number) {
+      return transaction(pool, async client => {
+        const draft = await read(client, owner, draftId, true)
+        if (draft.revision !== expectedRevision) throw conflict('draft-changed')
+        const context = await readTemplateContext(client, draft)
+        if (!context) return null
+        const withdrawal = (await client.query('SELECT created_at FROM builder.template_withdrawals WHERE template_id=$1 AND version=$2',
+          [context.template.templateId, context.template.version])).rows[0]
+        return { templatePin: draft.templatePin, provider: context.template.provider, permissions: context.template.permissions,
+          baseline: context.baseline, boundsComparedTo: 'original-published-version' as const,
+          makerEditable: ['title', 'allocations'] as const,
+          lockedSpecFields: ['profileId', 'baseToken', 'quoteToken', 'model.kind', 'feeBps', 'modifiers'] as const,
+          withdrawn: !!withdrawal, registrationReady: false as const }
+      })
+    },
     async list(owner: string) {
       ownerSchema.parse(owner)
       return (await pool.query(`SELECT c.id AS "conversationId", c.title, c.updated_at AS "updatedAt", d.id AS "draftId", d.revision::text,
@@ -86,7 +102,8 @@ export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
       if (value.patch.maker && value.patch.maker !== owner.slice(7)) throw new ServiceError('wallet-ownership-required', 403)
       return mutation(owner, requestId, 'draft.patch', value, async client => {
         const before = await read(client, owner, value.draftId, true)
-        return update(client, before, patchDraft(before, value.patch, { owner, expectedRevision: value.expectedRevision, now: new Date().toISOString() }))
+        const template = await readTemplateContext(client, before), context = { owner, expectedRevision: value.expectedRevision, now: new Date().toISOString() }
+        return update(client, before, template ? patchTemplateInstance(before, value.patch, template.template, template.baseline, context) : patchDraft(before, value.patch, context))
       })
     },
     async restore(owner: string, requestId: string, input: unknown) {
@@ -98,7 +115,10 @@ export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
         if (!row) throw notFound()
         const saved = draftSchema.parse(row.snapshot)
         if (row.digest !== contentDigest(saved)) throw new ServiceError('stored-draft-integrity', 500)
-        return update(client, before, restoreDraft(before, saved, { owner, expectedRevision: value.expectedRevision, now: new Date().toISOString() }))
+        const template = await readTemplateContext(client, before)
+        const restored = restoreDraft(before, saved, { owner, expectedRevision: value.expectedRevision, now: new Date().toISOString() })
+        if (template) assertTemplateInstance(restored.draft, template.template, template.baseline)
+        return update(client, before, restored)
       })
     },
     async history(owner: string, draftId: string) {

@@ -16,6 +16,7 @@ export interface DesignRepository {
   preview?(requestId: string, expectedRevision: number, options: ScenarioInput): Promise<unknown>
   previews?(): Promise<unknown>
   inventory?(expectedRevision: number): Promise<unknown>
+  templateContext?(expectedRevision: number): Promise<unknown>
 }
 const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
   'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
@@ -188,7 +189,9 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         if (view === 'previews') return { draft: visibleDraft(draft), previews: await repository.previews?.() ?? [] }
         if (view === 'compilations') return { draft: visibleDraft(draft), compilations: await repository.compilations?.() ?? [] }
         if (view === 'simulations') return { draft: visibleDraft(draft), simulations: await repository.simulations?.() ?? [] }
-        return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : visibleDraft(draft)
+        return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : {
+          ...visibleDraft(draft), ...(draft.templatePin ? { templateContext: await repository.templateContext?.(draft.revision) ?? null } : {}),
+        }
       }) }),
     exportStrategy: tool({ description: 'Export the current public draft as a portable non-executable specification. No private policy, signature or transaction is included. Executable artifact export requires the later compiler/simulation stage.',
       strict: true, inputSchema: z.object({}).strict(), execute: () => safe(async () => {
