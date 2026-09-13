@@ -41,10 +41,11 @@ export default function StrategyPage() {
   useEffect(() => { setBack(prepareMarketplaceReturn().url); }, [routeKey]);
   useEffect(() => {
     let alive = true;
-    getExecutableStrategies().then(value => { if (alive) setCatalog({ maker: value.maker.toLowerCase(), ids: value.strategies.map(s => s.id) }); })
+    const makerAddress = account.addresses[0];
+    getExecutableStrategies(makerAddress).then(value => { if (alive) setCatalog({ maker: value.maker?.toLowerCase() ?? makerAddress?.toLowerCase() ?? '', ids: value.strategies.map(s => s.id) }); })
       .catch(() => { if (alive) setCatalogError(true); });
     return () => { alive = false; };
-  }, []);
+  }, [account.addresses]);
   useEffect(() => {
     let alive = true;
     setLoaded(null); setError(''); setCopied(''); setCheckingNames(true);

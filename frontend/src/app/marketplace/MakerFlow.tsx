@@ -77,11 +77,15 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   useEffect(() => { consumeMarketplaceReturn(); }, []);
   useEffect(() => {
     let current = true;
-    getExecutableStrategies()
-      .then(catalog => { if (current) setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids: new Set(catalog.strategies.map(item => item.id)) }); })
+    if (!makerAddress) {
+      setExecutableCatalog({ maker: '', ids: new Set() });
+      return;
+    }
+    getExecutableStrategies(makerAddress)
+      .then(catalog => { if (current) setExecutableCatalog({ maker: catalog.maker?.toLowerCase() ?? makerAddress, ids: new Set(catalog.strategies.map(item => item.id)) }); })
       .catch(() => { if (current) setExecutableCatalog({ maker: '', ids: new Set() }); });
     return () => { current = false; };
-  }, []);
+  }, [makerAddress]);
   useEffect(() => {
     openingLinkedStrategy.current = !!(linkedId || linkedEns);
     if (!linkedId) {
@@ -94,14 +98,14 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     let current = true;
     setLoadingLinked(true); setSelected([]); setError('');
     const load = async () => {
-      const [listing, catalog] = await Promise.all([loadStrategyListing(linkedId), getExecutableStrategies()]);
+      const [listing, catalog] = await Promise.all([loadStrategyListing(linkedId), getExecutableStrategies(makerAddress)]);
       const names = await discoverStrategyNames(listing, linkedEns ?? undefined);
       if (linkedEns && !names.ensSelection) throw new Error('The ENS entry no longer points to this version. Open the strategy details again to review it.');
       const ids = new Set(catalog.strategies.map(item => item.id));
       const executable = (listing.executionProfileIds ?? [listing.id]).every(id => ids.has(id));
       if (!executable && !listing.releaseId) throw new Error('This strategy is not available for activation.');
       if (!current) return;
-      setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids });
+      setExecutableCatalog({ maker: catalog.maker?.toLowerCase() ?? '', ids });
       setSelected([{ ...listing, ...names }]);
       setPhase(executable ? 'limits' : 'activate');
     };
@@ -323,9 +327,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
     {phase === 'activate' && selected[0]?.releaseId && makerAddress && <MakerActivation key={`${makerAddress}:${selected[0].id}`} listing={selected[0]} maker={makerAddress} account={account}
       onReady={async () => {
-        const catalog = await getExecutableStrategies();
+        const catalog = await getExecutableStrategies(makerAddress);
         if (!catalog.strategies.some(item => item.id === selected[0].id)) throw new Error('Activation is confirmed, but the strategy catalog is not ready. Retry without signing again.');
-        setExecutableCatalog({ maker: catalog.maker.toLowerCase(), ids: new Set(catalog.strategies.map(item => item.id)) });
+        setExecutableCatalog({ maker: catalog.maker?.toLowerCase() ?? makerAddress, ids: new Set(catalog.strategies.map(item => item.id)) });
         go('limits');
       }} />}
 

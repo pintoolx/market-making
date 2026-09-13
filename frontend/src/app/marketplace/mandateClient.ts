@@ -61,7 +61,7 @@ export type ExecutableStrategy = {
 };
 
 export type ExecutableStrategyCatalog = {
-  maker: string;
+  maker?: string;
   strategies: ExecutableStrategy[];
 };
 
@@ -110,9 +110,12 @@ export async function createMandate(input: EvaluateMandateInput): Promise<Mandat
   return validateState(state);
 }
 
-export async function getExecutableStrategies(): Promise<ExecutableStrategyCatalog> {
-  const value = await request<Partial<ExecutableStrategyCatalog>>('/v1/strategies');
-  if (!/^0x[0-9a-f]{40}$/i.test(value.maker ?? '') || !Array.isArray(value.strategies)
+export async function getExecutableStrategies(maker?: string): Promise<ExecutableStrategyCatalog> {
+  const query = new URLSearchParams();
+  if (maker) query.set('maker', maker.toLowerCase());
+  const path = query.toString() ? `/v1/strategies?${query.toString()}` : '/v1/strategies';
+  const value = await request<Partial<ExecutableStrategyCatalog>>(path);
+  if (!Array.isArray(value.strategies)
     || !value.strategies.every(item => item?.id && item?.name && item?.provider && isHex(item.strategyHash))) {
     throw new Error('The mandate service returned an invalid strategy catalog.');
   }

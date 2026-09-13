@@ -177,8 +177,10 @@ export function makeServer(config, dependencies = {}) {
         const available = [];
         const activated = await activationCatalog(config.stateDir);
         const combined = new Map(config.strategies.map(item => [item.id, item]));
+        const makerFilter = url.searchParams.get('maker')?.toLowerCase();
+        if (makerFilter && !/^0x[0-9a-f]{40}$/i.test(makerFilter)) throw new HttpError(400, 'Maker address is invalid.');
         for (const [id, item] of Object.entries(activated)) {
-          if (item.maker !== config.strategyMaker) continue;
+          if (makerFilter && item.maker !== makerFilter) continue;
           if (combined.has(id) && combined.get(id).strategyHash !== item.strategyHash) throw new Error('Configured activation conflicts with confirmed strategy');
           combined.set(id, { ...item, id });
         }
@@ -193,7 +195,7 @@ export function makeServer(config, dependencies = {}) {
           available.push(item);
         }
         response.writeHead(200, { 'content-type': 'application/json' });
-        return response.end(JSON.stringify({ maker: config.strategyMaker, strategies: available }));
+        return response.end(JSON.stringify({ maker: makerFilter, strategies: available }));
       }
       let result;
       if (request.method === 'GET' && url.pathname === '/v1/mandates') result = { mandates: await service.list(url.searchParams.get('maker')) };
