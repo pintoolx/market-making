@@ -9,7 +9,7 @@ import SiteFooter from '../components/shared/SiteFooter';
 import { useAccount } from '../providers/useAccount';
 import { usePublishedListings } from '../marketplace/publishedStore';
 import MyLiquidity from './MyLiquidity';
-import { ListingCard } from '../marketplace/ui';
+import { ListingCard, ListingGrid } from '../marketplace/ui';
 import AccountDetails from './AccountDetails';
 import EnsWorkspace from '../ens/EnsWorkspace';
 import EnsPublisher from '../ens/EnsPublisher';
@@ -49,12 +49,12 @@ function Providing() {
       <h2 className={aqua.sectionTitle}>Strategies you provide</h2>
       <span className={aqua.muted}>{published.length} published</span>
     </div>
-    <div className={aqua.grid}>
+    <ListingGrid>
       {published.map(item => <ListingCard key={item.id} listing={item} action={<div className={aqua.cardButtons}>
         <Primary onClick={() => router.push(`/studio?edit=${item.template.id}`)}>Edit</Primary>
         {!item.releaseId && <ConfirmButton label="Unpublish" confirmLabel="Yes, unpublish" onConfirm={() => unpublish(item.template.id)} />}
       </div>} />)}
-    </div>
+    </ListingGrid>
   </>;
 }
 

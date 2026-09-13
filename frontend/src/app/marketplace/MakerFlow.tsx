@@ -14,7 +14,7 @@ import { ADAPTIVE_PROFILE_IDS, presentMandate } from './mandatePresentation';
 
 import { saveMandateReference } from './mandateReferenceStore';
 import { usePublishedListings, type Listing } from './publishedStore';
-import { ListingCard, PageHead, Steps } from './ui';
+import { ListingCard, ListingGrid, PageHead, Steps } from './ui';
 import aqua from './aqua.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { discoverStrategyNames } from '../ens/strategyNames';
@@ -319,9 +319,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'choose' && <>
       <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
-      <div className={aqua.grid}>
+      <ListingGrid>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
-      </div>
+      </ListingGrid>
     </>}
 
     {phase === 'activate' && selected[0]?.releaseId && makerAddress && <MakerActivation key={`${makerAddress}:${selected[0].id}`} listing={selected[0]} maker={makerAddress} account={account}

@@ -4,24 +4,17 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Secondary from '../components/shared/Secondary';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
-import { PageHead } from './ui';
+import { ListingGrid, PageHead, StrategyCardShell } from './ui';
 import ClmmPublisher from './ClmmPublisher';
 import TemplateDraftEditor from './TemplateDraftEditor';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
 
 function StudioCard({ label, title, description, action, onSelect }: { label: string; title: string; description: string; action: string; onSelect(): void }) {
-  return <article className={`${styles.card} ${aqua.card}`}>
-    <div className={styles.cardBg} aria-hidden="true" />
-    <div className={styles.cardBody}>
-      <div className={styles.tagRow}><span className={`${styles.tag} ${aqua.chip}`}>{label}</span></div>
-      <h3 className={styles.cardTitle}>{title}</h3>
-      <p className={aqua.summary}>{description}</p>
-    </div>
-    <div className={`${styles.cardActions} ${aqua.cardActions}`}>
-      <Secondary fullWidth onClick={onSelect}>{action}</Secondary>
-    </div>
-  </article>;
+  const tag = <span className={`${styles.tag} ${aqua.chip}`}>{label}</span>;
+  return <StrategyCardShell tags={tag} title={title} action={<Secondary fullWidth onClick={onSelect}>{action}</Secondary>}>
+    <p className={aqua.summary}>{description}</p>
+  </StrategyCardShell>;
 }
 
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
@@ -48,11 +41,11 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
       <h2 className={aqua.sectionTitle}>Choose a starting point</h2>
       <span className={aqua.muted}>{AQUA_TEMPLATES.length + 1} options</span>
     </div>
-    <div className={aqua.grid}>
+    <ListingGrid>
       {AQUA_TEMPLATES.map(t => <StudioCard key={t.id} label={t.label} title={t.name} description={t.summary} action="Customize template" onSelect={() => open(t.id)} />)}
       <StudioCard label="Strategy Builder" title="Build your own"
         description="Describe your goals, compare supported curves and refine your strategy with the assistant."
         action="Open Strategy Builder" onSelect={() => router.push('/builder')} />
-    </div>
+    </ListingGrid>
   </section>;
 }

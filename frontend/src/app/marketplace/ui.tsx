@@ -13,6 +13,10 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
   </ol>;
 }
 
+export function ListingGrid({ children }: { children: React.ReactNode }) {
+  return <div className={`${styles.grid} ${aqua.grid}`}>{children}</div>;
+}
+
 export function PageHead({ eyebrow, title, accent, children, headingRef }: { eyebrow: string; title: string; accent?: string; children?: React.ReactNode; headingRef?: React.Ref<HTMLHeadingElement> }) {
   return <div className={aqua.pageHead}>
     <span className={aqua.eyebrow}>{eyebrow}</span>
@@ -21,23 +25,36 @@ export function PageHead({ eyebrow, title, accent, children, headingRef }: { eye
   </div>;
 }
 
-export function ListingCard({ listing, action }: { listing: Listing; action?: React.ReactNode }) {
+export function StrategyCardShell({ tags, title, children, action }: {
+  tags: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return <article className={`${styles.card} ${aqua.card}`}>
     <div className={styles.cardBg} aria-hidden="true" />
     <div className={`${styles.cardBody} ${action ? '' : aqua.cardBodyEnd}`}>
-      <div className={styles.tagRow}>
+      <div className={styles.tagRow}>{tags}</div>
+      <h3 className={styles.cardTitle}>{title}</h3>
+      {children}
+    </div>
+    {action && <div className={`${styles.cardActions} ${aqua.cardActions}`}>{action}</div>}
+  </article>;
+}
+
+export function ListingCard({ listing, action }: { listing: Listing; action?: React.ReactNode }) {
+  const tags = <>
         <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.label}</span>
         {listing.version && <span className={`${styles.tag} ${aqua.chip}`}>Version {listing.version}</span>}
         {listing.mine && <span className={`${styles.tag} ${aqua.chip} ${aqua.mineTag}`}>Your strategy</span>}
         {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Accepting liquidity</span>}
-      </div>
-      <h3 className={styles.cardTitle}>{listing.name}</h3>
+  </>;
+
+  return <StrategyCardShell tags={tags} title={listing.name} action={action}>
       {(listing.ensName || listing.ensSelection) && <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>}
       {listing.ensStatus === 'historical' && <p className={aqua.muted}>Previously published under this name. ENS now points to another version.</p>}
       <ProviderIdentity listing={listing} />
       {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Proposed profit share: ${listing.feePct}% · collection not enabled`}</p>}
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
-    </div>
-    {action && <div className={`${styles.cardActions} ${aqua.cardActions}`}>{action}</div>}
-  </article>;
+  </StrategyCardShell>;
 }
