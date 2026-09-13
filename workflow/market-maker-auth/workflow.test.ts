@@ -334,9 +334,10 @@ describe('onHttpTrigger', () => {
 		const { runtime } = makeFakeTeeRuntime()
 		expect(() => onHttpTrigger(runtime, httpPayload({
 			requestId: 'mandate-unsealed',
-			maker: '0x5555555555555555555555555555555555555555',
+			maker: makeConfig().maker,
 			strategyHash: makeConfig().strategyHash,
 			marketSnapshot: makeConfig().marketSnapshot,
+			makerLimits: 'TOP-SECRET-LIMITS',
 		}))).toThrow('HTTP trigger payload failed schema validation')
 		let message = ''
 		try {
@@ -361,11 +362,18 @@ test('real delivery rejects fixed fixtures and requires explicit transport', () 
   expect(() => configSchema.parse({ ...base, marketSource: 'kraken', publishMode: 'don-report' })).toThrow('explicit transport')
 })
 
+test('HTTP uses the provisioned Maker policy for a matching wallet without exposing an envelope', () => {
+	const { runtime, secretCalls } = makeFakeTeeRuntime()
+	const summary = onHttpTrigger(runtime, httpPayload({ requestId: 'provisioned-maker', maker: runtime.config.maker, strategyHash: runtime.config.strategyHash, marketSnapshot: runtime.config.marketSnapshot }))
+	expect(summary).toContain('allowedDirections=3')
+	expect(secretCalls).toEqual([['PROVIDER_STRATEGY', 'MAKER_LIMITS']])
+})
+
 test('HTTP cannot reuse the provisioned Maker policy for another wallet', () => {
-  const { runtime, secretCalls } = makeFakeTeeRuntime()
-  expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'wrong-maker', maker: '0x5555555555555555555555555555555555555555',
-    strategyHash: runtime.config.strategyHash, marketSnapshot: runtime.config.marketSnapshot }))).toThrow('makerLimitsEnvelope')
-  expect(secretCalls).toEqual([])
+	const { runtime, secretCalls } = makeFakeTeeRuntime()
+	expect(() => onHttpTrigger(runtime, httpPayload({ requestId: 'wrong-maker', maker: '0x5555555555555555555555555555555555555555',
+		strategyHash: runtime.config.strategyHash, marketSnapshot: runtime.config.marketSnapshot }))).toThrow('Maker does not match the provisioned confidential policy')
+	expect(secretCalls).toEqual([])
 })
 
 test('live HTTP acquisition rejects injected market data before private inputs are fetched', () => {
