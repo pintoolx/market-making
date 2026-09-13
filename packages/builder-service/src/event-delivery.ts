@@ -26,6 +26,7 @@ type SubscriptionRow = { id: string; owner: string; draftId: string; revision: n
 type Snapshot = { subscription: SubscriptionRow; event: PublicEvent; draft: Awaited<ReturnType<typeof readOwnedDraft>>; artifact: Awaited<ReturnType<typeof readCompiledArtifact>>; consent: AutomationConsent; binding: AuthorizationBinding }
 export type EvaluationResult = { status: 'unchanged' | 'changed' | 'paused' | 'failed'; reportHash?: `0x${string}`; report?: Record<string, unknown>; reason?: string; observedAt?: string }
 export type DeliveryReceipt = { transactionHash: `0x${string}`; receipt?: Record<string, unknown> }
+export type EventHealth = { source: string; chainId?: number; blockHash: `0x${string}` | null; observedAt: string | null; health: 'healthy' | 'stale' | 'recovered' | 'error'; errorCode?: string; updatedAt: string }
 export type EventDeliveryDependencies = {
   evaluate?: (input: Snapshot) => Promise<EvaluationResult>
   deliver?: (input: { subscription: SubscriptionRow; report: Record<string, unknown>; reportHash: `0x${string}`; nonce: string }) => Promise<DeliveryReceipt>
@@ -240,6 +241,14 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       const row = (await pool.query('SELECT source,chain_id,cursor,block_hash,observed_at,health,error_code FROM builder.event_cursors WHERE source=$1', [source])).rows[0]
       if (!row) return null
       return { source, chainId: row.chain_id === null ? undefined : Number(row.chain_id), cursor: z.record(z.string(), z.unknown()).parse(row.cursor), blockHash: row.block_hash as `0x${string}` | null, observedAt: asIso(row.observed_at as Date | null), health: row.health as 'healthy' | 'stale' | 'recovered' | 'error', errorCode: row.error_code === null ? undefined : String(row.error_code) }
+    },
+    async readHealth(limit = 100): Promise<EventHealth[]> {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new ServiceError('invalid-request')
+      return (await pool.query(`SELECT source,chain_id,block_hash,observed_at,health,error_code,updated_at
+        FROM builder.event_cursors ORDER BY source LIMIT $1`, [limit])).rows.map(row => ({
+        source: String(row.source), chainId: row.chain_id === null ? undefined : Number(row.chain_id), blockHash: row.block_hash as `0x${string}` | null,
+        observedAt: asIso(row.observed_at as Date | null), health: row.health as EventHealth['health'], errorCode: row.error_code === null ? undefined : String(row.error_code), updatedAt: (row.updated_at as Date).toISOString(),
+      }))
     },
     async health(source: string, input: unknown) {
       sourceSchema.parse(source)

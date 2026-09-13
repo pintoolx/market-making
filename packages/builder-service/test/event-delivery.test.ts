@@ -160,6 +160,11 @@ test('signed event ingress route accepts only gateway-authenticated public event
     const common = { origin, 'content-type': 'application/json', 'x-pintool-event-timestamp': '1000', 'x-pintool-event-signature': ingress.sign(body, 1000) }
     const accepted = await fetch(base + '/events/ingest', { method: 'POST', headers: common, body: JSON.stringify(body) }); assert.equal(accepted.status, 202); assert.equal((await accepted.json() as { duplicate: boolean }).duplicate, false)
     const duplicate = await fetch(base + '/events/ingest', { method: 'POST', headers: common, body: JSON.stringify(body) }); assert.equal(duplicate.status, 202); assert.equal((await duplicate.json() as { duplicate: boolean }).duplicate, true)
+    const healthBody = { source: 'chain.gateway', cursor: { nextBlock: '42' }, health: 'healthy' }
+    const health = await fetch(base + '/events/health', { method: 'POST', headers: { ...common, 'x-pintool-event-signature': ingress.sign(healthBody, 1000) }, body: JSON.stringify(healthBody) }); if (health.status !== 202) throw new Error(`health status ${health.status}: ${await health.text()}`)
+    const challenge = await (await fetch(base + '/auth/challenge', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ address: f.account.address }) })).json() as { id: string; message: string }
+    const token = (await (await fetch(base + '/auth/login', { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ challengeId: challenge.id, signature: await f.account.signMessage({ message: challenge.message }) }) })).json() as { token: string }).token
+    const healthRead = await fetch(base + '/events/health', { headers: { origin, authorization: 'Bearer ' + token } }); assert.equal(healthRead.status, 200); assert.equal((await healthRead.json() as { health: { source: string }[] }).health[0]?.source, 'chain.gateway')
     const rejected = await fetch(base + '/events/ingest', { method: 'POST', headers: { ...common, 'x-pintool-event-signature': ingress.sign({ ...body, eventId: 'forged' }, 1000) }, body: JSON.stringify(body) }); assert.equal(rejected.status, 401)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
   assert.equal(f.owner.startsWith('wallet:'), true)

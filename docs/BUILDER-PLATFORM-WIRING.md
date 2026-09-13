@@ -34,6 +34,11 @@ the worker. Set `BUILDER_EVENT_EVALUATOR_URL`,
 enabling `BUILDER_EVENT_WORKER_ENABLED`. The runtime uses the HTTPS event
 gateway adapter for the two trusted operations:
 
+Authenticated Maker sessions can read public source-health summaries at
+`GET /v1/builder/events/health?limit=N`. The response contains source, chain,
+last observation, block hash and health state only; it does not return the
+cursor or any private policy input.
+
 For an EVM log trigger, set `BUILDER_EVENT_EVM_ADDRESS` and
 `BUILDER_EVENT_EVM_FROM_BLOCK` together. The resident worker then polls
 `BUILDER_EVENT_EVM_RPC_URL` (or the mandate RPC), waits for
