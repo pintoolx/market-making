@@ -102,19 +102,21 @@ Readiness stays false even when all [fork cases](../../docs/BUILDER-LIFECYCLE-SI
 
 `/builder` uses the existing Privy wallet provider and displays owned conversations, streamed Markdown replies, current parameters, missing settings, immutable revision diffs and restore actions. The Builder bearer token stays in browser memory; Privy refreshes its access token for each request. Reloading requires wallet proof again and reopens saved work. Failed authentication returns to wallet verification. Lost acceptance responses can recover the active turn through the conversation list. Stopping generation preserves committed edits and cancels the worker's remaining authority.
 
-The Provider navigation link is gated by `NEXT_PUBLIC_BUILDER_ENABLED=true`; leave it unset until the API/worker is mounted and verified. The page currently designs public Provider drafts. Publication, private editing and Maker execution are subsequent stages, and the UI does not represent a draft as deployed.
+The Provider navigation link is gated by `NEXT_PUBLIC_BUILDER_ENABLED=true`; leave it unset until the API/worker is mounted and verified. The page supports public design, the separate encrypted Provider policy editor, signed version publication/withdrawal, catalog review and Maker conversations pinned to a version. Maker wallet execution/authorization remain subsequent stages; drafts are not represented as deployed. [Workflow and privacy boundaries](../../docs/BUILDER-TEMPLATE-WORKSPACE.md).
 
 The browser fixture bundles the actual workspace with a public local wallet and synthetic Privy JWT. Its server uses a disposable local PostgreSQL database, the real handler/worker/tools, and a deterministic model. It never adds a fixture route to the application. Install Python Playwright/Chromium in the test environment, then from the repository root:
 
 ```sh
-pnpm --package esbuild@0.28.2 dlx esbuild packages/builder-service/test/browser/entry.jsx --bundle --format=esm --platform=browser --jsx=automatic --conditions=style --external:/hero.svg --outdir=.cache/builder/browser '--define:process.env.NEXT_PUBLIC_MANDATE_API_URL="http://127.0.0.1:3311"' '--define:process.env.NODE_ENV="development"'
+pnpm --package esbuild@0.28.2 dlx esbuild packages/builder-service/test/browser/private-check.mjs --bundle --platform=node --format=esm --outfile=.cache/builder/private-check.mjs
+pnpm --package esbuild@0.28.2 dlx esbuild packages/builder-service/test/browser/entry.jsx --bundle --format=esm --platform=browser --jsx=automatic --conditions=style --external:/hero.svg --outdir=.cache/builder/browser '--define:process.env.NEXT_PUBLIC_MANDATE_API_URL="http://127.0.0.1:3311"' '--define:process.env.NEXT_PUBLIC_CONFIDENTIAL_WORKFLOW_PUBLIC_KEY=undefined' '--define:process.env.NODE_ENV="development"'
 # Set BUILDER_TEST_DATABASE_URL to disposable localhost PostgreSQL, start this in one terminal:
 node packages/builder-service/test/browser/server.mjs
 # In another terminal:
 python3 packages/builder-service/test/browser/run.py
+python3 packages/builder-service/test/browser/templates.py
 ```
 
-The Python checks cover login, streamed text, two turns of CLMM edits, preserved caps, restoration, cancellation, a committed request with a lost response, reopening saved work, expired-session recovery, and mobile layout. Screenshots go to ignored `.cache/builder/`. These are browser/API/database checks with a fixture identity and model, not live Privy sign-in or live OpenAI browser acceptance.
+The Python checks cover login, streamed text, two turns of CLMM edits, preserved caps, restoration, cancellation, a committed request with a lost response, reopening saved work, expired-session recovery, and mobile layout. The template script also tests ordered private rules, encryption against the existing local workflow evaluator, public signature verification, publication/instance retry, pinned Maker edits and signed withdrawal. Start with a fresh fixture database and run the scripts sequentially after the ready log. Screenshots go to ignored `.cache/builder/`. These are browser/API/database checks with a fixture identity and model, not live Privy, OpenAI browser or TEE acceptance.
 
 Live checks use disposable localhost PostgreSQL databases and public fixture conversations:
 
@@ -146,7 +148,7 @@ Supply a trusted `nativeInventoryAdapter(profile, { rpcUrl })` to the handler/wo
 
 ## Provider publications and Maker instances
 
-Migration 007 adds immutable signed Provider versions, a separate private ciphertext table, permanent version withdrawal and Maker instances pinned to a public version/digest. Publication uses a five-minute intent plus a separate EIP-191 wallet signature. The server accepts no plaintext policy; ciphertext remains `encrypted-unverified`, and publishing/applying never sets registration readiness. Independent editor/browser sealing and trusted delivery are the next stages.
+Migration 007 adds immutable signed Provider versions, a separate private ciphertext table, permanent version withdrawal and Maker instances pinned to a public version/digest. Publication uses a five-minute intent plus a separate EIP-191 wallet signature. The server accepts no plaintext policy; ciphertext remains `encrypted-unverified`, and publishing/applying never sets registration readiness. The separate browser editor and version catalog are implemented; trusted delivery remains a later stage.
 
 Opt in with `builderHandler(pool, config, { templates: { workflowPublicKey, price: krakenTemplatePrice } })`. The key is operator-supplied public configuration; no fallback exists. Fixed templates need no price adapter; relative CLMM requires a fresh server observation and freezes its paired range. The application exposes public catalog, prepare/publish/withdraw/instantiate endpoints under `/templates`; [complete API and signing protocol](../../docs/BUILDER-PROVIDER-TEMPLATES.md).
 

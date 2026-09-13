@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { formatUnits } from 'viem';
-import { builderClient, BuilderError, type Conversation, type Draft, type Message, type Revision, type Validation } from './client';
+import { builderClient, BuilderError, type Conversation, type Draft, type Message, type Revision, type Validation, type TemplateContext } from './client';
+import TemplatePublisher from './TemplatePublisher';
+import TemplateCatalog from './TemplateCatalog';
 import type { Account } from '../providers/useAccount';
 import styles from './builder.module.css';
 
@@ -28,7 +30,7 @@ function valueLabel(path: string, value: unknown, draft: Draft) {
     if ('symbol' in value) return String(value.symbol);
     if ('kind' in value) {
       const model = value as NonNullable<Draft['spec']['model']>;
-      return `${curveNames[model.kind] ?? model.kind}${model.minPrice && model.maxPrice ? ` · ${model.minPrice}–${model.maxPrice}` : ''}`;
+      return `${curveNames[model.kind] ?? model.kind}${model.kind === 'concentrated' && model.minPrice && model.maxPrice ? ` · ${model.minPrice}–${model.maxPrice}` : ''}`;
     }
     return `${Object.keys(value).length} 項設定`;
   }
@@ -56,21 +58,24 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
   const [validation, setValidation] = useState<Validation | null>(null), [input, setInput] = useState('');
   const [turnId, setTurnId] = useState<string | null>(null), [provisional, setProvisional] = useState(''), [activity, setActivity] = useState('');
   const [pollKey, setPollKey] = useState(0), [historyOpen, setHistoryOpen] = useState(false);
+  const [publisherOpen, setPublisherOpen] = useState(false), [catalogOpen, setCatalogOpen] = useState(false), [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
   const pending = useRef<{ content: string; revision: number; conversationId: string; key: string } | null>(null);
 
   useEffect(() => {
     epoch.current++; api.current = null; selectedRef.current = null; pending.current = null; newDraftKey.current = null;
     setConnected(false); setSelected(null); setDraft(null); setMessages([]); setHistory([]); setValidation(null);
     setConversations([]); setTurnId(null); setProvisional(''); setBusy(''); setError('');
+    setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
   }, [identity.address, identity.userId, identity.authenticated]);
   useEffect(() => { if (followLatest.current && messageArea.current) messageArea.current.scrollTop = messageArea.current.scrollHeight; }, [messages, provisional]);
 
-  function failure(error: unknown, fallback: string) {
+  const failure = useCallback((error: unknown, fallback: string) => {
     setError(error instanceof BuilderError ? error.message : fallback);
     if (error instanceof BuilderError && error.status === 401) {
       epoch.current++; api.current = null; setConnected(false); setTurnId(null); setProvisional(''); setBusy('');
     }
-  }
+  }, []);
+  const sessionExpired = useCallback(() => failure(new BuilderError(401, 'authentication-required'), ''), [failure]);
 
   async function refresh() {
     const client = api.current, current = selectedRef.current, ticket = epoch.current;
@@ -78,6 +83,9 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     const [d, m, h, v, list] = await Promise.all([client.draft(current.draftId), client.messages(current.conversationId),
       client.history(current.draftId), client.validate(current.draftId), client.list()]);
     if (ticket !== epoch.current || api.current !== client) return;
+    const context = d.draft.templatePin ? await client.templateContext(d.draft.id, d.draft.revision) : null;
+    if (ticket !== epoch.current || api.current !== client) return;
+    setTemplateContext(context);
     setDraft(d.draft); setMessages(m.messages); setHistory(h.revisions); setValidation(v); setConversations(list.conversations);
     return list.conversations.find(c => c.conversationId === current.conversationId);
   }
@@ -87,6 +95,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     followLatest.current = true;
     selectedRef.current = conversation; setSelected(conversation); setTurnId(null); setProvisional('');
     setDraft(null); setMessages([]); setHistory([]); setValidation(null); setError(''); setBusy('載入策略'); pending.current = null;
+    setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
     try { await refresh(); if (epoch.current === ticket) setTurnId(conversation.activeTurnId); }
     catch (e) { if (epoch.current === ticket) failure(e, '無法載入策略，請重試。'); }
     finally { if (epoch.current === ticket) setBusy(''); }
@@ -146,7 +155,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     void poll();
     return () => { disposed = true; clearTimeout(timer); };
     // refresh reads the current scope from refs; a selection change increments epoch.
-  }, [turnId, pollKey]);
+  }, [turnId, pollKey, failure]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -197,7 +206,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
   const caps = draft?.spec.guardEnvelope, base = draft?.spec.baseToken, quote = draft?.spec.quoteToken, model = draft?.spec.model;
 
   return <section className={styles.workspace} aria-label="策略設計工作區">
-    <header className={styles.heading}><div><span className={styles.eyebrow}>PROVIDER / STRATEGY BUILDER</span><h1>把你的想法，變成策略。</h1><p>先說明目標，再一起微調每個條件。</p></div><span className={styles.network}>Ethereum Sepolia</span></header>
+    <header className={styles.heading}><div><span className={styles.eyebrow}>{draft?.kind === 'maker' ? 'MAKER' : 'PROVIDER'} / STRATEGY BUILDER</span><h1>把你的想法，變成策略。</h1><p>先說明目標，再一起微調每個條件。</p></div><span className={styles.network}>Ethereum Sepolia</span></header>
     {error && <div className={styles.error} role="alert"><p>{error}</p>{connected && <button onClick={() => void retry()}>重新載入</button>}</div>}
     {!connected ? <div className={styles.welcome}>
       <div><span className={styles.eyebrow}>從你的目標開始</span><h2>不必一次想好<br />所有參數。</h2><p>比較做市曲線、訂下交易上限，或回到前一個版本。每次修改都會保留記錄。</p>
@@ -208,7 +217,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     </div> : <>
       <div className={styles.toolbar}><label>我的草稿<select aria-label="選擇策略草稿" value={selected?.conversationId ?? ''} disabled={!!busy} onChange={event => { const c = conversations.find(x => x.conversationId === event.target.value); if (c) void choose(c); }}>
         {!conversations.length && <option value="">尚無草稿</option>}{conversations.map(c => <option key={c.conversationId} value={c.conversationId}>{c.title}{c.activeTurnId ? ' · 回覆中' : ''}</option>)}
-      </select></label><button onClick={() => void create()} disabled={!!busy}>＋ 新增草稿</button><span className={styles.saved}>{busy || (draft ? `已保存 · v${draft.revision}` : '準備開始')}</span></div>
+      </select></label><button onClick={() => void create()} disabled={!!busy}>＋ 新增草稿</button><button disabled={!!busy || !!turnId} onClick={() => setCatalogOpen(true)}>選擇模板套用</button><span className={styles.saved}>{busy || (draft ? `已保存 · v${draft.revision}` : '準備開始')}</span></div>
       <div className={styles.columns}>
         <section className={styles.chat} aria-label="策略對話"><div className={styles.sectionHead}><h2>一起設計</h2><span>公開策略參數</span></div>
           <div ref={messageArea} className={styles.messages} onScroll={event => {
@@ -222,9 +231,17 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
             <div className={styles.composerBottom}><span role="status" aria-live="polite">{turnId ? activity || '正在回覆' : '私密規則請在獨立編輯器設定。'}</span>{turnId ? <button type="button" onClick={() => void stop()}>停止生成</button> : <button className={styles.primary} type="submit" disabled={!draft || !input.trim() || !!busy}>送出 ↗</button>}</div>
           </form>
         </section>
-        <aside className={styles.strategy} aria-label="目前策略"><div className={styles.sectionHead}><h2>目前策略</h2><span className={styles.draftTag}>草稿 · 未發布</span></div>
+        <aside className={styles.strategy} aria-label="目前策略"><div className={styles.sectionHead}><h2>目前策略</h2><span className={styles.draftTag}>{draft?.kind === 'maker' ? 'Maker 草稿 · 未註冊' : 'Provider 設計草稿'}</span></div>
           {draft ? <>
             <div className={styles.strategyTitle}><h3>{draft.spec.title}</h3><p>{base?.symbol ?? '待選幣種'} / {quote?.symbol ?? '待選幣種'}<span>{model ? curveNames[model.kind] : '尚未選擇曲線'}</span></p></div>
+            {draft.kind === 'maker' && <div className={styles.makerInstance}><h3>你的配置</h3><p>{amount(draft.allocations?.baseAtomic, base?.decimals)} {base?.symbol} ＋ {amount(draft.allocations?.quoteAtomic, quote?.decimals)} {quote?.symbol}</p>
+              {templateContext && <><p>綁定 Provider 模板版本 {templateContext.templatePin.version}；可以繼續對話調整允許的參數，Provider 更新不會改變你的版本。</p>
+                <details><summary>查看可調範圍</summary><ul><li>可調整個人名稱與配置</li><li>{templateContext.permissions.tightenCaps ? '可收緊原始四項 Guard 上限' : '四項 Guard 上限固定'}</li>
+                  <li>{templateContext.permissions.shortenDeadline ? '可縮短原始策略期限' : '策略期限固定'}</li>
+                  {templateContext.baseline.model?.kind === 'concentrated' && <li>{templateContext.permissions.narrowConcentratedRange ? '可縮小' : '固定於'}原始範圍 {templateContext.baseline.model.minPrice}–{templateContext.baseline.model.maxPrice}</li>}
+                  <li>交易對、曲線種類與費率固定</li></ul></details>
+                {templateContext.withdrawn && <p className={styles.notice}>Provider 已撤下此版本，不能新增套用。這不代表既有鏈上授權已撤銷。</p>}</>}
+              <small>草稿配置尚未驗證錢包餘額與 allowance，也尚未註冊或啟用成交。</small></div>}
             {model?.kind === 'concentrated' && <div className={styles.range}><span>固定成交價格區間 · {quote?.symbol ?? 'quote'} / {base?.symbol ?? 'base'}</span><div><strong>{model.minPrice ?? '—'}</strong><i aria-hidden="true" /><strong>{model.maxPrice ?? '—'}</strong></div><small>{model.relativeWidthBps ? `套用時依參考價格 ±${model.relativeWidthBps / 100}% 固定區間` : '區間不會自動跟隨市場移動'}</small></div>}
             <dl className={styles.facts}><dt>LP 費率</dt><dd>{draft.spec.feeBps === undefined ? '尚未設定' : `${draft.spec.feeBps / 100}%`}</dd><dt>策略期限</dt><dd>{draft.spec.deadline ? new Date(draft.spec.deadline * 1000).toLocaleString('zh-TW') : '尚未設定'}</dd>{model?.kind === 'pegged' && <><dt>參考價格</dt><dd>{model.referencePrice ?? '尚未設定'}</dd><dt>放大係數</dt><dd>{model.amplification ?? '尚未設定'}</dd></>}</dl>
             <div className={styles.guard}><h3>Guard 公開上限</h3><p>每筆成交檢查；這些不是每日累計額度。</p><table><thead><tr><th scope="col">幣種</th><th scope="col">每筆最多</th><th scope="col">成交後庫存</th></tr></thead><tbody>
@@ -232,7 +249,9 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
               <tr><th scope="row">{quote?.symbol ?? '報價幣'}</th><td>{amount(caps?.maxAmountQuotePerSwap, quote?.decimals)}</td><td>{amount(caps?.maxPostBalanceQuote, quote?.decimals)}</td></tr>
             </tbody></table></div>
             <div className={styles.requirements}><h3>你訂下的條件 <span>{draft.requirements.length}</span></h3>{draft.requirements.length ? <ul>{draft.requirements.map(r => <li key={r.id}><span>{r.priority === 'must' ? '必要' : '偏好'}</span>{r.text}</li>)}</ul> : <p>確認的目標與限制會保存在這裡。</p>}</div>
-            {validation?.revision === draft.revision && <div className={styles.validation} data-ready={validation.ready}><strong>{validation.ready ? '公開設定完整' : '還需要一起確認'}</strong>{validation.ready ? <p>下一步需經編譯、模擬與版本審閱，才可發布。</p> : <ul>{validation.missingFields.map(f => <li key={f}>{fields[f] ?? '其他必要設定'}</li>)}{validation.errors.map((e, i) => <li key={i}>{e.message}</li>)}</ul>}</div>}
+            {validation?.revision === draft.revision && <div className={styles.validation} data-ready={validation.ready}><strong>{validation.ready ? '公開設定完整' : '還需要一起確認'}</strong>{validation.ready ? <p>{draft.kind === 'maker' ? '可以繼續編譯與模擬。配置、需求與實際成交條件仍須逐項驗證。' : '可以審閱並發布設計模板。Maker 套用後仍需編譯、模擬及需求驗證。'}</p> : <ul>{validation.missingFields.map(f => <li key={f}>{fields[f] ?? '其他必要設定'}</li>)}{validation.errors.map((e, i) => <li key={i}>{e.message}</li>)}</ul>}</div>}
+            {draft.kind === 'template' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || !validation?.ready || validation.revision !== draft.revision} onClick={() => setPublisherOpen(true)}>私密政策與模板發布</button>
+              <p>規則在獨立表單設定並加密，發布由錢包確認。</p></div>}
             <div className={styles.history}><button className={styles.historyToggle} onClick={() => setHistoryOpen(v => !v)} aria-expanded={historyOpen}>版本與變更 <span>{historyOpen ? '−' : '+'}</span></button>
               {historyOpen && history.map(revision => <div key={revision.revision} className={styles.revision}><div><strong>v{revision.revision}</strong><time>{new Date(revision.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</time>{Number(revision.revision) < draft.revision && <button disabled={!!busy || !!turnId} onClick={() => void restore(Number(revision.revision))}>恢復此版本</button>}</div>
                 {revision.diff.length ? <ul>{revision.diff.map((d, i) => <li key={i}><span>{fields[d.path] ?? '策略設定'}</span>{valueLabel(d.path, d.before, draft)} → {valueLabel(d.path, d.after, draft)}</li>)}</ul> : <p>建立草稿</p>}
@@ -242,6 +261,10 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
           </> : <div className={styles.emptySummary}>策略的曲線、上限與每次變更，會出現在這裡。</div>}
         </aside>
       </div>
+      {publisherOpen && draft?.kind === 'template' && api.current && identity.signMessage && <TemplatePublisher key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPublisherOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
+      {catalogOpen && api.current && identity.address && identity.signMessage && <TemplateCatalog key={identity.address} api={api.current} address={identity.address} signMessage={identity.signMessage} onClose={() => { setCatalogOpen(false); void retry(); }} onSessionExpired={sessionExpired} onApply={async result => {
+        await choose({ conversationId: result.conversationId, draftId: result.draft.id, title: result.draft.spec.title, revision: String(result.draft.revision), activeTurnId: null });
+      }} />}
     </>}
   </section>;
 }

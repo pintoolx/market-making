@@ -17,14 +17,23 @@ url.pathname = '/' + name;
 const pool = database(url.toString());
 await migrate(pool);
 const keys = await generateKeyPair('ES256');
+const { publicKey: workflowPublicKey, checkFixturePolicy } = await import(new URL('../../../../.cache/builder/private-check.mjs', import.meta.url));
 const token = await new SignJWT({ sid: 'browser-session' }).setProtectedHeader({ alg: 'ES256', typ: 'JWT' }).setIssuer('privy.io')
   .setAudience(appId).setSubject('did:privy:browser').setIssuedAt().setExpirationTime('1h').sign(keys.privateKey);
 const handler = builderHandler(pool, { origin, chainId: 11155111, profileId: profile.id, privyAppId: appId, designEnabled: true },
-  { verifyPrivy: createPrivyVerifier(appId, keys.publicKey) });
+  { verifyPrivy: createPrivyVerifier(appId, keys.publicKey), templates: { workflowPublicKey } });
 const store = createStore(pool, profile.id), turns = createTurns(pool), shutdown = new AbortController();
 const server = createServer(async (req, res) => {
   try {
     if (req.url === '/fixture/token') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ token })); return; }
+    if (req.url === '/fixture/policy-check') {
+      const rows = (await pool.query(`SELECT p.envelope,v.payload FROM builder_private.provider_policies p
+        JOIN builder.template_versions v ON v.template_id=p.template_id AND v.version=p.version ORDER BY v.created_at DESC LIMIT 1`)).rows;
+      if (!rows[0]) { res.statusCode = 404; res.end('No fixture publication'); return; }
+      const v = rows[0].payload;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(checkFixturePolicy(rows[0].envelope, v.provider, `${v.templateId}.v${v.version}`))); return;
+    }
     if (await handler(req, res)) return;
     if (req.url === '/hero.svg') { res.setHeader('Content-Type', 'image/svg+xml'); res.end(await readFile(new URL('../../../../frontend/public/hero.svg', import.meta.url))); return; }
     if (req.url === '/entry.js' || req.url === '/entry.css') {
@@ -49,6 +58,8 @@ function fixtureModel(draft, content) {
     { field: 'deadline', value: String(Math.floor(Date.now() / 1000) + 604800) },
   ];
   const selectedEdits = partial ? edits.filter(e => ['baseToken', 'quoteToken', 'maxAmountBasePerSwap'].includes(e.field)) : edits;
+  const title = content.match(/模板驗收-[a-z0-9]+/)?.[0];
+  if (title) selectedEdits.push({ field: 'title', value: title });
   let step = 0;
   return new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ async start(c) {
     c.enqueue({ type: 'stream-start', warnings: [] }); await delay(120);
