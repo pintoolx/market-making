@@ -32,16 +32,16 @@ try {
   }
   const challenge = await call('/auth/challenge', { address: account.address })
   token = (await call('/auth/login', { challengeId: challenge.id, signature: await account.signMessage({ message: challenge.message }) })).token
-  const created = await call('/conversations', { title: 'Provider 多輪曲線與成交限制比較', kind: 'template' })
+  const created = await call('/conversations', { title: 'Provider curve and execution-limit comparison', kind: 'template' })
   const fixture = builderSimulationFixture('xyc', account.address.toLowerCase()), { profileId: _profileId, ...spec } = fixture.spec
   await call(`/drafts/${created.draft.id}/patch`, { expectedRevision: 1, patch: { spec } })
   const turns = createTurns(pool), model = openAIModel({ apiKey: process.env.OPENAI_API_KEY ?? '', modelId })
   const prompts = [
-    '這是 Provider 模板，不是 Maker。請保留目前所有設定，用明確的假設配置 0.01 WETH / 25 USDC，預覽 taker 分別賣入 0.0001 WETH 與 0.001 WETH 的兩個獨立情境。解釋 Maker 收付方向和差異，不要問我真錢包或宣稱可以上線。',
-    '只把 USDC 單筆數量上限改成 0.1 USDC，其餘全部不動。保存後，用剛才相同的假設配置及兩個獨立交易大小重新預覽：雖然 taker 賣入的是 WETH，這個改動會不會擋到交易？',
-    '將 USDC 單筆上限恢復 12.5 USDC，曲線改為固定區間 CLMM，價格 2200 到 2800 USDC/WETH。其他 caps、零費率與期限不變。保存並用相同假設配置及相同兩個獨立交易情境預覽，比較先前 XYC；不要聲稱自動跟價。',
-    '現在改成 Pegged，參考價格填 2500 USDC/WETH、amplification 1，其它限制與期限保留。這次以假設 0.007 WETH / 30 USDC 配置，預覽 taker 賣入 0.0001 WETH。解釋我填 2500 是否就能保證成交在 2500，並說明模型預覽與真正成交的差異。',
-    '讀取保存的預覽比較版本，解釋目前版本與先前被 USDC cap 擋下的結果。不要修改任何設定，也不要重新產生預覽或模擬。',
+    'This is a Provider template, not a Maker. Preserve all settings and use explicit hypothetical allocations of 0.01 WETH / 25 USDC. Preview separate taker inputs of 0.0001 WETH and 0.001 WETH. Explain Maker payment directions and differences; do not request a real wallet or claim production readiness.',
+    'Change only the USDC per-swap limit to 0.1 USDC. Save and repeat the two independent previews with the same hypothetical allocations. Can this block a swap even when the taker input is WETH?',
+    'Restore the USDC per-swap limit to 12.5 and switch to fixed-range CLMM at 2200 to 2800 USDC/WETH. Preserve other caps, zero fees and deadline. Repeat the same allocations and two independent scenarios, comparing XYC. Do not claim automatic range tracking.',
+    'Switch to Pegged with reference price 2500 USDC/WETH and amplification 1; preserve other limits and deadline. Use hypothetical allocations of 0.007 WETH / 30 USDC and preview a taker input of 0.0001 WETH. Explain whether the reference guarantees execution at 2500 and distinguish preview from settlement.',
+    'Read saved previews and compare the current revision with the earlier USDC-cap rejection. Do not modify settings or generate new previews or simulations.',
   ]
   await mkdir(directory, { recursive: true })
   for (const [index, content] of prompts.entries()) {

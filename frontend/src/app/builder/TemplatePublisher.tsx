@@ -33,7 +33,7 @@ export default function TemplatePublisher({ api, draft, signMessage, onClose, on
     }).catch(e => {
       if (!live.current) return;
       if (e instanceof BuilderError && e.status === 401) { onSessionExpired(); return; }
-      setError(e instanceof BuilderError ? e.message : '無法載入既有模板。');
+      setError(e instanceof BuilderError ? e.message : 'Could not load existing templates.');
     });
     return () => { live.current = false; pending.current = null; prepare.current = null; };
   }, [api, draft.owner, onSessionExpired]);
@@ -42,17 +42,17 @@ export default function TemplatePublisher({ api, draft, signMessage, onClose, on
     if (!live.current) return;
     if (e instanceof BuilderError && e.status === 401) { onSessionExpired(); return; }
     const rule = e instanceof PrivatePolicyError ? e.field.match(/^rules\.(\d+)/) : null;
-    setError(e instanceof PrivatePolicyError ? `${rule ? `規則 ${Number(rule[1]) + 1}：` : ''}${e.message}` : e instanceof BuilderError ? e.message : '操作未完成，請檢查錢包或重新審閱。');
+    setError(e instanceof PrivatePolicyError ? `${rule ? `Rule ${Number(rule[1]) + 1}: ` : ''}${e.message}` : e instanceof BuilderError ? e.message : 'The action did not finish. Check your wallet or review again.');
     if (e instanceof BuilderError && e.status === 409) { clearReview(); prepare.current = null; }
   };
   async function prepareReview() {
     if (!form || busy || !checked) return;
-    setBusy('準備版本審閱'); setError('');
+    setBusy('Preparing version review'); setError('');
     try {
       // Validate before any network call. The final version ID is supplied by the server intent.
       encodePrivatePolicy(form, draft.spec, 'local-policy-validation');
       const checkedPermissions = templatePermissionsSchema.safeParse(permissions);
-      if (!checkedPermissions.success) throw new PrivatePolicyError('permissions', '請檢查公開調整範圍的上下限與數字格式。');
+      if (!checkedPermissions.success) throw new PrivatePolicyError('permissions', 'Check the editable public bounds and number formats.');
       const p = checkedPermissions.data, input = canonical({ draftId: draft.id, revision: draft.revision, permissions: p, templateId });
       if (prepare.current?.input !== input) prepare.current = { input, key: crypto.randomUUID() };
       const result = await api.preparePublication(draft, templateId, p, prepare.current.key);
@@ -67,7 +67,7 @@ export default function TemplatePublisher({ api, draft, signMessage, onClose, on
   }
   async function publish() {
     if (!review || busy) return;
-    setBusy(pending.current ? '確認發布結果' : '請在錢包簽署版本'); setError('');
+    setBusy(pending.current ? 'Confirming publication' : 'Sign the version in your wallet'); setError('');
     try {
       if (!pending.current) {
         if (Date.parse(review.intent.expiresAt) <= Date.now()) { clearReview(); prepare.current = null; throw new BuilderError(409, 'publication-intent-expired'); }
@@ -84,37 +84,37 @@ export default function TemplatePublisher({ api, draft, signMessage, onClose, on
     } catch (e) { failure(e); }
     finally { if (live.current) setBusy(''); }
   }
-  return <BuilderDialog title="發布 Provider 模板" onClose={onClose}>
+  return <BuilderDialog title="Publish Provider template" onClose={onClose}>
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {published ? <div className={styles.publicationComplete}><span className={styles.eyebrow}>VERSION PUBLISHED</span><h3>{published.template.spec.title} · 版本 {published.template.version}</h3>
-      <p>模板已保存，Maker 現在可以選定此版本建立自己的草稿。私密表單已清除。</p><p>加密政策尚待可信工作流程驗證；發布不會註冊 LP 或授權成交。</p><button className={styles.primary} onClick={onClose}>回到策略</button></div> : <>
-      <section className={styles.publicReview}><span className={styles.eyebrow}>PUBLIC VERSION</span><h3>{draft.spec.title}</h3><p>{base.symbol} / {quote.symbol} · 草稿 v{draft.revision} · 零費率</p>
+    {published ? <div className={styles.publicationComplete}><span className={styles.eyebrow}>VERSION PUBLISHED</span><h3>{published.template.spec.title} · Version {published.template.version}</h3>
+      <p>Template saved. Makers can select this version to create their own drafts. The private form has been cleared.</p><p>The encrypted policy still requires trusted workflow verification. Publication does not register liquidity or authorize swaps.</p><button className={styles.primary} onClick={onClose}>Back to strategy</button></div> : <>
+      <section className={styles.publicReview}><span className={styles.eyebrow}>PUBLIC VERSION</span><h3>{draft.spec.title}</h3><p>{base.symbol} / {quote.symbol} · Draft v{draft.revision} · Zero fee</p>
         <StrategyDetails spec={draft.spec} requirements={draft.requirements} />
-        <p>公開曲線、Guard 上限與需求會隨版本發布。Maker 之後仍需編譯、模擬與審閱自己的配置。</p>
-        <fieldset disabled={!!busy || !!review}><label>發布到哪個模板<select value={templateId ?? ''} onChange={e => { setTemplateId(e.target.value || null); clearReview(); }}>
-          <option value="">建立新模板</option>{series.map(t => <option key={t.templateId} value={t.templateId}>{t.title} · 目前版本 {t.version}</option>)}</select></label>
-          <h4>Maker 可以調整的公開範圍</h4><div className={styles.checks}>
-            <label><input type="checkbox" checked={permissions.tightenCaps} onChange={e => { setPermissions(p => ({ ...p, tightenCaps: e.target.checked })); clearReview(); }} />可收緊四項 Guard 上限</label>
-            <label><input type="checkbox" checked={permissions.shortenDeadline} onChange={e => { setPermissions(p => ({ ...p, shortenDeadline: e.target.checked })); clearReview(); }} />可縮短策略期限</label>
-            {draft.spec.model?.kind === 'concentrated' && <label><input type="checkbox" checked={permissions.narrowConcentratedRange} onChange={e => { setPermissions(p => ({ ...p, narrowConcentratedRange: e.target.checked })); clearReview(); }} />可縮小固定價格範圍</label>}
+        <p>The version includes its public curve, Guard limits and requirements. Makers still need to compile, simulate and review their own allocations.</p>
+        <fieldset disabled={!!busy || !!review}><label>Publish to template<select value={templateId ?? ''} onChange={e => { setTemplateId(e.target.value || null); clearReview(); }}>
+          <option value="">Create a new template</option>{series.map(t => <option key={t.templateId} value={t.templateId}>{t.title} · Current version {t.version}</option>)}</select></label>
+          <h4>Public parameters Makers may adjust</h4><div className={styles.checks}>
+            <label><input type="checkbox" checked={permissions.tightenCaps} onChange={e => { setPermissions(p => ({ ...p, tightenCaps: e.target.checked })); clearReview(); }} />May tighten the four Guard limits</label>
+            <label><input type="checkbox" checked={permissions.shortenDeadline} onChange={e => { setPermissions(p => ({ ...p, shortenDeadline: e.target.checked })); clearReview(); }} />May shorten the strategy deadline</label>
+            {draft.spec.model?.kind === 'concentrated' && <label><input type="checkbox" checked={permissions.narrowConcentratedRange} onChange={e => { setPermissions(p => ({ ...p, narrowConcentratedRange: e.target.checked })); clearReview(); }} />May narrow the fixed price range</label>}
           </div>
           {draft.spec.model?.kind === 'pegged' && (['peggedReferencePrice', 'peggedAmplification'] as const).map(name => <div key={name}>
             <label className={styles.checkbox}><input type="checkbox" checked={!!permissions[name]} onChange={e => {
               const value = draft.spec.model?.kind === 'pegged' ? (name === 'peggedReferencePrice' ? draft.spec.model.referencePrice : draft.spec.model.amplification)! : '1';
               setPermissions(p => ({ ...p, [name]: e.target.checked ? { min: value, max: value } : null })); clearReview();
-            }} />允許調整{name === 'peggedReferencePrice' ? '參考價格' : '放大係數'}</label>
-            {permissions[name] && <div className={styles.formGrid}>{(['min', 'max'] as const).map(bound => <label key={bound}>{name === 'peggedReferencePrice' ? '參考價格' : '放大係數'}{bound === 'min' ? '下限' : '上限'}<input inputMode="decimal" value={permissions[name]![bound]} onChange={e => { setPermissions(p => ({ ...p, [name]: { ...p[name]!, [bound]: e.target.value } })); clearReview(); }} /></label>)}</div>}
+            }} />Allow changes to {name === 'peggedReferencePrice' ? 'Reference price' : 'Amplification'}</label>
+            {permissions[name] && <div className={styles.formGrid}>{(['min', 'max'] as const).map(bound => <label key={bound}>{name === 'peggedReferencePrice' ? 'Reference price' : 'Amplification'}{bound === 'min' ? ' minimum' : ' maximum'}<input inputMode="decimal" value={permissions[name]![bound]} onChange={e => { setPermissions(p => ({ ...p, [name]: { ...p[name]!, [bound]: e.target.value } })); clearReview(); }} /></label>)}</div>}
           </div>)}
-          <p className={styles.helper}>個人標題與配置可調整；交易對、曲線種類、費率及其他程式設定固定。所有可調上限都以這個發布版本為界。</p>
+          <p className={styles.helper}>Personal titles and allocations are editable. The pair, curve, fee and other program settings are fixed. Editable limits remain bounded by this published version.</p>
         </fieldset>
       </section>
       {form && <fieldset className={styles.privateFieldset} disabled={!!busy || !!review}><PrivatePolicyFields value={form} draft={draft} onChange={value => { setForm(value); clearReview(); }} /></fieldset>}
-      {!review ? <div className={styles.dialogFooter}><label className={styles.checkbox}><input type="checkbox" checked={checked} disabled={!!busy} onChange={e => setChecked(e.target.checked)} />我已確認公開設定、可調範圍及上方私密規則</label>
-        <button className={styles.primary} disabled={!checked || !!busy} onClick={() => void prepareReview()}>{busy || '加密並審閱版本'}</button></div> : <div className={styles.dialogFooter}>
-        <p>即將發布版本 {review.intent.base.version}，私密規則已加密。請在錢包簽署完整公開版本；這份簽名不授權資產轉移。</p>
-        <details><summary>查看錢包簽署內容</summary><pre>{review.message}</pre></details>
-        <div className={styles.actions}><button disabled={!!busy || !!pending.current} onClick={() => { clearReview(); prepare.current = null; }}>返回修改</button>
-          <button className={styles.primary} disabled={!!busy} onClick={() => void publish()}>{busy || (pending.current ? '重試確認發布' : '錢包簽名並發布')}</button></div>
+      {!review ? <div className={styles.dialogFooter}><label className={styles.checkbox}><input type="checkbox" checked={checked} disabled={!!busy} onChange={e => setChecked(e.target.checked)} />I have reviewed the public parameters, editable bounds and private rules above</label>
+        <button className={styles.primary} disabled={!checked || !!busy} onClick={() => void prepareReview()}>{busy || 'Encrypt and review version'}</button></div> : <div className={styles.dialogFooter}>
+        <p>Publishing version {review.intent.base.version}. Private rules are encrypted. Sign the complete public version in your wallet; this signature does not authorize asset transfers.</p>
+        <details><summary>View wallet signing message</summary><pre>{review.message}</pre></details>
+        <div className={styles.actions}><button disabled={!!busy || !!pending.current} onClick={() => { clearReview(); prepare.current = null; }}>Back to editing</button>
+          <button className={styles.primary} disabled={!!busy} onClick={() => void publish()}>{busy || (pending.current ? 'Retry publication confirmation' : 'Sign and publish')}</button></div>
       </div>}
     </>}
   </BuilderDialog>;

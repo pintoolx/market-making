@@ -19,15 +19,15 @@ try {
   admin = database(url.toString()); await admin.query(`CREATE DATABASE "${name}"`)
   url.pathname = '/' + name; pool = database(url.toString()); await migrate(pool)
   const store = createStore(pool, sepoliaStandingProfile.id)
-  const created = await store.create(fixtureOwner, randomUUID(), { title: '公開策略多輪驗證', kind: 'template' })
+  const created = await store.create(fixtureOwner, randomUUID(), { title: 'Public strategy multi-turn verification', kind: 'template' })
   const model = openAIModel({ apiKey: process.env.OPENAI_API_KEY ?? '', modelId })
   const deadline = Math.floor(Date.now() / 1000) + 7 * 86400
   const prompts = [
-    '我想在 Ethereum Sepolia 發布 WETH/USDC 做市策略模板，希望保守一點。先比較固定區間與一般乘積曲線的取捨，暫時不要替 Maker 設定資產。',
-    `那選固定區間 2200 到 2800 USDC/WETH，零費率。單筆最多 0.05 WETH 或 125 USDC，成交後庫存各自上限 2 WETH 和 5000 USDC。策略期限用 Unix ${deadline}。幫我保存並驗證這些公開設定。`,
-    '沿用其他全部設定，只把上限價格從 2800 改成 2700，下限 2200、零費率及所有交易和庫存限制都保留。',
-    '回到剛剛上限價格還是 2800 的那一版，其他設定保持一致。',
-    '另外我想每小時自動把資產搬去 Uniswap 然後重置區間，你目前能做嗎？先跟我說限制，不要改掉既有範圍與 caps。',
+    'I want to publish a conservative WETH/USDC market-making template on Ethereum Sepolia. Compare fixed-range and constant-product curves first. Do not assign Maker assets yet.',
+    `Choose a fixed range of 2200 to 2800 USDC/WETH with zero fees. Set per-swap limits to 0.05 WETH / 125 USDC and post-swap inventory limits to 2 WETH / 5000 USDC. Use Unix deadline ${deadline}. Save and validate these public parameters.`,
+    'Change only the upper price from 2800 to 2700. Keep the 2200 lower bound, zero fees and all trade and inventory limits.',
+    'Restore the revision with an upper price of 2800 and keep the other settings consistent.',
+    'Can you move assets to Uniswap every hour and reset the range automatically? Explain the limitations first; do not change the existing range or caps.',
   ].slice(0, turnLimit)
   const evidence: unknown[] = []
   const path = new URL('../../../.cache/builder/', import.meta.url)

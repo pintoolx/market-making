@@ -18,7 +18,7 @@ after(async () => {
   if (admin) { try { await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`) } finally { await admin.end() } }
 })
 async function maker(kind: 'xyc' | 'concentrated' | 'pegged' = 'xyc') {
-  const store = createStore(pool, profile.id), created = await store.create(owner, randomUUID(), { title: '可審閱編譯', kind: 'maker' })
+  const store = createStore(pool, profile.id), created = await store.create(owner, randomUUID(), { title: 'Reviewable compilation', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     allocations: { baseAtomic: '1000000000000000000', quoteAtomic: '2500000000' },
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], feeBps: 0, deadline: Math.floor(Date.now() / 1000) + 86400,
@@ -55,7 +55,7 @@ test('owned compiler artifacts for all curves are immutable, deterministic, deco
 test('edits, restored revisions and manifest changes never reuse an obsolete compilation as current', async () => {
   const store = createStore(pool, profile.id), artifacts = createArtifacts(pool, profile), { draft } = await maker()
   const key = randomUUID(), input = { draftId: draft.id, expectedRevision: 2 }, original = await artifacts.compile(owner, key, input)
-  await store.patch(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, patch: { spec: { title: '新的版本' } } })
+  await store.patch(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, patch: { spec: { title: 'New version' } } })
   assert.equal((await artifacts.get(owner, original.artifactId)).current, false)
   assert.deepEqual(await artifacts.compile(owner, key, input), original, 'a retried receipt keeps its original revision')
   await assert.rejects(artifacts.compile(owner, randomUUID(), input), /draft-changed/)
@@ -71,13 +71,13 @@ test('edits, restored revisions and manifest changes never reuse an obsolete com
 
 test('template, incomplete inputs and cancelled model authority cannot create executable artifacts', async () => {
   const store = createStore(pool, profile.id), artifacts = createArtifacts(pool, profile), turns = createTurns(pool)
-  const template = await store.create(owner, randomUUID(), { title: 'Provider 模板', kind: 'template' })
+  const template = await store.create(owner, randomUUID(), { title: 'Provider template', kind: 'template' })
   await assert.rejects(artifacts.compile(owner, randomUUID(), { draftId: template.draft.id, expectedRevision: 1 }), /maker-instance-required/)
-  const partial = await store.create(owner, randomUUID(), { title: '逐項決定', kind: 'maker' })
+  const partial = await store.create(owner, randomUUID(), { title: 'Incremental decisions', kind: 'maker' })
   await store.patch(owner, randomUUID(), { draftId: partial.draft.id, expectedRevision: 1, patch: { spec: { guardEnvelope: { maxAmountBasePerSwap: '1' } } } })
   await assert.rejects(artifacts.compile(owner, randomUUID(), { draftId: partial.draft.id, expectedRevision: 2 }), /incomplete-or-invalid/)
   const { draft, conversationId } = await maker()
-  const turn = await turns.accept(owner, randomUUID(), { conversationId, content: '編譯策略', expectedRevision: 2 }), lease = (await turns.claim())!
+  const turn = await turns.accept(owner, randomUUID(), { conversationId, content: 'Compile strategy', expectedRevision: 2 }), lease = (await turns.claim())!
   await turns.cancel(owner, turn.id)
   await assert.rejects(createArtifacts(pool, profile, lease).compile(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2 }), /agent-turn-stale/)
   assert.equal((await artifacts.list(owner, draft.id)).length, 0)
@@ -86,7 +86,7 @@ test('template, incomplete inputs and cancelled model authority cannot create ex
 
 test('the durable AI SDK worker compiles through its scoped tool and records actual artifact evidence', async () => {
   const { draft, conversationId } = await maker('concentrated'), turns = createTurns(pool)
-  const turn = await turns.accept(owner, randomUUID(), { conversationId, expectedRevision: 2, content: '請編譯目前 Maker 草稿，先不要進行交易。' })
+  const turn = await turns.accept(owner, randomUUID(), { conversationId, expectedRevision: 2, content: 'Compile the current Maker draft without trading.' })
   let step = 0
   const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } }
   const model = new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ start(c) {
@@ -94,7 +94,7 @@ test('the durable AI SDK worker compiles through its scoped tool and records act
     if (step === 0) c.enqueue({ type: 'tool-call', toolCallId: 'inspect', toolName: 'inspectStrategy', input: JSON.stringify({ view: 'current' }) })
     else if (step === 1) c.enqueue({ type: 'tool-call', toolCallId: 'compile', toolName: 'compileStrategy', input: JSON.stringify({ expectedRevision: 2 }) })
     else {
-      c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: '已保存編譯結果，尚未模擬或送出交易。' }); c.enqueue({ type: 'text-end', id: 'reply' })
+      c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: 'Compilation saved; no simulation or transaction has occurred.' }); c.enqueue({ type: 'text-end', id: 'reply' })
     }
     c.enqueue({ type: 'finish', finishReason: { unified: step++ < 2 ? 'tool-calls' : 'stop', raw: undefined }, usage }); c.close()
   } }) }) })

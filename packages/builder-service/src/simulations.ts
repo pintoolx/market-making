@@ -24,13 +24,13 @@ export const parseSimulationReport = (input: unknown) => reportSchema.parse(inpu
 export interface ClaimedSimulation { id: string; owner: string; artifactId: string; draftId: string; revision: number; leaseToken: string; attempt: number }
 export interface SimulationReference { id: string; artifactId: string; draftId: string; revision: number }
 const issueGuidance: Record<string, string> = {
-  UnsupportedSwap: 'Guard 拒絕交換的數量或庫存狀態；輸出捨入為零、超過實際 Aqua 庫存及不支援的交換模式都可能造成此錯誤。極小額測試應先檢查輸出精度，不能只憑此代碼斷言唯一原因。',
-  AmountLimitExceeded: '此次交換的其中一種 token 數量超過 report 與不可變策略 envelope 的交集上限；輸入與輸出兩側都受限。',
-  InventoryLimitExceeded: '成交後的 Aqua 配額餘額會超過 report 與不可變策略 envelope 的交集上限。',
-  MissingReport: '目前策略 hash 尚無已保存的 Guard report。',
-  StrategyNotActive: '這個策略不是 Maker 目前啟用的 hash；可能已切換、暫停或撤銷。',
-  SafeTransferFromFailed: '實際 token 轉帳失敗；錢包餘額或 allowance 不足是可能原因。可報價不保證可成交。',
-  'boundary-needs-atomic-margin': '交易量太小，無法建立相差一個最小單位的邊界測試；這個測試失敗本身不等於所有成交都不可能。',
+  UnsupportedSwap: 'Guard rejected the swap amount or inventory state. Zero-rounded output, insufficient actual Aqua inventory and unsupported swap modes can all cause this error. For tiny amounts, check output precision first; this code does not establish a unique cause.',
+  AmountLimitExceeded: 'A token amount exceeds the intersection of the report and immutable strategy limits. Both input and output amounts are bounded.',
+  InventoryLimitExceeded: 'Post-swap Aqua balances would exceed the intersection of report and immutable strategy limits.',
+  MissingReport: 'No Guard report is stored for the current strategy hash.',
+  StrategyNotActive: 'This is not the active Maker strategy hash. It may have been replaced, paused or revoked.',
+  SafeTransferFromFailed: 'The token transfer failed, possibly due to insufficient wallet balance or allowance. A quote does not guarantee settlement.',
+  'boundary-needs-atomic-margin': 'The amount is too small for a one-atomic-unit boundary test. This test failure does not mean all swaps are impossible.',
 }
 
 /** Only isolated preparation jobs: no broadcaster, asset key, report nonce or public-chain transaction. */
@@ -198,7 +198,7 @@ export function createSimulations(pool: Pool, profile: DeploymentProfile, turn?:
           current, mode: report?.mode ?? null, passed: report?.passed ?? null, coverageComplete: report?.coverageComplete ?? null,
           caseCount: report?.cases.length ?? 0, skippedCaseCount: report?.cases.filter(c => c.passed === null).length ?? 0,
           issues: report?.cases.filter(c => c.passed !== true).map(c => ({ name: c.name, passed: c.passed, error: c.error,
-            guidance: c.error ? issueGuidance[c.error] ?? '此案例未符合預期，需檢查細節；不能當作通過的驗證。' : '此案例未執行。' })) ?? [],
+            guidance: c.error ? issueGuidance[c.error] ?? 'This case did not meet expectations. Inspect the details; it is not passing evidence.' : 'This case was not run.' })) ?? [],
           errorCode: row.result?.errorCode as string | undefined, registrationReady: false as const }
       })
     },

@@ -8,7 +8,7 @@ const profile = sepoliaStandingProfile
 const draft = () => draftSchema.parse({ schemaVersion: 1, id: 'draft', owner: 'wallet:0x1111111111111111111111111111111111111111', revision: 1, kind: 'maker',
   maker: '0x1111111111111111111111111111111111111111', spec: { title: 'bounded design', profileId: profile.id,
     baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'concentrated', minPrice: '2000', maxPrice: '3000' }, feeBps: 0 },
-  requirements: [{ id: 'keep-zero-fee', text: '維持零費率', priority: 'must', sourceMessageId: 'first', capabilityIds: ['curve.concentrated'] }],
+  requirements: [{ id: 'keep-zero-fee', text: 'Keep zero fees', priority: 'must', sourceMessageId: 'first', capabilityIds: ['curve.concentrated'] }],
   salt: '1', createdAt: '2026-09-13T00:00:00.000Z', updatedAt: '2026-09-13T00:00:00.000Z' })
 const input = (edits: { field: string; value: string }[]) => designEditSchema.parse({ expectedRevision: 1, operation: 'patch', restoreRevision: null, edits, requirements: [] })
 

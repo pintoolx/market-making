@@ -31,6 +31,6 @@ test('private form rejects excess precision, malformed/inverted conditions, shad
   const huge=fixture();huge.rules=Array.from({length:8},(_,i)=>({...huge.rules[0]!,id:`rule-${i}-`+'x'.repeat(89),priceMin:'1'.repeat(35)+'.12345678',priceMax:'2'.repeat(35)+'.12345678',volatilityBpsMin:'9007199254740990',volatilityBpsMax:'9007199254740991'}))
   huge.rules.forEach(r=>{r.maxAmountBase='99999999999999999.123456789012345678';r.maxAmountQuote='99999999999999999999999999999.999999'})
   const hugeSpec={...spec,guardEnvelope:{...spec.guardEnvelope!,maxAmountBasePerSwap:((1n<<128n)-1n).toString(),maxAmountQuotePerSwap:((1n<<128n)-1n).toString()}}
-  assert.throws(()=>encodePrivatePolicy(huge,hugeSpec,'x'.repeat(95)),/可加密長度/)
+  assert.throws(()=>encodePrivatePolicy(huge,hugeSpec,'x'.repeat(95)),/encryption size limit/)
   assert.throws(()=>encodePrivatePolicy({...fixture(),secret:'do-not-accept'},spec,'version-1'))
 })

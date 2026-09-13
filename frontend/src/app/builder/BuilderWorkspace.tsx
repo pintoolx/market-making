@@ -12,28 +12,28 @@ import type { Account } from '../providers/useAccount';
 import styles from './builder.module.css';
 
 type Identity = Pick<Account, 'ready' | 'enabled' | 'authenticated' | 'address' | 'userId' | 'login' | 'signMessage' | 'getAccessToken'>;
-const curveNames = { xyc: '一般乘積', concentrated: '固定區間 CLMM', pegged: '錨定曲線' };
-const fields: Record<string, string> = { 'spec.baseToken': '基礎幣種', 'spec.quoteToken': '報價幣種', 'spec.model': '做市曲線',
-  'spec.model.minPrice': '價格下限', 'spec.model.maxPrice': '價格上限', 'spec.model.referencePrice': '參考價格',
-  'spec.model.amplification': '放大係數', 'spec.model.fixedSnapshotRange': '套用時的固定價格', 'spec.feeBps': 'LP 費率',
-  'spec.deadline': '策略期限', 'spec.guardEnvelope': '公開 Guard 上限', 'spec.title': '策略名稱', 'requirements': '策略條件',
-  'spec.guardEnvelope.maxAmountBasePerSwap': '單筆基礎幣上限', 'spec.guardEnvelope.maxAmountQuotePerSwap': '單筆報價幣上限',
-  'spec.guardEnvelope.maxPostBalanceBase': '成交後基礎幣庫存上限', 'spec.guardEnvelope.maxPostBalanceQuote': '成交後報價幣庫存上限',
-  'maker': 'Maker 錢包', 'allocations': 'Maker 配置', 'allocations.baseAtomic': '基礎幣配置', 'allocations.quoteAtomic': '報價幣配置' };
-const toolNames: Record<string, string> = { inspectStrategy: '讀取策略與版本', getCapabilities: '核對可用功能', resolveTokens: '核對交易對',
-  createOrPatchDraft: '保存策略變更', validateStrategy: '驗證公開設定', exportStrategy: '整理公開策略', compileStrategy: '編譯並核對策略',
-  getWalletInventory: '讀取錢包資產', previewScenarios: '計算成交情境', simulateLifecycle: '安排成交模擬' };
-const amount = (value?: string, decimals?: number) => value && decimals !== undefined ? formatUnits(BigInt(value), decimals) : '尚未設定';
+const curveNames = { xyc: 'Constant product', concentrated: 'Fixed-range CLMM', pegged: 'Pegged curve' };
+const fields: Record<string, string> = { 'spec.baseToken': 'Base token', 'spec.quoteToken': 'Quote token', 'spec.model': 'Market-making curve',
+  'spec.model.minPrice': 'Minimum price', 'spec.model.maxPrice': 'Maximum price', 'spec.model.referencePrice': 'Reference price',
+  'spec.model.amplification': 'Amplification', 'spec.model.fixedSnapshotRange': 'Price fixed at application', 'spec.feeBps': 'LP fee',
+  'spec.deadline': 'Strategy deadline', 'spec.guardEnvelope': 'Public Guard limits', 'spec.title': 'Strategy name', 'requirements': 'Strategy requirements',
+  'spec.guardEnvelope.maxAmountBasePerSwap': 'Base-token limit per swap', 'spec.guardEnvelope.maxAmountQuotePerSwap': 'Quote-token limit per swap',
+  'spec.guardEnvelope.maxPostBalanceBase': 'Post-swap base inventory limit', 'spec.guardEnvelope.maxPostBalanceQuote': 'Post-swap quote inventory limit',
+  'maker': 'Maker wallet', 'allocations': 'Maker allocation', 'allocations.baseAtomic': 'Base allocation', 'allocations.quoteAtomic': 'Quote allocation' };
+const toolNames: Record<string, string> = { inspectStrategy: 'Reading strategy and revisions', getCapabilities: 'Checking available capabilities', resolveTokens: 'Verifying token pair',
+  createOrPatchDraft: 'Saving strategy changes', validateStrategy: 'Validating public parameters', exportStrategy: 'Preparing public strategy', compileStrategy: 'Compiling and verifying strategy',
+  getWalletInventory: 'Reading wallet inventory', previewScenarios: 'Calculating swap scenarios', simulateLifecycle: 'Scheduling swap simulation' };
+const amount = (value?: string, decimals?: number) => value && decimals !== undefined ? formatUnits(BigInt(value), decimals) : 'Not set';
 function valueLabel(path: string, value: unknown, draft: Draft) {
-  if (value === null || value === undefined) return '未設定';
+  if (value === null || value === undefined) return 'Not set';
   if (typeof value === 'object') {
-    if (Array.isArray(value)) return `${value.length} 項條件`;
+    if (Array.isArray(value)) return `${value.length} requirements`;
     if ('symbol' in value) return String(value.symbol);
     if ('kind' in value) {
       const model = value as NonNullable<Draft['spec']['model']>;
       return `${curveNames[model.kind] ?? model.kind}${model.kind === 'concentrated' && model.minPrice && model.maxPrice ? ` · ${model.minPrice}–${model.maxPrice}` : ''}`;
     }
-    return `${Object.keys(value).length} 項設定`;
+    return `${Object.keys(value).length} settings`;
   }
   if (path.includes('guardEnvelope.') && typeof value === 'string') {
     const token = path.endsWith('Base') || path.includes('BasePerSwap') ? draft.spec.baseToken : draft.spec.quoteToken;
@@ -97,34 +97,34 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     const ticket = ++epoch.current;
     followLatest.current = true;
     selectedRef.current = conversation; setSelected(conversation); setTurnId(null); setProvisional('');
-    setDraft(null); setMessages([]); setHistory([]); setValidation(null); setError(''); setBusy('載入策略'); pending.current = null;
+    setDraft(null); setMessages([]); setHistory([]); setValidation(null); setError(''); setBusy('Loading strategy'); pending.current = null;
     setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
     setPreparationOpen(false);
     try { await refresh(); if (epoch.current === ticket) setTurnId(conversation.activeTurnId); }
-    catch (e) { if (epoch.current === ticket) failure(e, '無法載入策略，請重試。'); }
+    catch (e) { if (epoch.current === ticket) failure(e, 'Could not load the strategy. Please retry.'); }
     finally { if (epoch.current === ticket) setBusy(''); }
   }
   async function create() {
     const client = api.current; if (!client) return;
-    const ticket = epoch.current; setBusy('建立草稿'); setError('');
+    const ticket = epoch.current; setBusy('Create draft'); setError('');
     try {
       newDraftKey.current ??= crypto.randomUUID();
-      const result = await client.create('我的做市策略', newDraftKey.current);
+      const result = await client.create('My market-making strategy', newDraftKey.current);
       if (ticket !== epoch.current) return;
       newDraftKey.current = null;
       await choose({ conversationId: result.conversationId, draftId: result.draft.id, title: result.draft.spec.title, revision: '1', activeTurnId: null });
-    } catch (e) { if (ticket === epoch.current) { setBusy(''); failure(e, '無法建立草稿。'); } }
+    } catch (e) { if (ticket === epoch.current) { setBusy(''); failure(e, 'Could not create the draft.'); } }
   }
   async function connect() {
     if (!identity.address || !identity.getAccessToken || !identity.signMessage) return;
     const ticket = epoch.current, client = builderClient({ address: identity.address, getAccessToken: identity.getAccessToken, signMessage: identity.signMessage });
-    setBusy('請在錢包確認登入簽名'); setError('');
+    setBusy('Confirm the sign-in message in your wallet'); setError('');
     try {
       await client.connect(); const list = await client.list();
       if (ticket !== epoch.current) return;
       api.current = client; setConnected(true); setConversations(list.conversations); setBusy('');
       if (list.conversations[0]) await choose(list.conversations[0]); else await create();
-    } catch (e) { if (ticket === epoch.current) { setBusy(''); failure(e, '錢包驗證未完成，請再次確認登入簽名。'); } }
+    } catch (e) { if (ticket === epoch.current) { setBusy(''); failure(e, 'Wallet verification was not completed. Please confirm the sign-in message again.'); } }
   }
 
   useEffect(() => {
@@ -139,22 +139,22 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
         let changed = false;
         for (const event of page.events) {
           cursor = event.sequence;
-          if (event.kind === 'started') { setProvisional(''); setActivity('正在思考你的策略'); }
+          if (event.kind === 'started') { setProvisional(''); setActivity('Reviewing your strategy'); }
           if (event.kind === 'text') setProvisional(text => text + (event.payload.text ?? ''));
-          if (event.kind === 'tool') { setActivity(toolNames[event.payload.name ?? ''] ?? '檢查策略'); changed = true; }
+          if (event.kind === 'tool') { setActivity(toolNames[event.payload.name ?? ''] ?? 'Checking strategy'); changed = true; }
         }
         const { turn } = await client.turn(turnId);
         if (!valid()) return;
         if (!['queued', 'running'].includes(turn.state)) {
           await refresh(); if (!valid()) return;
           setTurnId(null); setProvisional(''); setActivity('');
-          if (turn.state === 'failed') setError('這輪回覆未完成。已保存的修改仍在右側，你可以繼續調整。');
-          if (turn.state === 'superseded') setError('策略已由其他操作更新，已載入最新版本。');
+          if (turn.state === 'failed') setError('This response did not finish. Saved changes remain in the strategy panel; you can keep editing.');
+          if (turn.state === 'superseded') setError('Another action updated this strategy. The latest version is now loaded.');
           return;
         }
         if (changed) await refresh();
         if (valid()) timer = setTimeout(poll, page.events.length === 100 ? 0 : 700);
-      } catch (e) { if (valid()) failure(e, '回覆連線中斷，請重新載入。'); }
+      } catch (e) { if (valid()) failure(e, 'The response connection was interrupted. Please reload.'); }
     };
     void poll();
     return () => { disposed = true; clearTimeout(timer); };
@@ -166,27 +166,27 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     const client = api.current, current = selectedRef.current, content = input.trim();
     if (!client || !current || !draft || !content || turnId || busy) return;
     if (/(?:sk-proj-|sk-[A-Za-z0-9]{20}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY)/.test(content)) {
-      setError('請移除私鑰或 API key。對話只適合公開策略參數。'); return;
+      setError('Remove private keys or API keys. Use this conversation for public strategy parameters only.'); return;
     }
     const ticket = epoch.current;
     followLatest.current = true;
     if (!pending.current || pending.current.content !== content || pending.current.revision !== draft.revision || pending.current.conversationId !== current.conversationId) {
       pending.current = { content, revision: draft.revision, conversationId: current.conversationId, key: crypto.randomUUID() };
     }
-    setBusy('送出訊息'); setError('');
+    setBusy('Sending message'); setError('');
     try {
       const result = await client.start(current.conversationId, draft.revision, content, pending.current.key);
       if (ticket !== epoch.current) return;
       setInput(''); pending.current = null; await refresh();
-      if (ticket === epoch.current) { setTurnId(result.id); setActivity('正在讀取策略'); }
-    } catch (e) { if (ticket === epoch.current) failure(e, '訊息未送出，可以重試。'); }
+      if (ticket === epoch.current) { setTurnId(result.id); setActivity('Reading strategy'); }
+    } catch (e) { if (ticket === epoch.current) failure(e, 'Your message was not sent. Please retry.'); }
     finally { if (ticket === epoch.current) setBusy(''); }
   }
   async function restore(revision: number) {
     const client = api.current; if (!client || !draft || turnId || busy) return;
-    const ticket = epoch.current; setBusy('恢復版本'); setError('');
+    const ticket = epoch.current; setBusy('Restoring revision'); setError('');
     try { await client.restore(draft.id, draft.revision, revision, crypto.randomUUID()); await refresh(); }
-    catch (e) { if (ticket === epoch.current) failure(e, '未能恢復版本。'); }
+    catch (e) { if (ticket === epoch.current) failure(e, 'Could not restore this revision.'); }
     finally { if (ticket === epoch.current) setBusy(''); }
   }
   const retry = async () => { const ticket = epoch.current; setError(''); try {
@@ -200,71 +200,71 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
       }
     }
     setPollKey(n => n + 1);
-  } catch (e) { if (ticket === epoch.current) failure(e, '仍無法連線，請稍後重試。'); } };
+  } catch (e) { if (ticket === epoch.current) failure(e, 'Still unable to connect. Please try again shortly.'); } };
   const stop = async () => {
     if (!api.current || !turnId) return;
     const ticket = epoch.current;
     try { await api.current.cancel(turnId); if (ticket === epoch.current) { setProvisional(''); setPollKey(n => n + 1); } }
-    catch (e) { if (ticket === epoch.current) failure(e, '尚未確認停止，請重試。'); }
+    catch (e) { if (ticket === epoch.current) failure(e, 'Cancellation has not been confirmed. Please retry.'); }
   };
   const caps = draft?.spec.guardEnvelope, base = draft?.spec.baseToken, quote = draft?.spec.quoteToken, model = draft?.spec.model;
 
-  return <section className={styles.workspace} aria-label="策略設計工作區">
-    <header className={styles.heading}><div><span className={styles.eyebrow}>{draft?.kind === 'maker' ? 'MAKER' : 'PROVIDER'} / STRATEGY BUILDER</span><h1>把你的想法，變成策略。</h1><p>先說明目標，再一起微調每個條件。</p></div><span className={styles.network}>Ethereum Sepolia</span></header>
-    {error && <div className={styles.error} role="alert"><p>{error}</p>{connected && <button onClick={() => void retry()}>重新載入</button>}</div>}
+  return <section className={styles.workspace} aria-label="Strategy design workspace">
+    <header className={styles.heading}><div><span className={styles.eyebrow}>{draft?.kind === 'maker' ? 'MAKER' : 'PROVIDER'} / STRATEGY BUILDER</span><h1>Turn your idea into a strategy.</h1><p>Start with your goals, then refine each condition together.</p></div><span className={styles.network}>Ethereum Sepolia</span></header>
+    {error && <div className={styles.error} role="alert"><p>{error}</p>{connected && <button onClick={() => void retry()}>Reload</button>}</div>}
     {!connected ? <div className={styles.welcome}>
-      <div><span className={styles.eyebrow}>從你的目標開始</span><h2>不必一次想好<br />所有參數。</h2><p>比較做市曲線、訂下交易上限，或回到前一個版本。每次修改都會保留記錄。</p>
+      <div><span className={styles.eyebrow}>Start with your goals</span><h2>You can refine <br />your parameters as you go.</h2><p>Compare curves, set trade limits and revisit earlier versions. Every change is recorded.</p>
         <button className={styles.primary} disabled={!!busy || !identity.ready || !identity.enabled || (identity.authenticated && !identity.address)} onClick={identity.authenticated ? () => void connect() : identity.login}>
-          {busy || (!identity.enabled ? '登入服務尚未開放' : identity.authenticated ? '驗證錢包並開始設計' : '登入並開始設計')}
-        </button><small>登入簽名只用來確認錢包身分，不授權資產轉移。</small>
-      </div><div className={styles.example}><span>你可以這樣開始</span><blockquote>「我想做 WETH / USDC 的流動性，價格超出我能接受的範圍就不成交。先幫我比較做法。」</blockquote><p>目標 → 方案比較 → 持續調整 → 檢查與模擬</p></div>
+          {busy || (!identity.enabled ? 'Sign-in is unavailable' : identity.authenticated ? 'Verify wallet and start designing' : 'Log in and start designing')}
+        </button><small>Signing in verifies wallet ownership. It does not authorize asset transfers.</small>
+      </div><div className={styles.example}><span>Try starting with</span><blockquote>“I want to provide WETH / USDC liquidity and stop trading outside my price range. Help me compare the options.”</blockquote><p>Goals → Compare → Refine → Verify and simulate</p></div>
     </div> : <>
-      <div className={styles.toolbar}><label>我的草稿<select aria-label="選擇策略草稿" value={selected?.conversationId ?? ''} disabled={!!busy} onChange={event => { const c = conversations.find(x => x.conversationId === event.target.value); if (c) void choose(c); }}>
-        {!conversations.length && <option value="">尚無草稿</option>}{conversations.map(c => <option key={c.conversationId} value={c.conversationId}>{c.title}{c.activeTurnId ? ' · 回覆中' : ''}</option>)}
-      </select></label><button onClick={() => void create()} disabled={!!busy}>＋ 新增草稿</button><button disabled={!!busy || !!turnId} onClick={() => setCatalogOpen(true)}>選擇模板套用</button><span className={styles.saved}>{busy || (draft ? `已保存 · v${draft.revision}` : '準備開始')}</span></div>
+      <div className={styles.toolbar}><label>My drafts<select aria-label="Select strategy draft" value={selected?.conversationId ?? ''} disabled={!!busy} onChange={event => { const c = conversations.find(x => x.conversationId === event.target.value); if (c) void choose(c); }}>
+        {!conversations.length && <option value="">No drafts yet</option>}{conversations.map(c => <option key={c.conversationId} value={c.conversationId}>{c.title}{c.activeTurnId ? ' · Responding' : ''}</option>)}
+      </select></label><button onClick={() => void create()} disabled={!!busy}>+ New draft</button><button disabled={!!busy || !!turnId} onClick={() => setCatalogOpen(true)}>Browse templates</button><span className={styles.saved}>{busy || (draft ? `Saved · v${draft.revision}` : 'Ready to start')}</span></div>
       <div className={styles.columns}>
-        <section className={styles.chat} aria-label="策略對話"><div className={styles.sectionHead}><h2>一起設計</h2><span>公開策略參數</span></div>
+        <section className={styles.chat} aria-label="Strategy conversation"><div className={styles.sectionHead}><h2>Design together</h2><span>Public strategy parameters</span></div>
           <div ref={messageArea} className={styles.messages} onScroll={event => {
             const el = event.currentTarget; followLatest.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
           }}>
-            {!messages.length && !busy && <div className={styles.emptyChat}><h3>你希望策略做到什麼？</h3><p>先談目標與取捨，之後還能隨時調整。</p>{['比較固定區間與一般乘積曲線', '我想限制每筆成交與庫存', '哪些條件可以交給 Guard？'].map(text => <button key={text} onClick={() => setInput(text)}>{text} ↗</button>)}</div>}
-            {messages.map(message => <article key={message.id} className={message.role === 'user' ? styles.userMessage : styles.assistantMessage}><span className={styles.author}>{message.role === 'user' ? '你' : 'Pintool'}</span><MarkdownText text={message.content} /></article>)}
-            {provisional && <article className={styles.assistantMessage} aria-busy="true"><span className={styles.author}>Pintool · 回覆中</span><MarkdownText text={provisional} /></article>}
+            {!messages.length && !busy && <div className={styles.emptyChat}><h3>What should your strategy do?</h3><p>Start with goals and trade-offs. You can refine them later.</p>{['Compare fixed-range and constant-product curves', 'Help me set per-swap and inventory limits', 'Which conditions can Guard enforce?'].map(text => <button key={text} onClick={() => setInput(text)}>{text} ↗</button>)}</div>}
+            {messages.map(message => <article key={message.id} className={message.role === 'user' ? styles.userMessage : styles.assistantMessage}><span className={styles.author}>{message.role === 'user' ? 'You' : 'PinTool'}</span><MarkdownText text={message.content} /></article>)}
+            {provisional && <article className={styles.assistantMessage} aria-busy="true"><span className={styles.author}>PinTool · Responding</span><MarkdownText text={provisional} /></article>}
           </div>
-          <form className={styles.composer} onSubmit={submit}><label htmlFor="strategy-message">描述目標或這次想調整的地方</label><textarea id="strategy-message" value={input} onChange={e => setInput(e.target.value)} maxLength={8000} rows={3} placeholder="例如：只把價格上限改成 2700，保留其他限制。" disabled={!draft || !!busy} />
-            <div className={styles.composerBottom}><span role="status" aria-live="polite">{turnId ? activity || '正在回覆' : '私密規則請在獨立編輯器設定。'}</span>{turnId ? <button type="button" onClick={() => void stop()}>停止生成</button> : <button className={styles.primary} type="submit" disabled={!draft || !input.trim() || !!busy}>送出 ↗</button>}</div>
+          <form className={styles.composer} onSubmit={submit}><label htmlFor="strategy-message">Describe your goals or what you want to change</label><textarea id="strategy-message" value={input} onChange={e => setInput(e.target.value)} maxLength={8000} rows={3} placeholder="For example: change only the maximum price to 2700 and keep the other limits." disabled={!draft || !!busy} />
+            <div className={styles.composerBottom}><span role="status" aria-live="polite">{turnId ? activity || 'Responding' : 'Set private rules in the separate policy editor.'}</span>{turnId ? <button type="button" onClick={() => void stop()}>Stop generating</button> : <button className={styles.primary} type="submit" disabled={!draft || !input.trim() || !!busy}>Send ↗</button>}</div>
           </form>
         </section>
-        <aside className={styles.strategy} aria-label="目前策略"><div className={styles.sectionHead}><h2>目前策略</h2><span className={styles.draftTag}>{draft?.kind === 'maker' ? 'Maker 草稿 · 未註冊' : 'Provider 設計草稿'}</span></div>
+        <aside className={styles.strategy} aria-label="Current strategy"><div className={styles.sectionHead}><h2>Current strategy</h2><span className={styles.draftTag}>{draft?.kind === 'maker' ? 'Maker draft · Not registered' : 'Provider design draft'}</span></div>
           {draft ? <>
-            <div className={styles.strategyTitle}><h3>{draft.spec.title}</h3><p>{base?.symbol ?? '待選幣種'} / {quote?.symbol ?? '待選幣種'}<span>{model ? curveNames[model.kind] : '尚未選擇曲線'}</span></p></div>
-            {draft.kind === 'maker' && <div className={styles.makerInstance}><h3>你的配置</h3><p>{amount(draft.allocations?.baseAtomic, base?.decimals)} {base?.symbol} ＋ {amount(draft.allocations?.quoteAtomic, quote?.decimals)} {quote?.symbol}</p>
-              {templateContext && <><p>綁定 Provider 模板版本 {templateContext.templatePin.version}；可以繼續對話調整允許的參數，Provider 更新不會改變你的版本。</p>
-                <details><summary>查看可調範圍</summary><ul><li>可調整個人名稱與配置</li><li>{templateContext.permissions.tightenCaps ? '可收緊原始四項 Guard 上限' : '四項 Guard 上限固定'}</li>
-                  <li>{templateContext.permissions.shortenDeadline ? '可縮短原始策略期限' : '策略期限固定'}</li>
-                  {templateContext.baseline.model?.kind === 'concentrated' && <li>{templateContext.permissions.narrowConcentratedRange ? '可縮小' : '固定於'}原始範圍 {templateContext.baseline.model.minPrice}–{templateContext.baseline.model.maxPrice}</li>}
-                  <li>交易對、曲線種類與費率固定</li></ul></details>
-                {templateContext.withdrawn && <p className={styles.notice}>Provider 已撤下此版本，不能新增套用。這不代表既有鏈上授權已撤銷。</p>}</>}
-              <small>草稿配置尚未驗證錢包餘額與 allowance，也尚未註冊或啟用成交。</small></div>}
-            {model?.kind === 'concentrated' && <div className={styles.range}><span>固定成交價格區間 · {quote?.symbol ?? 'quote'} / {base?.symbol ?? 'base'}</span><div><strong>{model.minPrice ?? '—'}</strong><i aria-hidden="true" /><strong>{model.maxPrice ?? '—'}</strong></div><small>{model.relativeWidthBps ? `套用時依參考價格 ±${model.relativeWidthBps / 100}% 固定區間` : '區間不會自動跟隨市場移動'}</small></div>}
-            <dl className={styles.facts}><dt>LP 費率</dt><dd>{draft.spec.feeBps === undefined ? '尚未設定' : `${draft.spec.feeBps / 100}%`}</dd><dt>策略期限</dt><dd>{draft.spec.deadline ? new Date(draft.spec.deadline * 1000).toLocaleString('zh-TW') : '尚未設定'}</dd>{model?.kind === 'pegged' && <><dt>參考價格</dt><dd>{model.referencePrice ?? '尚未設定'}</dd><dt>放大係數</dt><dd>{model.amplification ?? '尚未設定'}</dd></>}</dl>
-            <div className={styles.guard}><h3>Guard 公開上限</h3><p>每筆成交檢查；這些不是每日累計額度。</p><table><thead><tr><th scope="col">幣種</th><th scope="col">每筆最多</th><th scope="col">成交後庫存</th></tr></thead><tbody>
-              <tr><th scope="row">{base?.symbol ?? '基礎幣'}</th><td>{amount(caps?.maxAmountBasePerSwap, base?.decimals)}</td><td>{amount(caps?.maxPostBalanceBase, base?.decimals)}</td></tr>
-              <tr><th scope="row">{quote?.symbol ?? '報價幣'}</th><td>{amount(caps?.maxAmountQuotePerSwap, quote?.decimals)}</td><td>{amount(caps?.maxPostBalanceQuote, quote?.decimals)}</td></tr>
+            <div className={styles.strategyTitle}><h3>{draft.spec.title}</h3><p>{base?.symbol ?? 'Choose token'} / {quote?.symbol ?? 'Choose token'}<span>{model ? curveNames[model.kind] : 'No curve selected'}</span></p></div>
+            {draft.kind === 'maker' && <div className={styles.makerInstance}><h3>Your allocation</h3><p>{amount(draft.allocations?.baseAtomic, base?.decimals)} {base?.symbol} + {amount(draft.allocations?.quoteAtomic, quote?.decimals)} {quote?.symbol}</p>
+              {templateContext && <><p>Pinned Provider template version {templateContext.templatePin.version}. Continue editing permitted parameters in chat. Provider updates do not change your pinned version.</p>
+                <details><summary>View editable parameters</summary><ul><li>Personal title and allocations are editable</li><li>{templateContext.permissions.tightenCaps ? 'The four original Guard limits may be tightened' : 'The four Guard limits are fixed'}</li>
+                  <li>{templateContext.permissions.shortenDeadline ? 'The original strategy deadline may be shortened' : 'The strategy deadline is fixed'}</li>
+                  {templateContext.baseline.model?.kind === 'concentrated' && <li>{templateContext.permissions.narrowConcentratedRange ? 'May narrow' : 'Fixed at'} original range {templateContext.baseline.model.minPrice}–{templateContext.baseline.model.maxPrice}</li>}
+                  <li>Token pair, curve type and fee are fixed</li></ul></details>
+                {templateContext.withdrawn && <p className={styles.notice}>The Provider withdrew this version. New instances cannot use it; existing onchain authorizations are not automatically revoked.</p>}</>}
+              <small>Draft allocations do not verify wallet balances or allowances, and do not register or enable trading.</small></div>}
+            {model?.kind === 'concentrated' && <div className={styles.range}><span>Fixed trading range · {quote?.symbol ?? 'quote'} / {base?.symbol ?? 'base'}</span><div><strong>{model.minPrice ?? '—'}</strong><i aria-hidden="true" /><strong>{model.maxPrice ?? '—'}</strong></div><small>{model.relativeWidthBps ? `Range fixed at application to reference price ±${model.relativeWidthBps / 100}%` : 'The range does not automatically follow the market'}</small></div>}
+            <dl className={styles.facts}><dt>LP fee</dt><dd>{draft.spec.feeBps === undefined ? 'Not set' : `${draft.spec.feeBps / 100}%`}</dd><dt>Strategy deadline</dt><dd>{draft.spec.deadline ? new Date(draft.spec.deadline * 1000).toLocaleString('en-US') : 'Not set'}</dd>{model?.kind === 'pegged' && <><dt>Reference price</dt><dd>{model.referencePrice ?? 'Not set'}</dd><dt>Amplification</dt><dd>{model.amplification ?? 'Not set'}</dd></>}</dl>
+            <div className={styles.guard}><h3>Public Guard limits</h3><p>Checked on every swap. These are not daily cumulative limits.</p><table><thead><tr><th scope="col">Token</th><th scope="col">Maximum per swap</th><th scope="col">Post-swap inventory</th></tr></thead><tbody>
+              <tr><th scope="row">{base?.symbol ?? 'Base token'}</th><td>{amount(caps?.maxAmountBasePerSwap, base?.decimals)}</td><td>{amount(caps?.maxPostBalanceBase, base?.decimals)}</td></tr>
+              <tr><th scope="row">{quote?.symbol ?? 'Quote token'}</th><td>{amount(caps?.maxAmountQuotePerSwap, quote?.decimals)}</td><td>{amount(caps?.maxPostBalanceQuote, quote?.decimals)}</td></tr>
             </tbody></table></div>
-            <div className={styles.requirements}><h3>你訂下的條件 <span>{draft.requirements.length}</span></h3>{draft.requirements.length ? <ul>{draft.requirements.map(r => <li key={r.id}><span>{r.priority === 'must' ? '必要' : '偏好'}</span>{r.text}</li>)}</ul> : <p>確認的目標與限制會保存在這裡。</p>}</div>
-            {validation?.revision === draft.revision && <div className={styles.validation} data-ready={validation.ready}><strong>{validation.ready ? '公開設定完整' : '還需要一起確認'}</strong>{validation.ready ? <p>{draft.kind === 'maker' ? '可以繼續編譯與模擬。配置、需求與實際成交條件仍須逐項驗證。' : '可以審閱並發布設計模板。Maker 套用後仍需編譯、模擬及需求驗證。'}</p> : <ul>{validation.missingFields.map(f => <li key={f}>{fields[f] ?? '其他必要設定'}</li>)}{validation.errors.map((e, i) => <li key={i}>{e.message}</li>)}</ul>}</div>}
-            {draft.kind === 'template' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || !validation?.ready || validation.revision !== draft.revision} onClick={() => setPublisherOpen(true)}>私密政策與模板發布</button>
-              <p>規則在獨立表單設定並加密，發布由錢包確認。</p></div>}
-            {draft.kind === 'maker' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId} onClick={() => setPreparationOpen(true)}>資產、編譯與成交模擬</button>
-              <p>檢查這個版本的資產與模擬結果，再繼續調整。</p></div>}
-            <div className={styles.history}><button className={styles.historyToggle} onClick={() => setHistoryOpen(v => !v)} aria-expanded={historyOpen}>版本與變更 <span>{historyOpen ? '−' : '+'}</span></button>
-              {historyOpen && history.map(revision => <div key={revision.revision} className={styles.revision}><div><strong>v{revision.revision}</strong><time>{new Date(revision.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</time>{Number(revision.revision) < draft.revision && <button disabled={!!busy || !!turnId} onClick={() => void restore(Number(revision.revision))}>恢復此版本</button>}</div>
-                {revision.diff.length ? <ul>{revision.diff.map((d, i) => <li key={i}><span>{fields[d.path] ?? '策略設定'}</span>{valueLabel(d.path, d.before, draft)} → {valueLabel(d.path, d.after, draft)}</li>)}</ul> : <p>建立草稿</p>}
+            <div className={styles.requirements}><h3>Your requirements <span>{draft.requirements.length}</span></h3>{draft.requirements.length ? <ul>{draft.requirements.map(r => <li key={r.id}><span>{r.priority === 'must' ? 'Required' : 'Preference'}</span>{r.text}</li>)}</ul> : <p>Confirmed goals and constraints are saved here.</p>}</div>
+            {validation?.revision === draft.revision && <div className={styles.validation} data-ready={validation.ready}><strong>{validation.ready ? 'Public parameters complete' : 'More details needed'}</strong>{validation.ready ? <p>{draft.kind === 'maker' ? 'Ready for compilation and simulation. Allocations, requirements and execution conditions still need individual verification.' : 'Ready to review and publish a design template. Maker instances still require compilation, simulation and requirement checks.'}</p> : <ul>{validation.missingFields.map(f => <li key={f}>{fields[f] ?? 'Other required parameters'}</li>)}{validation.errors.map((e, i) => <li key={i}>{e.message}</li>)}</ul>}</div>}
+            {draft.kind === 'template' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || !validation?.ready || validation.revision !== draft.revision} onClick={() => setPublisherOpen(true)}>Private policy and publication</button>
+              <p>Configure and encrypt rules in a separate form, then confirm publication with your wallet.</p></div>}
+            {draft.kind === 'maker' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId} onClick={() => setPreparationOpen(true)}>Inventory, compilation and simulation</button>
+              <p>Review inventory and simulation results for this version before refining it.</p></div>}
+            <div className={styles.history}><button className={styles.historyToggle} onClick={() => setHistoryOpen(v => !v)} aria-expanded={historyOpen}>Versions and changes <span>{historyOpen ? '−' : '+'}</span></button>
+              {historyOpen && history.map(revision => <div key={revision.revision} className={styles.revision}><div><strong>v{revision.revision}</strong><time>{new Date(revision.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</time>{Number(revision.revision) < draft.revision && <button disabled={!!busy || !!turnId} onClick={() => void restore(Number(revision.revision))}>Restore this revision</button>}</div>
+                {revision.diff.length ? <ul>{revision.diff.map((d, i) => <li key={i}><span>{fields[d.path] ?? 'Strategy parameters'}</span>{valueLabel(d.path, d.before, draft)} → {valueLabel(d.path, d.after, draft)}</li>)}</ul> : <p>Create draft</p>}
               </div>)}
-              {historyOpen && <p>恢復會建立新版本，保留原本的修改紀錄。</p>}
+              {historyOpen && <p>Restoring creates a new revision and preserves earlier changes.</p>}
             </div>
-          </> : <div className={styles.emptySummary}>策略的曲線、上限與每次變更，會出現在這裡。</div>}
+          </> : <div className={styles.emptySummary}>Your curve, limits and revision history will appear here.</div>}
         </aside>
       </div>
       {publisherOpen && draft?.kind === 'template' && api.current && identity.signMessage && <TemplatePublisher key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPublisherOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}

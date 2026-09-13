@@ -32,7 +32,7 @@ const snapshot = (maker: string): InventorySnapshot => ({ schemaVersion: 1, engi
   activeStrategyHash: zeroHash, strategies: [], commitmentsComplete: false, registrationReady: false, limitations: ['Synthetic adapter test; no live inventory is claimed.'] })
 async function prepared(template = false) {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
-  const created = await store.create(owner, randomUUID(), { title: '庫存邊界', kind: template ? 'template' : 'maker' })
+  const created = await store.create(owner, randomUUID(), { title: 'Inventory boundaries', kind: template ? 'template' : 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     ...(template ? {} : { allocations: { baseAtomic: '10000000000000000', quoteAtomic: '25000000' } }),
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], feeBps: 0, deadline: Math.floor(Date.now() / 1000) + 86400, model: { kind: 'xyc' },
@@ -43,7 +43,7 @@ async function prepared(template = false) {
 
 test('inventory reads only the owned Maker and deduplicated owned artifact hashes; funds and allowance remain separate', async () => {
   const p = await prepared(), artifacts = createArtifacts(pool, profile), original = await artifacts.compile(p.owner, randomUUID(), p.input)
-  await createStore(pool, profile.id).patch(p.owner, randomUUID(), { ...p.input, patch: { spec: { title: '相同 onchain hash 的新草稿' } } })
+  await createStore(pool, profile.id).patch(p.owner, randomUUID(), { ...p.input, patch: { spec: { title: 'New draft with the same onchain hash' } } })
   await artifacts.compile(p.owner, randomUUID(), { ...p.input, expectedRevision: 3 })
   const other = await prepared(); await artifacts.compile(other.owner, randomUUID(), other.input)
   let calls = 0
@@ -70,10 +70,10 @@ test('a changed draft or cancelled agent lease rejects a late RPC result without
   const entry = new Promise<void>(resolve => { entered = resolve }), blocked = new Promise<void>(resolve => { release = resolve })
   const reader = createInventoryReader(pool, profile, async maker => { entered(); await blocked; return snapshot(maker) })
   const work = reader.read(p.owner, p.input); await entry
-  await createStore(pool, profile.id).patch(p.owner, randomUUID(), { ...p.input, patch: { spec: { title: '讀取時已更新' } } })
+  await createStore(pool, profile.id).patch(p.owner, randomUUID(), { ...p.input, patch: { spec: { title: 'Updated during read' } } })
   release(); await assert.rejects(work, /draft-changed/)
   const q = await prepared(), turns = createTurns(pool)
-  const turn = await turns.accept(q.owner, randomUUID(), { conversationId: q.conversationId, expectedRevision: 2, content: '檢查庫存' }), lease = (await turns.claim())!
+  const turn = await turns.accept(q.owner, randomUUID(), { conversationId: q.conversationId, expectedRevision: 2, content: 'Check inventory' }), lease = (await turns.claim())!
   let rpcCalls = 0
   const ownedReader = createInventoryReader(pool, profile, async maker => { rpcCalls++; await turns.cancel(q.owner, turn.id); return snapshot(maker) }, lease)
   await assert.rejects(ownedReader.read(q.owner, q.input), /agent-turn-stale/)
@@ -121,12 +121,12 @@ test('inventory HTTP has no arbitrary wallet/RPC parameter, requires a revision 
 
 test('the tenth AI SDK tool reads scoped inventory without editing allocations or requesting an asset signature', async () => {
   const p = await prepared(), turns = createTurns(pool)
-  const turn = await turns.accept(p.owner, randomUUID(), { conversationId: p.conversationId, expectedRevision: 2, content: '讀取 Maker 資產，不要交易。' })
+  const turn = await turns.accept(p.owner, randomUUID(), { conversationId: p.conversationId, expectedRevision: 2, content: 'Read Maker inventory without trading.' })
   let step = 0, calls = 0
   const model = new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ start(c) {
     c.enqueue({ type: 'stream-start', warnings: [] })
     if (step === 0) c.enqueue({ type: 'tool-call', toolCallId: 'inventory', toolName: 'getWalletInventory', input: JSON.stringify({ expectedRevision: 2 }) })
-    else { c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: '測試資料顯示 allowance 不足，尚未就緒。' }); c.enqueue({ type: 'text-end', id: 'reply' }) }
+    else { c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: 'Test data shows insufficient allowance; trading is not ready.' }); c.enqueue({ type: 'text-end', id: 'reply' }) }
     c.enqueue({ type: 'finish', finishReason: { unified: step++ === 0 ? 'tool-calls' : 'stop', raw: '' },
       usage: { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } } }); c.close()
   } }) }) })

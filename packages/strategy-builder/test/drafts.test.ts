@@ -5,9 +5,9 @@ import { assertArtifactCurrent, contentDigest, DraftAccessDenied, DraftConflict,
 
 const now = '2026-09-13T03:00:00.000Z'
 const start = () => draftSchema.parse({ schemaVersion: 1, id: 'draft-one', owner: 'privy:alice', revision: 1, kind: 'template',
-  spec: { title: '我的 WETH/USDC', profileId: 'sepolia-standing-v2', feeBps: 0,
+  spec: { title: 'My WETH/USDC', profileId: 'sepolia-standing-v2', feeBps: 0,
     model: { kind: 'concentrated', minPrice: '2000', maxPrice: '3000' }, modifiers: [{ kind: 'decay', periodSeconds: 30 }] },
-  requirements: [{ id: 'r-inventory', text: '限制成交後 WETH 庫存', priority: 'must', sourceMessageId: 'message-1', capabilityIds: ['guard.inventory'] }],
+  requirements: [{ id: 'r-inventory', text: 'Limit post-swap WETH inventory', priority: 'must', sourceMessageId: 'message-1', capabilityIds: ['guard.inventory'] }],
   salt: '123', createdAt: now, updatedAt: now })
 const change = (draft: ReturnType<typeof start>, patch: unknown) => patchDraft(draft, patch, { owner: draft.owner, expectedRevision: draft.revision, now })
 
@@ -20,7 +20,7 @@ test('multi-turn narrowing, fee edit and restore retain other requirements and i
   assert.deepEqual(second.draft.spec.modifiers, first.spec.modifiers)
   assert.deepEqual(second.diff.map(d => d.path), ['spec.model.maxPrice', 'spec.model.minPrice'])
   const third = change(second.draft, { spec: { feeBps: 10 }, upsertRequirements: [{
-    id: 'r-volatility', text: '希望能在波動增大時暫停', priority: 'must', sourceMessageId: 'message-3', capabilityIds: ['policy.market-rules'],
+    id: 'r-volatility', text: 'Pause when volatility rises', priority: 'must', sourceMessageId: 'message-3', capabilityIds: ['policy.market-rules'],
   }] })
   assert.equal(third.draft.requirements.length, 2)
   assert.deepEqual(third.draft.spec.model, second.draft.spec.model)
@@ -65,7 +65,7 @@ test('editing one curve parameter preserves the rest; changing curve or relative
 test('changing an accepted alternative invalidates its acceptance; unknown private fields are rejected on persisted drafts', () => {
   const draft = start()
   draft.requirements[0]!.userAcceptedAlternative = true
-  const updated = change(draft, { upsertRequirements: [{ id: 'r-inventory', text: '改為不同庫存限制', priority: 'must',
+  const updated = change(draft, { upsertRequirements: [{ id: 'r-inventory', text: 'Change inventory limits', priority: 'must',
     sourceMessageId: 'message-4', capabilityIds: ['guard.inventory'] }] })
   assert.equal(updated.draft.requirements[0]!.userAcceptedAlternative, false)
   assert.throws(() => draftSchema.parse({ ...draft, secret: 'must not persist' }))
@@ -86,12 +86,12 @@ test('capabilities enumerate the deployed table including reserved gaps and keep
   assert.equal(fee.routingCompatible.state, 'unverified')
   fee.productEnabled.state = 'verified'
   assert.equal(getCapabilities({ ids: [fee.id] })[0]!.productEnabled.state, 'blocked')
-  assert.ok(getCapabilities({ text: '波動' }).some(c => c.id === 'policy.market-rules'))
+  assert.ok(getCapabilities({ text: 'volatility' }).some(c => c.id === 'policy.market-rules'))
 })
 
 test('individual Guard limits and allocations persist across turns but cannot become executable while incomplete', () => {
   let d = draftSchema.parse({ ...start(), kind: 'maker', maker: '0x1111111111111111111111111111111111111111', spec: {
-    title: '逐項確認', profileId: profile.id, baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0, deadline: 10000,
+    title: 'Incremental confirmation', profileId: profile.id, baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0, deadline: 10000,
   } })
   const limits = { maxAmountBasePerSwap: '50000000000000000', maxAmountQuotePerSwap: '125000000', maxPostBalanceBase: '2000000000000000000', maxPostBalanceQuote: '5000000000' }
   const expected: Record<string, string> = {}
