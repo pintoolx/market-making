@@ -22,4 +22,5 @@ export { createEventDelivery, type EventDeliveryDependencies, type EvaluationRes
 export { runEventWorker, type EventWorkerOptions } from './event-worker.ts'
 export { createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate, type EventIngress, type EventSource } from './event-adapters.ts'
 export { createOutboxDispatcher, type OutboxEntry, type OutboxDispatcherOptions } from './outbox.ts'
+export { createHttpEventGateway, type EventGatewayOptions } from './event-gateway.ts'
 export { createAuthorizationBindings, bindingMessage, readAuthorizationBinding, type AuthorizationBinding, type AuthorizationBindingIntent, type BindingDependencies, type BindingProof } from './bindings.ts'

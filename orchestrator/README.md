@@ -122,6 +122,12 @@ BUILDER_WORKFLOW_PUBLIC_KEY=<64-hex-byte-workflow-key>
 # Optional signed gateway ingress for public market/EVM events.
 BUILDER_EVENT_INGRESS_SECRET=<gateway-shared-secret>
 BUILDER_EVENT_INGRESS_MAX_AGE_SECONDS=300
+# Required together when event processing is enabled. Both endpoints are
+# deployment-owned HTTPS boundaries; the token is never logged.
+BUILDER_EVENT_EVALUATOR_URL=https://tee.example/v1/evaluate
+BUILDER_EVENT_DELIVERY_URL=https://tee.example/v1/deliver
+BUILDER_EVENT_GATEWAY_TOKEN=<gateway-service-token>
+BUILDER_EVENT_GATEWAY_TIMEOUT_MS=120000
 CRE_AUTH_CONFIG_B64=<base64-encoded CRE CLI credential file>
 OPENAI_API_KEY=<Railway secret; never log or include in tool context>
 CRE_ETH_PRIVATE_KEY=<funded Sepolia report signer>

@@ -15,6 +15,7 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
   const {
     database, migrate, builderHandler, runDesignTurn, createTurns, openAIModel,
     nativeInventoryAdapter, krakenTemplatePrice, runEventWorker,
+    createHttpEventGateway,
   } = await import('../../packages/builder-service/src/index.ts');
   const { createSignedEventIngress } = await import('../../packages/builder-service/src/event-adapters.ts');
 
@@ -50,6 +51,14 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
     } : {}),
     ...(eventIngress ? { eventIngress } : {}),
   });
+  const evaluatorUrl = env.BUILDER_EVENT_EVALUATOR_URL?.trim();
+  const deliveryUrl = env.BUILDER_EVENT_DELIVERY_URL?.trim();
+  const gatewayToken = env.BUILDER_EVENT_GATEWAY_TOKEN?.trim();
+  const configuredGatewayValues = [evaluatorUrl, deliveryUrl, gatewayToken].filter(Boolean).length;
+  if (eventWorkerEnabled && configuredGatewayValues > 0 && configuredGatewayValues < 3)
+    throw new Error('Builder event gateway requires evaluator URL, delivery URL and token together');
+  const configuredEventGateway = eventWorkerEnabled && evaluatorUrl && deliveryUrl && gatewayToken
+    ? createHttpEventGateway({ evaluatorUrl, deliveryUrl, token: gatewayToken, timeoutMs: integer(env.BUILDER_EVENT_GATEWAY_TIMEOUT_MS, 120000) }) : undefined;
 
   const shutdown = new AbortController();
   const tasks = [];
@@ -91,7 +100,7 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
     // No default evaluator or broadcaster is installed. Running without an
     // explicitly injected adapter fails closed and never fabricates a Guard
     // report; queued work is retained with a stable failure state for review.
-    const eventDependencies = dependencies.eventDelivery ?? {};
+    const eventDependencies = dependencies.eventDelivery ?? configuredEventGateway ?? {};
     tasks.push(runEventWorker(pool, profile, eventDependencies, {
       pollMs: integer(env.BUILDER_EVENT_POLL_MS, 1000),
       leaseMs: integer(env.BUILDER_EVENT_LEASE_MS, 30000),
