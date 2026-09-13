@@ -50,14 +50,20 @@ with sync_playwright() as p:
     page.request.get('http://127.0.0.1:3311/fixture/simulation-control?slow=false&skip=true')
     dialog.get_by_role('button', name='模擬目前編譯').click()
     expect(dialog.get_by_text('仍有未執行案例，不能當作完整通過。')).to_be_visible(timeout=20000)
-    page.request.get('http://127.0.0.1:3311/fixture/simulation-control?slow=false')
-    dialog.get_by_role('button', name='模擬目前編譯').click()
+    page.request.get('http://127.0.0.1:3311/fixture/simulation-control?slow=true')
+    # Wait for durable acceptance, not job completion. Reloading an unaccepted
+    # HTTP request can correctly abort it before any job exists.
+    with page.expect_response(lambda r: '/artifacts/' in r.url and r.url.endswith('/simulations') and r.request.method == 'POST') as accepted:
+        dialog.get_by_role('button', name='模擬目前編譯').click()
+    assert accepted.value.status == 202
+    assert accepted.value.json()['id']
     # The owned worker continues while the browser reloads and obtains a new wallet session.
     page.reload()
     page.get_by_role('button', name='驗證錢包並開始設計').click()
     page.get_by_label('選擇策略草稿').select_option(maker_conversation)
     page.get_by_role('button', name='資產、編譯與成交模擬').click()
     expect(dialog.get_by_text('此結果的案例皆通過；仍需需求、政策與錢包檢查。')).to_be_visible(timeout=20000)
+    page.request.get('http://127.0.0.1:3311/fixture/simulation-control?slow=false')
     cards = dialog.locator('article')
     expect(cards).to_have_count(3)
     cards.first.get_by_role('button', name='查看 v2 案例').click()
