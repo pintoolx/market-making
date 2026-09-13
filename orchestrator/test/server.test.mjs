@@ -27,7 +27,7 @@ test('HTTP API serves the frontend contract and rejects other origins', async t 
   assert.deepEqual(await health.json(), { status: 'ok', chainId: 84532, network: 'Base Sepolia' });
   const catalog = await fetch(`${base}/v1/strategies`);
   assert.equal(catalog.status, 200);
-  assert.deepEqual(await catalog.json(), { maker: config.strategyMaker, strategies: config.strategies });
+  assert.deepEqual(await catalog.json(), { strategies: config.strategies });
   const created = await fetch(`${base}/v1/mandates`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3200' }, body: JSON.stringify(input) });
   assert.equal(created.status, 200);
   assert.equal((await created.json()).mandateId, state.mandateId);
