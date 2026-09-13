@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Pool } from 'pg'
 import { ZodError, z } from 'zod'
-import { DraftConflict, DraftAccessDenied, getCapabilities, sepoliaStandingProfile, validateStrategy, assessRequirements } from '@pintool/strategy-builder'
+import { DraftConflict, DraftAccessDenied, getCapabilities, sepoliaStandingProfile, validateStrategy, assessRequirements, assessRequirementCriteria } from '@pintool/strategy-builder'
 import { createAuth } from './auth.ts'
 import { createStore } from './store.ts'
 import { ServiceError } from './errors.ts'
@@ -13,6 +13,7 @@ import { createPreviews } from './previews.ts'
 import { scenarioInputSchema } from 'aqua-executor/builder-preview'
 import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
 import { createTemplates, type TemplateOptions } from './templates.ts'
+import { createRequirementReviews } from './requirement-reviews.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -39,6 +40,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
   const previews = artifacts ? createPreviews(pool, sepoliaStandingProfile) : undefined
   const inventory = artifacts && dependencies.inventoryAdapter ? createInventoryReader(pool, sepoliaStandingProfile, dependencies.inventoryAdapter) : undefined
   const templates = artifacts && dependencies.templates ? createTemplates(pool, sepoliaStandingProfile, { ...dependencies.templates, origin: config.origin }) : undefined
+  const requirementReviews = artifacts ? createRequirementReviews(pool, sepoliaStandingProfile) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -82,6 +84,25 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
       if (route === '/capabilities' && !post) return send({ profileId: config.profileId, capabilities: getCapabilities() })
       const requestId = request.headers['idempotency-key']
       if (post && (typeof requestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(requestId))) throw new ServiceError('idempotency-key-required')
+      const reviewConfirm = route.match(/^\/requirement-reviews\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/confirm$/)
+      if (reviewConfirm && post) {
+        if (!requirementReviews) throw new ServiceError('profile-unavailable', 503)
+        const body = z.record(z.string(), z.unknown()).parse(await readJson(request))
+        if ('reviewId' in body) throw new ServiceError('resource-id-in-body')
+        return send(await requirementReviews.confirm(actor.owner, requestId as string, { ...body, reviewId: reviewConfirm[1] }))
+      }
+      const reviewDraft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/requirement-review$/)
+      if (reviewDraft) {
+        if (!requirementReviews) throw new ServiceError('profile-unavailable', 503)
+        if (!post) {
+          if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1)
+            throw new ServiceError('invalid-request')
+          const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
+          return send(await requirementReviews.current(actor.owner, reviewDraft[1]!, expectedRevision))
+        }
+        const body = z.object({ expectedRevision: z.number().int().positive() }).strict().parse(await readJson(request))
+        return send(await requirementReviews.prepare(actor.owner, requestId as string, { draftId: reviewDraft[1], ...body }))
+      }
       if (route === '/templates' || route === '/templates/prepare' || route === '/templates/publish' || route === '/templates/instantiate' || route === '/templates/withdraw') {
         if (!templates) throw new ServiceError('templates-unavailable', 503)
         limit(request, 120)
@@ -177,7 +198,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
           if (config.profileId !== sepoliaStandingProfile.id) throw new ServiceError('profile-unavailable', 503)
           const result = validateStrategy(current, sepoliaStandingProfile, Math.floor(Date.now() / 1000))
           return send({ revision: current.revision, ready: result.ready, errors: result.errors,
-            missingFields: result.missingFields, requirements: assessRequirements(current) })
+            missingFields: result.missingFields, requirements: assessRequirements(current), requirementAssessment: assessRequirementCriteria(current) })
         }
         if (!post && draft[3] === 'history') return send({ revisions: await store.history(actor.owner, draft[1]!) })
         if (post && ['patch', 'restore'].includes(draft[3]!)) {

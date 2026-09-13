@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { requirementCriteriaSchema } from './requirement-criteria.ts'
 
 export const idSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/)
 export const addressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/).refine(v => !/^0x0{40}$/i.test(v), 'zero address').transform(v => v.toLowerCase() as `0x${string}`)
@@ -48,6 +49,8 @@ export const allocationSchema = z.object({ baseAtomic: positiveAtomicSchema, quo
 export const requirementInputSchema = z.object({
   id: idSchema, text: z.string().min(1).max(1200), priority: z.enum(['must', 'prefer']),
   sourceMessageId: idSchema, capabilityIds: z.array(idSchema).max(12),
+  // No default: old signed template requirements keep exactly the same JSON/digest.
+  criteria: requirementCriteriaSchema.optional(),
 }).strict()
 export const requirementSchema = requirementInputSchema.extend({
   // Set by a separate authenticated user action, never by an LLM patch.

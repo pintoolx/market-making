@@ -16,6 +16,16 @@ export type Conversation = { conversationId: string; draftId: string; title: str
 export type Message = { id: string; role: 'user' | 'assistant'; content: string; sequence: string };
 export type Revision = { revision: string; createdAt: string; diff: { path: string; before: unknown; after: unknown }[] };
 export type Validation = { revision: number; ready: boolean; errors: { code: string; path: string; message: string }[]; missingFields: string[] };
+export type RequirementReviewCriterion = { criterion: Record<string, unknown>; enforcement: 'onchain_enforced' | 'preflight_only' | 'informational' | 'unsupported';
+  matchesDraft: boolean | null; interpretation: string; actual: string | null; limitation: string; evidence: string };
+export type RequirementReviewRow = { id: string; text: string; priority: 'must' | 'prefer'; sourceMessageId: string; criteria: RequirementReviewCriterion[]; needsInterpretation: boolean };
+export type RequirementReview = { schemaVersion: 1; engineVersion: string; id: string; owner: string; draftId: string; revision: number;
+  contentDigest: `0x${string}`; manifestHash: `0x${string}`; draft: Draft; requirements: RequirementReviewRow[]; compilation: unknown;
+  expiresAt: string; registrationReady: false };
+export type RequirementReceipt = { schemaVersion: 1; engineVersion: string; reviewId: string; reviewDigest: `0x${string}`; owner: string;
+  draftId: string; fromRevision: number; revision: number; contentDigest: `0x${string}`; manifestHash: `0x${string}`;
+  decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[]; userConfirmed: true; needsRecompile: boolean;
+  confirmedAt: string; registrationReady: false };
 export type Turn = { id: string; state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'; messageId: string | null };
 export type TurnEvent = { sequence: string; attempt: number; kind: 'started' | 'text' | 'tool' | 'completed' | 'failed' | 'cancelled' | 'superseded'; payload: { text?: string; name?: string; ok?: boolean } };
 
@@ -36,6 +46,10 @@ export class BuilderError extends Error {
       'inventory-busy': '資產讀取繁忙，請稍後重試。', 'simulation-unavailable': '模擬服務尚未開放或暫時無法執行。',
       'simulation-artifact-stale': '草稿或編譯版本已變更，請回到策略重新編譯。', 'simulation-hourly-budget': '本小時的模擬額度已用完，請稍後再試。',
       'strategy-incomplete-or-invalid': '公開設定或 Maker 配置尚未完整，請先回到對話修正。', 'compile-rejected': '編譯器拒絕這組參數，請回到對話檢查曲線與數量。',
+      'requirement-review-required': '發布前必須先逐項確認策略條件。', 'requirement-interpretation-required': '需求仍缺少可核對的具體解讀，請先回到對話補充。',
+      'requirement-review-expired': '需求審閱已過期，請重新準備審閱。', 'requirement-review-mismatch': '策略或部署設定已變更，請重新準備審閱。',
+      'requirement-review-already-confirmed': '這份需求審閱已經完成，請使用最新版本。', 'requirement-compilation-required': 'Maker 必須先編譯目前版本才能審閱。',
+      'requirement-artifact-integrity': '編譯結果與目前策略不一致，請重新編譯。', 'requirement-review-budget': '本小時的需求審閱額度已用完，請稍後再試。',
     } as Record<string, string>)[code] ?? '暫時無法連線到策略工作區，請重試。');
   }
 }
@@ -75,6 +89,12 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
     templates: () => call<{ templates: TemplateItem[] }>('/templates'),
     template: (id: string, version: number) => call<PublishedTemplate>(`/templates/${encodeURIComponent(id)}/versions/${version}`),
     templateContext: async (id: string, revision: number) => (await call<{ context: TemplateContext | null }>(`/drafts/${id}/template-context?revision=${revision}`)).context,
+    requirementReview: async (draft: Draft) => (await call<{ receipt: RequirementReceipt | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/requirement-review?revision=${draft.revision}`)).receipt,
+    prepareRequirementReview: (draft: Draft, key: string) => call<{ review: RequirementReview; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/requirement-review`, { expectedRevision: draft.revision }, key),
+    confirmRequirementReview: (reviewId: string, digest: `0x${string}`, decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[], key: string) =>
+      call<{ receipt: RequirementReceipt }>(`/requirement-reviews/${reviewId}/confirm`, { digest, decisions }, key),
     inventory: (draft: Draft) => call<InventoryResult>(`/drafts/${draft.id}/inventory?revision=${draft.revision}`),
     compilations: (id: string) => call<{ artifacts: CompilationItem[] }>(`/drafts/${id}/artifacts`),
     compilation: (id: string) => call<Compilation>(`/artifacts/${id}`),

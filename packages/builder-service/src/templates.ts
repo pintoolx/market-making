@@ -9,6 +9,7 @@ import { allocationSchema, assertTemplateInstance, contentDigest, digestJson, dr
   type DeploymentProfile, type PriceSnapshot, type StrategyDraft, type TemplateVersion } from '@pintool/strategy-builder'
 import { conflict, notFound, ServiceError } from './errors.ts'
 import { mutation, ownerSchema, requestReceipt } from './requests.ts'
+import { readRequirementReceipt } from './requirement-reviews.ts'
 
 export interface TemplateOptions {
   origin: string;
@@ -85,6 +86,7 @@ export function createTemplates(pool: Pool, profile: DeploymentProfile, options:
       return mutation(pool, owner, requestId, 'template.prepare', value, async client => {
         await budget(client, owner, 'publication_intents', 30)
         const draft = await draftFor(client, owner, value.draftId, value.expectedRevision, true)
+        if (draft.requirements.length && !await readRequirementReceipt(client, profile, draft)) throw conflict('requirement-review-required')
         const templateId = value.templateId ?? randomUUID()
         if (!value.templateId) await client.query('INSERT INTO builder.provider_templates(id,owner) VALUES ($1,$2)', [templateId, owner])
         const series = (await client.query('SELECT latest_version::text FROM builder.provider_templates WHERE id=$1 AND owner=$2 FOR UPDATE', [templateId, owner])).rows[0]

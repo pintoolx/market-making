@@ -2,7 +2,8 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { ScenarioInput } from 'aqua-executor/builder-preview'
 import { DraftConflict, draftSchema, digestJson, getCapabilities, patchSchema, scaledDecimal, validateStrategy,
-  assessRequirements, type StrategyDraft, type DeploymentProfile, type DraftPatch } from '@pintool/strategy-builder'
+  assessRequirements, assessRequirementCriteria, type StrategyDraft, type DeploymentProfile, type DraftPatch } from '@pintool/strategy-builder'
+import { requirementCriteriaSchema } from '@pintool/strategy-builder'
 
 export interface DesignRepository {
   read(): Promise<StrategyDraft>
@@ -25,7 +26,8 @@ const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPric
 export const designEditSchema = z.object({
   expectedRevision: z.number().int(), operation: z.enum(['patch', 'restore']), restoreRevision: z.number().int().nullable(),
   edits: z.array(z.object({ field: z.enum(paths), value: z.string().max(120) }).strict()).max(24),
-  requirements: z.array(z.object({ id: z.string().nullable(), text: z.string().max(1200), priority: z.enum(['must','prefer']), capabilityIds: z.array(z.string()).max(12) }).strict()).max(20),
+  requirements: z.array(z.object({ id: z.string().nullable(), text: z.string().max(1200), priority: z.enum(['must','prefer']), capabilityIds: z.array(z.string()).max(12),
+    criteria: requirementCriteriaSchema.nullable().optional() }).strict()).max(20),
 }).strict()
 export const visibleDraft = (input: StrategyDraft) => {
   const draft = draftSchema.parse(input)
@@ -89,7 +91,7 @@ export function editToPatch(input: z.infer<typeof designEditSchema>, draft: Stra
   const upsertRequirements = input.requirements.map((r, i) => {
     if (r.id && !knownRequirements.has(r.id)) throw new Error('unknown-requirement-id')
     if (r.capabilityIds.some(id => !getCapabilities({ ids: [id] }).length)) throw new Error('unknown-capability-id')
-    return { ...r, id: r.id ?? `req-${sourceMessageId}-${i}`, sourceMessageId }
+    return { ...r, id: r.id ?? `req-${sourceMessageId}-${i}`, sourceMessageId, ...(r.criteria ? { criteria: r.criteria } : {}) }
   })
   return patchSchema.parse({ ...(Object.keys(spec).length ? { spec } : {}), ...(allocationsChanged ? { allocations } : {}),
     ...(upsertRequirements.length ? { upsertRequirements } : {}) })
@@ -152,7 +154,7 @@ export function createDesignTools(context: { repository: DesignRepository; profi
       strict: true, inputSchema: z.object({}).strict(), execute: () => safe(async () => {
         const draft = await read(), result = validateStrategy(draft, profile, context.nowSec)
         return { revision: draft.revision, readyForCompilation: draft.kind === 'maker' && result.ready, templateFieldsComplete: draft.kind === 'template' && result.ready,
-          errors: result.errors, missingFields: result.missingFields, requirements: assessRequirements(draft) }
+          errors: result.errors, missingFields: result.missingFields, requirements: assessRequirements(draft), requirementAssessment: assessRequirementCriteria(draft) }
       }) }),
     compileStrategy: tool({ description: 'Compile and independently decode a complete owned Maker instance, storing an immutable artifact tied to this revision and deployment manifest. This performs no RPC or wallet action and does not make registration ready. Provider templates must first be instantiated by a Maker; never request Maker assets while authoring a Provider template.',
       strict: true, inputSchema: z.object({ expectedRevision: z.number().int().positive() }).strict(), execute: ({ expectedRevision }, options) => safe(async () => {

@@ -5,8 +5,9 @@ import { assertTemplateInstance, contentDigest, draftSchema, patchDraft, patchSc
   type StrategyDraft, type Diff } from '@pintool/strategy-builder'
 import { transaction } from './database.ts'
 import { conflict, notFound, ServiceError } from './errors.ts'
-import { assertTurnLease, supersedeTurns, type TurnLease } from './turn-lease.ts'
+import { supersedeTurns, type TurnLease } from './turn-lease.ts'
 import { readTemplateContext } from './templates.ts'
+import { readOwnedDraft, persistDraftChange, persistDraftRevision as saveRevision } from './draft-persistence.ts'
 
 import { mutation as transactRequest, ownerSchema } from './requests.ts'
 const createSchema = z.object({ title: z.string().min(1).max(120), kind: z.enum(['template', 'maker']) }).strict()
@@ -24,36 +25,10 @@ export function createStore(pool: Pool, profileId: string, lease?: TurnLease) {
   }
 
   async function read(client: Pick<PoolClient, 'query'>, owner: string, id: string, lock = false) {
-    ownerSchema.parse(owner); idSchema.parse(id)
-    const row = (await client.query<DraftRow>(`SELECT snapshot, digest FROM builder.drafts WHERE id=$1 AND owner=$2${lock ? ' FOR UPDATE' : ''}`, [id, owner])).rows[0]
-    if (!row) throw notFound()
-    const draft = draftSchema.parse(row.snapshot)
-    if (draft.owner !== owner || draft.id !== id || row.digest !== contentDigest(draft)) throw new ServiceError('stored-draft-integrity', 500)
-    if (lease && lock) await assertTurnLease(client as PoolClient, draft, lease)
-    return draft
-  }
-  async function saveRevision(client: PoolClient, draft: StrategyDraft, diff: Diff[]) {
-    await client.query('INSERT INTO builder.draft_revisions(draft_id, owner, revision, snapshot, digest, diff) VALUES ($1,$2,$3,$4,$5,$6)',
-      [draft.id, draft.owner, draft.revision, JSON.stringify(draft), contentDigest(draft), JSON.stringify(diff)])
-    await client.query('INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES ($1,$2,$3,$4)', [draft.owner, 'draft.changed', draft.id, draft.revision])
+    return readOwnedDraft(client, owner, id, lock, lease)
   }
   async function update(client: PoolClient, before: StrategyDraft, result: ReturnType<typeof patchDraft>) {
-    if (!result.changed) return result
-    const { draft, diff } = result
-    const saved = await client.query(`UPDATE builder.drafts SET snapshot=$4, digest=$5, revision=$6, updated_at=clock_timestamp()
-      WHERE id=$1 AND owner=$2 AND revision=$3 RETURNING conversation_id`,
-    [draft.id, draft.owner, before.revision, JSON.stringify(draft), contentDigest(draft), draft.revision])
-    if (saved.rowCount !== 1) throw conflict()
-    await saveRevision(client, draft, diff)
-    if (lease) {
-      await client.query('UPDATE builder.agent_turns SET last_revision=$2 WHERE id=$1', [lease.turnId, draft.revision])
-    } else await supersedeTurns(client, draft.owner, draft.id)
-    await client.query('UPDATE builder.conversations SET title=$3, updated_at=clock_timestamp() WHERE id=$1 AND owner=$2', [saved.rows[0].conversation_id, draft.owner, draft.spec.title])
-    // Confirmations must also check their revision. Cancel only work that has not started;
-    // running work reconciles its lease and revision before committing a result.
-    await client.query(`UPDATE builder.jobs SET state='cancelled', completed_at=clock_timestamp()
-      WHERE owner=$1 AND resource_id=$2 AND kind='simulation' AND generation<$3 AND state='pending'`, [draft.owner, draft.id, draft.revision])
-    return result
+    return persistDraftChange(client, before, result, lease)
   }
   return {
     async create(owner: string, requestId: string, input: unknown) {
