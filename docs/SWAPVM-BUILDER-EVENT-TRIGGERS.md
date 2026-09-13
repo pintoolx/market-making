@@ -65,6 +65,6 @@ The earlier baseline at `1d7f6a2` recorded 45 workflow, 26 orchestrator and 6 lo
 
 ## References
 
-- [CRE HTTP trigger](https://docs.chain.link/cre/capabilities/http-trigger)
-- [CRE EVM log trigger](https://docs.chain.link/cre/capabilities/evm-log-trigger)
+- [CRE HTTP trigger](https://docs.chain.link/cre/guides/workflow/using-triggers/http-trigger/overview-ts)
+- [CRE EVM log trigger](https://docs.chain.link/cre/guides/workflow/using-triggers/evm-log-trigger-ts)
 - [Builder requirements](SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md)
