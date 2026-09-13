@@ -62,6 +62,14 @@ With no adapter the worker fails closed and never fabricates a report; queued
 events and any already-created delivery rows remain recoverable through their
 leases.
 
+The runtime also installs a read-only Sepolia RPC verifier for authorization
+bindings. Before creating a Maker signing intent it locates the Guard's latest
+accepted report, checks its `ReportAccepted` log and stored report at the same
+domain, then matches the supplied digest, transaction hash, nonce, Maker,
+Guard, Router, strategy hash and token pair. RPC/provider failures are reduced
+to stable `binding-proof-unavailable` errors; no receipt or report payload is
+copied into public logs.
+
 Required production checks:
 
 1. Set Railway `DATABASE_URL=${{Postgres.DATABASE_URL}}`, deploy, and confirm
