@@ -5,17 +5,17 @@ The application exposes the two sides of the PinTool market:
 | Route | Purpose |
 |---|---|
 | `/` | Product entry and role selection |
-| `/studio` | Create and publish a Strategy Provider listing |
+| `/studio` | Browse six templates, save public design drafts, and publish supported CLMM versions |
 | `/maker` | Discover strategies, configure a Maker mandate and monitor verified activity |
-| `/profile` | Manage strategies, mandates and account details |
+| `/profile` | Manage strategies, mandates, account details and Provider identity |
 
 `AquaApp.tsx` provides the application shell. `ProviderFlow.tsx` and `MakerFlow.tsx` implement the role-specific journeys, while `ui.tsx` contains shared product components.
 
 ## Data ownership
 
-- Published listing metadata and profile preferences currently persist in browser storage.
-- Provider drafts remain in session storage until publication.
-- Maker limits are sealed in the browser for the confidential workflow. Provider policies are provisioned through Vault DON; plaintext private inputs never enter the mandate service.
+- Signed CLMM publications are stored in the publication service. Profile preferences and legacy listing metadata remain browser-local.
+- Non-CLMM public design drafts are stored per wallet and template in this browser. They are not listings or executable strategies. CLMM private inputs remain in memory only.
+- Maker limits and Provider policies are sealed in the browser before submission. The configured CRE local simulation operator can access decrypted inputs; this is not evidence of production TEE confidentiality.
 - Confirmed mandate state comes from `NEXT_PUBLIC_MANDATE_API_URL`. The UI never generates transaction receipts or treats requested actions as confirmed.
 - Executable profile availability comes from `GET /v1/strategies`. The marketplace can present several immutable Aqua profiles as one adaptive strategy product, but every required profile must be provisioned before that product accepts liquidity.
 - `Refresh status` is a read-only evidence and readiness check. `Re-evaluate strategy` is the explicit product action that may run the confidential workflow and publish a new Guard authorization.
