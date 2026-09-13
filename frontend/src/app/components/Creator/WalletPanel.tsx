@@ -20,12 +20,12 @@ export default function WalletPanel() {
   const [accountName, setAccountName] = useState('');
   const [exportedKey, setExportedKey] = useState<string | null>(null);
 
-  // 未登入時不顯示
+  // Hide when signed out.
   if (!isAuthenticated || !accessToken) {
     return null;
   }
 
-  // ─── 流程 B: Create Trading Account ────────────────────
+  // Flow B: Create Trading Account.
 
   const handleCreateWallet = async () => {
     if (isCreating || !accountName.trim()) return;
@@ -52,7 +52,7 @@ export default function WalletPanel() {
     }
   };
 
-  // ─── 流程 C: Export Wallet ─────────────────────────────
+  // Flow C: Export Wallet.
 
   const handleExportWallet = async () => {
     if (isExporting || !account?.id) return;
@@ -75,7 +75,7 @@ export default function WalletPanel() {
     }
   };
 
-  // ─── 流程 D: Delete Wallet ─────────────────────────────
+  // Flow D: Delete Wallet.
 
   const handleDeleteWallet = async () => {
     if (isDeleting || !account?.id) return;
@@ -125,7 +125,7 @@ export default function WalletPanel() {
       </div>
 
       <div className={styles.walletActions}>
-        {/* 沒有 account 時顯示 Create 按鈕 */}
+        {/* Show Create when there is no account. */}
         {!account ? (
           <>
             {!showCreateForm ? (
@@ -168,7 +168,7 @@ export default function WalletPanel() {
           </>
         ) : (
           <>
-            {/* 有 wallet 時顯示 Export / Delete */}
+            {/* Show Export / Delete when a wallet exists. */}
             <button
               className={styles.actionButton}
               onClick={handleExportWallet}

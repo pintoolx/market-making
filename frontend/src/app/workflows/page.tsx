@@ -82,7 +82,7 @@ export default function WorkflowsPage() {
     });
   }, [deployedWorkflows, accounts, firstStartedByWorkflow]);
 
-  // Load deployed workflows from Supabase（與 accounts 分離，避免僅帳戶變更就重打 workflows API）
+  // Load deployed workflows separately from accounts to avoid refetching when only account state changes.
   useEffect(() => {
     if (!isAuthenticated || !walletAddress) {
       setDeployedWorkflows([]);
@@ -236,12 +236,12 @@ export default function WorkflowsPage() {
       if (!walletAddress) return;
       const account = accounts.find(a => a.current_workflow_id === workflowId);
       if (!account) {
-        showToast('此策略尚未綁定執行帳戶，請先在 Creator 建立或綁定帳戶。', 'warning');
+        showToast('This strategy has no execution account. Create or link an account in Creator first.', 'warning');
         return;
       }
       const life = accountLifecycleFromRow(account);
       if (life === 'closed') {
-        showToast('此帳戶已關閉，無法再次啟動。', 'warning');
+        showToast('This account is closed and cannot be reactivated.', 'warning');
         return;
       }
       setToggleAccountWorkflowId(workflowId);
@@ -335,18 +335,18 @@ export default function WorkflowsPage() {
       if (!walletAddress) return;
       const account = accounts.find(a => a.current_workflow_id === workflowId);
       if (!account) {
-        showToast('沒有綁定帳戶可關閉。', 'warning');
+        showToast('There is no linked account to close.', 'warning');
         return;
       }
       setToggleAccountWorkflowId(workflowId);
       try {
         await updateAccountStatus(walletAddress, account.id, 'closed');
         await refreshAccounts();
-        showToast('帳戶已關閉，此策略不會再啟動。', 'success');
+        showToast('Account closed. This strategy will no longer activate.', 'success');
       } catch (err) {
         console.error('Close account failed:', err);
         const msg = (err as Error)?.message || String(err);
-        showToast(`無法關閉帳戶: ${msg}`, 'error');
+        showToast(`Could not close account: ${msg}`, 'error');
       } finally {
         setToggleAccountWorkflowId(null);
       }

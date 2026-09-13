@@ -1,4 +1,4 @@
-/* Figma 596:17320 / 596:17593 — overlay 對齊 WorkflowBuilder .deployOverlay */
+/* Figma 596:17320 / 596:17593: match WorkflowBuilder deployOverlay. */
 .overlay {
   position: fixed;
   inset: 0;

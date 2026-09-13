@@ -42,7 +42,7 @@
   z-index: 101;
 }
 
-/* 與舊版 grid 視覺對齊：手機 15px 步進、桌面 60px（80px logo、25% overlap → 60px 間距） */
+/* Match the earlier grid: 15px mobile step, 60px desktop step from 80px logos with 25% overlap. */
 .backgroundGrid {
   position: absolute;
   top: 0;

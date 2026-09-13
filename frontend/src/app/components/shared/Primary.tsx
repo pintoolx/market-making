@@ -4,9 +4,9 @@ import React from 'react';
 import styles from './Primary.module.css';
 
 export interface PrimaryProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** 等同設計稿 width: 100% */
+  /** Match the design at width: 100%. */
   fullWidth?: boolean;
-  /** 與 default 相同互動，主色改為粉紅（如關閉 canvas Remove） */
+  /** Same interaction as default, with a pink accent for actions such as removing a canvas. */
   variant?: 'default' | 'accentPink';
 }
 

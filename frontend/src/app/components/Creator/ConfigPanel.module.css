@@ -176,7 +176,7 @@
   box-shadow: 0 4px 0 0 #2050f2;
 }
 
-/* 原生下拉：與 FormInput 一致（黑框＋粗底線，focus／開啟時藍框＋藍底線） */
+/* Native select matches FormInput: dark outline and heavy underline; blue when focused or open. */
 .configSelect {
   padding: 16px;
   border-radius: 8px;
@@ -275,7 +275,7 @@
   color: #FFFFFF;
 }
 
-/* Kamino 50% / 100%：Secondary 選中態（與設計稿主色一致） */
+/* Kamino 50% / 100% controls use the Secondary selected state. */
 .kaminoQuickSecondaryOn {
   background: #2050f2 !important;
   color: #fff !important;

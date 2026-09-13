@@ -1,6 +1,6 @@
-/* Tertiary（第三種通用按鈕）— Figma 544:8506 / 8528 / 8517 / 8539 */
-/* 預設：僅淺底無邊線無陰影；Hover：2px 深色框 + 4px 硬陰影；Click：陰影收為 2px */
-/* 與 Primary／Secondary 相同以 filter: drop-shadow 沿圓角輪廓 */
+/* Tertiary action: Figma 544:8506 / 8528 / 8517 / 8539. */
+/* Default light surface; hover adds a 2px dark border and 4px shadow; pressed shadow reduces to 2px. */
+/* Use drop-shadow along rounded corners, matching Primary and Secondary. */
 
 .tertiary {
   position: relative;

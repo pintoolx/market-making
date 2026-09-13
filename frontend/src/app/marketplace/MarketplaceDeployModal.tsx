@@ -32,7 +32,7 @@ import { createWorkflow, createCanvas } from '../lib/workflowService';
 import { initWallet } from '../lib/pintoolApi';
 import { supabase } from '../lib/supabase';
 
-// 共用 deploy modal 的 Figma 外觀；直接從 WorkflowBuilder 模組借樣式
+// Reuse the WorkflowBuilder deploy-modal styling.
 import styles from '../components/Creator/WorkflowBuilder.module.css';
 
 const SOL_USD_DISPLAY_APPROX = 80;

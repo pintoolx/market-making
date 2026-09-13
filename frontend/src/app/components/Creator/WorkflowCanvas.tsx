@@ -210,7 +210,7 @@ function WorkflowCanvas({
     e.preventDefault();
 
     const delta = e.deltaY > 0 ? 1.1 : 0.9;
-    // 最小縮放 1 (logo 保持 80x80)，最大縮放 2 (logo 變成 160x160)
+    // Zoom ranges from 1 (80x80 logo) to 2 (160x160 logo).
     const newZoom = Math.min(Math.max(1, viewport.zoom * delta), 2);
 
     // Zoom towards mouse cursor
@@ -265,7 +265,7 @@ function WorkflowCanvas({
   // Zoom controls
   const handleZoomIn = () => {
     setViewport(prev => {
-      const newZoom = Math.min(prev.zoom * 1.2, 2); // 最大 2x
+      const newZoom = Math.min(prev.zoom * 1.2, 2); // Maximum 2x.
       const constrained = applyBoundaryConstraints(prev.x, prev.y, newZoom);
       return {
         ...constrained,
@@ -276,7 +276,7 @@ function WorkflowCanvas({
 
   const handleZoomOut = () => {
     setViewport(prev => {
-      const newZoom = Math.max(prev.zoom / 1.2, 1); // 最小 1x (logo 保持 80x80)
+      const newZoom = Math.max(prev.zoom / 1.2, 1); // Minimum 1x, preserving the 80x80 logo.
       const constrained = applyBoundaryConstraints(prev.x, prev.y, newZoom);
       return {
         ...constrained,
@@ -311,7 +311,7 @@ function WorkflowCanvas({
             transformOrigin: '0 0'
           }}
         >
-          {/* 背景用 CSS repeat，避免 RWD 時建立十萬級 DOM 卡死主執行緒 */}
+          {/* Use a repeating CSS background to avoid generating excessive DOM nodes during responsive layout. */}
           <div className={styles.backgroundGrid} aria-hidden />
 
           {/* Nodes - sorted by x coordinate so rightmost nodes appear on top */}
@@ -324,8 +324,8 @@ function WorkflowCanvas({
             const isDiscordNotify = node.type === 'discord-notify';
 
             // Get node config for display (pyth-price-feed)
-            // 新格式（對齊後端 parameters）：ticker / targetPrice / condition
-            // 舊格式相容：asset / operator / threshold
+            // Current backend parameter format: ticker / targetPrice / condition.
+            // Legacy format compatibility: asset / operator / threshold.
             const ticker = isPythPriceFeed
               ? (typeof node.config?.ticker === 'string'
                 ? node.config.ticker
@@ -577,7 +577,7 @@ function WorkflowCanvas({
           <button
             className={styles.controlButton}
             onClick={handleZoomIn}
-            title="放大 (Zoom In)"
+            title="Zoom In"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M10 4V16M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -586,7 +586,7 @@ function WorkflowCanvas({
           <button
             className={styles.controlButton}
             onClick={handleZoomOut}
-            title="縮小 (Zoom Out)"
+            title="Zoom Out"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -595,7 +595,7 @@ function WorkflowCanvas({
           <button
             className={styles.controlButton}
             onClick={handleResetView}
-            title="重置視圖 (Reset View)"
+            title="Reset View"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M4 10H16M10 4L16 10L10 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

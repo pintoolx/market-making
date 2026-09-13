@@ -51,17 +51,17 @@ const snapToGrid = (value: number, gridSize: number) => {
   return Math.round(value / gridSize) * gridSize;
 };
 
-/** Deploy 成功畫面：SOL → USD 示意換算（非即時牌價） */
+/** Illustrative SOL-to-USD conversion for the success screen, not a live quote. */
 const SOL_USD_DISPLAY_APPROX = 80;
 
-/** 錢包常把 RPC 失敗包成 WalletSendTransactionError / "Unexpected error"，盡量還原底層訊息 */
+/** Recover underlying RPC errors when wallets wrap them in WalletSendTransactionError or Unexpected error. */
 function formatSolTransferError(err: unknown): string {
   if (err instanceof WalletSendTransactionError) {
     if (err.error) {
       const inner = err.error as { message?: string };
       if (inner?.message && inner.message !== "Unexpected error") return inner.message;
     }
-    // StandardWalletAdapter 在 chain 不符時會 new WalletSendTransactionError() 不帶訊息
+    // StandardWalletAdapter may throw WalletSendTransactionError without a message for a chain mismatch.
     if (!err.message || err.message === "Unexpected error") {
       return "Wallet blocked send (often: wallet is on a different cluster than this app). Switch your wallet to Mainnet, the same cluster as this app.";
     }
@@ -71,7 +71,7 @@ function formatSolTransferError(err: unknown): string {
   return "Transaction failed. Make sure your wallet is on Mainnet with enough SOL for amount + fees.";
 }
 
-/** 送出前模擬，避免 Phantom 只顯示 Unexpected error */
+/** Simulate before sending so Phantom can show a useful error. */
 async function assertTransferSimulationOk(connection: SolanaConnection, tx: Transaction): Promise<void> {
   const { value } = await connection.simulateTransaction(tx);
   if (value.err) {
@@ -92,10 +92,10 @@ type WalletTransferFns = {
 };
 
 /**
- * StandardWalletAdapter.sendTransaction 會先檢查 account.chains 是否含 RPC 推斷的 chain
- * （@solana/wallet-standard-util getChainForEndpoint）；不符時丟出「無訊息」的
- * WalletSendTransactionError → 畫面上變 Unexpected error。
- * 優先改走 signTransaction + sendRawTransaction，跳過該檢查，仍由同一錢包簽名並用同一 Connection 上鏈。
+ * StandardWalletAdapter.sendTransaction checks whether account.chains includes the chain inferred from the RPC.
+ * The inference uses @solana/wallet-standard-util getChainForEndpoint; a mismatch throws a message-less
+ * WalletSendTransactionError, which appears as Unexpected error.
+ * Prefer signTransaction plus sendRawTransaction, retaining the same wallet signer and Connection while avoiding that adapter check.
  */
 async function signAndSendLegacyTransfer(
   wallet: WalletTransferFns,
@@ -116,14 +116,14 @@ async function signAndSendLegacyTransfer(
 }
 
 /**
- * 在「理論短額」上再加 buffer，降低因 float→lamports 四捨五入、鏈上取整而差數千 lamports 導致失敗的機率。
- * Step 2 尚無 Crossmint 地址時視餘額為 0，門檻 = minRent + buffer。
+ * Add a buffer above the computed shortfall to account for floating-point conversion and onchain rounding.
+ * Before Crossmint creation in Step 2, assume a zero balance: threshold = minimum rent + buffer.
  */
 const RENT_TOP_UP_BUFFER_LAMPORTS = 1_000_000; // 0.001 SOL
 
 /**
- * 收款（Crossmint）若鏈上餘額仍低於 rent-exempt，入金後總額須 ≥ getMinimumBalanceForRentExemption(0)，
- * 否則模擬會報 InsufficientFundsForRent（account_index 多為收款帳戶）。
+ * If the receiving Crossmint account is below rent exemption, its post-deposit total must reach getMinimumBalanceForRentExemption(0).
+ * Otherwise simulation may return InsufficientFundsForRent, usually for the receiving account index.
  */
 async function getRentTopUpLamports(
   connection: SolanaConnection,
@@ -131,7 +131,7 @@ async function getRentTopUpLamports(
 ): Promise<{
   minRentLamports: number;
   minExtraLamports: number;
-  /** 建議至少轉入的 lamports（已含 buffer）；已足 rent 時為 0 */
+  /** Recommended additional lamports including the buffer; zero when rent is already covered. */
   requiredSendLamports: number;
 }> {
   const minRentLamports = await connection.getMinimumBalanceForRentExemption(0);
@@ -142,7 +142,7 @@ async function getRentTopUpLamports(
   return { minRentLamports, minExtraLamports, requiredSendLamports };
 }
 
-/** 入金提示用 SOL 字串（去尾端 0），對齊 Figma 620:31954 */
+/** Format the deposit hint in SOL without trailing zeros; match Figma 620:31954. */
 function formatSolAmountForHint(sol: number): string {
   const t = sol.toFixed(6);
   return t.replace(/\.?0+$/, '') || '0';
@@ -315,32 +315,32 @@ export default function WorkflowBuilder({
   const [isAddingFunds, setIsAddingFunds] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deploySuccess, setDeploySuccess] = useState(false);
-  /** Deploy 完成後：是否在 step2 已轉入 SOL（決定顯示「加錢」或「啟用」成功態） */
+  /** Whether Step 2 funded SOL; selects the funded or activation success view. */
   const [deploySuccessFunded, setDeploySuccessFunded] = useState(false);
   const [deploySuccessBalanceSol, setDeploySuccessBalanceSol] = useState(0);
   const [deploySuccessUsdApprox, setDeploySuccessUsdApprox] = useState(0);
   const [postSuccessFundInput, setPostSuccessFundInput] = useState('');
-  /** Rent-exempt 不足：輸入框下方紅字（Figma 620:31892 / 620:32237） */
+  /** Rent-exemption error below the amount input; Figma 620:31892 / 620:32237. */
   const [deployFundRentError, setDeployFundRentError] = useState<string | null>(null);
   const [postSuccessFundRentError, setPostSuccessFundRentError] = useState<string | null>(null);
   const [deployStep2MinRentLamports, setDeployStep2MinRentLamports] = useState<number | null>(null);
   const deployStep2RentSeqRef = useRef(0);
   const postSuccessRentSeqRef = useRef(0);
   const postSuccessFundInputRef = useRef<HTMLInputElement>(null);
-  /** 成功後「Add Funds」鏈上轉帳中 */
+  /** An Add Funds onchain transfer is pending after deployment. */
   const [postSuccessFunding, setPostSuccessFunding] = useState(false);
-  /** 成功後「Activate Strategy」寫入 accounts.status 中 */
+  /** An Activate Strategy accounts.status update is pending. */
   const [postSuccessActivating, setPostSuccessActivating] = useState(false);
-  /** 部署流程錯誤（改以 modal 顯示，取代 toast） */
+  /** Show deployment errors in a modal instead of a toast. */
   const [deployErrorMessage, setDeployErrorMessage] = useState<string | null>(null);
   const [isLoadingWorkflows, setIsLoadingWorkflows] = useState(false);
-  /** Figma 596:16129 / 596:16348 — 關閉分頁前須輸入與標籤一致的名稱 */
+  /** Figma 596:16129 / 596:16348: require the exact tab label before closing. */
   const [closeCanvasTargetId, setCloseCanvasTargetId] = useState<string | null>(null);
   const [closeCanvasInput, setCloseCanvasInput] = useState('');
   const [closeCanvasRemoving, setCloseCanvasRemoving] = useState(false);
-  /** Deploy 當下 Step5 轉帳成功且鏈上有餘額 → 1.5s 後顯示導向 UI 並前往 /workflows */
+  /** A successful Step 5 transfer and nonzero onchain balance show the redirect view after 1.5 seconds, then navigate to /workflows. */
   const [deployAutoRedirectToWorkflows, setDeployAutoRedirectToWorkflows] = useState(false);
-  /** 已入金成功畫面：success → redirect（Figma 576:14299） */
+  /** Funded success screen transitions to redirect; Figma 576:14299. */
   const [deployFundedUiPhase, setDeployFundedUiPhase] = useState<'success' | 'redirect'>('success');
   const deployFundedNavTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deployFundedNavTimer2Ref = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -369,7 +369,7 @@ export default function WorkflowBuilder({
   const tabDataRef = useRef<Record<string, { nodes: CanvasNode[]; connections: Connection[] }>>({});
   const hasAutoCreatedRef = useRef(false);
 
-  // Sign out → 清除所有 canvas 狀態
+  // Clear all canvas state on sign-out.
   useEffect(() => {
     if (!isAuthenticated) {
       setWorkflowTabs([DEFAULT_TAB]);
@@ -387,7 +387,7 @@ export default function WorkflowBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  // 登入後，若 DB 中沒有任何 canvas，才自動建立第一個草稿
+  // After sign-in, create the first draft only when the database has no canvases.
   useEffect(() => {
     if (!canAccessCanvas || !walletAddress || !canvasesLoaded || canvases.length > 0 || hasAutoCreatedRef.current) return;
     hasAutoCreatedRef.current = true;
@@ -407,12 +407,12 @@ export default function WorkflowBuilder({
     })();
   }, [canAccessCanvas, walletAddress, canvasesLoaded, canvases.length, refreshCanvases]);
 
-  // 從 canvases 同步 tabs + 載入 definition + 處理 ?tab= query param（僅在登入後）
+  // After sign-in, synchronize tabs, load definitions and handle the tab query parameter.
   useEffect(() => {
     if (!canAccessCanvas) return;
     if (canvases.length === 0) return;
 
-    // 清空已不存在的 canvas tabData
+    // Remove tab data for canvases that no longer exist.
     const existingCanvasIds = new Set(canvases.map(c => c.id!));
     for (const key of Object.keys(tabDataRef.current)) {
       if (!existingCanvasIds.has(key) && !userCreatedNewTabsRef.current.has(key)) {
@@ -426,7 +426,7 @@ export default function WorkflowBuilder({
       isNew: false,
     }));
 
-    // 保留用戶透過 "+" 按鈕手動建立但尚未存到 DB 的 new tab（fallback 情況）
+    // Retain manually created, unsaved tabs in the local fallback.
     for (const tabId of userCreatedNewTabsRef.current) {
       if (!existingCanvasIds.has(tabId)) {
         const tab = workflowTabs.find(t => t.id === tabId && t.isNew);
@@ -451,7 +451,7 @@ export default function WorkflowBuilder({
 
     setActiveTabId(targetTabId);
 
-    // 載入每個 canvas 的 definition 到 tabDataRef
+    // Load each canvas definition into tabDataRef.
     const canvasesToLoad = canvases.filter(
       c => c.id && !(tabDataRef.current[c.id]?.nodes.length > 0)
     );
@@ -618,11 +618,11 @@ export default function WorkflowBuilder({
     setViewport(newViewport);
   }, []);
 
-  // Auto-save：canvas 有變動時自動存草稿到 canvases 表（debounce 2s）
+  // Save changed canvas drafts to the canvases table with a two-second debounce.
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!canAccessCanvas || !walletAddress) return;
-    // 只對已存在 DB 的 canvas tab 自動儲存（有 uuid 格式的 id）
+    // Autosave only database-backed tabs with UUID IDs.
     const isDbCanvas = activeTabId.length === 36 && !activeTabId.startsWith('tab-');
     if (!isDbCanvas) return;
 
@@ -654,11 +654,11 @@ export default function WorkflowBuilder({
   //   console.log("Saving workflow:", { nodes, connections });
   // }, [nodes, connections, onSave]);
 
-  // 部署後暫存的 Crossmint 位址與 Supabase account id（加錢／啟用策略用）
+  // Crossmint address and Supabase account ID retained after deployment for funding and activation.
   const deployCrossmintAddrRef = useRef<string | null>(null);
   const deployAccountIdRef = useRef<string | null>(null);
 
-  /** Deploy Step2：鏈上 rent-exempt 下限（新錢包餘額 0 時 minExtra = minRent） */
+  /** Step 2 rent-exemption minimum: a zero wallet balance needs the full minimum rent. */
   useEffect(() => {
     if (!showDeployOverlay || deployStep !== 2) {
       setDeployStep2MinRentLamports(null);
@@ -670,7 +670,7 @@ export default function WorkflowBuilder({
       try {
         const min = await solanaConnection.getMinimumBalanceForRentExemption(0);
         if (!cancelled && seq === deployStep2RentSeqRef.current) {
-          // Step 2 尚未建立錢包，假設餘額 0：門檻與 getRentTopUpLamports 在餘額 0 時一致
+          // Before wallet creation in Step 2, assume zero balance, consistent with getRentTopUpLamports.
           setDeployStep2MinRentLamports(min + RENT_TOP_UP_BUFFER_LAMPORTS);
         }
       } catch {
@@ -710,7 +710,7 @@ export default function WorkflowBuilder({
     }
   }, [showDeployOverlay, deployStep, deployFundAmount, deployStep2MinRentLamports]);
 
-  /** 成功後加錢：依鏈上 Crossmint 餘額即時校驗（輸入為空時不清除 Deploy 剛寫入的紅字提示） */
+  /** Validate post-deployment funding against the live Crossmint balance; an empty input preserves the deployment rent hint. */
   useEffect(() => {
     if (!deploySuccess) {
       setPostSuccessFundRentError(null);
@@ -753,7 +753,7 @@ export default function WorkflowBuilder({
     };
   }, [deploySuccess, postSuccessFundInput, solanaConnection]);
 
-  // Add Funds：從連線錢包轉 SOL 到 Crossmint wallet
+  // Add Funds transfers SOL from the connected wallet to the Crossmint wallet.
   const handleAddFunds = useCallback(async () => {
     const amount = parseFloat(deployFundAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -832,25 +832,25 @@ export default function WorkflowBuilder({
     deployCrossmintAddrRef.current = null;
   }, [nodes, connections, onPublish, workflowTabs, activeTabId, clearDeployFundedAutoNavTimers]);
 
-  // 進入 Step 2
+  // Enter Step 2.
   const handleDeployNext = useCallback(() => {
     if (!deployName.trim()) {
       showToast('Please enter a strategy name.', 'warning');
       return;
     }
     setDeployStep(2);
-    // Deploy 前尚未建立 Crossmint wallet，餘額預設 0
+    // Before deployment creates the Crossmint wallet, assume zero balance.
     setDeployBalance(0);
   }, [deployName, showToast]);
 
-  // Handle tab selection — 切換前立即 flush 到 DB
+  // Flush to the database before selecting another tab.
   const handleTabSelect = useCallback((tabId: string) => {
     if (tabId === activeTabId) return;
 
     // Save current tab's data to ref
     tabDataRef.current[activeTabId] = { nodes, connections };
 
-    // Flush auto-save：立即存到 DB（取消 pending timer）
+    // Flush autosave immediately and cancel the pending timer.
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     const isDbCanvas = activeTabId.length === 36 && !activeTabId.startsWith('tab-');
     if (isDbCanvas && walletAddress) {
@@ -871,7 +871,7 @@ export default function WorkflowBuilder({
     setShowConfigPanel(false);
   }, [activeTabId, nodes, connections, walletAddress, workflowTabs]);
 
-  // 把 local-only tab 存到 DB 並回傳新的 canvas id
+  // Persist a local-only tab and return its new canvas ID.
   const persistLocalTab = useCallback(async (tabId: string): Promise<string | null> => {
     if (!walletAddress) return null;
     const isLocal = tabId.startsWith('tab-');
@@ -892,7 +892,7 @@ export default function WorkflowBuilder({
     }
   }, [walletAddress, workflowTabs]);
 
-  // Handle adding a new tab — 建立新草稿到 DB
+  // Create a new draft in the database when adding a tab.
   const handleTabAdd = useCallback(async () => {
     tabDataRef.current[activeTabId] = { nodes, connections };
 
@@ -901,7 +901,7 @@ export default function WorkflowBuilder({
 
     if (canAccessCanvas && walletAddress) {
       try {
-        // 如果目前 tab 是 local-only，先存到 DB
+        // Persist the current local-only tab first.
         await persistLocalTab(activeTabId);
 
         const newCanvas = await createCanvas(walletAddress, defaultName);
@@ -920,7 +920,7 @@ export default function WorkflowBuilder({
       }
     }
 
-    // Fallback: local-only tab (未登入或 DB 失敗)
+    // Fallback to a local-only tab when signed out or database writes fail.
     const newTabId = `tab-${Date.now()}`;
     userCreatedNewTabsRef.current.add(newTabId);
     tabDataRef.current[newTabId] = { nodes: [], connections: [] };
@@ -932,7 +932,7 @@ export default function WorkflowBuilder({
     setShowConfigPanel(false);
   }, [workflowTabs.length, activeTabId, nodes, connections, canAccessCanvas, walletAddress, refreshCanvases, persistLocalTab]);
 
-  // Handle renaming a tab — 同步到 DB
+  // Persist tab renames to the database.
   const handleTabRename = useCallback((tabId: string, newName: string) => {
     setWorkflowTabs((prev) =>
       prev.map((tab) =>
@@ -953,7 +953,7 @@ export default function WorkflowBuilder({
     setCloseCanvasRemoving(false);
   }, []);
 
-  /** 關閉分頁：DB canvas 呼叫 deleteCanvas；local tab 僅更新 state（由確認 modal 呼叫） */
+  /** The confirmation modal deletes database canvases through deleteCanvas; local tabs update state only. */
   const performCloseCanvasTab = useCallback(
     async (tabId: string): Promise<boolean> => {
       if (workflowTabs.length <= 1) return false;
@@ -1195,7 +1195,7 @@ export default function WorkflowBuilder({
     setSelectedNodeId(newNode.id);
   }, [nodeCategories, nodes]);
 
-  // Deploy: 1) upsert canvas → 2) auto connections → 3) init wallet（先有 account）→ 4) create workflow（definition 可帶到新 account）→ 5) 關聯 → 6) 可選 add funds
+  // Deploy: upsert canvas, connect nodes, initialize wallet/account, create workflow, link account and optionally fund.
   const handleConfirmDeployPayment = useCallback(async () => {
     try {
       setIsDeploying(true);
@@ -1210,7 +1210,7 @@ export default function WorkflowBuilder({
       }
 
       const strategyName = deployName || 'Untitled Workflow';
-      /** Step 2 金額在按 Deploy 當下快照；長 await 後仍用此值，且與畫面是否切到 loading 無關 */
+      /** Snapshot the Step 2 funding amount when Deploy is clicked; preserve it across awaits and loading-state changes. */
       const fundAmountSnapshot = parseFloat(String(deployFundAmount).trim());
 
       // ── Step 1: upsert canvas ──
@@ -1242,7 +1242,7 @@ export default function WorkflowBuilder({
         finalConnections = autoConnections;
       }
 
-      // ── Step 3: init wallet → create account（先建立交易帳戶，之後 workflow 的 definition 才能綁到正確 account）
+      // Step 3: initialize the wallet and trading account before binding the workflow definition.
       let accountId: string | null = null;
       let crossmintAddress: string | null = null;
 
@@ -1270,7 +1270,7 @@ export default function WorkflowBuilder({
         return;
       }
 
-      // ── Step 4: create workflow template (with canvas_id)；此時 DB 已有 account，getActiveAccountId 會帶入 definition
+      // Step 4: create the workflow with canvas_id; getActiveAccountId can now bind the existing account.
       let workflowId: string | undefined;
       try {
         const workflowData = await createWorkflow(
@@ -1294,7 +1294,7 @@ export default function WorkflowBuilder({
         return;
       }
 
-      // 關聯 account 和 workflow
+      // Link the account and workflow.
       if (accountId && workflowId) {
         await supabase
           .from('accounts')
@@ -1302,12 +1302,12 @@ export default function WorkflowBuilder({
           .eq('id', accountId);
       }
 
-      // Tab 不再是 "new"
+      // The tab is no longer new.
       userCreatedNewTabsRef.current.delete(activeTabId);
       await refreshAccounts();
       await refreshCanvases();
 
-      // ── Step 5: 可選轉帳（與 deploy step2 金額） ──
+      // Step 5: optionally transfer the amount from deployment Step 2.
       let transferSucceeded = false;
       let postDeployRentMinExtraLamports: number | null = null;
       if (crossmintAddress && Number.isFinite(fundAmountSnapshot) && fundAmountSnapshot > 0) {
@@ -1348,7 +1348,7 @@ export default function WorkflowBuilder({
         }
       }
 
-      // 餘額與「已入金」態：以鏈上 Crossmint 位址為準（與 Add Funds 成功後一致），勿只用表單 fundAmount
+      // Use the onchain Crossmint balance to determine funding success, not the form amount alone.
       if (transferSucceeded && crossmintAddress) {
         const lamports = await solanaConnection.getBalance(new PublicKey(crossmintAddress));
         const balanceSol = lamports / LAMPORTS_PER_SOL;
@@ -1381,7 +1381,7 @@ export default function WorkflowBuilder({
     }
   }, [canAccessCanvas, accessToken, walletAddress, getBusinessSignature, refreshAccounts, refreshCanvases, deployName, deployFundAmount, nodes, connections, showToast, activeTabId, wallet, solanaConnection]);
 
-  /** 成功後 Add Funds：從已連線錢包轉 SOL 到本次 init 的 Crossmint wallet */
+  /** After deployment, Add Funds transfers SOL from the connected wallet to the newly initialized Crossmint wallet. */
   const handlePostSuccessAddFunds = useCallback(async () => {
     const amount = parseFloat(postSuccessFundInput);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -1435,8 +1435,8 @@ export default function WorkflowBuilder({
   }, [postSuccessFundInput, wallet, showToast, solanaConnection]);
 
   /**
-   * Activate Strategy：將 public.accounts 的 status 設為 active（inactive → active）。
-   * 以 .eq('owner_wallet_address', walletAddress) 搭配 RLS，僅 owner 可更新。
+   * Activate Strategy changes public.accounts.status from inactive to active.
+   * Filter by owner_wallet_address and rely on RLS so only the owner can update it.
    */
   const handleActivateStrategyAccount = useCallback(async () => {
     clearDeployFundedAutoNavTimers();
@@ -1478,7 +1478,7 @@ export default function WorkflowBuilder({
     }
   }, [walletAddress, refreshAccounts, showToast, clearDeployFundedAutoNavTimers]);
 
-  /** Deploy 入金成功：先顯示 Successful 1.5s → Figma 576:14299 → /workflows */
+  /** After successful deployment funding, show success for 1.5 seconds, then the redirect view and /workflows. */
   useEffect(() => {
     if (!deploySuccess || !deploySuccessFunded || !deployAutoRedirectToWorkflows) {
       return;
@@ -1546,7 +1546,7 @@ export default function WorkflowBuilder({
         </div>
       </div>
 
-      {/* Workflow Tabs：僅登入後顯示 */}
+      {/* Show workflow tabs only after sign-in. */}
       {canAccessCanvas && (
         <WorkflowTabs
           tabs={workflowTabs}
@@ -1558,7 +1558,7 @@ export default function WorkflowBuilder({
         />
       )}
 
-      {/* Main workspace：未登入時不掛載 Canvas */}
+      {/* Do not mount the canvas while signed out. */}
       <div className={styles.workspace}>
         {canAccessCanvas && (isLoadingWorkflows || !canvasesLoaded) && (
           <div className={styles.loadingOverlay}>
@@ -1635,7 +1635,7 @@ export default function WorkflowBuilder({
                 </div>
               </>
             ) : isDeploying ? (
-                /* ── 部署中 — Figma 589:15352 Active/Variant6 ── */
+                /* Deploying: Figma 589:15352 Active/Variant6. */
                 <div
                   className={styles.deployDeployingWrap}
                   aria-busy="true"
@@ -1663,7 +1663,7 @@ export default function WorkflowBuilder({
               ) : deploySuccess ? (
                 deploySuccessFunded ? (
                   deployFundedUiPhase === 'redirect' ? (
-                    /* ── Figma 576:14299：導向 Portfolio ── */
+                    /* Figma 576:14299: redirect to Portfolio. */
                     <div className={styles.deployPortfolioRedirectWrap}>
                       <div className={styles.deployPortfolioRedirectHead}>
                         <div className={styles.deployPortfolioRedirectTitle}>Active!</div>
@@ -1694,7 +1694,7 @@ export default function WorkflowBuilder({
                       </div>
                     </div>
                   ) : (
-                    /* ── 成功且已入金：Portfolio + Activate Strategy（主按鈕固定寬） ── */
+                    /* Successful and funded: Portfolio and Activate Strategy with a fixed-width primary action. */
                     <>
                       <div className={styles.deployResultHeader}>
                         <div className={styles.deployResultTitleOk}>Successful!</div>
@@ -1739,7 +1739,7 @@ export default function WorkflowBuilder({
                     </>
                   )
                 ) : (
-                  /* ── 成功但未入金：可加錢展開 ── */
+                  /* Successful but unfunded: allow the funding form to expand. */
                   <>
                         <div className={styles.deployResultHeader}>
                           <div className={styles.deployResultTitleOk}>Successful!</div>
@@ -1768,7 +1768,7 @@ export default function WorkflowBuilder({
                           >
                             Portfolio
                           </Secondary>
-                          {/* Figma 576:14272：Add Funds 與 Portfolio 同為可點 Secondary，零餘額仍應可加錢 */}
+                          {/* Figma 576:14272: Add Funds and Portfolio are clickable Secondary actions; zero balance must still allow funding. */}
                           <Secondary
                             type="button"
                             className={styles.deployActionGrow}
@@ -1844,7 +1844,7 @@ export default function WorkflowBuilder({
                       </>
                     )
                 ) : deployStep === 1 ? (
-                /* ── Step 1：設定名稱 ── */
+                /* Step 1: choose a name. */
                 <>
                     <div className={styles.deployModalTitle}>Set Strategy Name</div>
                     <FormInput
@@ -1901,7 +1901,7 @@ export default function WorkflowBuilder({
               <>
                       <div className={styles.deployModalTitle}>Deploy Ready!</div>
 
-                      {/* 顯示策略名稱（唯讀，柔和邊框） */}
+                      {/* Show the strategy name read-only with a subtle border. */}
                       <div className={styles.deployNameField}>
                         <span className={styles.deployNameReadonly}>{deployName}</span>
                       </div>
@@ -1946,7 +1946,7 @@ export default function WorkflowBuilder({
                         </div>
                       </div>
 
-                      {/* 警告 */}
+                      {/* Warning. */}
                       <div className={styles.deployHelperSection}>
                         <div className={styles.deployWarningBox}>
                           <div className={styles.deployWarningDot} />

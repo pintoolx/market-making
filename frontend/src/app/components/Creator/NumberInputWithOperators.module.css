@@ -4,7 +4,7 @@
   height: 56px;
   padding: 4px 16px;
   background: #E4EAF2;
-  /* 與 FormInput 一致：粗底線 4px */
+  /* Match the 4px FormInput underline. */
   box-shadow: 0 4px 0 0 #000;
   border-radius: 8px;
   outline: 2px solid #0e0f28;
