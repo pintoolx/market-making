@@ -8,6 +8,7 @@ import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletErrorMessa
 import deployment from '../../../../contracts/aqua-executor/deployments/11155111.json';
 import { request, type ExecutableStrategy } from '../marketplace/mandateClient';
 import Secondary from '../components/shared/Secondary';
+import Primary from '../components/shared/Primary';
 import FormInput from '../components/shared/FormInput';
 
 const client = createPublicClient({ chain: sepolia, transport: http(process.env.NEXT_PUBLIC_ENS_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com', { timeout: 15000, retryCount: 1 }) });
@@ -17,13 +18,28 @@ type PendingCheck = { hash: Hex; data: Hex; taker: Hex; mandateId?: string; list
 type Props = { onPendingChange: (locked: boolean) => void; available: boolean; choice?: ExecutableStrategy & { maker: string; shipTransaction: Hex }; wallet?: ReturnType<typeof useWallets>['wallets'][number]; amount: string; direction: 'USDC' | 'WETH' };
 
 export default function GuardCheck({ onPendingChange, available, choice, wallet, amount, direction }: Props) {
+  const choiceId = choice?.id;
+  const walletAddress = wallet?.address;
   const [minimum, setMinimum] = useState('');
   const [pending, setPending] = useState<PendingCheck | null>(null);
   const [completed, setCompleted] = useState<Hex | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [needsApproval, setNeedsApproval] = useState(false);
-  useEffect(() => { setNeedsApproval(false); }, [choice?.id, wallet?.address, amount, direction]);
+  const [allowanceReady, setAllowanceReady] = useState<boolean | null>(null);
+  useEffect(() => {
+    let current = true;
+    setAllowanceReady(null);
+    if (!available || !choiceId || !walletAddress) return () => { current = false; };
+    const decimals = direction === 'USDC' ? 6 : 18;
+    if (!new RegExp(`^(0|[1-9][0-9]*)(\\.[0-9]{1,${decimals}})?$`).test(amount)) return () => { current = false; };
+    const amountIn = parseUnits(amount, decimals);
+    if (amountIn <= BigInt(0)) return () => { current = false; };
+    const tokenIn = deployment.tokens[direction] as Hex;
+    client.readContract({ address: tokenIn, abi: erc20Abi, functionName: 'allowance', args: [walletAddress as Hex, router] })
+      .then(value => { if (current) setAllowanceReady(value >= amountIn); })
+      .catch(() => { if (current) setAllowanceReady(null); });
+    return () => { current = false; };
+  }, [available, choiceId, walletAddress, amount, direction]);
   useEffect(() => { onPendingChange(busy || !!pending); }, [busy, pending, onPendingChange]);
   useEffect(() => { setCompleted(null); }, [choice?.id]);
   useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(pendingKey) || 'null'); if (/^0x[0-9a-f]{64}$/i.test(saved?.hash ?? '')) setPending(saved); } catch { /* No saved check. */ } }, []);
@@ -36,10 +52,10 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
     const [receipt, tx] = await Promise.all([client.waitForTransactionReceipt({ hash: item.hash, timeout: 120000 }), client.getTransaction({ hash: item.hash })]);
     if (tx.from.toLowerCase() !== item.taker.toLowerCase() || tx.to?.toLowerCase() !== (item.approvalToken ?? router).toLowerCase() || tx.input !== item.data || tx.value !== BigInt(0)) throw new Error('The receipt does not match the reviewed request.');
     if (item.approvalToken) {
-      setPending(null); setNeedsApproval(false);
+      setPending(null); setAllowanceReady(true);
       try { localStorage.removeItem(pendingKey); } catch { /* The receipt remains in the wallet. */ }
       if (receipt.status !== 'success') throw new Error('Token approval reverted. No verification trade was submitted.');
-      setMessage('Approval confirmed. Submit verification separately when ready.');
+      setMessage('Approval confirmed. Submit the blocked swap to create the rejection receipt.');
       return;
     }
     if (receipt.status === 'success') throw new Error('The transaction succeeded after authorization changed. Open its receipt to inspect the settlement; this is not a rejection.');
@@ -48,7 +64,7 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
     setCompleted(item.hash); setPending(null);
     try { localStorage.removeItem(pendingKey); } catch { /* The receipt remains visible. */ }
   };
-  const submit = (approve = false) => act(async () => {
+  const submit = () => act(async () => {
     if (!choice || !wallet || !available) throw new Error('Review the inactive strategy with your trading wallet first.');
     if (choice.maker.toLowerCase() === wallet.address.toLowerCase()) throw new Error('Use the Taker wallet.');
     const inputDecimals = direction === 'USDC' ? 6 : 18, outputDecimals = direction === 'USDC' ? 18 : 6;
@@ -68,12 +84,7 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
     try { await client.simulateContract({ account: taker, address: router, abi: tradeAbi, functionName: 'swap', args }); }
     catch (e) { if (!isInactiveStrategyError(e)) throw new Error('Preflight did not return StrategyNotActive. Review the strategy before submitting.'); inactive = true; }
     if (!inactive) throw new Error('The strategy is now executable. Use a normal quote to trade.');
-    if (allowance < amountIn && !approve) {
-      setNeedsApproval(true); setMessage(`Approve ${amount} ${direction} first. The verification transaction requires a separate signature.`); return;
-    }
-    if (allowance >= amountIn && approve) {
-      setNeedsApproval(false); setMessage('Allowance is already sufficient. Submit verification separately when ready.'); return;
-    }
+    const approve = allowance < amountIn;
     await wallet.switchChain(sepolia.id);
     const signer = createWalletClient({ account: taker, chain: sepolia, transport: custom(await wallet.getEthereumProvider()) });
     if (await signer.getChainId() !== sepolia.id || !(await signer.getAddresses()).some(a => a.toLowerCase() === taker.toLowerCase())) throw new Error('Select the reviewed Taker on Ethereum Sepolia.');
@@ -96,12 +107,12 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
   if (!available && !pending && !completed) return null;
   return <details open={!!pending || !!completed}>
     <summary>Advanced · Verify a blocked swap</summary>
-    <p>PinTool already predicts that this strategy is inactive. Submit the swap only if you want an onchain rejection receipt; it spends Sepolia gas and could execute if authorization changes before mining.</p>
+    <p>PinTool predicts this strategy will be blocked. To create public proof, send the same request on Sepolia. If approval is required, your wallet will ask for the exact amount first.</p>
     {!pending && !completed && <>
       <label>Minimum received ({direction === 'USDC' ? 'WETH' : 'USDC'})<FormInput aria-label="Minimum received for verification" inputMode="decimal" value={minimum} onChange={e => setMinimum(e.target.value)} disabled={busy} /></label>
-      <Secondary disabled={busy || !minimum} onClick={() => void submit(needsApproval)}>{needsApproval ? `Approve ${direction} for verification` : 'Submit verification in wallet'}</Secondary>
+      <Primary fullWidth disabled={busy || !minimum} onClick={() => void submit()}>{allowanceReady === false ? `Approve ${direction} in wallet` : allowanceReady === true ? 'Submit blocked swap' : 'Continue in wallet'}</Primary>
     </>}
-    {pending && <><p role="status">{pending.approvalToken ? 'Token approval' : 'Verification transaction'} submitted.</p><a href={`https://sepolia.etherscan.io/tx/${pending.hash}`} target="_blank" rel="noreferrer">View transaction ↗</a><Secondary disabled={busy} onClick={() => void act(() => confirm(pending))}>Check receipt</Secondary></>}
+    {pending && <><p role="status">{pending.approvalToken ? 'Token approval' : 'Verification transaction'} submitted.</p><a href={`https://sepolia.etherscan.io/tx/${pending.hash}`} target="_blank" rel="noreferrer">View transaction ↗</a><Secondary fullWidth disabled={busy} onClick={() => void act(() => confirm(pending))}>Check receipt</Secondary></>}
     {completed && <p role="status">Transaction reverted; no tokens moved. <a href={`https://sepolia.etherscan.io/tx/${completed}`} target="_blank" rel="noreferrer">View failed transaction ↗</a></p>}
     {busy && <p role="status">Waiting for wallet or chain confirmation…</p>}
     {message && <p role="alert">{message}</p>}
