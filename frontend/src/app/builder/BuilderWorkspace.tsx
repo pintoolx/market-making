@@ -7,6 +7,7 @@ import { formatUnits } from 'viem';
 import { builderClient, BuilderError, type Conversation, type Draft, type Message, type Revision, type Validation, type TemplateContext } from './client';
 import TemplatePublisher from './TemplatePublisher';
 import TemplateCatalog from './TemplateCatalog';
+import MakerPreparation from './MakerPreparation';
 import type { Account } from '../providers/useAccount';
 import styles from './builder.module.css';
 
@@ -59,6 +60,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
   const [turnId, setTurnId] = useState<string | null>(null), [provisional, setProvisional] = useState(''), [activity, setActivity] = useState('');
   const [pollKey, setPollKey] = useState(0), [historyOpen, setHistoryOpen] = useState(false);
   const [publisherOpen, setPublisherOpen] = useState(false), [catalogOpen, setCatalogOpen] = useState(false), [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
+  const [preparationOpen, setPreparationOpen] = useState(false);
   const pending = useRef<{ content: string; revision: number; conversationId: string; key: string } | null>(null);
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     setConnected(false); setSelected(null); setDraft(null); setMessages([]); setHistory([]); setValidation(null);
     setConversations([]); setTurnId(null); setProvisional(''); setBusy(''); setError('');
     setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
+    setPreparationOpen(false);
   }, [identity.address, identity.userId, identity.authenticated]);
   useEffect(() => { if (followLatest.current && messageArea.current) messageArea.current.scrollTop = messageArea.current.scrollHeight; }, [messages, provisional]);
 
@@ -96,6 +99,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     selectedRef.current = conversation; setSelected(conversation); setTurnId(null); setProvisional('');
     setDraft(null); setMessages([]); setHistory([]); setValidation(null); setError(''); setBusy('載入策略'); pending.current = null;
     setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
+    setPreparationOpen(false);
     try { await refresh(); if (epoch.current === ticket) setTurnId(conversation.activeTurnId); }
     catch (e) { if (epoch.current === ticket) failure(e, '無法載入策略，請重試。'); }
     finally { if (epoch.current === ticket) setBusy(''); }
@@ -252,6 +256,8 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
             {validation?.revision === draft.revision && <div className={styles.validation} data-ready={validation.ready}><strong>{validation.ready ? '公開設定完整' : '還需要一起確認'}</strong>{validation.ready ? <p>{draft.kind === 'maker' ? '可以繼續編譯與模擬。配置、需求與實際成交條件仍須逐項驗證。' : '可以審閱並發布設計模板。Maker 套用後仍需編譯、模擬及需求驗證。'}</p> : <ul>{validation.missingFields.map(f => <li key={f}>{fields[f] ?? '其他必要設定'}</li>)}{validation.errors.map((e, i) => <li key={i}>{e.message}</li>)}</ul>}</div>}
             {draft.kind === 'template' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || !validation?.ready || validation.revision !== draft.revision} onClick={() => setPublisherOpen(true)}>私密政策與模板發布</button>
               <p>規則在獨立表單設定並加密，發布由錢包確認。</p></div>}
+            {draft.kind === 'maker' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId} onClick={() => setPreparationOpen(true)}>資產、編譯與成交模擬</button>
+              <p>檢查這個版本的資產與模擬結果，再繼續調整。</p></div>}
             <div className={styles.history}><button className={styles.historyToggle} onClick={() => setHistoryOpen(v => !v)} aria-expanded={historyOpen}>版本與變更 <span>{historyOpen ? '−' : '+'}</span></button>
               {historyOpen && history.map(revision => <div key={revision.revision} className={styles.revision}><div><strong>v{revision.revision}</strong><time>{new Date(revision.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}</time>{Number(revision.revision) < draft.revision && <button disabled={!!busy || !!turnId} onClick={() => void restore(Number(revision.revision))}>恢復此版本</button>}</div>
                 {revision.diff.length ? <ul>{revision.diff.map((d, i) => <li key={i}><span>{fields[d.path] ?? '策略設定'}</span>{valueLabel(d.path, d.before, draft)} → {valueLabel(d.path, d.after, draft)}</li>)}</ul> : <p>建立草稿</p>}
@@ -262,6 +268,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
         </aside>
       </div>
       {publisherOpen && draft?.kind === 'template' && api.current && identity.signMessage && <TemplatePublisher key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPublisherOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
+      {preparationOpen && draft?.kind === 'maker' && api.current && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
       {catalogOpen && api.current && identity.address && identity.signMessage && <TemplateCatalog key={identity.address} api={api.current} address={identity.address} signMessage={identity.signMessage} onClose={() => { setCatalogOpen(false); void retry(); }} onSessionExpired={sessionExpired} onApply={async result => {
         await choose({ conversationId: result.conversationId, draftId: result.draft.id, title: result.draft.spec.title, revision: String(result.draft.revision), activeTurnId: null });
       }} />}

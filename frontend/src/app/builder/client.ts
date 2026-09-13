@@ -1,5 +1,6 @@
 import { getApiBase } from '../marketplace/mandateClient';
 import type { PolicyEnvelope, PublicationIntent, StrategyDraft, StrategySpec, TemplatePermissions, TemplateVersion } from '@pintool/strategy-builder';
+import type { Compilation, CompilationItem, InventoryResult, SimulationDetail, SimulationItem } from './preparation';
 
 // Public API projection only; the backend owns validation, ownership and transitions.
 export type Token = { address: string; symbol: string; decimals: number };
@@ -31,6 +32,10 @@ export class BuilderError extends Error {
       'template-expired': '此版本的策略期限已到，請選擇其他版本。', 'template-profile-stale': '此模板使用較舊的部署設定，請選擇目前可用版本。',
       'template-encryption-key-unavailable': '此版本的政策金鑰目前無法使用，請選擇其他版本。', 'template-budget-exhausted': '本小時的模板操作額度已用完，請稍後再試。',
       'template-instance-invalid': '配置不符合此模板的公開上限，請檢查數量。', 'publication-context-changed': '發布設定已更新，請重新取得審閱。',
+      'inventory-unavailable': '資產讀取服務尚未開放。', 'inventory-read-unavailable': '目前無法核對鏈上資產，請稍後重讀。',
+      'inventory-busy': '資產讀取繁忙，請稍後重試。', 'simulation-unavailable': '模擬服務尚未開放或暫時無法執行。',
+      'simulation-artifact-stale': '草稿或編譯版本已變更，請回到策略重新編譯。', 'simulation-hourly-budget': '本小時的模擬額度已用完，請稍後再試。',
+      'strategy-incomplete-or-invalid': '公開設定或 Maker 配置尚未完整，請先回到對話修正。', 'compile-rejected': '編譯器拒絕這組參數，請回到對話檢查曲線與數量。',
     } as Record<string, string>)[code] ?? '暫時無法連線到策略工作區，請重試。');
   }
 }
@@ -70,6 +75,14 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
     templates: () => call<{ templates: TemplateItem[] }>('/templates'),
     template: (id: string, version: number) => call<PublishedTemplate>(`/templates/${encodeURIComponent(id)}/versions/${version}`),
     templateContext: async (id: string, revision: number) => (await call<{ context: TemplateContext | null }>(`/drafts/${id}/template-context?revision=${revision}`)).context,
+    inventory: (draft: Draft) => call<InventoryResult>(`/drafts/${draft.id}/inventory?revision=${draft.revision}`),
+    compilations: (id: string) => call<{ artifacts: CompilationItem[] }>(`/drafts/${id}/artifacts`),
+    compilation: (id: string) => call<Compilation>(`/artifacts/${id}`),
+    compile: (draft: Draft, key: string) => call<{ artifactId: string; draftId: string; revision: number }>(`/drafts/${draft.id}/compile`, { expectedRevision: draft.revision }, key),
+    simulations: (id: string) => call<{ simulations: SimulationItem[] }>(`/drafts/${id}/simulations`),
+    simulation: (id: string) => call<SimulationDetail>(`/simulations/${id}`),
+    simulate: (artifactId: string, revision: number, key: string) => call<{ id: string; artifactId: string; draftId: string; revision: number }>(`/artifacts/${artifactId}/simulations`, { expectedRevision: revision }, key),
+    cancelSimulation: (id: string, key: string) => call<{ id: string; state: string }>(`/simulations/${id}/cancel`, {}, key),
     preparePublication: (draft: Draft, templateId: string | null, permissions: TemplatePermissions, key: string) => call<{ intent: PublicationIntent }>(
       '/templates/prepare', { draftId: draft.id, expectedRevision: draft.revision, templateId, permissions }, key),
     publish: (intentId: string, envelope: PolicyEnvelope, signature: `0x${string}`, key: string) => call<PublishedTemplate>('/templates/publish', { intentId, envelope, signature }, key),
