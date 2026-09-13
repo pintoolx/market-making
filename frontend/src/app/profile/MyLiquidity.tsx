@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { Account } from '../providers/useAccount';
 import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
+import CopyAddress from './CopyAddress';
 import { listMandates, type MandateSummary } from '../marketplace/mandateClient';
 import { ADAPTIVE_PROFILE_IDS } from '../marketplace/mandatePresentation';
 import { ListingGrid, StrategyCardShell } from '../marketplace/ui';
@@ -72,7 +73,7 @@ export default function MyLiquidity({ account }: { account: Account }) {
             <span className={aqua.eyebrow}>Latest activity</span>
             <div className={liquidity.details}>
               <span><time dateTime={item.lastActivityAt ?? undefined}>{activityOf(item.lastActivityAt)}</time></span>
-              {walletKey.includes(',') && <span>Wallet {item.maker.slice(0, 6)}…{item.maker.slice(-4)}</span>}
+              {walletKey.includes(',') && <span className={aqua.walletRow}>Wallet <CopyAddress address={item.maker} short /></span>}
             </div>
           </div>
         </StrategyCardShell>;

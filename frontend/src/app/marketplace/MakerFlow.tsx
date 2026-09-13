@@ -23,6 +23,7 @@ import { strategyHref, restoreMarketplaceScroll, consumeMarketplaceReturn } from
 import StrategyLink from './StrategyLink';
 import ProviderIdentity from './ProviderIdentity';
 import MakerActivation from './MakerActivation';
+import CopyAddress from '../profile/CopyAddress';
 
 const STEPS = ['Choose a strategy', 'Set up liquidity', 'Review', 'Monitor'];
 
@@ -405,7 +406,9 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
       <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Strategy modes</h2><span className={aqua.muted}>{adaptive ? 'One strategy · one wallet balance' : 'Self-custodial liquidity'}</span></div>
       {profiles.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
-        <div><span className={aqua.eyebrow} title={strategy.provider}>{adaptive ? name : /^0x[a-f0-9]{40}$/i.test(strategy.provider ?? '') ? shortHash(strategy.provider!) : strategy.provider ?? 'Independent Provider'}</span><strong>{strategy.name}</strong></div>
+        <div>{adaptive ? <span className={aqua.eyebrow} title={strategy.provider}>{name}</span>
+          : /^0x[a-f0-9]{40}$/i.test(strategy.provider ?? '') ? <CopyAddress address={strategy.provider!} short />
+            : <span className={aqua.eyebrow}>{strategy.provider ?? 'Independent Provider'}</span>}<strong>{strategy.name}</strong></div>
         <div className={aqua.rosterStatus}>
           <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to check'}</span>
           {'readiness' in strategy && <small>Authorization: {!fresh(strategy) ? 'check required' : strategy.readiness?.authorized ? 'active' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'ready' : 'check required'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'ready' : 'check required'}</small>}

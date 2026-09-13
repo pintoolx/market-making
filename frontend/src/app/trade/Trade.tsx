@@ -14,6 +14,7 @@ import SiteFooter from '../components/shared/SiteFooter';
 import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
+import CopyAddress from '../profile/CopyAddress';
 import styles from '../marketplace/page.module.css';
 import aqua from '../marketplace/aqua.module.css';
 import GuardCheck from './GuardCheck';
@@ -192,7 +193,7 @@ function TradeForm() {
       <aside className={aqua.explanation}>
         <h2>{choice?.name || 'How settlement works'}</h2>
         <p>Aqua settles directly between your wallet and the Maker&apos;s wallet. PinTool checks authorization before settlement.</p>
-        {choice && <><p>Maker <code>{short(choice.maker)}</code></p><p>Strategy <code title={choice.strategyHash}>{short(choice.strategyHash)}</code></p><a href={`https://sepolia.etherscan.io/tx/${choice.shipTransaction}`} target="_blank" rel="noreferrer">View Aqua activation ↗</a></>}
+        {choice && <><div className={aqua.walletRow}><span>Maker</span><CopyAddress address={choice.maker} short /></div><p>Strategy <code title={choice.strategyHash}>{short(choice.strategyHash)}</code></p><a href={`https://sepolia.etherscan.io/tx/${choice.shipTransaction}`} target="_blank" rel="noreferrer">View Aqua activation ↗</a></>}
       </aside>
     </div>
   </section>;

@@ -14,6 +14,7 @@
 .identity { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--aqua-line); border-radius: 12px; }
 .identity strong, .name { font-size: 18px; overflow-wrap: anywhere; }
 .identity span { font-size: 13px; overflow-wrap: anywhere; }
+.walletIdentity { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 5px; }
 .notice { display: grid; gap: 12px; border: 1px solid var(--aqua-line); border-radius: 12px; padding: 16px; }
 .feedback { overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
 .skeleton { min-height: 48px; display: flex; align-items: center; }

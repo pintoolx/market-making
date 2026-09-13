@@ -7,6 +7,7 @@ import type { Account } from '../providers/useAccount';
 import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
+import CopyAddress from '../profile/CopyAddress';
 import { request } from '../marketplace/mandateClient';
 import type { PublicRelease } from '../marketplace/ClmmPublisher';
 import { ensTransactions, type EnsProgress } from '../../../../shared/ens/transactions.mjs';
@@ -102,10 +103,10 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
       </fieldset>
     </form>}
     {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Claim a provider name in Profile →</Link></p>}
-    {status?.provider && mode === 'identity' && <div className={styles.identity}><strong>{status.provider.name}</strong><span>{account.address}</span><Link href="/studio">Create a strategy →</Link></div>}
+    {status?.provider && mode === 'identity' && <div className={styles.identity}><strong>{status.provider.name}</strong><CopyAddress address={account.address!} /><Link href="/studio">Create a strategy →</Link></div>}
     {status?.provider && mode === 'strategy' && !latest && <p>Publish a strategy before assigning a name.</p>}
     {status?.provider && mode === 'strategy' && latest && <>
-      <div className={styles.identity}><strong>{status.provider.name}</strong><span>Publishing wallet {account.address}</span></div>
+      <div className={styles.identity}><strong>{status.provider.name}</strong><span className={styles.walletIdentity}>Publishing wallet <CopyAddress address={account.address!} short /></span></div>
       <fieldset disabled={busy}>
         <legend>Shareable ENS name</legend>
         <label>Name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
