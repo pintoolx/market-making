@@ -58,10 +58,10 @@
 .teeNode { grid-area: tee; background: var(--aqua-accent); color: #f2f5fa; box-shadow: 0 2px 0 var(--aqua-ink); }
 .teeNode .archStep, .teeNode small { color: #dce5ff; }
 .aquaNode { grid-area: aqua; background: linear-gradient(180deg, #d8e4f4 0%, #e4eaf2 100%); }
-.archConnector { position: relative; display: flex; align-items: center; justify-content: center; color: #536179; font-size: 11px; text-align: center; }
-.archConnector::before { content: ''; position: absolute; left: 8px; right: 8px; top: 50%; border-top: 1px solid #77869d; }
-.archConnector::after { content: ''; position: absolute; right: 7px; top: calc(50% - 4px); width: 7px; height: 7px; border-top: 1px solid #77869d; border-right: 1px solid #77869d; transform: rotate(45deg); }
-.archConnector span { position: relative; z-index: 1; padding: 3px 5px; background: #e4eaf2; }
+.archConnector { position: relative; display: flex; align-items: center; justify-content: center; color: #3f4d64; font-size: 11px; font-weight: 600; text-align: center; }
+.archConnector::before { content: ''; position: absolute; left: 8px; right: 10px; top: 50%; height: 2px; background: var(--aqua-accent); transform: translateY(-1px); }
+.archConnector::after { content: ''; position: absolute; right: 5px; top: calc(50% - 5px); width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid var(--aqua-accent); }
+.archConnector span { position: relative; z-index: 1; padding: 2px 5px; background: #e4eaf2; transform: translateY(-13px); }
 .providerConnector { grid-area: provider-link; }
 .makerConnector { grid-area: maker-link; }
 .outputConnector { grid-area: output-link; }
@@ -298,8 +298,9 @@
   .runtimeSteps { grid-column: 1 / -1; }
   .previewColumn { max-width: none; }
   .architectureDiagram { grid-template-columns: 1fr 48px 1fr; grid-template-rows: auto auto 48px auto; grid-template-areas: 'provider provider-link tee' 'maker maker-link tee' '. output-link .' 'aqua aqua aqua'; }
-  .outputConnector::before { left: 50%; right: auto; top: 4px; bottom: 4px; border-top: 0; border-left: 1px solid #77869d; }
-  .outputConnector::after { right: auto; left: calc(50% - 4px); top: auto; bottom: 4px; transform: rotate(135deg); }
+  .outputConnector::before { left: 50%; right: auto; top: 4px; bottom: 10px; width: 2px; height: auto; background: var(--aqua-accent); transform: translateX(-1px); }
+  .outputConnector::after { right: auto; left: calc(50% - 5px); top: auto; bottom: 4px; border-top: 8px solid var(--aqua-accent); border-right: 5px solid transparent; border-bottom: 0; border-left: 5px solid transparent; }
+  .outputConnector span { transform: translate(30px, 0); }
 }
 @media (max-width: 560px) {
   .home { justify-content: flex-start; padding-top: 16px; }
@@ -309,8 +310,9 @@
   .roleAction { padding: 20px; }
   .architectureDiagram { display: flex; flex-direction: column; gap: 12px; }
   .archConnector { height: 36px; }
-  .archConnector::before { left: 50%; right: auto; top: 2px; bottom: 2px; border-top: 0; border-left: 1px solid #77869d; }
-  .archConnector::after { right: auto; left: calc(50% - 4px); top: auto; bottom: 2px; transform: rotate(135deg); }
+  .archConnector::before { left: 50%; right: auto; top: 2px; bottom: 10px; width: 2px; height: auto; background: var(--aqua-accent); transform: translateX(-1px); }
+  .archConnector::after { right: auto; left: calc(50% - 5px); top: auto; bottom: 2px; border-top: 8px solid var(--aqua-accent); border-right: 5px solid transparent; border-bottom: 0; border-left: 5px solid transparent; }
+  .archConnector span { transform: translate(34px, 0); }
   .providerNode { order: 1; } .providerConnector { display: none; } .makerNode { order: 2; } .makerConnector { order: 3; } .teeNode { order: 4; } .outputConnector { order: 5; } .aquaNode { order: 6; }
   .custodyNote { text-align: left; }
   .flow { padding-top: 28px; gap: 24px; }
