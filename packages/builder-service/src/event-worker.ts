@@ -65,6 +65,17 @@ export async function runEventWorker(pool: Pool, profile: DeploymentProfile, dep
         worked = true
         try { await service.deliver(id) } catch (error) { options.onError?.(error) }
       }
+      // A process can stop after the adapter has broadcast a report but before
+      // the receipt is persisted. Reconcile those rows after restart; never
+      // call deliver again for a row already marked broadcast.
+      if (dependencies.reconcile) {
+        for (const id of await service.broadcastDeliveries()) {
+          try {
+            const result = await service.reconcile(id)
+            worked ||= result.status === 'accepted'
+          } catch (error) { options.onError?.(error) }
+        }
+      }
       if (outbox) {
         const delivered = await outbox.process(20, (error) => options.onError?.(error))
         worked ||= delivered > 0

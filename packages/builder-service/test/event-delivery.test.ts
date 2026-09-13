@@ -90,6 +90,35 @@ test('the resident worker recovers queued events after the browser is gone', asy
   assert.ok(outbox.includes('report-delivery.pending'))
 })
 
+test('the resident worker reconciles reports left broadcast across a restart', async () => {
+  const f = await fixture(), events = createEventDelivery(pool, profile, {
+    evaluate: async () => ({ status: 'changed', reportHash: digestJson({ restart: true }), report: { restart: true } }),
+  })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  await events.ingest({ source: 'market.restart', eventId: 'restart-1', kind: 'market.updated', payload: { price: '2500' }, observedAt: new Date().toISOString() })
+  let job: Awaited<ReturnType<typeof events.claimEvaluation>> = null
+  for (let attempt = 0; attempt < 20 && !job; attempt++) {
+    const candidate = await events.claimEvaluation()
+    if (!candidate) break
+    if (candidate.subscriptionId === enabled.subscription.id) { job = candidate; break }
+    await pool.query("UPDATE builder.evaluation_jobs SET state='pending',attempts=GREATEST(attempts-1,0),lease_token=NULL,lease_until=NULL,available_at=clock_timestamp() WHERE id=$1 AND lease_token=$2", [candidate.id, candidate.token])
+  }
+  assert.ok(job)
+  const evaluated = await events.evaluate(job!.id, job!.token); assert.equal(evaluated.result.status, 'changed'); assert.ok(evaluated.deliveryId)
+  await pool.query("UPDATE builder.report_deliveries SET status='broadcast',attempts=1 WHERE id=$1", [evaluated.deliveryId])
+  const reconciled: string[] = [], controller = new AbortController()
+  await runEventWorker(pool, profile, {
+    reconcile: async input => {
+      reconciled.push(input.deliveryId); controller.abort()
+      return { transactionHash: ('0x' + '3'.repeat(64)) as `0x${string}`, receipt: { recovered: true } }
+    },
+  }, { pollMs: 50, signal: controller.signal })
+  assert.deepEqual(reconciled, [evaluated.deliveryId])
+  const rows = (await pool.query('SELECT status,transaction_hash FROM builder.report_deliveries WHERE id=$1 AND subscription_id=$2', [evaluated.deliveryId, enabled.subscription.id])).rows
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].status, 'accepted')
+})
+
 test('the resident worker applies source reorg identities before claiming evaluation work', async () => {
   const f = await fixture(), sourceName = 'chain.sepolia.reorg', oldEvent = { source: sourceName, eventId: 'old-log', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString() }
   const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ should: 'not-run' }), report: { should: 'not-run' } }) })
