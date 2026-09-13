@@ -12,13 +12,11 @@ import { createMandate, getExecutableStrategies, getMandate, reevaluateExecution
 import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealForConfidentialWorkflow } from './confidentialEnvelope';
 import { ADAPTIVE_PROFILE_IDS, presentMandate } from './mandatePresentation';
 
-import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
+import { saveMandateReference } from './mandateReferenceStore';
 import { usePublishedListings, type Listing } from './publishedStore';
-import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import aqua from './aqua.module.css';
 import catalog from './catalog.module.css';
-import secondary from '../components/shared/Secondary.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { discoverStrategyNames } from '../ens/strategyNames';
 import { FEATURED } from './featuredStrategies';
@@ -56,7 +54,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const start = params.get('start') === '1';
   const [loadingLinked, setLoadingLinked] = useState(false);
   const { published } = usePublishedListings();
-  const { save } = useProposals();
   const [selected, setSelected] = useState<Listing[]>([]);
   const [budget, setBudget] = useState('20');
   const [exposure, setExposure] = useState('60');
@@ -64,7 +61,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [maxTrade, setMaxTrade] = useState('1');
   const [phase, setPhase] = useState<Phase>('choose');
   const [mandate, setMandate] = useState<MandateState | null>(null);
-  const [recentMandate, setRecentMandate] = useState<{ maker: string; id: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reevaluating, setReevaluating] = useState(false);
   const [error, setError] = useState('');
@@ -118,8 +114,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => cancelAnimationFrame(frame);
   }, [phase, published.length, linkedId]);
   useEffect(() => {
-    const reference = makerAddress ? readMandateReference(makerAddress) : null;
-    setRecentMandate(reference ? { maker: makerAddress!.toLowerCase(), id: reference.mandateId } : null);
     // Browsing Liquidity never opts into restoring a previous execution session.
     if (!linkedMandateId) {
       restoredMaker.current = '';
@@ -208,17 +202,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
       router.replace(`/maker?mandate=${encodeURIComponent(state.mandateId)}`);
-      selected.forEach(item => save({
-        id: item.id,
-        strategyName: item.name,
-        mechanism: item.template.label,
-        budget: budget.trim(),
-        maxExposure: exposure.trim(),
-        maxWeakAsset: maxWethInventory.trim(),
-        maxTrade: maxTrade.trim(),
-        authorization: 'until-changed',
-        feePct: item.feePct,
-      }));
       go('monitor');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The mandate could not be created.');
@@ -307,7 +290,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
     {loadingLinked && <p role="status">Loading selected strategy…</p>}
     {phase === 'choose' && !loadingLinked && <>
-      {recentMandate && recentMandate.maker === makerAddress?.toLowerCase() && <Link className={secondary.secondary} href={`/maker?mandate=${encodeURIComponent(recentMandate.id)}`}>View current mandate</Link>}
       <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={catalog.grid}>

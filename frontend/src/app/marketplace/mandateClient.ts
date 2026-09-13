@@ -130,3 +130,27 @@ export async function reevaluateExecutionProfile(mandateId: string, providerStra
   });
   return validateState(state);
 }
+
+export type MandateSummary = {
+  mandateId: string;
+  maker: string;
+  strategies: { listingId: string; name: string }[];
+  chainId: number;
+  networkName: string;
+  reportSequence: string;
+  lastActivityAt: string | null;
+};
+
+export async function listMandates(maker: string): Promise<MandateSummary[]> {
+  if (!/^0x[0-9a-f]{40}$/i.test(maker)) throw new Error('Maker address is invalid.');
+  const value = await request<{ mandates: MandateSummary[] }>(`/v1/mandates?maker=${encodeURIComponent(maker)}`);
+  if (!Array.isArray(value.mandates) || !value.mandates.every(item =>
+    item && /^mandate-[A-Za-z0-9._-]+$/.test(item.mandateId) && item.maker?.toLowerCase() === maker.toLowerCase()
+    && Number.isSafeInteger(item.chainId) && typeof item.networkName === 'string'
+    && /^[1-9][0-9]*$/.test(item.reportSequence) && Array.isArray(item.strategies) && item.strategies.length > 0
+    && item.strategies.every(strategy => typeof strategy.listingId === 'string' && typeof strategy.name === 'string')
+    && (item.lastActivityAt === null || (typeof item.lastActivityAt === 'string' && Number.isFinite(Date.parse(item.lastActivityAt)))))) {
+    throw new Error('The liquidity history could not be verified. Please retry.');
+  }
+  return value.mandates;
+}

@@ -187,7 +187,8 @@ export function makeServer(config, dependencies = {}) {
         return response.end(JSON.stringify({ maker: config.strategyMaker, strategies: available }));
       }
       let result;
-      if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));
+      if (request.method === 'GET' && url.pathname === '/v1/mandates') result = { mandates: await service.list(url.searchParams.get('maker')) };
+      else if (request.method === 'POST' && url.pathname === '/v1/mandates') result = await service.create(await readJson(request));
       else {
         const match = url.pathname.match(/^\/v1\/mandates\/([A-Za-z0-9][A-Za-z0-9._-]{0,95})(\/(strategies|executions))?$/);
         if (!match) throw new HttpError(404, 'Route not found.');
