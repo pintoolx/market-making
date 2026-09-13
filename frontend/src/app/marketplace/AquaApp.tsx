@@ -34,7 +34,7 @@ export default function AquaApp({ screen }: { screen: Screen }) {
           <div className={aqua.roleBody}>
             <span className={aqua.roleNumber}>Strategy Provider</span>
             <h2>Design strategies</h2>
-            <ul><li>Start from a supported market-making model</li><li>Add your signals, rules and limits</li><li>Publish verifiable versions for makers</li></ul>
+            <ul><li>Start from a supported market-making model</li><li>Add your signals, rules and limits</li><li>Publish strategies for makers</li></ul>
           </div>
           <div className={aqua.roleAction}><Primary onClick={() => goTo('provider')}>Create a strategy</Primary></div>
         </article>
@@ -80,7 +80,6 @@ export default function AquaApp({ screen }: { screen: Screen }) {
           <small>Uses only the liquidity authorized by the maker</small>
         </div>
       </div>
-      <p className={aqua.custodyNote}><strong>Funds stay separate:</strong> The TEE evaluates rules; Aqua settles swaps directly from the maker wallet.</p>
     </section>
   </div>;
 

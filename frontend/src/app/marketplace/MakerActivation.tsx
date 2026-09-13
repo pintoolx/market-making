@@ -125,7 +125,7 @@ export default function MakerActivation({ listing, maker, account, onReady }: { 
   return <div className={aqua.decisionGrid}>
     <div className={aqua.panel}>
       <h2>Add liquidity to {listing.name}</h2>
-      <p>Version {listing.version} · WETH / USDC · Ethereum Sepolia</p>
+      <p>WETH / USDC · Ethereum Sepolia</p>
       {!plan && pending ? <Primary disabled={!!busy} onClick={() => void act('Restoring activation…', async () => { await load(current.current!.id); })}>Restore pending transaction</Primary> : !plan ? <form onSubmit={e => { e.preventDefault(); void prepare(); }}>
         <fieldset disabled={!loaded || !!busy}>
           <legend>Liquidity amounts</legend>
@@ -162,8 +162,7 @@ export default function MakerActivation({ listing, maker, account, onReady }: { 
     <aside className={aqua.explanation}>
       <h2>What these transactions allow</h2>
       <p>Aqua records the maximum WETH and USDC this strategy can use. Your tokens stay in your wallet until a trade settles.</p>
-      <p>Token approval and adding the strategy to Aqua are separate wallet transactions. Review and sign each one.</p>
-      <p>The provider fixes the public price range. Your private limits can restrict it further, and PinTool must authorize the strategy before it trades.</p>
+      <p>Token approvals and Aqua activation require separate wallet confirmations.</p>
     </aside>
   </div>;
 }

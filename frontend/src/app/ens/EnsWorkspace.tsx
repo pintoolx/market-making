@@ -87,32 +87,32 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
 
   return <section className={`${aqua.panel} ${styles.workspace}`} aria-label={mode === 'identity' ? 'Strategy provider name' : 'Strategy name and sharing'} aria-busy={busy}>
     <div className={styles.heading}><div><h2>{mode === 'identity' ? 'Strategy provider name' : 'Shareable strategy name'}</h2></div><Secondary disabled={loading || busy} onClick={() => void refresh()}>Refresh ENS</Secondary></div>
-    <p>{mode === 'identity' ? 'Claim an ENS name that verifies strategies published by this wallet.' : 'Give this published version an ENS name that makers can open and verify.'}</p>
+    <p>{mode === 'identity' ? 'Verify strategies published by this wallet.' : 'Create a verified link for makers.'}</p>
     {loading && <p role="status" className={styles.skeleton}>Checking the platform namespace…</p>}
-    {statusError && <div role="status" className={styles.notice}><p>{statusError}</p><p>ENS names are temporarily unavailable. Try Refresh ENS in a moment.</p></div>}
+    {statusError && <div role="status" className={styles.notice}><p>{statusError}</p></div>}
     {!account.authenticated && <Primary onClick={account.login}>Connect publishing wallet</Primary>}
     {status && account.authenticated && !status.provider && mode === 'identity' && <form onSubmit={e => { e.preventDefault(); void act(async tx => {
       await tx.claimProvider(root, providerLabel); await refresh(); setSuccess('Your provider name is ready.');
     }); }}>
       <fieldset disabled={busy}><legend>Claim your provider name</legend>
         <label>Name<FormInput required autoComplete="off" spellCheck={false} minLength={3} maxLength={32} value={providerLabel} onChange={e => setProviderLabel(e.target.value)} placeholder="alice" /></label>
-        <p className={aqua.hint}>{providerLabel || 'alice'}.{root} · one provider name per wallet. Registration uses Sepolia ETH for gas.</p>
+        <p className={aqua.hint}>{providerLabel || 'alice'}.{root} · One name per wallet · Uses Sepolia ETH</p>
         <Primary type="submit">Claim name</Primary>
       </fieldset>
     </form>}
-    {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Claim your provider name in Profile →</Link></p>}
+    {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Claim a provider name in Profile →</Link></p>}
     {status?.provider && mode === 'identity' && <div className={styles.identity}><strong>{status.provider.name}</strong><span>{account.address}</span><Link href="/studio">Create a strategy →</Link></div>}
-    {status?.provider && mode === 'strategy' && !latest && <p>Publish a strategy version before assigning a shareable name.</p>}
+    {status?.provider && mode === 'strategy' && !latest && <p>Publish a strategy before assigning a name.</p>}
     {status?.provider && mode === 'strategy' && latest && <>
       <div className={styles.identity}><strong>{status.provider.name}</strong><span>Publishing wallet {account.address}</span></div>
       <fieldset disabled={busy}>
         <legend>Shareable ENS name</legend>
         <label>Name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
         <p className={styles.name}>{name}</p>
-        <p>{latest?.state === 'published' ? `Published strategy: ${latest.name}, version ${latest.version}.` : 'Publish a strategy version in Strategy Studio before assigning this name.'}</p>
-        <div className={aqua.actionRow}><Primary disabled={!latest || latest.state !== 'published'} onClick={approve}>Sign this version</Primary><Secondary disabled={!latest || latest.state !== 'published'} onClick={publish}>Publish ENS name</Secondary></div>
-        {currentVersion && <p role="status">ENS currently points to version {currentVersion}.</p>}
-        <p className={aqua.hint}>First sign the public version, then publish its ENS record onchain. Existing makers remain pinned to the version they selected.</p>
+        <p>{latest?.state === 'published' ? `${latest.name} · Revision ${latest.version}` : 'Publish this strategy before assigning a name.'}</p>
+        <div className={aqua.actionRow}><Primary disabled={!latest || latest.state !== 'published'} onClick={approve}>Approve strategy</Primary><Secondary disabled={!latest || latest.state !== 'published'} onClick={publish}>Publish ENS link</Secondary></div>
+        {currentVersion && <p role="status">ENS points to revision {currentVersion}.</p>}
+        <p className={aqua.hint}>Approve the strategy first, then publish its ENS link.</p>
       </fieldset>
       <details className={styles.advanced}><summary>Advanced · Publisher permissions</summary>
       <form onSubmit={e => { e.preventDefault(); void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, true); setSuccess('Publisher can update this strategy’s version record.'); }); }}>
@@ -123,8 +123,7 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
         </fieldset>
       </form>
       </details>
-      <p><Link href={`/strategy?ens=${encodeURIComponent(name)}`}>Open the shared strategy →</Link></p>
-      <p className={aqua.hint}>PinTool manages the parent namespace. Your resolver permissions control its records; parent administrators retain control of the name hierarchy.</p>
+      <p><Link href={`/strategy?ens=${encodeURIComponent(name)}`}>Open verified strategy →</Link></p>
     </>}
     <ActionFeedback progress={progress} error={error} success={success} />
   </section>;

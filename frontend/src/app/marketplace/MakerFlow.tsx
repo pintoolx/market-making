@@ -16,7 +16,6 @@ import { saveMandateReference } from './mandateReferenceStore';
 import { usePublishedListings, type Listing } from './publishedStore';
 import { ListingCard, ListingGrid, PageHead, Steps } from './ui';
 import aqua from './aqua.module.css';
-import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { discoverStrategyNames } from '../ens/strategyNames';
 import { FEATURED } from './featuredStrategies';
 import { loadStrategyListing } from './strategyCatalog';
@@ -25,7 +24,7 @@ import StrategyLink from './StrategyLink';
 import ProviderIdentity from './ProviderIdentity';
 import MakerActivation from './MakerActivation';
 
-const STEPS = ['Choose a strategy', 'Add liquidity and limits', 'Review', 'Monitor'];
+const STEPS = ['Choose a strategy', 'Set up liquidity', 'Review', 'Monitor'];
 
 type Phase = 'choose' | 'detail' | 'activate' | 'limits' | 'review' | 'submitting' | 'monitor';
 
@@ -310,14 +309,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   return <section className={aqua.flow}>
     {phase === 'monitor' && <Link href="/profile?tab=making" className={aqua.backLink}>← My liquidity</Link>}
     {previousStep && <button type="button" className={aqua.backLink} onClick={() => go(previousStep.phase)}>← {previousStep.label}</button>}
-    <PageHead eyebrow="Liquidity" title={title} headingRef={heading}>
-      {phase === 'choose' && 'Compare pricing models, confidential inputs and risks before assigning WETH / USDC liquidity.'}
-      {phase === 'detail' && 'Review its public pricing model, confidential inputs and main risk before adding liquidity.'}
-      {phase === 'limits' && 'Your strategy provider never sees the limits you enter here.'}
-      {phase === 'review' && 'PinTool will privately check the strategy against your limits before authorizing it.'}
-      {phase === 'submitting' && (reevaluating ? 'Checking this strategy against current market conditions and your saved limits.' : 'Checking the strategy against your limits and confirming the resulting authorization onchain.')}
-      {phase === 'monitor' && 'See what can trade now, change your limits and review confirmed activity.'}
-    </PageHead>
+    <PageHead eyebrow="Liquidity" title={title} headingRef={heading} />
     <Steps steps={STEPS} current={currentStep} />
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
@@ -326,7 +318,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       <ListingGrid>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
       </ListingGrid>
-      <EnsStrategySearch />
     </>}
 
     {phase === 'activate' && selected[0]?.releaseId && makerAddress && <MakerActivation key={`${makerAddress}:${selected[0].id}`} listing={selected[0]} maker={makerAddress} account={account}
@@ -439,7 +430,6 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
       })}</ol> : <p className={aqua.muted}>Confirmed activity will appear here.</p>}
     </section>
 
-    <p className={aqua.muted}>Availability reflects the latest confirmed onchain state. Every swap is checked again against the active strategy and your limits.</p>
     <div className={aqua.evidence}><div><span>Latest authorization</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View authorization transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua setup</span><strong>{profiles.length} {profiles.length === 1 ? 'strategy mode uses' : 'strategy modes share'} this wallet&apos;s liquidity</strong></div><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div></div>
   </div>;
 }

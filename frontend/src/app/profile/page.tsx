@@ -43,7 +43,7 @@ function Providing() {
   const router = useRouter();
   const { published: allPublished, unpublish } = usePublishedListings();
   const published = allPublished.filter(item => item.mine);
-  if (!published.length) return <Empty title="No published strategies" text="Choose a template or build your own strategy, then publish a version for makers." action="Create a strategy" href="/studio" />;
+  if (!published.length) return <Empty title="No published strategies" text="Create a strategy to make it available to makers." action="Create a strategy" href="/studio" />;
   return <>
     <div className={aqua.sectionTop}>
       <h2 className={aqua.sectionTitle}>Strategies you provide</h2>

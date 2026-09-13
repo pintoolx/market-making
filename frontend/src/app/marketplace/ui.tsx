@@ -48,9 +48,8 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
   const tags = <>
         <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.mechanism}</span>
         <span className={`${styles.tag} ${aqua.chip}`}>{listing.template.category}</span>
-        {listing.version && <span className={`${styles.tag} ${aqua.chip}`}>Version {listing.version}</span>}
         {listing.mine && <span className={`${styles.tag} ${aqua.chip} ${aqua.mineTag}`}>Your strategy</span>}
-        {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Accepting liquidity</span>}
+        {listing.executionReady && <span className={`${styles.tag} ${aqua.chip} ${aqua.liveTag}`}>Added to your wallet</span>}
   </>;
 
   return <StrategyCardShell tags={tags} title={listing.name} action={action}>
@@ -58,7 +57,7 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
       <div className={aqua.cardRule}>
         <span className={aqua.eyebrow}>Provided by</span>
       {(listing.ensName || listing.ensSelection) && <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>}
-      {listing.ensStatus === 'historical' && <p className={aqua.muted}>Previously published under this name. ENS now points to another version.</p>}
+      {listing.ensStatus === 'historical' && <p className={aqua.muted}>This name now points to a newer update.</p>}
       <ProviderIdentity listing={listing} />
       {listing.feePct === 0 && <p className={aqua.feeLine}>No strategy fee</p>}
       </div>

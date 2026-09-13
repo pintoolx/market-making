@@ -32,7 +32,7 @@ export default function StrategyDetails({ listing, action }: { listing: Listing;
       </div>
       <h3>Main risk</h3>
       <p>{listing.template.risk}</p>
-      <p className={aqua.muted}>The provider&apos;s rules remain confidential. PinTool applies your private limits before authorizing any mode.</p>
+      <p className={aqua.muted}>Private rules and your limits are checked before authorization.</p>
     </aside>
   </div>;
 }

@@ -89,7 +89,7 @@ export default function StrategyPage() {
     <main className={styles.mainScroll}>
       <div className={`${styles.main} ${aqua.flow}`}>
         <Link href={back} className={aqua.backLink}>← All strategies</Link>
-        <PageHead eyebrow="WETH / USDC · Ethereum Sepolia" title={listing?.name ?? 'Strategy details'}>Review its pricing model, confidential inputs and main risk before adding liquidity.</PageHead>
+        <PageHead eyebrow="WETH / USDC · Ethereum Sepolia" title={listing?.name ?? 'Strategy details'} />
         {error && <p role="alert" className={aqua.errorNotice}>{error}</p>}
         {!listing && !error && <p role="status">Loading strategy…</p>}
         {listing && <>

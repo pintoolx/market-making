@@ -107,7 +107,7 @@ export default function GuardCheck({ onPendingChange, available, choice, wallet,
   if (!available && !pending && !completed) return null;
   return <details open={!!pending || !!completed}>
     <summary>Advanced · Verify a blocked swap</summary>
-    <p>PinTool predicts this strategy will be blocked. To create public proof, send the same request on Sepolia. If approval is required, your wallet will ask for the exact amount first.</p>
+    <p>Submit the blocked request on Sepolia to create a public rejection receipt.</p>
     {!pending && !completed && <>
       <label>Minimum received ({direction === 'USDC' ? 'WETH' : 'USDC'})<FormInput aria-label="Minimum received for verification" inputMode="decimal" value={minimum} onChange={e => setMinimum(e.target.value)} disabled={busy} /></label>
       <Primary fullWidth disabled={busy || !minimum} onClick={() => void submit()}>{allowanceReady === false ? `Approve ${direction} in wallet` : allowanceReady === true ? 'Submit blocked swap' : 'Continue in wallet'}</Primary>

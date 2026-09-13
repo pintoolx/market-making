@@ -158,7 +158,7 @@ function TradeForm() {
   const expired = !!quote && now / 1000 >= quote.deadline - 15;
   return <section className={aqua.flow}>
     <Link className={aqua.backLink} href={returnMandate ? `/maker?mandate=${encodeURIComponent(returnMandate)}` : '/maker'}>← {returnMandate ? 'Back to liquidity' : 'Back to strategies'}</Link>
-    <div className={aqua.sectionTop}><div><span className={aqua.eyebrow}>WETH / USDC · Ethereum Sepolia</span><h1>Swap with a strategy</h1><p>Choose a strategy with available liquidity, review its quote and settle from your wallet.</p></div></div>
+    <div className={aqua.sectionTop}><div><span className={aqua.eyebrow}>WETH / USDC · Ethereum Sepolia</span><h1>Swap with a strategy</h1></div></div>
     <div className={aqua.decisionGrid}>
       <div className={aqua.panel}>
         <form className={aqua.tradeForm} onSubmit={e => { e.preventDefault(); void review(); }}>
@@ -191,8 +191,7 @@ function TradeForm() {
       </div>
       <aside className={aqua.explanation}>
         <h2>{choice?.name || 'How settlement works'}</h2>
-        <p>The maker supplies liquidity. You pay from your trading wallet and receive the other token in the same transaction.</p>
-        <p>PinTool checks authorization, swap size and maker inventory before every settlement. If any condition changes, you must request a new quote.</p>
+        <p>Aqua settles directly between your wallet and the Maker&apos;s wallet. PinTool checks authorization before settlement.</p>
         {choice && <><p>Maker <code>{short(choice.maker)}</code></p><p>Strategy <code title={choice.strategyHash}>{short(choice.strategyHash)}</code></p><a href={`https://sepolia.etherscan.io/tx/${choice.shipTransaction}`} target="_blank" rel="noreferrer">View Aqua activation ↗</a></>}
       </aside>
     </div>

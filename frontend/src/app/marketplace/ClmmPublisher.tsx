@@ -103,9 +103,9 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
 
   return <section className={aqua.flow}>
     <button className={aqua.backLink} onClick={onBack}>← All templates</button>
-    <h1>Create an adaptive range strategy</h1>
+    <h1>{latest ? 'Edit adaptive range strategy' : 'Create an adaptive range strategy'}</h1>
     <p className={aqua.muted}>WETH / USDC · Ethereum Sepolia · 1inch Aqua</p>
-    {latest && <p>Version {latest.version} is {latest.state}. Its public settings are shown below.</p>}
+    {latest && <p>{latest.state === 'published' ? 'You are editing a published strategy.' : 'This strategy is closed to new makers.'}</p>}
     <form className={aqua.panel} onSubmit={event => { event.preventDefault(); void publish('published'); }}>
       <fieldset disabled={busy}>
         <legend>Public strategy details</legend>
@@ -123,13 +123,13 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
         <legend>Confidential execution rule</legend>
         <p>Allow swaps only while 30-minute market volatility remains at or below your limit. PinTool evaluates this rule without publishing the limit.</p>
         <label>Maximum volatility (%)<FormInput inputMode="decimal" value={threshold} onChange={e => setThreshold(e.target.value)} /></label>
-        <p className={aqua.hint}>This value is encrypted before submission and never appears in the public strategy version. Enter it again whenever you publish a new version.</p>
+        <p className={aqua.hint}>Encrypted before submission and never published.</p>
       </fieldset>
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
-      {saved && <p role="status">Version {latest?.version} {latest?.state === 'withdrawn' ? 'is no longer available to new makers. Existing liquidity must be disabled separately.' : 'is published. Makers can now review it and add liquidity.'}</p>}
+      {saved && <p role="status">{latest?.state === 'withdrawn' ? 'Closed to new makers. Existing liquidity remains active.' : 'Strategy published. Makers can now add liquidity.'}</p>}
       <div className={aqua.actionRow}>
-        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect publishing wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? `Retry saving version ${(latest?.version ?? 0) + 1}` : `Sign and publish version ${(latest?.version ?? 0) + 1}`}</Primary>}
-        {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Stop new liquidity</Secondary>}
+        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect publishing wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? 'Retry saving' : latest ? 'Sign and publish update' : 'Sign and publish strategy'}</Primary>}
+        {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Close to new makers</Secondary>}
       </div>
       {!publicKey && <p className={aqua.muted}>Secure publication is temporarily unavailable.</p>}
     </form>

@@ -14,7 +14,7 @@ import aqua from './aqua.module.css';
 import styles from './page.module.css';
 
 const CATEGORIES = ['All', 'Base strategy', 'Strategy modifier', 'Capital policy'] as const;
-const STEPS = ['Choose a template', 'Configure strategy', 'Publish a version'];
+const STEPS = ['Choose a template', 'Configure strategy', 'Publish strategy'];
 
 function StudioCard({ mechanism, category, title, description, privateInputs, action, onSelect }: {
   mechanism: string;
@@ -33,7 +33,7 @@ function StudioCard({ mechanism, category, title, description, privateInputs, ac
   return <StrategyCardShell tags={tags} title={title} action={<Primary onClick={onSelect}>{action}</Primary>}>
     <p className={aqua.summary}>{description}</p>
     <div className={aqua.cardRule}>
-      <span className={aqua.eyebrow}>Confidential inputs</span>
+      <span className={aqua.eyebrow}>Private rules</span>
       <p>{privateInputs}</p>
     </div>
   </StrategyCardShell>;
@@ -68,9 +68,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const optionCount = visible.length + (builderMatches ? 1 : 0);
 
   return <section className={aqua.flow}>
-    <PageHead eyebrow="Strategy Studio" title="Choose a market-making model.">
-      Each template defines how swaps are priced. You set its public parameters and confidential execution rules.
-    </PageHead>
+    <PageHead eyebrow="Strategy Studio" title="Choose a market-making model." />
     <Steps steps={STEPS} current={0} />
     <div className={aqua.search}>
       <FormInput

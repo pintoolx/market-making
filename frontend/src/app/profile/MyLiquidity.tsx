@@ -67,7 +67,7 @@ export default function MyLiquidity({ account }: { account: Account }) {
         const action = <Link className={primary.primary} href={`/maker?mandate=${encodeURIComponent(item.mandateId)}`}>Manage liquidity</Link>;
 
         return <StrategyCardShell key={item.mandateId} tags={tags} title={nameOf(item)} action={action}>
-          <p className={aqua.summary}>WETH / USDC liquidity is governed by your private capital, inventory and per-swap limits.</p>
+          <p className={aqua.summary}>WETH / USDC · Private capital, inventory and swap limits</p>
           <div className={aqua.cardRule}>
             <span className={aqua.eyebrow}>Latest activity</span>
             <div className={liquidity.details}>
