@@ -29,8 +29,35 @@ Event ingress is independent from event evaluation. Set
 `BUILDER_EVENT_INGRESS_SECRET` to enable the HMAC-authenticated
 `POST /v1/builder/events/ingest` and `/health` routes. Events are validated,
 deduplicated and retained with block/transaction/log identity before they reach
-the worker. `BUILDER_EVENT_WORKER_ENABLED` is off by default because a trusted
-CRE/Guard evaluator and delivery adapter must be supplied by the deployment.
+the worker. Set `BUILDER_EVENT_EVALUATOR_URL`,
+`BUILDER_EVENT_DELIVERY_URL` and `BUILDER_EVENT_GATEWAY_TOKEN` together before
+enabling `BUILDER_EVENT_WORKER_ENABLED`. The runtime uses the HTTPS event
+gateway adapter for the two trusted operations:
+
+```json
+{
+  "schemaVersion": 1,
+  "operation": "evaluate",
+  "owner": "wallet:0x...",
+  "draftId": "...",
+  "revision": 4,
+  "artifactId": "...",
+  "consentId": "...",
+  "generation": 2,
+  "strategyHash": "0x...",
+  "manifestHash": "0x...",
+  "contentDigest": "0x...",
+  "guard": "0x...",
+  "router": "0x...",
+  "event": { "source": "market.gateway", "eventId": "...", "kind": "market.updated", "payload": {}, "observedAt": "..." }
+}
+```
+
+The evaluator returns a strict public `EvaluationResult`. A `changed` result
+must include both a 32-byte `reportHash` and a public report object. Delivery
+receives the revision-bound report hash and nonce and must return a verified
+transaction hash; reconciliation may return `null` while a broadcast remains
+unknown. The adapter sends no Maker private policy, signature or private key.
 With no adapter the worker fails closed and never fabricates a report; queued
 events and any already-created delivery rows remain recoverable through their
 leases.
