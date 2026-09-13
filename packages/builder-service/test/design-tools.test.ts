@@ -80,3 +80,18 @@ test('design tools accept a single new limit or allocation and normalize curve s
   assert.deepEqual(curve.spec?.model, { kind: 'pegged', referencePrice: '2500', amplification: '1' })
   assert.throws(() => editToPatch(input([{ field: 'relativeWidthBps', value: '500' }, { field: 'maxPrice', value: '2700' }]), d, profile, 'ambiguous'), /choose-fixed-or-relative/)
 })
+
+test('the complete twelve-tool surface exposes unsigned wallet plans without signing capability', async () => {
+  const d = draft(), calls: string[] = [], tools = createDesignTools({ profile, turnId: 'turn', sourceMessageId: 'message', nowSec: 1, repository: {
+    read: async () => d, history: async () => [], patch: async () => ({ draft: d, diff: [], changed: false }), restore: async () => ({ draft: d, diff: [], changed: false }),
+    registrationPlan: async (requestId, revision, artifactId) => { calls.push(`registration:${requestId}:${revision}:${artifactId}`); return { registrationReady: false, unsigned: true } },
+    cancellationPlan: async (requestId, revision, artifactId) => { calls.push(`cancellation:${requestId}:${revision}:${artifactId}`); return { registrationReady: false, unsigned: true } },
+  } })
+  assert.equal(Object.keys(tools).length, 12)
+  const options = { messages: [], context: {}, toolCallId: 'wallet-plan' }
+  const registration = await tools.prepareRegistration.execute!({ expectedRevision: 1, artifactId: 'artifact' }, options)
+  const cancellation = await tools.prepareCancellation.execute!({ expectedRevision: 1, artifactId: 'artifact' }, options)
+  assert.deepEqual(registration, { ok: true, result: { registrationReady: false, unsigned: true } })
+  assert.deepEqual(cancellation, { ok: true, result: { registrationReady: false, unsigned: true } })
+  assert.equal(calls.length, 2); assert.ok(calls.every(c => c.includes('artifact')))
+})

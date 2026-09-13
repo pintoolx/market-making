@@ -8,11 +8,12 @@ import { createArtifacts } from './artifacts.ts'
 import { createSimulations } from './simulations.ts'
 import { createPreviews } from './previews.ts'
 import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
+import { createTransactionPlans } from './transaction-plans.ts'
 
 /** One durable turn; called by a long-lived worker, never owned by an HTTP connection. */
 export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal, preparation: { simulationEnabled?: boolean; inventoryAdapter?: InventoryAdapter } = {}) {
   const turns = createTurns(pool), store = createStore(pool, profile.id, turn), artifacts = createArtifacts(pool, profile, turn), abort = new AbortController()
-  const simulations = createSimulations(pool, profile, turn)
+  const simulations = createSimulations(pool, profile, turn), plans = createTransactionPlans(pool, profile)
   const previews = createPreviews(pool, profile, turn)
   const combined = AbortSignal.any([abort.signal, AbortSignal.timeout(180000), ...(signal ? [signal] : [])])
   const inventory = preparation.inventoryAdapter ? createInventoryReader(pool, profile, preparation.inventoryAdapter, turn) : undefined
@@ -51,6 +52,8 @@ export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, mode
         },
         previews: () => previews.list(turn.owner, turn.draftId),
         ...(inventory ? { inventory: (expectedRevision: number) => inventory.read(turn.owner, { draftId: turn.draftId, expectedRevision }, combined) } : {}),
+        registrationPlan: (requestId, expectedRevision, artifactId) => plans.prepareRegistration(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, artifactId }),
+        cancellationPlan: (requestId, expectedRevision, artifactId) => plans.prepareCancellation(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, artifactId }),
       } })
     const result = await agent.stream({ messages, abortSignal: combined })
     let text = '', pending = '', lastFlush = Date.now()

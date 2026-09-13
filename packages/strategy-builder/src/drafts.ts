@@ -63,7 +63,8 @@ export function patchDraft(current: StrategyDraft, input: unknown, context: { ow
     inserted.add(next.id)
     const previous = requirements.get(next.id)
     const unchanged = previous && canonical(requirementInputSchema.parse({ id: previous.id, text: previous.text,
-      priority: previous.priority, sourceMessageId: previous.sourceMessageId, capabilityIds: previous.capabilityIds })) === canonical(next)
+      priority: previous.priority, sourceMessageId: previous.sourceMessageId, capabilityIds: previous.capabilityIds,
+      ...(previous.criteria ? { criteria: previous.criteria } : {}) })) === canonical(next)
     requirements.set(next.id, { ...next, userAcceptedAlternative: unchanged ? previous.userAcceptedAlternative : false })
   }
   const spec = { ...before.spec, ...patch.spec }

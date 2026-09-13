@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { formatUnits } from 'viem';
-import { builderClient, BuilderError, type Conversation, type Draft, type Message, type Revision, type Validation, type TemplateContext } from './client';
+import { builderClient, BuilderError, type Conversation, type Draft, type Message, type Revision, type Validation, type TemplateContext, type RequirementReceipt } from './client';
 import TemplatePublisher from './TemplatePublisher';
 import TemplateCatalog from './TemplateCatalog';
 import MakerPreparation from './MakerPreparation';
+import RequirementReviewDialog from './RequirementReviewDialog';
 import type { Account } from '../providers/useAccount';
 import styles from './builder.module.css';
 
@@ -22,7 +23,7 @@ const fields: Record<string, string> = { 'spec.baseToken': 'Base token', 'spec.q
   'maker': 'Maker wallet', 'allocations': 'Maker allocation', 'allocations.baseAtomic': 'Base allocation', 'allocations.quoteAtomic': 'Quote allocation' };
 const toolNames: Record<string, string> = { inspectStrategy: 'Reading strategy and revisions', getCapabilities: 'Checking available capabilities', resolveTokens: 'Verifying token pair',
   createOrPatchDraft: 'Saving strategy changes', validateStrategy: 'Validating public parameters', exportStrategy: 'Preparing public strategy', compileStrategy: 'Compiling and verifying strategy',
-  getWalletInventory: 'Reading wallet inventory', previewScenarios: 'Calculating swap scenarios', simulateLifecycle: 'Scheduling swap simulation' };
+  getWalletInventory: 'Reading wallet inventory', previewScenarios: 'Calculating swap scenarios', simulateLifecycle: 'Scheduling swap simulation', prepareRegistration: 'Preparing registration transaction', prepareCancellation: 'Preparing cancellation transaction' };
 const amount = (value?: string, decimals?: number) => value && decimals !== undefined ? formatUnits(BigInt(value), decimals) : 'Not set';
 function valueLabel(path: string, value: unknown, draft: Draft) {
   if (value === null || value === undefined) return 'Not set';
@@ -60,6 +61,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
   const [turnId, setTurnId] = useState<string | null>(null), [provisional, setProvisional] = useState(''), [activity, setActivity] = useState('');
   const [pollKey, setPollKey] = useState(0), [historyOpen, setHistoryOpen] = useState(false);
   const [publisherOpen, setPublisherOpen] = useState(false), [catalogOpen, setCatalogOpen] = useState(false), [templateContext, setTemplateContext] = useState<TemplateContext | null>(null);
+  const [requirementReviewOpen, setRequirementReviewOpen] = useState(false), [requirementReceipt, setRequirementReceipt] = useState<RequirementReceipt | null>(null);
   const [preparationOpen, setPreparationOpen] = useState(false);
   const pending = useRef<{ content: string; revision: number; conversationId: string; key: string } | null>(null);
 
@@ -68,6 +70,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     setConnected(false); setSelected(null); setDraft(null); setMessages([]); setHistory([]); setValidation(null);
     setConversations([]); setTurnId(null); setProvisional(''); setBusy(''); setError('');
     setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
+    setRequirementReviewOpen(false); setRequirementReceipt(null);
     setPreparationOpen(false);
   }, [identity.address, identity.userId, identity.authenticated]);
   useEffect(() => { if (followLatest.current && messageArea.current) messageArea.current.scrollTop = messageArea.current.scrollHeight; }, [messages, provisional]);
@@ -89,6 +92,9 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     const context = d.draft.templatePin ? await client.templateContext(d.draft.id, d.draft.revision) : null;
     if (ticket !== epoch.current || api.current !== client) return;
     setTemplateContext(context);
+    const receipt = d.draft.requirements.length ? await client.requirementReview(d.draft) : null;
+    if (ticket !== epoch.current || api.current !== client) return;
+    setRequirementReceipt(receipt);
     setDraft(d.draft); setMessages(m.messages); setHistory(h.revisions); setValidation(v); setConversations(list.conversations);
     return list.conversations.find(c => c.conversationId === current.conversationId);
   }
@@ -100,6 +106,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
     setDraft(null); setMessages([]); setHistory([]); setValidation(null); setError(''); setBusy('Loading strategy'); pending.current = null;
     setPublisherOpen(false); setCatalogOpen(false); setTemplateContext(null);
     setPreparationOpen(false);
+    setRequirementReviewOpen(false);
     try { await refresh(); if (epoch.current === ticket) setTurnId(conversation.activeTurnId); }
     catch (e) { if (epoch.current === ticket) failure(e, 'Could not load the strategy. Please retry.'); }
     finally { if (epoch.current === ticket) setBusy(''); }
@@ -252,11 +259,15 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
               <tr><th scope="row">{base?.symbol ?? 'Base token'}</th><td>{amount(caps?.maxAmountBasePerSwap, base?.decimals)}</td><td>{amount(caps?.maxPostBalanceBase, base?.decimals)}</td></tr>
               <tr><th scope="row">{quote?.symbol ?? 'Quote token'}</th><td>{amount(caps?.maxAmountQuotePerSwap, quote?.decimals)}</td><td>{amount(caps?.maxPostBalanceQuote, quote?.decimals)}</td></tr>
             </tbody></table></div>
-            <div className={styles.requirements}><h3>Your requirements <span>{draft.requirements.length}</span></h3>{draft.requirements.length ? <ul>{draft.requirements.map(r => <li key={r.id}><span>{r.priority === 'must' ? 'Required' : 'Preference'}</span>{r.text}</li>)}</ul> : <p>Confirmed goals and constraints are saved here.</p>}</div>
+<div className={styles.requirements}><h3>Your requirements <span>{draft.requirements.length}</span></h3>{draft.requirements.length ? <>
+              <ul>{draft.requirements.map(r => <li key={r.id}><span>{r.priority === 'must' ? 'Required' : 'Preference'}</span>{r.text}{r.criteria?.length ? <small>Concrete interpretation ready for review</small> : <small>Agent interpretation still needed</small>}</li>)}</ul>
+              <button disabled={!!busy || !!turnId} onClick={() => setRequirementReviewOpen(true)}>{requirementReceipt?.revision === draft.revision ? 'View requirement confirmation' : 'Confirm requirements'}</button>
+              {requirementReceipt?.revision === draft.revision && <p className={styles.helper}>This revision has user-confirmed requirements. This does not establish an onchain report or registration.</p>}
+            </> : <p>Confirmed goals and constraints are saved here.</p>}</div>
             {validation?.revision === draft.revision && <div className={styles.validation} data-ready={validation.ready}><strong>{validation.ready ? 'Public parameters complete' : 'More details needed'}</strong>{validation.ready ? <p>{draft.kind === 'maker' ? 'Ready for compilation and simulation. Allocations, requirements and execution conditions still need individual verification.' : 'Ready to review and publish a design template. Maker instances still require compilation, simulation and requirement checks.'}</p> : <ul>{validation.missingFields.map(f => <li key={f}>{fields[f] ?? 'Other required parameters'}</li>)}{validation.errors.map((e, i) => <li key={i}>{e.message}</li>)}</ul>}</div>}
-            {draft.kind === 'template' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || !validation?.ready || validation.revision !== draft.revision} onClick={() => setPublisherOpen(true)}>Private policy and publication</button>
+            {draft.kind === 'template' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || !validation?.ready || validation.revision !== draft.revision || (draft.requirements.length > 0 && requirementReceipt?.revision !== draft.revision)} onClick={() => setPublisherOpen(true)}>Private policy and publication</button>
               <p>Configure and encrypt rules in a separate form, then confirm publication with your wallet.</p></div>}
-            {draft.kind === 'maker' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId} onClick={() => setPreparationOpen(true)}>Inventory, compilation and simulation</button>
+            {draft.kind === 'maker' && <div className={styles.publishAction}><button className={styles.primary} disabled={!!busy || !!turnId || (draft.requirements.length > 0 && requirementReceipt?.revision !== draft.revision)} onClick={() => setPreparationOpen(true)}>Inventory, compilation and simulation</button>
               <p>Review inventory and simulation results for this version before refining it.</p></div>}
             <div className={styles.history}><button className={styles.historyToggle} onClick={() => setHistoryOpen(v => !v)} aria-expanded={historyOpen}>Versions and changes <span>{historyOpen ? '−' : '+'}</span></button>
               {historyOpen && history.map(revision => <div key={revision.revision} className={styles.revision}><div><strong>v{revision.revision}</strong><time>{new Date(revision.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</time>{Number(revision.revision) < draft.revision && <button disabled={!!busy || !!turnId} onClick={() => void restore(Number(revision.revision))}>Restore this revision</button>}</div>
@@ -268,7 +279,8 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
         </aside>
       </div>
       {publisherOpen && draft?.kind === 'template' && api.current && identity.signMessage && <TemplatePublisher key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPublisherOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
-      {preparationOpen && draft?.kind === 'maker' && api.current && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
+      {requirementReviewOpen && draft && api.current && <RequirementReviewDialog key={`${draft.id}-${draft.revision}`} api={api.current} draft={draft} onClose={() => setRequirementReviewOpen(false)} onComplete={() => { setRequirementReviewOpen(false); void retry(); }} />}
+      {preparationOpen && draft?.kind === 'maker' && api.current && identity.signMessage && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
       {catalogOpen && api.current && identity.address && identity.signMessage && <TemplateCatalog key={identity.address} api={api.current} address={identity.address} signMessage={identity.signMessage} onClose={() => { setCatalogOpen(false); void retry(); }} onSessionExpired={sessionExpired} onApply={async result => {
         await choose({ conversationId: result.conversationId, draftId: result.draft.id, title: result.draft.spec.title, revision: String(result.draft.revision), activeTurnId: null });
       }} />}

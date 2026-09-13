@@ -2,6 +2,8 @@
 
 The design uses standing authorization and event-driven reevaluation. It does not renew reports every ten minutes. This specification defines worker and recovery requirements; deployed behavior must be supported by implementation and environment evidence.
 
+The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health and resident worker persistence in migrations 010–012. CRE and chain adapters remain deployment-provided; without a verified adapter the service fails closed.
+
 ## Contract and delivery semantics
 
 - Report schema 2 uses `validUntil = 0`; legacy schema 1 retains bounded validity. Program deadlines and confirmation expiry are separate. A deadline opcode value of zero does not mean unlimited duration.

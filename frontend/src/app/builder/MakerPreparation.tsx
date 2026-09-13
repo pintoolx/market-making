@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatUnits } from 'viem';
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import { BuilderError, type BuilderClient, type Draft } from './client';
+import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventSubscription, type AuthorizationBinding } from './client';
 import { evidenceLabel, simulationState, verifyCompilation, verifyInventory,
   type Compilation, type CompilationItem, type InventoryResult, type SimulationDetail, type SimulationItem } from './preparation';
 import BuilderDialog from './BuilderDialog';
@@ -13,11 +13,14 @@ const stateLabel = { shipped: 'Registered', docked: 'Docked', 'unregistered-for-
 const units = (value: string, decimals: number) => formatUnits(BigInt(value), decimals);
 
 /** Read-only preparation and isolated background jobs. This component has no wallet signer. */
-export default function MakerPreparation({ api, draft, onClose, onSessionExpired }: {
-  api: BuilderClient; draft: Draft; onClose(): void; onSessionExpired(): void;
+export default function MakerPreparation({ api, draft, onClose, onSessionExpired, signMessage }: {
+  api: BuilderClient; draft: Draft; onClose(): void; onSessionExpired(): void; signMessage(message: string): Promise<`0x${string}`>;
 }) {
   const [busy, setBusy] = useState(''), [error, setError] = useState(''), [stale, setStale] = useState(false);
   const [inventory, setInventory] = useState<InventoryResult | null>(null), [artifact, setArtifact] = useState<Compilation | null>(null);
+  const [consent, setConsent] = useState<AutomationConsent | null>(null);
+  const [subscription, setSubscription] = useState<EventSubscription | null>(null);
+  const [binding, setBinding] = useState<AuthorizationBinding | null>(null);
   const [artifacts, setArtifacts] = useState<CompilationItem[]>([]), [runs, setRuns] = useState<SimulationItem[]>([]), [detail, setDetail] = useState<SimulationDetail | null>(null);
   const live = useRef(true), working = useRef(false), refreshEpoch = useRef(0);
   const compileKey = useRef<string | null>(null), simulationKey = useRef<string | null>(null), cancelKeys = useRef(new Map<string, string>());
@@ -29,13 +32,13 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   }, [onSessionExpired]);
   const load = useCallback(async () => {
     const ticket = ++refreshEpoch.current;
-    const [saved, compiled, simulations] = await Promise.all([api.draft(draft.id), api.compilations(draft.id), api.simulations(draft.id)]);
+    const [saved, compiled, simulations, currentConsent, currentSubscription, currentBinding] = await Promise.all([api.draft(draft.id), api.compilations(draft.id), api.simulations(draft.id), api.automationConsent(draft), api.eventSubscription(draft), api.authorizationBinding(draft)]);
     if (!live.current || ticket !== refreshEpoch.current) return;
     const changed = saved.draft.revision !== draft.revision || saved.draft.owner !== draft.owner;
     const current = !changed && compiled.artifacts.find(a => Number(a.revision) === draft.revision && a.manifestHash === digestJson(profile));
     const selected = current ? verifyCompilation(await api.compilation(current.artifactId), draft, current.artifactId) : null;
     if (!live.current || ticket !== refreshEpoch.current) return;
-    setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations);
+    setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations); setConsent(currentConsent); setSubscription(currentSubscription); setBinding(currentBinding);
     setDetail(value => value && simulations.simulations.some(r => r.id === value.id && r.state === value.state && r.current === value.current) ? value : null);
   }, [api, draft]);
   useEffect(() => {
@@ -89,6 +92,23 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
         !['mock', 'fork-with-overrides'].includes(saved.report.mode) || saved.report.passed !== saved.report.cases.every(c => c.passed !== false) ||
         saved.report.coverageComplete !== saved.report.cases.every(c => c.passed === true)))) throw new Error('preparation-result-mismatch');
     setDetail(saved);
+  }
+  async function enableAutomation() {
+    if (!artifact || stale || !binding) return;
+    const intent = await api.prepareAutomationConsent(draft, artifact.artifactId, crypto.randomUUID());
+    setBusy('Confirm event-management consent in your wallet');
+    const signature = await signMessage(intent.intent.message);
+    const result = await api.confirmAutomationConsent(intent.intent.id, intent.digest, signature, crypto.randomUUID());
+    await api.enableEventSubscription(draft, artifact.artifactId, result.consent.id, crypto.randomUUID());
+    await load();
+  }
+  async function revokeAutomation() {
+    if (!consent?.active) return;
+    const message = ['Pintool Builder revoke automation consent v1', `consent: ${consent.id}`, `owner: ${consent.owner.slice(7)}`,
+      `draft: ${consent.draftId}`, `strategyHash: ${consent.strategyHash}`, `scope: ${consent.scope}`].join('\\n');
+    setBusy('Confirm stopping event management in your wallet');
+    await api.revokeAutomationConsent(consent.id, await signMessage(message), crypto.randomUUID());
+    await load();
   }
   return <BuilderDialog title="Maker inventory and swap simulation" onClose={onClose}>
     <div className={styles.preparation}>
@@ -147,7 +167,12 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
           {detail.report ? <ul>{detail.report.cases.map(c => <li key={c.name}><span>{c.passed === null ? 'Not run' : c.passed ? 'Passed' : 'Failed'}</span> {c.name}{c.error ? ` · ${c.error}` : ''}</li>)}</ul> : <p>This job does not have complete results yet.</p>}
           <button onClick={() => setDetail(null)}>Hide cases</button></div>}
       </section>
-      <p className={styles.notice}>Next, verify each requirement, configure private Maker limits and approve event management before reviewing approve/ship transactions. These steps are not connected yet; preparation results do not enable trading.</p>
+      <section aria-label="Event management consent"><h3>4. Event triggers and automatic report updates</h3>
+        <p>Events request a new standing report only while this strategy, version and trusted Guard binding remain valid. Automatic updates do not swap, rebalance, approve, ship or dock assets. Consent expiry stops delivery and requires a new wallet signature.</p>
+        {consent?.active ? <div className={styles.consentResult}><strong>{subscription?.state === 'enabled' ? 'Event management enabled' : 'Consent is valid, but the event service is not enabled'}</strong><p>Consent expires: {new Date(consent.expiresAt).toLocaleString('en-US')} · Bound strategy hash: <span className={styles.address}>{consent.strategyHash}</span></p>{binding && <p>Guard report binding: {binding.reportTransactionHash} · nonce {binding.reportNonce}</p>}{subscription?.lastEvaluatedAt && <p>Last evaluation: {new Date(subscription.lastEvaluatedAt).toLocaleString('en-US')}{subscription.lastChangedAt ? ` · Last condition change: ${new Date(subscription.lastChangedAt).toLocaleString('en-US')}` : ''}</p>}<button disabled={!!busy || stale} onClick={() => void act('Stopping event management', revokeAutomation)}>Stop automatic updates</button></div>
+          : <div className={styles.consentResult}><p>{consent ? 'The previous consent expired or was stopped.' : 'Event management is not authorized.'}</p>{!binding && <p className={styles.notice}>Complete trusted Guard report binding and Maker signature before enabling event triggers. The agent and this screen cannot substitute for that step.</p>}<button className={styles.primary} disabled={!!busy || stale || !artifact || !binding} onClick={() => void act('Preparing event-management consent', enableAutomation)}>Enable automatic event updates</button><small>The current Maker wallet signs a message bound to this strategy revision. The service accepts only that signature and never receives the private key.</small></div>}
+      </section>
+      <p className={styles.notice}>Next, verify each requirement and configure private Maker limits before reviewing approve/ship transactions. Preparation results and event consent do not enable trading.</p>
     </div>
   </BuilderDialog>;
 }

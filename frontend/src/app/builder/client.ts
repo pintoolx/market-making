@@ -16,6 +16,29 @@ export type Conversation = { conversationId: string; draftId: string; title: str
 export type Message = { id: string; role: 'user' | 'assistant'; content: string; sequence: string };
 export type Revision = { revision: string; createdAt: string; diff: { path: string; before: unknown; after: unknown }[] };
 export type Validation = { revision: number; ready: boolean; errors: { code: string; path: string; message: string }[]; missingFields: string[] };
+export type RequirementReviewCriterion = { criterion: Record<string, unknown>; enforcement: 'onchain_enforced' | 'preflight_only' | 'informational' | 'unsupported';
+  matchesDraft: boolean | null; interpretation: string; actual: string | null; limitation: string; evidence: string };
+export type RequirementReviewRow = { id: string; text: string; priority: 'must' | 'prefer'; sourceMessageId: string; criteria: RequirementReviewCriterion[]; needsInterpretation: boolean };
+export type RequirementReview = { schemaVersion: 1; engineVersion: string; id: string; owner: string; draftId: string; revision: number;
+  contentDigest: `0x${string}`; manifestHash: `0x${string}`; draft: Draft; requirements: RequirementReviewRow[]; compilation: unknown;
+  expiresAt: string; registrationReady: false };
+export type RequirementReceipt = { schemaVersion: 1; engineVersion: string; reviewId: string; reviewDigest: `0x${string}`; owner: string;
+  draftId: string; fromRevision: number; revision: number; contentDigest: `0x${string}`; manifestHash: `0x${string}`;
+  decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[]; userConfirmed: true; needsRecompile: boolean;
+  confirmedAt: string; registrationReady: false };
+export type AutomationConsentIntent = { schemaVersion: 1; id: string; owner: string; draftId: string; revision: number; artifactId: string;
+  contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
+  message: string; registrationReady: false };
+export type AutomationConsent = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
+  contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
+  message: string; signature: `0x${string}`; consentDigest: `0x${string}`; active: boolean; registrationReady: false };
+export type EventSubscription = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; generation: number;
+  state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null;
+  lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null };
+export type AuthorizationBinding = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
+  manifestHash: `0x${string}`; contentDigest: `0x${string}`; maker: string; guard: string; router: string; strategyHash: `0x${string}`; programHash: `0x${string}`;
+  orderHash: `0x${string}`; reportSchema: 2; reportDigest: `0x${string}`; reportTransactionHash: `0x${string}`; reportNonce: string;
+  makerMessage: string; makerSignature: `0x${string}`; bindingDigest: `0x${string}`; registrationReady: false };
 export type Turn = { id: string; state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'; messageId: string | null };
 export type TurnEvent = { sequence: string; attempt: number; kind: 'started' | 'text' | 'tool' | 'completed' | 'failed' | 'cancelled' | 'superseded'; payload: { text?: string; name?: string; ok?: boolean } };
 
@@ -36,6 +59,16 @@ export class BuilderError extends Error {
       'inventory-busy': 'Inventory reads are busy. Try again shortly.', 'simulation-unavailable': 'Simulation is unavailable or temporarily unable to run.',
       'simulation-artifact-stale': 'The draft or compilation changed. Return to the strategy and compile again.', 'simulation-hourly-budget': 'The hourly simulation limit has been reached. Try again later.',
       'strategy-incomplete-or-invalid': 'Public parameters or Maker allocations are incomplete. Complete them in the conversation first.', 'compile-rejected': 'The compiler rejected these parameters. Review the curve and amounts in the conversation.',
+      'requirement-review-required': 'Review each strategy requirement before publication.', 'requirement-interpretation-required': 'Requirements need a concrete interpretation before review.',
+      'requirement-review-expired': 'The requirement review expired. Prepare it again.', 'requirement-review-mismatch': 'The strategy or deployment profile changed. Prepare a new review.',
+      'requirement-review-already-confirmed': 'This requirement review is already complete. Use the latest revision.', 'requirement-compilation-required': 'Compile the current revision before reviewing requirements.',
+      'requirement-artifact-integrity': 'The compilation does not match this strategy. Compile it again.', 'requirement-review-budget': 'The hourly requirement-review limit has been reached. Try again later.',
+      'automation-consent-required': 'Explicit Maker consent is required before enabling automatic report updates.', 'automation-consent-expired': 'Automation consent expired. Sign again to continue.',
+      'automation-consent-mismatch': 'The strategy or compilation changed. Prepare consent again.', 'automation-consent-integrity': 'Automation consent could not be verified. Reload and retry.',
+      'invalid-automation-consent-signature': 'The automation-consent signature does not match this wallet.', 'invalid-automation-revoke-signature': 'The revoke signature does not match this consent.',
+      'authorization-binding-required': 'Verify the latest Guard report binding before enabling event management.', 'binding-proof-unavailable': 'Trusted Guard report evidence is unavailable.',
+      'binding-proof-mismatch': 'The Guard report does not match this strategy revision.', 'authorization-binding-expired': 'The binding review expired. Verify the Guard report again.',
+      'authorization-binding-mismatch': 'The binding or strategy revision changed. Verify it again.', 'authorization-binding-integrity': 'The authorization binding could not be verified. Reload and retry.',
     } as Record<string, string>)[code] ?? 'Unable to connect to the strategy workspace. Please retry.');
   }
 }
@@ -75,6 +108,33 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
     templates: () => call<{ templates: TemplateItem[] }>('/templates'),
     template: (id: string, version: number) => call<PublishedTemplate>(`/templates/${encodeURIComponent(id)}/versions/${version}`),
     templateContext: async (id: string, revision: number) => (await call<{ context: TemplateContext | null }>(`/drafts/${id}/template-context?revision=${revision}`)).context,
+    requirementReview: async (draft: Draft) => (await call<{ receipt: RequirementReceipt | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/requirement-review?revision=${draft.revision}`)).receipt,
+    prepareRequirementReview: (draft: Draft, key: string) => call<{ review: RequirementReview; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/requirement-review`, { expectedRevision: draft.revision }, key),
+    confirmRequirementReview: (reviewId: string, digest: `0x${string}`, decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[], key: string) =>
+      call<{ receipt: RequirementReceipt }>(`/requirement-reviews/${reviewId}/confirm`, { digest, decisions }, key),
+    automationConsent: async (draft: Draft) => (await call<{ consent: AutomationConsent | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/automation-consent?revision=${draft.revision}`)).consent,
+    prepareAutomationConsent: (draft: Draft, artifactId: string, key: string) => call<{ intent: AutomationConsentIntent; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/automation-consent`, { expectedRevision: draft.revision, artifactId }, key),
+    confirmAutomationConsent: (intentId: string, digest: `0x${string}`, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
+      `/automation-consents/${intentId}/confirm`, { digest, signature }, key),
+    revokeAutomationConsent: (consentId: string, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
+      `/automation-consents/${consentId}/revoke`, { signature }, key),
+    eventSubscription: async (draft: Draft) => (await call<{ subscription: EventSubscription | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/event-subscription?revision=${draft.revision}`)).subscription,
+    enableEventSubscription: (draft: Draft, artifactId: string, consentId: string, key: string) => call<{ subscription: EventSubscription }>(
+      `/drafts/${draft.id}/event-subscription`, { expectedRevision: draft.revision, artifactId, consentId }, key),
+    stopEventSubscription: (subscriptionId: string, key: string) => call<{ subscription: EventSubscription }>(
+      `/event-subscriptions/${subscriptionId}/stop`, {}, key),
+    authorizationBinding: async (draft: Draft) => (await call<{ binding: AuthorizationBinding | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/authorization-binding?revision=${draft.revision}`)).binding,
+    prepareAuthorizationBinding: (draft: Draft, artifactId: string, reportDigest: `0x${string}`, reportTransactionHash: `0x${string}`, reportNonce: string, key: string) =>
+      call<{ intent: { id: string; message: string; registrationReady: false }; digest: `0x${string}` }>(`/drafts/${draft.id}/authorization-binding`,
+        { expectedRevision: draft.revision, artifactId, reportDigest, reportTransactionHash, reportNonce }, key),
+    confirmAuthorizationBinding: (intentId: string, digest: `0x${string}`, signature: `0x${string}`, key: string) => call<{ binding: AuthorizationBinding }>(
+      `/authorization-bindings/${intentId}/confirm`, { digest, signature }, key),
     inventory: (draft: Draft) => call<InventoryResult>(`/drafts/${draft.id}/inventory?revision=${draft.revision}`),
     compilations: (id: string) => call<{ artifacts: CompilationItem[] }>(`/drafts/${id}/artifacts`),
     compilation: (id: string) => call<Compilation>(`/artifacts/${id}`),

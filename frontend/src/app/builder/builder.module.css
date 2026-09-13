@@ -172,6 +172,16 @@
 .simulationCard, .caseDetails { margin: 20px 0; border: 1px solid var(--line); border-radius: 10px; padding: 0 16px 16px; background: #edf2fa; }
 .caseDetails li { overflow-wrap: anywhere; }
 .caseDetails li span { color: var(--blue); font-weight: 600; }
+.requirementReview { padding: 0 24px; }
+.requirementReviewRow { margin: 18px 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.requirementReviewRow header { display: flex; flex-direction: column; gap: 5px; }
+.requirementReviewRow header small, .requirementCriterion small { color: var(--muted); font-size: 11px; }
+.requirementCriterion { margin: 14px 0; padding: 12px; border-left: 3px solid var(--blue); background: #f0f4fa; }
+.requirementCriterion p { margin: 4px 0; }
+.consentResult { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #edf2fa; }
+.consentResult p { overflow-wrap: anywhere; }
+.consentResult small { display: block; margin-top: 12px; font-size: 11px; line-height: 1.8; color: var(--muted); }
+@media (max-width: 620px) { .requirementReview { padding: 0 16px; } }
 @media (max-width: 620px) { .preparation { padding: 8px 16px 18px; } .preparation h3 { font-size: 18px; } }
 @media (max-width: 620px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); } .dialogHeading { padding: 14px 16px; gap: 12px; } .dialogHeading h2 { font-size: 16px; } .publicReview, .privatePanel, .dialogFooter, .catalog, .catalogDetail, .publicationComplete { padding: 18px 16px; } .formGrid { grid-template-columns: minmax(0, 1fr); gap: 0; } .dialog h3 { font-size: 20px; } }
 @media (max-width: 980px) { .columns { grid-template-columns: minmax(0, 1fr); } .welcome { gap: 28px; } .messages { max-height: 55dvh; } .strategyTitle p { justify-content: space-between; } }
