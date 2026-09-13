@@ -5,7 +5,7 @@ The application exposes the two sides of the PinTool market:
 | Route | Purpose |
 |---|---|
 | `/` | Product entry and role selection |
-| `/studio` | Browse six templates, save public design drafts, and publish supported CLMM versions |
+| `/studio` | Browse six templates or open the custom Strategy Builder; save public drafts and publish supported CLMM versions |
 | `/maker` | Discover strategies, configure a Maker mandate and monitor verified activity |
 | `/profile` | Manage strategies, mandates, account details and Provider identity |
 

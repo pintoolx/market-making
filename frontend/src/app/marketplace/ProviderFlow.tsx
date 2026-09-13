@@ -1,18 +1,34 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Primary from '../components/shared/Primary';
 import { useAccount } from '../providers/useAccount';
-import { AQUA_TEMPLATES, CATEGORY_LABELS } from './aquaTemplates';
+import { AQUA_TEMPLATES } from './aquaTemplates';
 import { PageHead } from './ui';
 import ClmmPublisher from './ClmmPublisher';
 import TemplateDraftEditor from './TemplateDraftEditor';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
+import studio from './studio.module.css';
+
+function StudioCard({ label, title, description, action, onSelect }: { label: string; title: string; description: string; action: string; onSelect(): void }) {
+  return <article className={`${styles.card} ${aqua.card}`}>
+    <div className={styles.cardBg} aria-hidden="true" />
+    <div className={styles.cardBody}>
+      <div className={styles.tagRow}><span className={`${styles.tag} ${aqua.chip}`}>{label}</span></div>
+      <h3 className={styles.cardTitle}>{title}</h3>
+      <p className={aqua.summary}>{description}</p>
+    </div>
+    <div className={`${styles.cardActions} ${studio.cardActions}`}>
+      <Primary onClick={onSelect}>{action}</Primary>
+    </div>
+  </article>;
+}
 
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const account = useAccount();
+  const router = useRouter();
   const [editing, setEditing] = useState<string | null>(null);
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('edit');
@@ -31,18 +47,18 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
     return <TemplateDraftEditor key={`${owner}:${template.id}`} template={template} owner={owner} onBack={() => open(null)} />;
   }
   return <section className={aqua.flow}>
-    <PageHead eyebrow="Provider Studio" title="Start with a strategy template.">
-      Choose a starting point, shape its parameters and make it your own.
+    <PageHead eyebrow="Provider Studio" title="Start with your strategy.">
+      Customize a template or design your own with the strategy assistant.
     </PageHead>
-    {process.env.NEXT_PUBLIC_BUILDER_ENABLED === 'true' && <p><Link href="/builder">Design with the strategy assistant →</Link></p>}
-    {(['Base strategy', 'Strategy modifier', 'Capital policy'] as const).map(category => <section key={category} className={aqua.flow} aria-label={CATEGORY_LABELS[category]}>
-      <h2 className={aqua.sectionTitle}>{CATEGORY_LABELS[category]}</h2>
-      <div className={`${styles.grid} ${aqua.grid}`}>
-        {AQUA_TEMPLATES.filter(t => t.category === category).map(t => <article key={t.id} className={aqua.panel}>
-          <span className={aqua.eyebrow}>{t.label}</span><h3>{t.name}</h3><p>{t.summary}</p>
-          <Primary onClick={() => open(t.id)}>Customize template</Primary>
-        </article>)}
-      </div>
-    </section>)}
+    <div className={aqua.sectionTop}>
+      <h2 className={aqua.sectionTitle}>Choose a starting point</h2>
+      <span className={aqua.muted}>{AQUA_TEMPLATES.length + 1} options</span>
+    </div>
+    <div className={studio.templateGrid}>
+      {AQUA_TEMPLATES.map(t => <StudioCard key={t.id} label={t.label} title={t.name} description={t.summary} action="Customize template" onSelect={() => open(t.id)} />)}
+      <StudioCard label="Strategy Builder" title="Build your own"
+        description="Describe your goals, compare supported curves and refine your strategy with the assistant."
+        action="Open Strategy Builder" onSelect={() => router.push('/builder')} />
+    </div>
   </section>;
 }
