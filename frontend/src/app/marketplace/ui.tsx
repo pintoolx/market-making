@@ -3,7 +3,6 @@ import ProviderIdentity from './ProviderIdentity';
 import type { Listing } from './publishedStore';
 import styles from './page.module.css';
 import aqua from './aqua.module.css';
-import catalog from './catalog.module.css';
 
 // Layout pieces shared by AquaApp (/, /studio, /maker) and /profile.
 export function Steps({ steps, current }: { steps: string[]; current: number }) {
@@ -39,6 +38,6 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
       {listing.feePct !== undefined && <p className={aqua.feeLine}>{listing.feePct === 0 ? 'No fee' : `Proposed profit share: ${listing.feePct}% · collection not enabled`}</p>}
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
     </div>
-    {action && <div className={`${styles.cardActions} ${catalog.cardActions}`}>{action}</div>}
+    {action && <div className={`${styles.cardActions} ${aqua.cardActions}`}>{action}</div>}
   </article>;
 }

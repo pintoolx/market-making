@@ -602,7 +602,7 @@
 }
 
 .card {
-  width: 358px;
+  width: 100%;
   min-height: 202px;
   border-radius: 16px;
   background: #e4eaf2;
@@ -611,14 +611,13 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
   position: relative;
 }
 
 .cardBg {
   position: absolute;
   inset: 0 auto auto 0;
-  width: 358px;
+  width: 100%;
   height: 136px;
   background: linear-gradient(180deg, #d8e4f4 0%, #e4eaf2 100%);
   pointer-events: none;

@@ -16,7 +16,6 @@ import { saveMandateReference } from './mandateReferenceStore';
 import { usePublishedListings, type Listing } from './publishedStore';
 import { ListingCard, PageHead, Steps } from './ui';
 import aqua from './aqua.module.css';
-import catalog from './catalog.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { discoverStrategyNames } from '../ens/strategyNames';
 import { FEATURED } from './featuredStrategies';
@@ -320,7 +319,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'choose' && <>
       <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
-      <div className={catalog.grid}>
+      <div className={aqua.grid}>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
       </div>
     </>}

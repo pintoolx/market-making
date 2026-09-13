@@ -9,7 +9,6 @@ import ClmmPublisher from './ClmmPublisher';
 import TemplateDraftEditor from './TemplateDraftEditor';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
-import catalog from './catalog.module.css';
 
 function StudioCard({ label, title, description, action, onSelect }: { label: string; title: string; description: string; action: string; onSelect(): void }) {
   return <article className={`${styles.card} ${aqua.card}`}>
@@ -19,7 +18,7 @@ function StudioCard({ label, title, description, action, onSelect }: { label: st
       <h3 className={styles.cardTitle}>{title}</h3>
       <p className={aqua.summary}>{description}</p>
     </div>
-    <div className={`${styles.cardActions} ${catalog.cardActions}`}>
+    <div className={`${styles.cardActions} ${aqua.cardActions}`}>
       <Secondary fullWidth onClick={onSelect}>{action}</Secondary>
     </div>
   </article>;
@@ -49,7 +48,7 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
       <h2 className={aqua.sectionTitle}>Choose a starting point</h2>
       <span className={aqua.muted}>{AQUA_TEMPLATES.length + 1} options</span>
     </div>
-    <div className={catalog.grid}>
+    <div className={aqua.grid}>
       {AQUA_TEMPLATES.map(t => <StudioCard key={t.id} label={t.label} title={t.name} description={t.summary} action="Customize template" onSelect={() => open(t.id)} />)}
       <StudioCard label="Strategy Builder" title="Build your own"
         description="Describe your goals, compare supported curves and refine your strategy with the assistant."
