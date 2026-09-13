@@ -6,14 +6,14 @@ import { createSimulations } from './simulations.ts'
 import { forkSimulationAdapter, runSimulation } from './simulation-worker.ts'
 
 /** Dedicated process, one owned fork at a time. Startup does not run privileged migrations. */
-export async function simulationMain(signal: AbortSignal) {
-  if (process.env.BUILDER_SIMULATION_ENABLED !== 'true') throw new Error('simulation-worker-disabled')
-  const pool = database(process.env.DATABASE_URL ?? '')
+export async function simulationMain(signal: AbortSignal, env: NodeJS.ProcessEnv = process.env) {
+  if (env.BUILDER_SIMULATION_ENABLED !== 'true') throw new Error('simulation-worker-disabled')
+  const pool = database(env.DATABASE_URL ?? '')
   try {
     const schema = await pool.query("SELECT name FROM builder.schema_migrations WHERE name='005_simulation_runs.sql'")
     if (schema.rowCount !== 1) throw new Error('simulation-migration-required')
     const simulations = createSimulations(pool, profile), adapter = forkSimulationAdapter(profile, {
-      rpcUrl: process.env.BUILDER_SIMULATION_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com', anvil: process.env.ANVIL,
+      rpcUrl: env.BUILDER_SIMULATION_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com', anvil: env.ANVIL,
     })
     console.log(JSON.stringify({ event: 'simulation-worker-started', profileId: profile.id }))
     while (!signal.aborted) {
