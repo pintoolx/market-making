@@ -198,8 +198,8 @@
 .decisionGrid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: 32px; align-items: start; }
 .policyReview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--aqua-line); border-radius: 12px; background: var(--aqua-line); }
 .policyReview > div { min-width: 0; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: #e4eaf2; }
-.policyReview span, .intentRows span, .evidence span { font-size: 12px; line-height: 1.4; color: var(--aqua-muted); }
-.policyReview strong, .intentRows strong, .evidence strong { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.policyReview span, .intentRows span, .evidence span, .detailRows span { font-size: 12px; line-height: 1.4; color: var(--aqua-muted); }
+.policyReview strong, .intentRows strong, .evidence strong, .detailRows strong { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
 .privacyRoute { padding: 24px 0; border-top: 2px solid var(--aqua-ink); display: flex; flex-direction: column; gap: 14px; }
 .privacyRoute h2 { margin: 0 0 8px; max-width: 18ch; font-size: 24px; line-height: 1.12; letter-spacing: -.025em; }
 .privacyRoute > div { padding: 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--aqua-line); font-size: 13px; }
@@ -226,6 +226,18 @@
 .intentRows strong { text-align: right; }
 .intentRows dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .monitorLayout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
+.monitorSummary { gap: 20px; }
+.monitorLead { margin: -4px 0 0; max-width: 58ch; color: var(--aqua-muted); font-size: 14px; line-height: 1.6; }
+.monitorActions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.monitorActions button { min-height: 44px; }
+.tradeLink { margin-left: auto; color: var(--aqua-accent); font-size: 13px; font-weight: 700; text-decoration: none; }
+.tradeLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.tradeLink:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 4px; border-radius: 3px; }
+.monitorDetails { min-width: 0; padding: 24px 26px; border: 2px solid var(--aqua-ink); border-radius: 14px; background: #e4eaf2; }
+.monitorDetails .sectionTop { margin: 0 0 14px; }
+.detailRows { display: grid; border-top: 1px solid var(--aqua-line); }
+.detailRows > div { min-width: 0; padding: 14px 0; border-bottom: 1px solid var(--aqua-line); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.detailRows > div > :last-child { text-align: right; }
 .strategyRoster, .activityPanel { padding: 22px; border: 2px solid var(--aqua-ink); border-radius: 14px; background: #e4eaf2; }
 .strategyRoster { display: grid; gap: 16px; min-width: 0; }
 .strategyRoster .sectionTop { flex-wrap: wrap; gap: 4px 16px; margin-bottom: 0; }
@@ -333,6 +345,12 @@
   .sectionTop { align-items: flex-start; flex-wrap: wrap; }
   .privacyRoute > div, .intentRows > div { align-items: flex-start; flex-direction: column; gap: 6px; }
   .privacyRoute > div strong, .intentRows strong { text-align: left; }
+  .monitorActions { align-items: stretch; flex-direction: column; }
+  .monitorActions > * { width: 100%; box-sizing: border-box; }
+  .tradeLink { margin-left: 0; padding: 10px 0; }
+  .monitorDetails { padding: 20px; }
+  .detailRows > div { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .detailRows > div > :last-child { text-align: left; }
   .rosterRow, .activityList li { align-items: flex-start; flex-direction: column; }
   .rosterStatus, .activityList li > div:last-child { align-items: flex-start; }
   .infoForm .actionRow { grid-template-columns: 1fr; }

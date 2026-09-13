@@ -23,9 +23,8 @@ import { strategyHref, restoreMarketplaceScroll, consumeMarketplaceReturn } from
 import StrategyLink from './StrategyLink';
 import ProviderIdentity from './ProviderIdentity';
 import MakerActivation from './MakerActivation';
-import CopyAddress from '../profile/CopyAddress';
 
-const STEPS = ['Choose a strategy', 'Set up liquidity', 'Review', 'Monitor'];
+const STEPS = ['Choose a strategy', 'Add liquidity', 'Set private limits'];
 
 type Phase = 'choose' | 'detail' | 'activate' | 'limits' | 'review' | 'submitting' | 'monitor';
 
@@ -264,14 +263,15 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         ? { phase: 'limits' as const, label: 'Private limits' }
         : null;
 
-  const currentStep = ['choose', 'detail', 'activate'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
+  const currentStep = ['choose', 'detail'].includes(phase) ? 0 : phase === 'activate' ? 1 : 2;
+  const monitorName = mandate?.strategies.length ? presentMandate(mandate.strategies).name : 'Your liquidity';
   const title = phase === 'choose' ? 'Choose a strategy for your liquidity.'
     : phase === 'detail' ? selected[0]?.name ?? 'Strategy details.'
       : phase === 'activate' ? 'Add liquidity from your wallet.'
       : phase === 'limits' ? 'Set your liquidity limits.'
       : phase === 'review' ? 'Review your setup.'
         : phase === 'submitting' ? 'Securing your setup.'
-          : 'Your liquidity.';
+          : monitorName;
 
   // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
   if ((phase === 'choose' && (linkedMandateId || linkedId)) || loadingLinked) {
@@ -293,7 +293,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     {phase === 'monitor' && <Link href="/profile?tab=making" className={aqua.backLink}>← My liquidity</Link>}
     {previousStep && <button type="button" className={aqua.backLink} onClick={() => go(previousStep.phase)}>← {previousStep.label}</button>}
     <PageHead eyebrow="Liquidity" title={title} headingRef={heading} />
-    <Steps steps={STEPS} current={currentStep} />
+    {phase !== 'monitor' && <Steps steps={STEPS} current={currentStep} />}
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
     {phase === 'choose' && <>
@@ -373,36 +373,36 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onEdit }: { mandate: M
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, []);
-  const fresh = (item: Pick<MandateState['strategies'][number], 'readiness'>) => !!item.readiness?.validUntil && Date.parse(item.readiness.validUntil) > now;
   const authorizationCurrent = now > 0 && (mandate.evidence.expiresAt === null || Date.parse(mandate.evidence.expiresAt) > now);
-  const active = authorizationCurrent ? mandate.strategies.find(item => fresh(item) && item.readiness?.authorized) : undefined;
-  const verified = now > 0 && mandate.strategies.every(fresh);
-  const { name, adaptive, profiles, profileName } = presentMandate(mandate.strategies);
+  const active = authorizationCurrent ? mandate.strategies.find(item => item.status === 'active') : undefined;
+  const { name, profileName } = presentMandate(mandate.strategies);
+  const current = active ?? mandate.strategies[0];
+  const readiness = current?.readiness;
+  const aquaReady = readiness?.shipped && readiness?.programValid;
+  const fundsReady = readiness?.funded;
+  const visibleEvents = mandate.events.filter(event => event.type !== 'strategy-activated');
   return <div className={aqua.monitorLayout}>
-    <section className={aqua.panel}>
-      <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Current authorization</span><h2>{name}</h2></div></div>
-      <div className={aqua.intentRows}><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div><div><span>Market</span><strong>WETH / USDC</strong></div><div><span>Monitoring</span><strong>Automatic</strong></div><div><span>Limits</span><strong>{mandate.evidence.expiresAt === null ? 'Active until changed' : 'Update required'}</strong></div></div>
-      <div className={aqua.actionRow}><Primary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Primary><Secondary onClick={onEdit}>Change limits</Secondary></div>
+    <section className={`${aqua.panel} ${aqua.monitorSummary}`}>
+      <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Execution authorization</span><h2>{active ? 'Active' : now === 0 ? 'Checking…' : 'Paused'}</h2></div></div>
+      <p className={aqua.monitorLead}>{active ? `${name} is monitored automatically and remains authorized until its private conditions or your limits change.` : `${name} is not currently authorized to trade.`}</p>
+      <div className={aqua.intentRows}><div><span>Market</span><strong>WETH / USDC</strong></div><div><span>Current mode</span><strong>{active ? profileName(active.listingId) : 'Paused'}</strong></div><div><span>Monitoring</span><strong>Automatic</strong></div><div><span>Limits</span><strong>{mandate.evidence.expiresAt === null ? 'Until changed' : 'Update required'}</strong></div></div>
+      <div className={aqua.monitorActions}><Primary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Primary><Secondary onClick={onEdit}>Change limits</Secondary>{current && <Link className={aqua.tradeLink} href={`/trade?strategy=${encodeURIComponent(current.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trade page ↗</Link>}</div>
     </section>
 
-    <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
-      <div className={aqua.sectionTop}><h2 id="strategy-roster-title" className={aqua.sectionTitle}>Strategy modes</h2><span className={aqua.muted}>{adaptive ? 'One strategy · one wallet balance' : 'Self-custodial liquidity'}</span></div>
-      {profiles.map(strategy => <article key={strategy.listingId} className={aqua.rosterRow} data-status={strategy.status}>
-        <div>{adaptive ? <span className={aqua.eyebrow} title={strategy.provider}>{name}</span>
-          : /^0x[a-f0-9]{40}$/i.test(strategy.provider ?? '') ? <CopyAddress address={strategy.provider!} short />
-            : <span className={aqua.eyebrow}>{strategy.provider ?? 'Independent Provider'}</span>}<strong>{strategy.name}</strong></div>
-        <div className={aqua.rosterStatus}>
-          <span>{'readiness' in strategy && fresh(strategy) ? strategy.readiness?.authorized ? 'Active' : strategy.status === 'paused' ? 'Paused' : 'Standby' : 'Refresh to check'}</span>
-          {'readiness' in strategy && <small>Authorization: {!fresh(strategy) ? 'check required' : strategy.readiness?.authorized ? 'active' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'ready' : 'check required'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'ready' : 'check required'}</small>}
-          {strategy.strategyHash && <CopyStrategyHash value={strategy.strategyHash} />}
-        </div>
-        <div className={aqua.rosterActions}><Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trade page ↗</Link></div>
-      </article>)}
+    <section className={aqua.monitorDetails} aria-labelledby="execution-details-title">
+      <div className={aqua.sectionTop}><h2 id="execution-details-title" className={aqua.sectionTitle}>Execution details</h2><span className={aqua.muted}>Self-custodial</span></div>
+      <div className={aqua.detailRows}>
+        <div><span>Strategy</span><strong>{current?.name ?? name}</strong></div>
+        <div><span>Strategy ID</span>{current?.strategyHash && <CopyStrategyHash value={current.strategyHash} />}</div>
+        <div><span>Aqua liquidity</span><strong>{aquaReady ? 'Ready' : 'Refresh to verify'}</strong></div>
+        <div><span>Wallet funds</span><strong>{fundsReady ? 'Ready' : 'Refresh to verify'}</strong></div>
+        <div><span>Latest authorization</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View authorization transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div>
+      </div>
     </section>
 
     <section className={aqua.activityPanel} aria-labelledby="mandate-activity-title">
-      <div className={aqua.sectionTop}><h2 id="mandate-activity-title" className={aqua.sectionTitle}>Recent activity</h2><span className={aqua.muted}>{mandate.events.length} events</span></div>
-      {mandate.events.length ? <ol className={aqua.activityList}>{mandate.events.map(event => {
+      <div className={aqua.sectionTop}><h2 id="mandate-activity-title" className={aqua.sectionTitle}>Recent activity</h2><span className={aqua.muted}>{visibleEvents.length} events</span></div>
+      {visibleEvents.length ? <ol className={aqua.activityList}>{visibleEvents.map(event => {
         const title = event.title.replace('Tight Market', 'Tight mode').replace('Defensive Market', 'Defensive mode').replace('Guard authorization confirmed', 'Authorization updated');
         const detail = event.detail.startsWith('CRE execution ') ? 'PinTool published the new execution authorization on Ethereum Sepolia.'
           : event.detail === 'The strategy may execute within the confirmed Guard limits.' ? 'This strategy mode passed its private checks and is available for trading.'
@@ -412,7 +412,6 @@ function MandateMonitor({ mandate, refreshing, onRefresh, onEdit }: { mandate: M
       })}</ol> : <p className={aqua.muted}>Confirmed activity will appear here.</p>}
     </section>
 
-    <div className={aqua.evidence}><div><span>Latest authorization</span><a className={aqua.evidenceValue} href={mandate.evidence.reportExplorerUrl} target="_blank" rel="noreferrer" aria-label={`View authorization transaction ${mandate.evidence.reportTransactionHash} on Etherscan`}><code>{shortHash(mandate.evidence.reportTransactionHash)}</code><b>View ↗</b></a></div><div><span>Aqua setup</span><strong>{profiles.length} {profiles.length === 1 ? 'strategy mode uses' : 'strategy modes share'} this wallet&apos;s liquidity</strong></div><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div></div>
   </div>;
 }
 
