@@ -133,6 +133,6 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
       </div>
       {!publicKey && <p className={aqua.muted}>Publication is waiting for a configured workflow encryption key.</p>}
     </form>
-    <EnsWorkspace key={provider} account={account} release={latest} />
+    {latest?.state === 'published' && <EnsWorkspace key={provider} account={account} release={latest} />}
   </section>;
 }

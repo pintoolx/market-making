@@ -15,7 +15,7 @@ import styles from '../ens.module.css';
 
 export default function EnsSetupClient() {
   const account = useAccount();
-  return <div className={`${pageStyles.page} ${aqua.page}`}><SiteHeader role="names" /><main className={`${pageStyles.main} ${aqua.flow}`}><EnsPlatformSetup key={account.address} account={account} /></main><SiteFooter /></div>;
+  return <div className={`${pageStyles.page} ${aqua.page}`}><SiteHeader role="provider" /><main className={`${pageStyles.main} ${aqua.flow}`}><EnsPlatformSetup key={account.address} account={account} /></main><SiteFooter /></div>;
 }
 
 function EnsPlatformSetup({ account }: { account: Account }) {
@@ -53,6 +53,6 @@ function EnsPlatformSetup({ account }: { account: Account }) {
     {!account.authenticated && <Primary onClick={account.login}>Connect platform owner wallet</Primary>}
     <p className={aqua.hint}>ENS uses its own MockUSDC fee token on Sepolia. This setup never approves the WETH or Circle USDC used by Maker strategies. The parent remains managed by the platform owner.</p>
     <ActionFeedback progress={progress} error={error} success={success} />
-    <Link href="/ens">Manage strategy names →</Link>
+    <Link href="/profile?tab=account">Manage your Provider profile →</Link>
   </section>;
 }

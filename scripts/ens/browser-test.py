@@ -32,10 +32,12 @@ with sync_playwright() as p:
         page.get_by_label('Provider label', exact=True).fill('browser-demo')
         page.get_by_role('button', name='Claim Provider name', exact=True).click()
     expect(page.get_by_text('browser-demo.pintool.eth', exact=True)).to_be_visible()
+    page.get_by_role('button', name='Manage strategy name', exact=True).click()
     page.get_by_role('button', name='Approve version for ENS', exact=True).click()
     expect(page.get_by_text('Version 1 approved.', exact=False)).to_be_visible()
     page.get_by_role('button', name='Publish approved version', exact=True).click()
     expect(page.get_by_text('Version 1 is discoverable', exact=False)).to_be_visible()
+    page.get_by_text('Advanced · Publisher permissions', exact=True).click()
     page.get_by_label('Publisher wallet', exact=True).fill(delegate)
     page.get_by_role('button', name='Authorize publisher', exact=True).click()
     expect(page.get_by_text('Publisher can update', exact=False)).to_be_visible()
@@ -55,6 +57,7 @@ with sync_playwright() as p:
                 break
         time.sleep(.1)
     page.get_by_label('Test role', exact=True).select_option('provider')
+    page.get_by_role('button', name='Manage strategy name', exact=True).click()
     expect(page.get_by_text('Saved publication: Browser range v2, version 2.', exact=True)).to_be_visible()
     page.get_by_role('button', name='Approve version for ENS', exact=True).click()
     expect(page.get_by_text('Version 2 approved.', exact=False)).to_be_visible()
@@ -75,13 +78,15 @@ with sync_playwright() as p:
     assert page.get_by_role('button', name='Review this version', exact=True).count() == 0
 
     page.get_by_label('Test role', exact=True).select_option('provider')
+    page.get_by_role('button', name='Manage strategy name', exact=True).click()
+    page.get_by_text('Advanced · Publisher permissions', exact=True).click()
     page.get_by_label('Publisher wallet', exact=True).fill(delegate)
     page.get_by_role('button', name='Revoke publisher', exact=True).click()
     expect(page.get_by_text('Publisher access revoked and checked onchain.', exact=True)).to_be_visible()
     for width in [375, 768, 1280]:
         page.set_viewport_size({'width': width, 'height': 1000})
         page.screenshot(path=str(out / f'provider-{width}.png'), full_page=True)
-        assert page.locator('section[aria-label="ENS strategy publishing"]').evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'), f'Overflow at {width}'
+        assert page.locator('section[aria-label="Strategy name and sharing"]').evaluate('(el) => el.scrollWidth <= el.clientWidth + 2'), f'Overflow at {width}'
     page.get_by_label('Test role', exact=True).select_option('delegate')
     page.get_by_label('Strategy ENS name', exact=True).fill(name)
     page.get_by_label('Version number', exact=True).fill('2')
