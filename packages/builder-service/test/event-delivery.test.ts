@@ -80,6 +80,8 @@ test('subscriptions can filter events by source while wildcard subscriptions ret
   assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [filtered.subscription.id])).rows[0].count, 1)
   assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [wildcard.subscription.id])).rows[0].count, 2)
   assert.deepEqual((await pool.query("SELECT resource_id FROM builder.outbox WHERE owner=$1 AND kind='event.received'", [f.owner])).rows, [{ resource_id: 'market.filtered:source-match' }])
+  assert.deepEqual((await pool.query("SELECT resource_id FROM builder.outbox WHERE owner=$1 AND kind='event.received' ORDER BY resource_id", [w.owner])).rows,
+    [{ resource_id: 'market.filtered:source-match' }, { resource_id: 'market.other:source-other' }])
   for (let i = 0; i < 3; i++) {
     const job = await events.claimEvaluation(); assert.ok(job)
     assert.equal((await events.evaluate(job.id, job.token)).result.status, 'unchanged')

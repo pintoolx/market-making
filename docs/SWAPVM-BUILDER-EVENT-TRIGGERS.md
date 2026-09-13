@@ -31,6 +31,8 @@ Events request evaluation; they are not trusted prices, reports or authorization
 
 Subscription creation accepts an optional `source`, such as `market.kraken` or `chain.sepolia.guard`. Omission uses `*` for all sources, preserving existing subscriptions and the current UI default. A named source filters evaluation jobs and received/reorg notifications; the evaluator rechecks it against the stored event identity. Changing the source creates a new subscription generation and cancels unsent work from the previous enabled subscription. This is source-level routing; per-Maker/strategy log filtering remains a separate requirement.
 
+Migration 014 also scopes outbox deduplication by owner so each matching Maker receives a notification for the same event. Existing outbox rows are preserved; previously suppressed notifications are not backfilled.
+
 | Source | Required behavior |
 |---|---|
 | Maker activation, switch or limit change | Check consent and current binding; program changes require a new compiled instance and wallet review |
