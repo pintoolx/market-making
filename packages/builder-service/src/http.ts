@@ -14,6 +14,10 @@ import { scenarioInputSchema } from 'aqua-executor/builder-preview'
 import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
 import { createTemplates, type TemplateOptions } from './templates.ts'
 import { createRequirementReviews } from './requirement-reviews.ts'
+import { createTransactionPlans } from './transaction-plans.ts'
+import { createAutomation } from './automation.ts'
+import { createEventDelivery } from './event-delivery.ts'
+import { createAuthorizationBindings, type BindingDependencies } from './bindings.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
   let size = 0, overflow = false
@@ -32,7 +36,7 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
 export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string },
-  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'> } = {}) {
+  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'>; binding?: BindingDependencies } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
@@ -41,6 +45,10 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
   const inventory = artifacts && dependencies.inventoryAdapter ? createInventoryReader(pool, sepoliaStandingProfile, dependencies.inventoryAdapter) : undefined
   const templates = artifacts && dependencies.templates ? createTemplates(pool, sepoliaStandingProfile, { ...dependencies.templates, origin: config.origin }) : undefined
   const requirementReviews = artifacts ? createRequirementReviews(pool, sepoliaStandingProfile) : undefined
+  const transactionPlans = artifacts ? createTransactionPlans(pool, sepoliaStandingProfile) : undefined
+  const automation = artifacts ? createAutomation(pool, sepoliaStandingProfile) : undefined
+  const events = artifacts ? createEventDelivery(pool, sepoliaStandingProfile) : undefined
+  const bindings = artifacts ? createAuthorizationBindings(pool, sepoliaStandingProfile, dependencies.binding ?? {}) : undefined
   // Early protection for unauthenticated signature endpoints. No proxy headers are trusted.
   // Deployment ingress limits remain necessary across replicas; this is a bounded per-process limit.
   const attempts = new Map<string, { count: number; expires: number }>()
@@ -102,6 +110,75 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         }
         const body = z.object({ expectedRevision: z.number().int().positive() }).strict().parse(await readJson(request))
         return send(await requirementReviews.prepare(actor.owner, requestId as string, { draftId: reviewDraft[1], ...body }))
+      }
+      const planRoute = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/(registration-plan|cancellation-plan)$/)
+      if (planRoute && post) {
+        if (!transactionPlans) throw new ServiceError('profile-unavailable', 503)
+        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
+        const input = { draftId: planRoute[1], ...body }
+        return send(planRoute[2] === 'registration-plan' ? await transactionPlans.prepareRegistration(actor.owner, requestId as string, input) : await transactionPlans.prepareCancellation(actor.owner, requestId as string, input))
+      }
+      const automationConfirm = route.match(/^\/automation-consents\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/(confirm|revoke)$/)
+      if (automationConfirm && post) {
+        if (!automation) throw new ServiceError('profile-unavailable', 503)
+        const body = z.record(z.string(), z.unknown()).parse(await readJson(request))
+        if ('intentId' in body || 'consentId' in body) throw new ServiceError('resource-id-in-body')
+        if (automationConfirm[2] === 'confirm') {
+          const value = z.object({ digest: z.string().regex(/^0x[0-9a-fA-F]{64}$/), signature: z.string().regex(/^0x[0-9a-fA-F]{130,132}$/) }).strict().parse(body)
+          return send(await automation.confirm(actor.owner, requestId as string, { intentId: automationConfirm[1], ...value }))
+        }
+        const value = z.object({ signature: z.string().regex(/^0x[0-9a-fA-F]{130,132}$/) }).strict().parse(body)
+        return send(await automation.revoke(actor.owner, requestId as string, { consentId: automationConfirm[1], ...value }))
+      }
+      const automationDraft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/automation-consent$/)
+      if (automationDraft) {
+        if (!automation) throw new ServiceError('profile-unavailable', 503)
+        if (!post) {
+          if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1)
+            throw new ServiceError('invalid-request')
+          const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
+          return send(await automation.current(actor.owner, automationDraft[1]!, expectedRevision))
+        }
+        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
+        return send(await automation.prepare(actor.owner, requestId as string, { draftId: automationDraft[1], ...body }))
+      }
+      const eventSubscriptionAction = route.match(/^\/event-subscriptions\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/stop$/)
+      if (eventSubscriptionAction && post) {
+        if (!events) throw new ServiceError('profile-unavailable', 503)
+        const body = z.record(z.string(), z.unknown()).parse(await readJson(request))
+        if ('subscriptionId' in body) throw new ServiceError('resource-id-in-body')
+        z.object({}).strict().parse(body)
+        return send(await events.stop(actor.owner, requestId as string, { subscriptionId: eventSubscriptionAction[1] }))
+      }
+      const eventSubscriptionDraft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/event-subscription$/)
+      if (eventSubscriptionDraft) {
+        if (!events) throw new ServiceError('profile-unavailable', 503)
+        if (!post) {
+          if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1) throw new ServiceError('invalid-request')
+          const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
+          return send(await events.current(actor.owner, eventSubscriptionDraft[1]!, expectedRevision))
+        }
+        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/), consentId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
+        return send(await events.enable(actor.owner, requestId as string, { draftId: eventSubscriptionDraft[1], ...body }))
+      }
+      const bindingConfirm = route.match(/^\/authorization-bindings\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/confirm$/)
+      if (bindingConfirm && post) {
+        if (!bindings) throw new ServiceError('binding-proof-unavailable', 503)
+        const body = z.record(z.string(), z.unknown()).parse(await readJson(request))
+        if ('intentId' in body) throw new ServiceError('resource-id-in-body')
+        const value = z.object({ digest: z.string().regex(/^0x[0-9a-fA-F]{64}$/), signature: z.string().regex(/^0x[0-9a-fA-F]{130,132}$/) }).strict().parse(body)
+        return send(await bindings.confirm(actor.owner, requestId as string, { intentId: bindingConfirm[1], ...value }))
+      }
+      const bindingDraft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/authorization-binding$/)
+      if (bindingDraft) {
+        if (!bindings) throw new ServiceError('binding-proof-unavailable', 503)
+        if (!post) {
+          if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1) throw new ServiceError('invalid-request')
+          const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
+          return send(await bindings.current(actor.owner, bindingDraft[1]!, expectedRevision))
+        }
+        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/), reportDigest: z.string().regex(/^0x[0-9a-fA-F]{64}$/), reportTransactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/), reportNonce: z.string().regex(/^[1-9][0-9]{0,19}$/) }).strict().parse(await readJson(request))
+        return send(await bindings.prepare(actor.owner, requestId as string, { draftId: bindingDraft[1], ...body }))
       }
       if (route === '/templates' || route === '/templates/prepare' || route === '/templates/publish' || route === '/templates/instantiate' || route === '/templates/withdraw') {
         if (!templates) throw new ServiceError('templates-unavailable', 503)

@@ -1,7 +1,7 @@
 # Builder：事件觸發與 standing authorization
 
 研究日期：2026-09-13（Asia/Taipei）。來源基準：`pintoolx/market-making` main `1d7f6a2257f27193d7faf070498cd3a54184ca0f`。
-使用者指定：參考 PR #36，Builder 改採事件觸發，取代定期送 report。本文更新先前 Builder 文件的 TTL 續期設計；以下事件服務是實作提案，尚未建立。
+使用者指定：參考 PR #36，Builder 改採事件觸發，取代定期送 report。本文更新先前 Builder 文件的 TTL 續期設計。Builder service 現在已建立 revision/generation 綁定的 subscription、公開事件 inbox、evaluation lease、change-only delivery、reorg/health cursor 與 resident worker；CRE／鏈上 adapter 仍由部署環境注入，沒有 adapter 時服務 fail closed。
 
 原工作區正進行 ENS 修改，這次在 `/home/kuoba123/eth-glo/market-making-builder-review` 建立 main worktree 並完成 `git pull --ff-only origin main`。原分支與修改保留。
 
@@ -98,8 +98,8 @@ Guard 每 Maker 只有一個 active hash。給 B enabled report 會切換 A；�
 ## 5. 對 Builder 與 PostgreSQL 的具體修改
 
 - 保留 Provider 模板、Maker instance、私密表單與公開 AI 對話隔離、確定性 compiler/decoder、錢包確認；OpenAI + Vercel AI SDK 只服務建構流程。
-- 把原 `RenewalConsent/renewal_jobs` 提案改成 `AutomationConsent/event_subscriptions/evaluation_jobs`；加入來源、去重鍵、binding revision/generation、資料時間與處理狀態。名稱是設計提案，不是已建 tables。
-- 與應用狀態同一筆 DB transaction 保存 outbox；worker lease、retry、cursor/backfill、report deliveries 持久化。每 Maker 的切換及發送序列化；共用 EOA 廣播時另處理 Ethereum tx nonce。
+- 把原 `RenewalConsent/renewal_jobs` 提案改成 `AutomationConsent/event_subscriptions/evaluation_jobs`；已加入來源、去重鍵、binding revision/generation、資料時間與處理狀態（migration 010/011）。
+- 與應用狀態同一筆 DB transaction 保存 outbox；worker lease、retry、cursor、reorg 與 report deliveries 持久化。每 Maker／strategy 的 report 序列化；共用 EOA 廣播時仍需由 delivery adapter 另處理 Ethereum tx nonce。
 - 分開保存 `lastEvaluatedAt`、`lastInputObservedAt`、`lastChangedAt`、`lastAcceptedReport`。成功 unchanged 不產生假交易，也不能拿很舊的接受時間當成本次評估失敗。
 - Builder 新實例固定使用已驗證的 standing deployment profile；既有 bounded report 仍按照原 schema 解讀，不把零 expiry 任意套到舊 Guard。
 - 新 Guard 地址嵌在 program Extruction args，換地址會改 program/order hash；舊模板／策略不能僅改 UI label 就當作遷移完成。

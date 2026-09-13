@@ -10,7 +10,7 @@ The Maker conversation now opens a preparation dialog for its exact draft revisi
 - Changes and restoration create new revisions. Historical artifacts/results remain visible and cannot supply the current simulation action. Refresh checks the owned draft; changes while the dialog is open disable further preparation until the latest draft is loaded. Background jobs continue outside the browser and are recovered through persisted lists after reload.
 - Lost compile/start/cancel responses retain the same request key. Retrying does not create another artifact/job or spend another new-job budget. Polling runs only while the loaded list contains an active simulation; no report renewal or chain write is introduced. Authentication expiry unmounts the dialog.
 
-Requirement acceptance, Maker private limits and explicit automation consent, wallet transaction plans, trusted bindings and event delivery remain separate full-goal work. All `registrationReady` values remain false. No executable export or approve/ship action is enabled by this screen.
+Requirement acceptance, Maker private limits and trusted bindings remain separate gates. This screen now prepares an immutable event-consent intent and asks the Maker wallet to sign it explicitly; a successful signature enables a revision-bound event subscription. The service can stop delivery on consent revocation, but this is separate from approve/ship/dock and does not claim a CRE or Guard report. All `registrationReady` values remain false. No executable export or asset transaction is enabled by this screen.
 
 ## Verification
 

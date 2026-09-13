@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatUnits } from 'viem';
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import { BuilderError, type BuilderClient, type Draft } from './client';
+import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventSubscription, type AuthorizationBinding } from './client';
 import { evidenceLabel, simulationState, verifyCompilation, verifyInventory,
   type Compilation, type CompilationItem, type InventoryResult, type SimulationDetail, type SimulationItem } from './preparation';
 import BuilderDialog from './BuilderDialog';
@@ -13,11 +13,14 @@ const stateLabel = { shipped: '已登錄', docked: '已 dock', 'unregistered-for
 const units = (value: string, decimals: number) => formatUnits(BigInt(value), decimals);
 
 /** Read-only preparation and isolated background jobs. This component has no wallet signer. */
-export default function MakerPreparation({ api, draft, onClose, onSessionExpired }: {
-  api: BuilderClient; draft: Draft; onClose(): void; onSessionExpired(): void;
+export default function MakerPreparation({ api, draft, onClose, onSessionExpired, signMessage }: {
+  api: BuilderClient; draft: Draft; onClose(): void; onSessionExpired(): void; signMessage(message: string): Promise<`0x${string}`>;
 }) {
   const [busy, setBusy] = useState(''), [error, setError] = useState(''), [stale, setStale] = useState(false);
   const [inventory, setInventory] = useState<InventoryResult | null>(null), [artifact, setArtifact] = useState<Compilation | null>(null);
+  const [consent, setConsent] = useState<AutomationConsent | null>(null);
+  const [subscription, setSubscription] = useState<EventSubscription | null>(null);
+  const [binding, setBinding] = useState<AuthorizationBinding | null>(null);
   const [artifacts, setArtifacts] = useState<CompilationItem[]>([]), [runs, setRuns] = useState<SimulationItem[]>([]), [detail, setDetail] = useState<SimulationDetail | null>(null);
   const live = useRef(true), working = useRef(false), refreshEpoch = useRef(0);
   const compileKey = useRef<string | null>(null), simulationKey = useRef<string | null>(null), cancelKeys = useRef(new Map<string, string>());
@@ -29,13 +32,13 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   }, [onSessionExpired]);
   const load = useCallback(async () => {
     const ticket = ++refreshEpoch.current;
-    const [saved, compiled, simulations] = await Promise.all([api.draft(draft.id), api.compilations(draft.id), api.simulations(draft.id)]);
+    const [saved, compiled, simulations, currentConsent, currentSubscription, currentBinding] = await Promise.all([api.draft(draft.id), api.compilations(draft.id), api.simulations(draft.id), api.automationConsent(draft), api.eventSubscription(draft), api.authorizationBinding(draft)]);
     if (!live.current || ticket !== refreshEpoch.current) return;
     const changed = saved.draft.revision !== draft.revision || saved.draft.owner !== draft.owner;
     const current = !changed && compiled.artifacts.find(a => Number(a.revision) === draft.revision && a.manifestHash === digestJson(profile));
     const selected = current ? verifyCompilation(await api.compilation(current.artifactId), draft, current.artifactId) : null;
     if (!live.current || ticket !== refreshEpoch.current) return;
-    setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations);
+    setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations); setConsent(currentConsent); setSubscription(currentSubscription); setBinding(currentBinding);
     setDetail(value => value && simulations.simulations.some(r => r.id === value.id && r.state === value.state && r.current === value.current) ? value : null);
   }, [api, draft]);
   useEffect(() => {
@@ -89,6 +92,23 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
         !['mock', 'fork-with-overrides'].includes(saved.report.mode) || saved.report.passed !== saved.report.cases.every(c => c.passed !== false) ||
         saved.report.coverageComplete !== saved.report.cases.every(c => c.passed === true)))) throw new Error('preparation-result-mismatch');
     setDetail(saved);
+  }
+  async function enableAutomation() {
+    if (!artifact || stale || !binding) return;
+    const intent = await api.prepareAutomationConsent(draft, artifact.artifactId, crypto.randomUUID());
+    setBusy('請在錢包確認事件管理同意');
+    const signature = await signMessage(intent.intent.message);
+    const result = await api.confirmAutomationConsent(intent.intent.id, intent.digest, signature, crypto.randomUUID());
+    await api.enableEventSubscription(draft, artifact.artifactId, result.consent.id, crypto.randomUUID());
+    await load();
+  }
+  async function revokeAutomation() {
+    if (!consent?.active) return;
+    const message = ['Pintool Builder revoke automation consent v1', `consent: ${consent.id}`, `owner: ${consent.owner.slice(7)}`,
+      `draft: ${consent.draftId}`, `strategyHash: ${consent.strategyHash}`, `scope: ${consent.scope}`].join('\n');
+    setBusy('請在錢包確認停止事件管理');
+    await api.revokeAutomationConsent(consent.id, await signMessage(message), crypto.randomUUID());
+    await load();
   }
   return <BuilderDialog title="Maker 資產與成交模擬" onClose={onClose}>
     <div className={styles.preparation}>
@@ -147,7 +167,12 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
           {detail.report ? <ul>{detail.report.cases.map(c => <li key={c.name}><span>{c.passed === null ? '未執行' : c.passed ? '通過' : '未通過'}</span> {c.name}{c.error ? ` · ${c.error}` : ''}</li>)}</ul> : <p>此工作尚無完整結果。</p>}
           <button onClick={() => setDetail(null)}>收起案例</button></div>}
       </section>
-      <p className={styles.notice}>下一步仍須逐項確認需求、設定 Maker 私密限制及事件管理同意，再審閱 approve／ship。這些步驟尚未接通，準備結果不會自行啟用 LP。</p>
+      <section aria-label="事件管理同意"><h3>4. 事件觸發與自動續期</h3>
+        <p>事件觸發只會在策略、版本與 Guard 綁定仍有效時產生新的 standing report。自動續期不會替你換幣、rebalance、approve、ship 或 dock；同意有效期到期後會停止傳送，需重新簽名。</p>
+        {consent?.active ? <div className={styles.consentResult}><strong>{subscription?.state === 'enabled' ? '已啟用事件管理' : '事件同意有效，但事件服務尚未啟用'}</strong><p>同意到期：{new Date(consent.expiresAt).toLocaleString('zh-TW')} · 綁定 strategy hash：<span className={styles.address}>{consent.strategyHash}</span></p>{binding && <p>Guard report 綁定：{binding.reportTransactionHash} · nonce {binding.reportNonce}</p>}{subscription?.lastEvaluatedAt && <p>最後評估：{new Date(subscription.lastEvaluatedAt).toLocaleString('zh-TW')}{subscription.lastChangedAt ? ` · 最後條件變更：${new Date(subscription.lastChangedAt).toLocaleString('zh-TW')}` : ''}</p>}<button disabled={!!busy || stale} onClick={() => void act('停止事件管理', revokeAutomation)}>停止自動續期</button></div>
+          : <div className={styles.consentResult}><p>{consent ? '上一次同意已到期或已停止。' : '尚未授權事件管理。'}</p>{!binding && <p className={styles.notice}>先完成 Guard report 的可信綁定與 Maker 簽名，才可啟用事件觸發；這一步不會由 agent 或畫面代替。</p>}<button className={styles.primary} disabled={!!busy || stale || !artifact || !binding} onClick={() => void act('準備事件管理同意', enableAutomation)}>啟用自動事件續期</button><small>點擊後會由目前 Maker 錢包簽署一段只綁定本策略版本的訊息；服務端只接受該簽名，不會取得私鑰。</small></div>}
+      </section>
+      <p className={styles.notice}>approve／ship 仍需另外審閱與錢包交易。這個視窗不會自行啟用 LP。</p>
     </div>
   </BuilderDialog>;
 }

@@ -23,7 +23,7 @@ const fields: Record<string, string> = { 'spec.baseToken': '基礎幣種', 'spec
   'maker': 'Maker 錢包', 'allocations': 'Maker 配置', 'allocations.baseAtomic': '基礎幣配置', 'allocations.quoteAtomic': '報價幣配置' };
 const toolNames: Record<string, string> = { inspectStrategy: '讀取策略與版本', getCapabilities: '核對可用功能', resolveTokens: '核對交易對',
   createOrPatchDraft: '保存策略變更', validateStrategy: '驗證公開設定', exportStrategy: '整理公開策略', compileStrategy: '編譯並核對策略',
-  getWalletInventory: '讀取錢包資產', previewScenarios: '計算成交情境', simulateLifecycle: '安排成交模擬' };
+  getWalletInventory: '讀取錢包資產', previewScenarios: '計算成交情境', simulateLifecycle: '安排成交模擬', prepareRegistration: '準備註冊交易', prepareCancellation: '準備停止交易' };
 const amount = (value?: string, decimals?: number) => value && decimals !== undefined ? formatUnits(BigInt(value), decimals) : '尚未設定';
 function valueLabel(path: string, value: unknown, draft: Draft) {
   if (value === null || value === undefined) return '未設定';
@@ -280,7 +280,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
       </div>
       {publisherOpen && draft?.kind === 'template' && api.current && identity.signMessage && <TemplatePublisher key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPublisherOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
       {requirementReviewOpen && draft && api.current && <RequirementReviewDialog key={`${draft.id}-${draft.revision}`} api={api.current} draft={draft} onClose={() => setRequirementReviewOpen(false)} onComplete={() => { setRequirementReviewOpen(false); void retry(); }} />}
-      {preparationOpen && draft?.kind === 'maker' && api.current && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
+      {preparationOpen && draft?.kind === 'maker' && api.current && identity.signMessage && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
       {catalogOpen && api.current && identity.address && identity.signMessage && <TemplateCatalog key={identity.address} api={api.current} address={identity.address} signMessage={identity.signMessage} onClose={() => { setCatalogOpen(false); void retry(); }} onSessionExpired={sessionExpired} onApply={async result => {
         await choose({ conversationId: result.conversationId, draftId: result.draft.id, title: result.draft.spec.title, revision: String(result.draft.revision), activeTurnId: null });
       }} />}

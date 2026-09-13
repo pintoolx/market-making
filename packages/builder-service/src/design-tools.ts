@@ -18,6 +18,8 @@ export interface DesignRepository {
   previews?(): Promise<unknown>
   inventory?(expectedRevision: number): Promise<unknown>
   templateContext?(expectedRevision: number): Promise<unknown>
+  registrationPlan?(requestId: string, expectedRevision: number, artifactId: string): Promise<unknown>
+  cancellationPlan?(requestId: string, expectedRevision: number, artifactId: string): Promise<unknown>
 }
 const paths = ['title', 'baseToken', 'quoteToken', 'curve', 'minPrice', 'maxPrice', 'relativeWidthBps', 'referencePrice', 'amplification', 'feeBps', 'deadline',
   'allocationBase', 'allocationQuote', 'maxAmountBasePerSwap', 'maxAmountQuotePerSwap', 'maxPostBalanceBase', 'maxPostBalanceQuote'] as const
@@ -162,6 +164,20 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         if (draft.kind !== 'maker') throw new Error('maker-instance-required')
         if (!repository.compile) throw new Error('preparation-unavailable')
         return repository.compile('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision)
+      }) }),
+    prepareRegistration: tool({ description: 'Create an unsigned wallet plan for the current Maker artifact: token approvals to Aqua followed by ship. It verifies owner, revision, artifact, profile and requirement receipt, and returns calldata plus fresh-read preconditions. It never signs, sends, reserves funds, accepts a report or claims registration readiness.',
+      strict: true, inputSchema: z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().min(1).max(96) }).strict(), execute: ({ expectedRevision, artifactId }, options) => safe(async () => {
+        const draft = await read()
+        if (draft.kind !== 'maker') throw new Error('maker-instance-required')
+        if (!repository.registrationPlan) throw new Error('registration-unavailable')
+        return repository.registrationPlan('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision, artifactId)
+      }) }),
+    prepareCancellation: tool({ description: 'Create an unsigned wallet plan to dock the selected Maker artifact. It verifies owner, revision and strategy hash, and returns calldata plus readback preconditions. Docking is separate from allowance revocation; this tool never signs, sends or claims Guard authorization was revoked.',
+      strict: true, inputSchema: z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().min(1).max(96) }).strict(), execute: ({ expectedRevision, artifactId }, options) => safe(async () => {
+        const draft = await read()
+        if (draft.kind !== 'maker') throw new Error('maker-instance-required')
+        if (!repository.cancellationPlan) throw new Error('cancellation-unavailable')
+        return repository.cancellationPlan('agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2), expectedRevision, artifactId)
       }) }),
     simulateLifecycle: tool({ description: 'Queue a background lifecycle check for an immutable artifact of this Maker draft and revision. Returns a job reference, not a successful simulation. Inspect simulations in a later turn for the current result. A fork-with-overrides result uses synthetic local funds/report authority and does not authorize or submit public-chain transactions.',
       strict: true, inputSchema: z.object({ artifactId: z.string(), expectedRevision: z.number().int().positive() }).strict(), execute: ({ artifactId, expectedRevision }, options) => safe(async () => {

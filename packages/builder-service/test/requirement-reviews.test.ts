@@ -1,7 +1,7 @@
 import { before, after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { database, migrate, createStore, createRequirementReviews, createTemplates } from '../src/index.ts'
+import { database, migrate, createStore, createRequirementReviews, createTemplates, createArtifacts, createTransactionPlans, createAutomation, revokeMessage } from '../src/index.ts'
 import { defaultTemplatePermissions, digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
@@ -64,4 +64,53 @@ test('an unmet interpreted criterion cannot be confirmed as true; explicit limit
   assert.equal((await reviews.current(p.owner, p.draft.id, 4)).receipt?.reviewId, prepared.review.id)
   await assert.rejects(reviews.current(p.owner, p.draft.id, 3), /draft-changed/)
   assert.equal((await pool.query("SELECT kind FROM builder.outbox WHERE owner=$1 AND kind='requirements.confirmed'", [p.owner])).rowCount, 1)
+})
+
+test('registration and cancellation plans are immutable unsigned calldata bound to the current compiled hash', async () => {
+  const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
+  const created = await store.create(owner, randomUUID(), { title: 'Maker 計畫', kind: 'maker' })
+  const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
+    spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
+      deadline: Math.floor(Date.now() / 1000) + 86400,
+      guardEnvelope: { maxAmountBasePerSwap: '5000000000000000', maxAmountQuotePerSwap: '12500000', maxPostBalanceBase: '20000000000000000', maxPostBalanceQuote: '50000000' } },
+    allocations: { baseAtomic: '10000000000000000', quoteAtomic: '25000000' },
+  } })
+  const artifact = await createArtifacts(pool, profile).compile(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2 })
+  const plans = createTransactionPlans(pool, profile), registration = await plans.prepareRegistration(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId })
+  assert.equal(registration.plan.registrationReady, false); assert.equal(registration.plan.transactions.length, 3)
+  assert.deepEqual(registration.plan.transactions.map(t => t.kind), ['erc20-approve', 'erc20-approve', 'aqua-ship'])
+  assert.ok(registration.plan.transactions.every(t => !('signature' in t) && t.value === '0x0'))
+  assert.deepEqual((await plans.get(owner, registration.plan.id)).plan, registration.plan)
+  const cancellation = await plans.prepareCancellation(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId })
+  assert.deepEqual(cancellation.plan.transactions.map(t => t.kind), ['aqua-dock'])
+  await store.patch(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, patch: { spec: { title: '已修改的 Maker' } } })
+  await assert.rejects(plans.prepareRegistration(owner, randomUUID(), { draftId: draft.id, expectedRevision: 3, artifactId: artifact.artifactId }), /artifact-stale/)
+  await assert.rejects(plans.get('wallet:0x1111111111111111111111111111111111111111', registration.plan.id), /not-found/)
+  const row = (await pool.query('SELECT payload,payload_digest FROM builder.transaction_plans WHERE id=$1', [registration.plan.id])).rows[0]
+  assert.equal(row.payload_digest, digestJson(row.payload))
+})
+
+test('standing delivery requires an explicit Maker signature and is revocable without exposing a signing tool', async () => {
+  const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
+  const created = await store.create(owner, randomUUID(), { title: '事件續期 Maker', kind: 'maker' })
+  const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
+    spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
+      deadline: Math.floor(Date.now() / 1000) + 86400,
+      guardEnvelope: { maxAmountBasePerSwap: '5000000000000000', maxAmountQuotePerSwap: '12500000', maxPostBalanceBase: '20000000000000000', maxPostBalanceQuote: '50000000' } },
+    allocations: { baseAtomic: '10000000000000000', quoteAtomic: '25000000' },
+  } })
+  const artifact = await createArtifacts(pool, profile).compile(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2 })
+  const automation = createAutomation(pool, profile)
+  const prepared = await automation.prepare(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId })
+  assert.equal(prepared.intent.registrationReady, false); assert.match(prepared.intent.message, /standing-report-delivery/)
+  const signature = await account.signMessage({ message: prepared.intent.message })
+  const confirmed = await automation.confirm(owner, randomUUID(), { intentId: prepared.intent.id, digest: prepared.digest, signature })
+  assert.equal(confirmed.consent.active, true); assert.equal(confirmed.consent.registrationReady, false)
+  assert.deepEqual((await automation.current(owner, draft.id, 2)).consent, confirmed.consent)
+  const revoked = await automation.revoke(owner, randomUUID(), { consentId: confirmed.consent.id,
+    signature: await account.signMessage({ message: revokeMessage(confirmed.consent) }) })
+  assert.equal(revoked.consent.active, false)
+  assert.equal((await automation.current(owner, draft.id, 2)).consent, null)
+  const attacker = privateKeyToAccount(generatePrivateKey())
+  await assert.rejects(automation.confirm('wallet:' + attacker.address.toLowerCase(), randomUUID(), { intentId: prepared.intent.id, digest: prepared.digest, signature }), /not-found/)
 })

@@ -26,6 +26,19 @@ export type RequirementReceipt = { schemaVersion: 1; engineVersion: string; revi
   draftId: string; fromRevision: number; revision: number; contentDigest: `0x${string}`; manifestHash: `0x${string}`;
   decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[]; userConfirmed: true; needsRecompile: boolean;
   confirmedAt: string; registrationReady: false };
+export type AutomationConsentIntent = { schemaVersion: 1; id: string; owner: string; draftId: string; revision: number; artifactId: string;
+  contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
+  message: string; registrationReady: false };
+export type AutomationConsent = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
+  contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
+  message: string; signature: `0x${string}`; consentDigest: `0x${string}`; active: boolean; registrationReady: false };
+export type EventSubscription = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; generation: number;
+  state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null;
+  lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null };
+export type AuthorizationBinding = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
+  manifestHash: `0x${string}`; contentDigest: `0x${string}`; maker: string; guard: string; router: string; strategyHash: `0x${string}`; programHash: `0x${string}`;
+  orderHash: `0x${string}`; reportSchema: 2; reportDigest: `0x${string}`; reportTransactionHash: `0x${string}`; reportNonce: string;
+  makerMessage: string; makerSignature: `0x${string}`; bindingDigest: `0x${string}`; registrationReady: false };
 export type Turn = { id: string; state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'; messageId: string | null };
 export type TurnEvent = { sequence: string; attempt: number; kind: 'started' | 'text' | 'tool' | 'completed' | 'failed' | 'cancelled' | 'superseded'; payload: { text?: string; name?: string; ok?: boolean } };
 
@@ -50,6 +63,12 @@ export class BuilderError extends Error {
       'requirement-review-expired': '需求審閱已過期，請重新準備審閱。', 'requirement-review-mismatch': '策略或部署設定已變更，請重新準備審閱。',
       'requirement-review-already-confirmed': '這份需求審閱已經完成，請使用最新版本。', 'requirement-compilation-required': 'Maker 必須先編譯目前版本才能審閱。',
       'requirement-artifact-integrity': '編譯結果與目前策略不一致，請重新編譯。', 'requirement-review-budget': '本小時的需求審閱額度已用完，請稍後再試。',
+      'automation-consent-required': '啟用持續成交前，必須先由 Maker 明確簽署事件管理同意。', 'automation-consent-expired': '事件管理同意已過期，請重新簽署。',
+      'automation-consent-mismatch': '策略或編譯版本已變更，請重新準備事件管理同意。', 'automation-consent-integrity': '事件管理同意資料無法核對，請重新載入。',
+      'invalid-automation-consent-signature': '事件管理同意簽名與目前錢包不符。', 'invalid-automation-revoke-signature': '撤銷事件管理同意的簽名不符。',
+      'authorization-binding-required': '尚未核對最新的 Guard report 與策略綁定，暫時不能啟用事件管理。', 'binding-proof-unavailable': '目前無法取得可信 Guard report 證據。',
+      'binding-proof-mismatch': 'Guard report 與目前策略版本不符，請重新核對。', 'authorization-binding-expired': '綁定審閱已過期，請重新核對 Guard report。',
+      'authorization-binding-mismatch': '綁定內容或策略版本已變更，請重新核對。', 'authorization-binding-integrity': '綁定資料無法核對，請重新載入。',
     } as Record<string, string>)[code] ?? '暫時無法連線到策略工作區，請重試。');
   }
 }
@@ -95,6 +114,27 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
       `/drafts/${draft.id}/requirement-review`, { expectedRevision: draft.revision }, key),
     confirmRequirementReview: (reviewId: string, digest: `0x${string}`, decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[], key: string) =>
       call<{ receipt: RequirementReceipt }>(`/requirement-reviews/${reviewId}/confirm`, { digest, decisions }, key),
+    automationConsent: async (draft: Draft) => (await call<{ consent: AutomationConsent | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/automation-consent?revision=${draft.revision}`)).consent,
+    prepareAutomationConsent: (draft: Draft, artifactId: string, key: string) => call<{ intent: AutomationConsentIntent; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/automation-consent`, { expectedRevision: draft.revision, artifactId }, key),
+    confirmAutomationConsent: (intentId: string, digest: `0x${string}`, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
+      `/automation-consents/${intentId}/confirm`, { digest, signature }, key),
+    revokeAutomationConsent: (consentId: string, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
+      `/automation-consents/${consentId}/revoke`, { signature }, key),
+    eventSubscription: async (draft: Draft) => (await call<{ subscription: EventSubscription | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/event-subscription?revision=${draft.revision}`)).subscription,
+    enableEventSubscription: (draft: Draft, artifactId: string, consentId: string, key: string) => call<{ subscription: EventSubscription }>(
+      `/drafts/${draft.id}/event-subscription`, { expectedRevision: draft.revision, artifactId, consentId }, key),
+    stopEventSubscription: (subscriptionId: string, key: string) => call<{ subscription: EventSubscription }>(
+      `/event-subscriptions/${subscriptionId}/stop`, {}, key),
+    authorizationBinding: async (draft: Draft) => (await call<{ binding: AuthorizationBinding | null; revision: number; registrationReady: false }>(
+      `/drafts/${draft.id}/authorization-binding?revision=${draft.revision}`)).binding,
+    prepareAuthorizationBinding: (draft: Draft, artifactId: string, reportDigest: `0x${string}`, reportTransactionHash: `0x${string}`, reportNonce: string, key: string) =>
+      call<{ intent: { id: string; message: string; registrationReady: false }; digest: `0x${string}` }>(`/drafts/${draft.id}/authorization-binding`,
+        { expectedRevision: draft.revision, artifactId, reportDigest, reportTransactionHash, reportNonce }, key),
+    confirmAuthorizationBinding: (intentId: string, digest: `0x${string}`, signature: `0x${string}`, key: string) => call<{ binding: AuthorizationBinding }>(
+      `/authorization-bindings/${intentId}/confirm`, { digest, signature }, key),
     inventory: (draft: Draft) => call<InventoryResult>(`/drafts/${draft.id}/inventory?revision=${draft.revision}`),
     compilations: (id: string) => call<{ artifacts: CompilationItem[] }>(`/drafts/${id}/artifacts`),
     compilation: (id: string) => call<Compilation>(`/artifacts/${id}`),

@@ -31,7 +31,7 @@ Every owner-facing repository query filters by owner. Composite foreign keys pre
 
 Draft mutations acquire one connection and a transaction, lock the expected draft revision, record an immutable revision and its outbox event, and commit the idempotent response together. A duplicate request returns the same JSON; reuse with different input is rejected. A failed mutation rolls back its request key, so a corrected retry can proceed. Restoring history creates a new revision. Pending obsolete simulation jobs are cancelled; running work must reconcile before any result is accepted as a current artifact.
 
-The generic preparation queue uses `FOR UPDATE SKIP LOCKED`, expiring leases and lease tokens. A worker that lost its lease cannot renew or complete the job. Queue payloads/results contain public references and error codes, not arbitrary private inputs. **This is not yet the event report delivery state machine:** per-Maker generation selection, broadcaster nonce coordination, receipt reconciliation, subscriptions and an outbox consumer remain required. Never broadcast a transaction on the authority of a generic queue lease alone.
+The generic preparation queue uses `FOR UPDATE SKIP LOCKED`, expiring leases and lease tokens. A worker that lost its lease cannot renew or complete the job. Queue payloads/results contain public references and error codes, not arbitrary private inputs. Event delivery uses a separate revision/generation-bound inbox, evaluation lease, per-Maker/strategy nonce sequence, change-only delivery record, receipt reconciliation seam and resident worker. It never signs Maker asset transactions; a delivery adapter must verify the Guard receipt/readback before marking a report accepted.
 
 ## Initial endpoints
 
@@ -56,6 +56,21 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | GET `/drafts/:id/simulations` | Latest 20 owned job summaries, current/stale flag, evidence mode and failed/skipped cases |
 | GET `/simulations/:id` | Owned durable job state and immutable completed evidence; readiness remains false |
 | POST `/simulations/:id/cancel` | `{}` plus idempotency key; cancels pending/running authority and rejects late results |
+| POST `/drafts/:id/requirement-review` | `{ expectedRevision }`; prepares an immutable public requirement interpretation |
+| GET `/drafts/:id/requirement-review?revision=N` | Current user-confirmed requirement receipt, if one exists |
+| POST `/requirement-reviews/:id/confirm` | `{ digest, decisions }`; explicit per-requirement confirmation or limitation acceptance |
+| POST `/drafts/:id/registration-plan` | `{ expectedRevision, artifactId }`; immutable unsigned ERC20 approve + Aqua ship plan |
+| POST `/drafts/:id/cancellation-plan` | `{ expectedRevision, artifactId }`; immutable unsigned Aqua dock plan |
+| POST `/drafts/:id/automation-consent` | `{ expectedRevision, artifactId }`; prepares an explicit Maker standing-delivery consent message |
+| GET `/drafts/:id/automation-consent?revision=N` | Current active signed automation consent |
+| POST `/automation-consents/:id/confirm` | `{ digest, signature }`; verifies the Maker signature and enables no asset transaction |
+| POST `/automation-consents/:id/revoke` | `{ signature }`; permanently revokes the signed delivery consent and stops its event subscription |
+| POST `/drafts/:id/event-subscription` | `{ expectedRevision, artifactId, consentId }`; enables a revision-bound resident event subscription |
+| GET `/drafts/:id/event-subscription?revision=N` | Current event subscription state and last evaluation/report identity |
+| POST `/event-subscriptions/:id/stop` | `{}`; stops event delivery only; it is not a Guard revoke or Aqua dock |
+| POST `/drafts/:id/authorization-binding` | `{ expectedRevision, artifactId, reportDigest, reportTransactionHash, reportNonce }`; verifies trusted Guard evidence and prepares the Maker binding message |
+| GET `/drafts/:id/authorization-binding?revision=N` | Current exact artifact/report binding |
+| POST `/authorization-bindings/:id/confirm` | `{ digest, signature }`; records the Maker's explicit signature after trusted report verification |
 | POST `/drafts/:id/patch` | `{ expectedRevision, patch }` |
 | POST `/drafts/:id/restore` | `{ expectedRevision, revision }`; appends a revision |
 | POST `/conversations/:id/messages` | `{ content }`; public user text only |
@@ -154,4 +169,4 @@ Migration 007 adds immutable signed Provider versions, a separate private cipher
 
 Opt in with `builderHandler(pool, config, { templates: { workflowPublicKey, price: krakenTemplatePrice } })`. The key is operator-supplied public configuration; no fallback exists. Fixed templates need no price adapter; relative CLMM requires a fresh server observation and freezes its paired range. The application exposes public catalog, prepare/publish/withdraw/instantiate endpoints under `/templates`; [complete API and signing protocol](../../docs/BUILDER-PROVIDER-TEMPLATES.md).
 
-Maker edits/restores and agent tools enforce immutable stored Provider permissions. Original caps/range/deadline are the boundary, with personal title/allocations editable and Pegged adjustments requiring explicit ranges. Model inspection sees public permissions/baseline, never ciphertext. A newer Provider version cannot change an existing pin. Withdrawal prevents new instances but does not revoke an existing standing report; event delivery must perform and confirm that separate action. Production roles, migration and routing remain pending.
+Maker edits/restores and agent tools enforce immutable stored Provider permissions. Original caps/range/deadline are the boundary, with personal title/allocations editable and Pegged adjustments requiring explicit ranges. Model inspection sees public permissions/baseline, never ciphertext. A newer Provider version cannot change an existing pin. Withdrawal prevents new instances but does not revoke an existing standing report; event delivery must perform and confirm that separate action. Migration 011 adds immutable public event inbox/cursors plus mutable leases, subscriptions and delivery receipts. Supply evaluator/delivery adapters to `runEventWorker`; the default service deliberately fails closed without them. Production roles, CRE gateway wiring and routing remain pending.

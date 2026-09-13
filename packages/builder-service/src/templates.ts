@@ -163,6 +163,10 @@ export function createTemplates(pool: Pool, profile: DeploymentProfile, options:
         if (!saved.withdrawnAt) {
           await client.query('INSERT INTO builder.template_withdrawals(template_id,version,owner,signature,origin) VALUES ($1,$2,$3,$4,$5)', [value.templateId, value.version, owner, value.signature, origin])
           await client.query(`INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES ($1,'template.withdrawn',$2,$3)`, [owner, value.templateId, value.version])
+          const paused = await client.query(`UPDATE builder.event_subscriptions s SET state='paused',updated_at=clock_timestamp()
+            FROM builder.drafts d WHERE d.id=s.draft_id AND d.owner=s.owner AND s.state='enabled'
+              AND d.snapshot->'templatePin'->>'templateId'=$1 AND (d.snapshot->'templatePin'->>'version')::bigint=$2 RETURNING s.id,s.owner,s.revision`, [value.templateId, value.version])
+          for (const row of paused.rows) await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.paused',$2,$3) ON CONFLICT DO NOTHING", [row.owner, row.id, row.revision])
         }
         return readVersion(client, value.templateId, value.version)
       })
