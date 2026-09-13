@@ -71,8 +71,28 @@ delivery gateway remains required.
 The evaluator returns a strict public `EvaluationResult`. A `changed` result
 must include both a 32-byte `reportHash` and a public report object. Delivery
 receives the revision-bound report hash and nonce and must return a verified
-transaction hash; reconciliation may return `null` while a broadcast remains
-unknown. The adapter sends no Maker private policy, signature or private key.
+transaction hash. Both `deliver` and `reconcile` include the same durable
+`deliveryId`. The gateway must persist this identity, bind it to the exact
+owner/subscription/generation/report hash/nonce, and reject conflicting reuse.
+It must not broadcast twice for a duplicate identity. A transaction hash alone
+is insufficient evidence of acceptance: confirm the Guard receipt and readback
+before returning the successful receipt shape.
+
+Reconciliation returns `null` for an unknown or still-pending outcome. Network
+timeouts, HTTP errors and invalid response bodies leave the service row in
+`broadcast`; they block later reports for that Maker and are never blindly
+resent. A failure proven to occur before any network request can be retried
+with the same ID. Reconciliation also accepts these terminal outcomes:
+
+- `{ "status": "reverted", "transactionHash": "0x...", "receipt": {} }`
+  records a confirmed reverted transaction and releases the ordering barrier.
+- `{ "status": "not-broadcast" }` requires a durable terminal gateway fence
+  that rejects any delayed `deliver` for this ID. An absent request/receipt in
+  a lookup does not prove this outcome; return `null` unless the fence exists.
+
+Both terminal outcomes retain the failed delivery. A subsequent event may
+reevaluate the current strategy and create a new ID and report nonce. The
+adapter sends no Maker private policy, signature or private key.
 With no adapter the worker fails closed and never fabricates a report; queued
 events and any already-created delivery rows remain recoverable through their
 leases.
@@ -89,7 +109,7 @@ Required production checks:
 
 1. Set Railway `DATABASE_URL=${{Postgres.DATABASE_URL}}`, deploy, and confirm
    `/health` plus the Builder authenticated session route.
-2. Confirm the migration table contains 001–015 and that the Builder service
+2. Confirm the migration table contains 001–016 and that the Builder service
    uses a database role with only the application schema permissions.
 3. Run one real multi-turn request with the configured OpenAI key and inspect
    only public draft/tool events.
@@ -110,6 +130,16 @@ When rolling the application back to a version before 015, keep event delivery
 disabled: that version's insert targets the removed hash constraint and cannot
 resume delivery against the new schema. Retain the schema/history and deploy a
 compatible event worker before reenabling the gateway.
+
+Migration 016 retains orphaned evaluation history and limits event deduplication
+to non-orphaned occurrences. It also cancels existing unsent reports whose
+source event is already noncanonical; broadcast and accepted records remain
+untouched. Back up before applying it. A pre-016 worker's event insert cannot
+infer the new partial unique index: disable event ingress and workers before
+rolling back that application, keep the newer schema/history, and reenable only
+with a compatible worker. Local upgrade tests cover pre-existing pending,
+broadcast and accepted reports. The production gateway must support the durable
+delivery identity and terminal fencing contract before event delivery is enabled.
 
 ## Rollout evidence
 

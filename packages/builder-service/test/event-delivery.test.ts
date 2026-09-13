@@ -3,6 +3,11 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
+import { mkdtemp, readdir, readFile, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { DeliveryNotSentError } from '../src/event-delivery.ts'
 import { database, migrate, createStore, createArtifacts, createAutomation, createEventDelivery, runEventWorker, revokeMessage, builderHandler, createAuthorizationBindings, bindingMessage, createOutboxDispatcher, createEvmLogSource, createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate } from '../src/index.ts'
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
@@ -16,7 +21,14 @@ before(async () => {
 })
 after(async () => { await pool?.end(); if (admin) { try { await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`) } finally { await admin.end() } } })
 
-async function fixture(reportNonce = '1') {
+function barrier() {
+  let resolve!: () => void
+  const promise = new Promise<void>(done => { resolve = done })
+  return { promise, resolve }
+}
+
+async function fixture(reportNonce = '1', connection = pool) {
+  const pool = connection
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
   const created = await store.create(owner, randomUUID(), { title: 'Event strategy', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
@@ -36,6 +48,171 @@ async function fixture(reportNonce = '1') {
   const binding = await bindings.confirm(owner, randomUUID(), { intentId: bindingIntent.intent.id, digest: bindingIntent.digest, signature: await account.signMessage({ message: bindingIntent.intent.message }) })
   return { account, owner, draft, artifact, consent: confirmed.consent, binding: binding.binding }
 }
+
+test('migration 016 preserves pre-existing reports while cancelling only unsent orphaned work', async () => {
+  const databaseName = name + '_upgrade', url = new URL(process.env.BUILDER_TEST_DATABASE_URL ?? ''), dir = await mkdtemp(join(tmpdir(), 'builder-before-016-'))
+  await admin.query(`CREATE DATABASE "${databaseName}"`)
+  url.pathname = '/' + databaseName
+  const upgraded = database(url.toString())
+  try {
+    const migrationDirectory = new URL('../migrations/', import.meta.url)
+    for (const file of await readdir(migrationDirectory)) {
+      if (/^\d{3}_/.test(file) && file < '016_') await writeFile(join(dir, file), await readFile(new URL(file, migrationDirectory)))
+    }
+    assert.equal((await migrate(upgraded, pathToFileURL(dir + '/'))).applied, 15)
+    const f = await fixture('1', upgraded), events = createEventDelivery(upgraded, profile)
+    const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'upgrade.reorg' })
+    const oldJobs: string[] = [], oldDeliveries: string[] = []
+    for (const [index, status] of ['pending', 'broadcast', 'accepted'].entries()) {
+      const jobId = randomUUID(), deliveryId = randomUUID(), reportHash = digestJson({ status })
+      oldJobs.push(jobId); oldDeliveries.push(deliveryId)
+      await upgraded.query(`INSERT INTO builder.event_inbox(source,event_id,kind,payload,observed_at,canonical,reorged_at)
+        VALUES('upgrade.reorg',$1,'guard.changed','{}',clock_timestamp(),false,clock_timestamp())`, [status])
+      await upgraded.query(`INSERT INTO builder.evaluation_jobs(id,subscription_id,owner,generation,source,event_id,input_digest,payload,state,result)
+        VALUES($1,$2,$3,1,'upgrade.reorg',$4,$5,'{}','succeeded',$6)`, [jobId, enabled.subscription.id, f.owner, status, reportHash, JSON.stringify({ deliveryId })])
+      await upgraded.query(`INSERT INTO builder.report_deliveries(id,subscription_id,owner,generation,evaluation_job_id,report_hash,nonce,payload,status)
+        VALUES($1,$2,$3,1,$4,$5,$6,'{}',$7)`, [deliveryId, enabled.subscription.id, f.owner, jobId, reportHash, String(index + 2), status])
+    }
+    assert.deepEqual(await migrate(upgraded), { available: 16, applied: 1 })
+    const deliveries = (await upgraded.query('SELECT id,status,error_code FROM builder.report_deliveries ORDER BY nonce')).rows
+    assert.deepEqual(deliveries.map(row => row.id), oldDeliveries)
+    assert.deepEqual(deliveries.map(row => row.status), ['failed', 'broadcast', 'accepted'])
+    assert.equal(deliveries[0].error_code, 'event-reorged')
+    const replacement = await events.ingest({ source: 'upgrade.reorg', eventId: 'pending', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString() })
+    assert.equal(replacement.jobs.length, 1); assert.equal(oldJobs.includes(replacement.jobs[0]!), false)
+    const history = (await upgraded.query('SELECT id,result,reorged_at FROM builder.evaluation_jobs WHERE id=ANY($1::text[])', [oldJobs])).rows
+    assert.equal(history.length, 3); assert.ok(history.every(row => row.reorged_at && oldDeliveries.includes(row.result.deliveryId)))
+    assert.deepEqual(await migrate(upgraded), { available: 16, applied: 0 })
+  } finally {
+    await upgraded.end()
+    await admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`)
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('an ambiguous delivery failure waits for reconciliation without rebroadcasting', async () => {
+  const f = await fixture(), source = 'test.ambiguous', sent: string[] = []
+  let receiptReady = false
+  const events = createEventDelivery(pool, profile, {
+    evaluate: async input => ({ status: 'changed', reportHash: digestJson(input.event.payload), report: input.event.payload }),
+    deliver: async input => { sent.push(input.nonce); throw new Error('connection lost after broadcast') },
+    reconcile: async () => receiptReady ? { transactionHash: ('0x' + 'a'.repeat(64)) as `0x${string}` } : null,
+  })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source })
+  const evaluate = async (eventId: string) => {
+    await events.ingest({ source, eventId, kind: 'market.updated', payload: { eventId }, observedAt: new Date().toISOString() })
+    const job = await events.claimEvaluation(); assert.ok(job)
+    const result = await events.evaluate(job.id, job.token); assert.ok(result.deliveryId)
+    return result.deliveryId
+  }
+  const first = await evaluate('first'), second = await evaluate('second')
+  await assert.rejects(events.deliver(first), /connection lost/)
+  assert.deepEqual((await pool.query('SELECT status,attempts FROM builder.report_deliveries WHERE id=$1', [first])).rows[0], { status: 'broadcast', attempts: 1 })
+  assert.equal((await events.deliver(first)).status, 'already-processing')
+  assert.equal((await events.deliver(second)).status, 'waiting')
+  assert.equal((await events.reconcile(first)).status, 'broadcast')
+  assert.deepEqual(sent, ['2'])
+  receiptReady = true
+  const controller = new AbortController()
+  await runEventWorker(pool, profile, {
+    deliver: async () => { assert.fail('must reconcile before any new delivery') },
+    reconcile: async input => { assert.equal(input.deliveryId, first); controller.abort(); return { transactionHash: ('0x' + 'a'.repeat(64)) as `0x${string}` } },
+  }, { signal: controller.signal, pollMs: 50 })
+  assert.equal((await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [first])).rows[0].status, 'accepted')
+  assert.ok((await events.pendingDeliveries()).includes(second))
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+})
+
+test('reorg cancels an evaluated unsent report and re-inclusion retains the old history', async () => {
+  const f = await fixture(), source = 'test.evaluated-reorg', sent: string[] = []
+  const events = createEventDelivery(pool, profile, {
+    evaluate: async input => ({ status: 'changed', reportHash: digestJson(input.event.payload), report: input.event.payload }),
+    deliver: async input => { sent.push(input.nonce); return { transactionHash: ('0x' + 'b'.repeat(64)) as `0x${string}` } },
+  })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source })
+  const event = { source, eventId: 'same-log', kind: 'guard.changed', payload: { cap: '1' }, observedAt: new Date().toISOString(), blockHash: '0x' + '1'.repeat(64) }
+  const original = await events.ingest(event), job = await events.claimEvaluation(); assert.ok(job)
+  const first = await events.evaluate(job.id, job.token); assert.ok(first.deliveryId)
+  assert.equal((await events.markReorg(source, event.eventId)).changed, true)
+  assert.deepEqual((await pool.query('SELECT status,error_code FROM builder.report_deliveries WHERE id=$1', [first.deliveryId])).rows[0], { status: 'failed', error_code: 'event-reorged' })
+  assert.equal((await events.deliver(first.deliveryId)).status, 'already-processing'); assert.deepEqual(sent, [])
+  // Return to identical terms in a new canonical block. Reusing the old job
+  // would conflict with its immutable delivery and corrupt its result history.
+  const replacement = await events.ingest({ ...event, blockHash: '0x' + '2'.repeat(64) })
+  assert.equal(replacement.jobs.length, 1); assert.notEqual(replacement.jobs[0], original.jobs[0])
+  const next = await events.claimEvaluation(); assert.ok(next); assert.equal(next.id, replacement.jobs[0])
+  const second = await events.evaluate(next.id, next.token); assert.ok(second.deliveryId); assert.equal(second.nonce, '3')
+  assert.equal((await events.deliver(second.deliveryId)).status, 'accepted')
+  const history = (await pool.query('SELECT id,result,reorged_at FROM builder.evaluation_jobs WHERE subscription_id=$1 ORDER BY created_at,id', [enabled.subscription.id])).rows
+  assert.equal(history.length, 2); assert.equal(history[0].result.deliveryId, first.deliveryId); assert.ok(history[0].reorged_at)
+  assert.equal(history[1].result.deliveryId, second.deliveryId); assert.equal(history[1].reorged_at, null)
+  assert.equal((await events.ingest({ ...event, blockHash: '0x' + '2'.repeat(64) })).duplicate, true)
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+})
+
+test('definitely unsent requests retry with the same identity while terminal reconciliation permits a new evaluation', async () => {
+  for (const outcome of [{ status: 'not-broadcast' as const }, { status: 'reverted' as const, transactionHash: ('0x' + 'c'.repeat(64)) as `0x${string}` }]) {
+    const f = await fixture(), source = 'test.local-failure', identities: string[] = []
+    const events = createEventDelivery(pool, profile, {
+      evaluate: async () => ({ status: 'changed', reportHash: digestJson({ terms: 1 }), report: { terms: 1 } }),
+      deliver: async input => { identities.push(input.deliveryId); if (identities.length === 1) throw new DeliveryNotSentError('local-validation-failed'); throw new Error('unknown') },
+      reconcile: async () => outcome,
+    })
+    const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source })
+    await events.ingest({ source, eventId: randomUUID(), kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    const job = await events.claimEvaluation(); assert.ok(job)
+    const first = await events.evaluate(job.id, job.token); assert.ok(first.deliveryId)
+    await assert.rejects(events.deliver(first.deliveryId), /local-validation/)
+    assert.equal((await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [first.deliveryId])).rows[0].status, 'pending')
+    await pool.query('UPDATE builder.report_deliveries SET next_attempt_at=clock_timestamp() WHERE id=$1', [first.deliveryId])
+    await assert.rejects(events.deliver(first.deliveryId), /unknown/)
+    assert.deepEqual(identities, [first.deliveryId, first.deliveryId])
+    assert.equal((await events.reconcile(first.deliveryId)).status, 'failed')
+    const saved = (await pool.query('SELECT error_code,transaction_hash FROM builder.report_deliveries WHERE id=$1', [first.deliveryId])).rows[0]
+    assert.equal(saved.error_code, outcome.status === 'not-broadcast' ? 'delivery-not-broadcast' : 'delivery-reverted')
+    assert.equal(saved.transaction_hash, 'transactionHash' in outcome ? outcome.transactionHash : null)
+    await events.ingest({ source, eventId: randomUUID(), kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    const retry = await events.claimEvaluation(); assert.ok(retry)
+    const second = await events.evaluate(retry.id, retry.token); assert.ok(second.deliveryId); assert.notEqual(second.deliveryId, first.deliveryId); assert.equal(second.nonce, '3')
+    await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+  }
+})
+
+test('reorg fences an in-flight evaluator but retains a broadcast report for reconciliation', async () => {
+  const f = await fixture(), source = 'test.inflight-reorg'
+  const entered = barrier(), release = barrier()
+  const events = createEventDelivery(pool, profile, { evaluate: async () => {
+    entered.resolve(); await release.promise
+    return { status: 'changed', reportHash: digestJson({ cap: 1 }), report: { cap: 1 } }
+  } })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source })
+  const event = { source, eventId: 'same-log', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString(), blockHash: '0x' + '1'.repeat(64) }
+  await events.ingest(event)
+  const job = await events.claimEvaluation(); assert.ok(job)
+  const evaluating = events.evaluate(job.id, job.token)
+  await entered.promise
+  try {
+    await events.markReorg(source, event.eventId)
+    await events.ingest({ ...event, blockHash: '0x' + '2'.repeat(64) })
+  } finally { release.resolve() }
+  await assert.rejects(evaluating, /lease-lost|event-reorged/)
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.report_deliveries WHERE evaluation_job_id=$1', [job.id])).rows[0].count, 0)
+
+  const next = await events.claimEvaluation(); assert.ok(next)
+  const evaluated = await events.evaluate(next.id, next.token); assert.ok(evaluated.deliveryId)
+  const broadcasting = barrier(), receipt = barrier()
+  const sender = createEventDelivery(pool, profile, { deliver: async () => { broadcasting.resolve(); await receipt.promise; return { transactionHash: ('0x' + 'd'.repeat(64)) as `0x${string}` } } })
+  const sending = sender.deliver(evaluated.deliveryId)
+  await broadcasting.promise
+  try {
+    await events.markReorg(source, event.eventId)
+    assert.equal((await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [evaluated.deliveryId])).rows[0].status, 'broadcast')
+    assert.ok((await events.broadcastDeliveries()).includes(evaluated.deliveryId))
+  } finally { receipt.resolve() }
+  assert.equal((await sending).status, 'accepted')
+  assert.equal((await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [evaluated.deliveryId])).rows[0].status, 'accepted')
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+})
 
 test('event inbox is durable, deduplicated and change-only across evaluation and delivery', async () => {
   const f = await fixture(), reports = [digestJson({ allowedDirections: 1, cap: 'a' }), digestJson({ allowedDirections: 1, cap: 'b' })] as [`0x${string}`, `0x${string}`], evaluations: string[] = []

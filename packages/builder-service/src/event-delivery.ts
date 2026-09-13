@@ -28,11 +28,14 @@ type SubscriptionRow = { id: string; owner: string; draftId: string; revision: n
 type Snapshot = { subscription: SubscriptionRow; event: PublicEvent; draft: Awaited<ReturnType<typeof readOwnedDraft>>; artifact: Awaited<ReturnType<typeof readCompiledArtifact>>; consent: AutomationConsent; binding: AuthorizationBinding }
 export type EvaluationResult = { status: 'unchanged' | 'changed' | 'paused' | 'failed'; reportHash?: `0x${string}`; report?: Record<string, unknown>; reason?: string; observedAt?: string }
 export type DeliveryReceipt = { transactionHash: `0x${string}`; receipt?: Record<string, unknown> }
+export type DeliveryReconciliation = DeliveryReceipt | { status: 'not-broadcast' } | { status: 'reverted'; transactionHash: `0x${string}`; receipt?: Record<string, unknown> } | null
+/** Only use when no request could have reached the broadcaster. */
+export class DeliveryNotSentError extends ServiceError {}
 export type EventHealth = { source: string; chainId?: number; blockHash: `0x${string}` | null; observedAt: string | null; health: 'healthy' | 'stale' | 'recovered' | 'error'; errorCode?: string; updatedAt: string }
 export type EventDeliveryDependencies = {
   evaluate?: (input: Snapshot) => Promise<EvaluationResult>
-  deliver?: (input: { subscription: SubscriptionRow; report: Record<string, unknown>; reportHash: `0x${string}`; nonce: string }) => Promise<DeliveryReceipt>
-  reconcile?: (input: { deliveryId: string; subscription: SubscriptionRow; reportHash: `0x${string}`; nonce: string }) => Promise<DeliveryReceipt | null>
+  deliver?: (input: { deliveryId: string; subscription: SubscriptionRow; report: Record<string, unknown>; reportHash: `0x${string}`; nonce: string }) => Promise<DeliveryReceipt>
+  reconcile?: (input: { deliveryId: string; subscription: SubscriptionRow; reportHash: `0x${string}`; nonce: string }) => Promise<DeliveryReconciliation>
 }
 
 function asIso(value: Date | string | null) { return value === null ? null : value instanceof Date ? value.toISOString() : value }
@@ -51,8 +54,24 @@ async function readSubscription(client: Pick<PoolClient, 'query'>, owner: string
   if (!row) throw notFound()
   return subscription(row)
 }
+// Always lock the inbox occurrence before its job/subscription/delivery rows.
+// Reorg, evaluation completion and broadcast claims share this short boundary;
+// no external evaluator or broadcaster call holds a database lock.
+async function lockJobEvent(client: PoolClient, jobId: string) {
+  return (await client.query(`SELECT i.canonical FROM builder.event_inbox i
+    JOIN builder.evaluation_jobs j ON j.source=i.source AND j.event_id=i.event_id
+    WHERE j.id=$1 FOR UPDATE OF i`, [jobId])).rows[0]?.canonical === true
+}
 /** Durable event inbox, evaluation queue and change-only standing report delivery. */
 export function createEventDelivery(pool: Pool, profile: DeploymentProfile, dependencies: EventDeliveryDependencies = {}) {
+  async function acceptReceipt(deliveryId: string, receipt: DeliveryReceipt) {
+    const saved = await pool.query(`UPDATE builder.report_deliveries SET status='accepted',transaction_hash=$2,receipt=$3,error_code=NULL,updated_at=clock_timestamp()
+      WHERE id=$1 AND status='broadcast' RETURNING status`, [deliveryId, receipt.transactionHash, JSON.stringify(receipt.receipt ?? null)])
+    if (saved.rowCount) return { status: 'accepted' as const, receipt }
+    const current = (await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]
+    if (!current) throw notFound()
+    return { status: String(current.status) }
+  }
   async function currentSnapshot(client: PoolClient, sub: SubscriptionRow, event: PublicEvent) {
     const live = await readSubscription(client, sub.owner, sub.id, true)
     if (live.state !== 'enabled' || live.generation !== sub.generation || live.revision !== sub.revision) throw conflict('event-subscription-stopped')
@@ -138,9 +157,9 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         for (const row of subscriptions) {
           const sub = subscription(row), id = randomUUID(), payload = { source: event.source, eventId: event.eventId, kind: event.kind, payload: event.payload, observedAt: event.observedAt }, inputDigest = digestJson({ subscriptionId: sub.id, generation: sub.generation, event: payload })
           const result = await client.query(`INSERT INTO builder.evaluation_jobs(id,subscription_id,owner,generation,source,event_id,input_digest,payload)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (subscription_id,generation,source,event_id) DO UPDATE SET state='pending',attempts=0,lease_token=NULL,lease_until=NULL,available_at=clock_timestamp(),result=NULL,error_code=NULL,completed_at=NULL,input_digest=EXCLUDED.input_digest,payload=EXCLUDED.payload
-            WHERE builder.evaluation_jobs.state='cancelled' RETURNING id`, [id, sub.id, sub.owner, sub.generation, event.source, event.eventId, inputDigest, JSON.stringify(payload)])
-          if (result.rowCount) jobs.push(id)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (subscription_id,generation,source,event_id)
+            WHERE reorged_at IS NULL DO NOTHING RETURNING id`, [id, sub.id, sub.owner, sub.generation, event.source, event.eventId, inputDigest, JSON.stringify(payload)])
+          if (result.rowCount) jobs.push(String(result.rows[0].id))
         }
         await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.received',$1,revision FROM builder.event_subscriptions WHERE state='enabled' AND (source='*' OR source=$2) ON CONFLICT DO NOTHING", [event.source + ':' + event.eventId, event.source])
         return { event, duplicate: false as const, jobs }
@@ -151,7 +170,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       const token = randomUUID()
       const row = (await pool.query(`WITH next_job AS (SELECT j.id FROM builder.evaluation_jobs j
         JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
-        WHERE s.state='enabled' AND j.available_at<=clock_timestamp()
+        WHERE s.state='enabled' AND j.reorged_at IS NULL AND j.available_at<=clock_timestamp()
         AND (j.state='pending' OR (j.state='running' AND j.lease_until<clock_timestamp()))
         AND NOT EXISTS (SELECT 1 FROM builder.evaluation_jobs active
           WHERE active.subscription_id=j.subscription_id AND active.owner=j.owner AND active.state='running' AND active.lease_until>clock_timestamp())
@@ -163,8 +182,9 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async evaluate(jobId: string, token: string) {
       idSchema.parse(jobId); idSchema.parse(token)
       const loaded = await transaction(pool, async client => {
+        if (!await lockJobEvent(client, jobId)) throw conflict('event-reorged')
         const row = (await client.query(`SELECT s.*,j.source AS event_source,j.event_id FROM builder.evaluation_jobs j JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
-          WHERE j.id=$1 AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
+          WHERE j.id=$1 AND j.reorged_at IS NULL AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
         if (!row) throw conflict('lease-lost')
         const eventRow = (await client.query('SELECT * FROM builder.event_inbox WHERE source=$1 AND event_id=$2 AND canonical=true', [row.event_source, row.event_id])).rows[0]
         if (!eventRow) throw conflict('event-reorged')
@@ -179,8 +199,9 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       }
       if (result.status === 'changed' && (!result.reportHash || !result.report || typeof result.report !== 'object')) result = { status: 'failed', reason: 'invalid-evaluation-result' }
       return transaction(pool, async client => {
+        if (!await lockJobEvent(client, jobId)) throw conflict('event-reorged')
         const current = (await client.query(`SELECT s.*,j.attempts FROM builder.evaluation_jobs j JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
-          WHERE j.id=$1 AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
+          WHERE j.id=$1 AND j.reorged_at IS NULL AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
         if (!current) throw conflict('lease-lost')
         const sub = subscription(current), now = new Date().toISOString()
         if (sub.state !== 'enabled') {
@@ -229,6 +250,14 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async deliver(deliveryId: string) {
       idSchema.parse(deliveryId)
       const claimed = await transaction(pool, async client => {
+        const identity = (await client.query('SELECT evaluation_job_id FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]
+        if (!identity) return null
+        const canonical = await lockJobEvent(client, String(identity.evaluation_job_id))
+        const job = (await client.query('SELECT reorged_at FROM builder.evaluation_jobs WHERE id=$1', [identity.evaluation_job_id])).rows[0]
+        if (!canonical || job.reorged_at !== null) {
+          const cancelled = await client.query("UPDATE builder.report_deliveries SET status='failed',error_code='event-reorged',updated_at=clock_timestamp() WHERE id=$1 AND status='pending'", [deliveryId])
+          return cancelled.rowCount ? { stale: true as const } : null
+        }
         // Enforce ordering at the claim itself: callers can bypass the pending
         // list, and an old subscription may still have an unresolved broadcast.
         const row = (await client.query(`UPDATE builder.report_deliveries d SET status='broadcast',attempts=d.attempts+1,updated_at=clock_timestamp()
@@ -258,14 +287,15 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       if ('waiting' in claimed) return { status: 'waiting' as const }
       if ('stale' in claimed) return { status: 'stale' as const }
       try {
-        if (!dependencies.deliver) throw new ServiceError('delivery-unavailable', 503)
-        const receipt = await dependencies.deliver({ subscription: claimed.sub, report: claimed.row.payload, reportHash: claimed.row.report_hash as `0x${string}`, nonce: String(claimed.row.nonce) })
-        await pool.query(`UPDATE builder.report_deliveries SET status='accepted',transaction_hash=$2,receipt=$3,updated_at=clock_timestamp() WHERE id=$1 AND status='broadcast'`, [deliveryId, receipt.transactionHash, JSON.stringify(receipt.receipt ?? null)])
-        return { status: 'accepted' as const, receipt }
+        if (!dependencies.deliver) throw new DeliveryNotSentError('delivery-unavailable', 503)
+        const receipt = await dependencies.deliver({ deliveryId, subscription: claimed.sub, report: claimed.row.payload, reportHash: claimed.row.report_hash as `0x${string}`, nonce: String(claimed.row.nonce) })
+        return await acceptReceipt(deliveryId, receipt)
       } catch (error) {
-        const code = error instanceof ServiceError ? error.code : 'delivery-failed'
-        const retryable = Number(claimed.row.attempts) < 3
-        await pool.query(`UPDATE builder.report_deliveries SET status=$2,error_code=$3,next_attempt_at=clock_timestamp()+CASE WHEN $2='pending' THEN ((attempts * 2)::text || ' seconds')::interval ELSE interval '0' END,updated_at=clock_timestamp() WHERE id=$1 AND status='broadcast'`, [deliveryId, retryable ? 'pending' : 'failed', code])
+        const code = error instanceof ServiceError ? error.code : 'delivery-outcome-unknown'
+        // Timeouts, HTTP errors and malformed responses can all happen after a
+        // successful broadcast. Only a definitely local failure is retryable.
+        const status = error instanceof DeliveryNotSentError ? Number(claimed.row.attempts) < 3 ? 'pending' : 'failed' : 'broadcast'
+        await pool.query(`UPDATE builder.report_deliveries SET status=$2,error_code=$3,next_attempt_at=clock_timestamp()+CASE WHEN $2='pending' THEN ((attempts * 2)::text || ' seconds')::interval ELSE interval '0' END,updated_at=clock_timestamp() WHERE id=$1 AND status='broadcast'`, [deliveryId, status, code])
         throw error
       }
     },
@@ -293,16 +323,32 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       if (!row) throw notFound()
       if (row.status !== 'broadcast' || !dependencies.reconcile) return { status: row.status }
       const receipt = await dependencies.reconcile({ deliveryId, subscription: subscription(row), reportHash: row.report_hash as `0x${string}`, nonce: String(row.nonce) })
-      if (!receipt) return { status: 'broadcast' as const }
-      await pool.query(`UPDATE builder.report_deliveries SET status='accepted',transaction_hash=$2,receipt=$3,updated_at=clock_timestamp() WHERE id=$1 AND status='broadcast'`, [deliveryId, receipt.transactionHash, JSON.stringify(receipt.receipt ?? null)])
-      return { status: 'accepted' as const, receipt }
+      if (!receipt) {
+        await pool.query("UPDATE builder.report_deliveries SET updated_at=clock_timestamp() WHERE id=$1 AND status='broadcast'", [deliveryId])
+        return { status: 'broadcast' as const }
+      }
+      if ('status' in receipt) {
+        // not-broadcast is a terminal, persisted gateway fence: a delayed
+        // request for this deliveryId must now be rejected by that gateway.
+        const code = receipt.status === 'not-broadcast' ? 'delivery-not-broadcast' : 'delivery-reverted'
+        const updated = await pool.query(`UPDATE builder.report_deliveries SET status='failed',error_code=$2,transaction_hash=$3,receipt=$4,updated_at=clock_timestamp()
+          WHERE id=$1 AND status='broadcast' RETURNING status`, [deliveryId, code, 'transactionHash' in receipt ? receipt.transactionHash : null, JSON.stringify('receipt' in receipt ? receipt.receipt ?? null : null)])
+        const status = updated.rows[0]?.status ?? (await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]?.status
+        return { status: String(status) }
+      }
+      return acceptReceipt(deliveryId, receipt)
     },
     async markReorg(source: string, eventId: string) {
       sourceSchema.parse(source); eventIdSchema.parse(eventId)
       return transaction(pool, async client => {
         const result = await client.query(`UPDATE builder.event_inbox SET canonical=false,reorged_at=clock_timestamp() WHERE source=$1 AND event_id=$2 AND canonical=true`, [source, eventId])
         if (!result.rowCount) return { changed: false as const }
-        await client.query(`UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='event-reorged' WHERE source=$1 AND event_id=$2 AND state IN ('pending','running')`, [source, eventId])
+        await client.query(`UPDATE builder.evaluation_jobs SET reorged_at=clock_timestamp(),
+          state=CASE WHEN state IN ('pending','running') THEN 'cancelled' ELSE state END,
+          completed_at=COALESCE(completed_at,clock_timestamp()),lease_token=NULL,lease_until=NULL,error_code='event-reorged'
+          WHERE source=$1 AND event_id=$2 AND reorged_at IS NULL`, [source, eventId])
+        await client.query(`UPDATE builder.report_deliveries d SET status='failed',error_code='event-reorged',updated_at=clock_timestamp()
+          FROM builder.evaluation_jobs j WHERE j.id=d.evaluation_job_id AND j.source=$1 AND j.event_id=$2 AND d.status='pending'`, [source, eventId])
         await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.reorged',$1,revision FROM builder.event_subscriptions WHERE state='enabled' AND (source='*' OR source=$2) ON CONFLICT DO NOTHING", [source + ':' + eventId, source])
         return { changed: true as const }
       })
