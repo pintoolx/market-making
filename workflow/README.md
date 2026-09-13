@@ -2,12 +2,12 @@
 
 # Confidential workflow (Chainlink CRE, TEE)
 
-A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It opens browser-sealed Provider strategies and Maker limits inside the TEE, intersects both policies at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). Pre-provisioned strategies may instead be read directly from Vault DON. The TEE never handles Maker funds or signing keys.
+A Chainlink CRE **Confidential Workflow** whose handler runs inside a TEE (AWS Nitro). It opens browser-sealed Provider strategies and Maker limits inside the TEE, intersects both policies at the current market snapshot, and emits a public [`GuardReportV1`](../docs/GUARD-REPORT-V1.md). Pre-provisioned strategies and a pre-provisioned Maker may instead be read directly from Vault DON. The TEE never handles Maker funds or signing keys.
 
 The workflow has two entry points:
 
 - A cron trigger continuously reevaluates the configured strategy.
-- An authorized HTTP trigger performs on-demand evaluation for a public Maker, strategy hash, market snapshot and encrypted Maker envelope. A Provider-published listing may also supply an encrypted Provider policy bound to its public Provider address.
+- An authorized HTTP trigger performs on-demand evaluation for a public Maker and strategy hash, optionally with a market snapshot and encrypted Maker envelope. A pre-provisioned Maker omits the envelope and is checked against the configured wallet; a Provider-published listing may also supply an encrypted Provider policy bound to its public Provider address.
 
 Both handlers enter the TEE before fetching secrets, then call the shared report delivery seam. Cron retains provisioned Provider and Maker secrets for scheduled operation. The product HTTP handler can decrypt both parties' authenticated envelopes using one Vault DON key fetch. The separate [`guard-report/`](guard-report/) package verifies encoding, DON delivery and Guard readback. CLI simulation is not production DON or TEE attestation. See the [system architecture](../docs/ARCHITECTURE.md) and [transport verification boundary](../docs/CRE-GUARD-INTEGRATION.md).
 

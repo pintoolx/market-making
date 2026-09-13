@@ -81,7 +81,8 @@ export const httpRequestSchema = z
 		maker: hexAddress,
 		strategyHash: hexBytes32,
 		marketSnapshot: marketSnapshotSchema.optional(),
-		makerLimitsEnvelope: confidentialEnvelopeSchema,
+		/** Optional for a pre-provisioned Maker; required when using a browser-sealed policy. */
+		makerLimitsEnvelope: confidentialEnvelopeSchema.optional(),
 		provider: hexAddress.optional(),
 		providerStrategyEnvelope: confidentialEnvelopeSchema.optional(),
 	})
@@ -235,6 +236,7 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		...(parsed.data.providerStrategyEnvelope
 			? { provider: parsed.data.provider, providerStrategyEnvelope: parsed.data.providerStrategyEnvelope }
 			: { providerSecretId: providerSecretFor(runtime.config, parsed.data.strategyHash) }),
+		makerSecretId: runtime.config.makerSecretId,
 		envelopePrivateKeySecretId: runtime.config.envelopePrivateKeySecretId,
 		expectedStrategyId,
 		makerLimitsEnvelope: parsed.data.makerLimitsEnvelope,
