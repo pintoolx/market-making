@@ -64,6 +64,39 @@ test('event inbox is durable, deduplicated and change-only across evaluation and
   await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
 })
 
+test('subscriptions can filter events by source while wildcard subscriptions retain all sources', async () => {
+  const f = await fixture(), w = await fixture(), observed: string[] = []
+  const events = createEventDelivery(pool, profile, { evaluate: async input => {
+    observed.push(input.subscription.source + ':' + input.event.source)
+    return { status: 'unchanged' }
+  } })
+  const filtered = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.filtered' })
+  const wildcard = await events.enable(w.owner, randomUUID(), { draftId: w.draft.id, expectedRevision: 2, artifactId: w.artifact.artifactId, consentId: w.consent.id })
+  assert.equal(filtered.subscription.source, 'market.filtered'); assert.equal(wildcard.subscription.source, '*')
+  await events.ingest({ source: 'market.other', eventId: 'source-other', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [filtered.subscription.id])).rows[0].count, 0)
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [wildcard.subscription.id])).rows[0].count, 1)
+  await events.ingest({ source: 'market.filtered', eventId: 'source-match', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [filtered.subscription.id])).rows[0].count, 1)
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [wildcard.subscription.id])).rows[0].count, 2)
+  assert.deepEqual((await pool.query("SELECT resource_id FROM builder.outbox WHERE owner=$1 AND kind='event.received'", [f.owner])).rows, [{ resource_id: 'market.filtered:source-match' }])
+  for (let i = 0; i < 3; i++) {
+    const job = await events.claimEvaluation(); assert.ok(job)
+    assert.equal((await events.evaluate(job.id, job.token)).result.status, 'unchanged')
+  }
+  assert.deepEqual(observed.sort(), ['*:market.filtered', '*:market.other', 'market.filtered:market.filtered'])
+  await events.markReorg('market.other', 'source-other')
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.outbox WHERE owner=$1 AND kind='event.reorged'", [f.owner])).rows[0].count, 0)
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.outbox WHERE owner=$1 AND kind='event.reorged'", [w.owner])).rows[0].count, 1)
+  await events.ingest({ source: 'market.filtered', eventId: 'before-source-switch', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  const switched = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.other' })
+  assert.equal(switched.subscription.generation, filtered.subscription.generation + 1)
+  assert.equal((await events.get(f.owner, filtered.subscription.id)).state, 'stopped')
+  assert.equal((await pool.query('SELECT state FROM builder.evaluation_jobs WHERE subscription_id=$1 AND event_id=$2', [filtered.subscription.id, 'before-source-switch'])).rows[0].state, 'cancelled')
+  await events.stop(f.owner, randomUUID(), { subscriptionId: switched.subscription.id })
+  await events.stop(w.owner, randomUUID(), { subscriptionId: wildcard.subscription.id })
+})
+
 test('stopping, reorg and consent revocation prevent late event work from re-enabling a Maker', async () => {
   const f = await fixture(), events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ paused: true }), report: { paused: true } }) })
   const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
@@ -311,8 +344,10 @@ test('event subscription HTTP routes bind the authenticated Maker and reject res
     const challenge = await (await fetch(base + '/auth/challenge', { method: 'POST', headers: headers(), body: JSON.stringify({ address: f.account.address }) })).json() as { id: string; message: string }
     const token = (await (await fetch(base + '/auth/login', { method: 'POST', headers: headers(), body: JSON.stringify({ challengeId: challenge.id, signature: await f.account.signMessage({ message: challenge.message }) }) })).json() as { token: string }).token
     assert.equal((await call(`/drafts/${f.draft.id}/event-subscription?revision=2`, undefined, token)).status, 200)
-    const enabled = await call(`/drafts/${f.draft.id}/event-subscription`, { expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id }, token)
-    assert.equal(enabled.status, 200); const subscription = (await enabled.json() as { subscription: { id: string; state: string } }).subscription; assert.equal(subscription.state, 'enabled')
+    const input = { expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id }
+    assert.equal((await call(`/drafts/${f.draft.id}/event-subscription`, { ...input, source: 'market.*' }, token)).status, 400)
+    const enabled = await call(`/drafts/${f.draft.id}/event-subscription`, { ...input, source: 'market.filtered' }, token)
+    assert.equal(enabled.status, 200); const subscription = (await enabled.json() as { subscription: { id: string; state: string; source: string } }).subscription; assert.equal(subscription.state, 'enabled'); assert.equal(subscription.source, 'market.filtered')
     assert.equal((await call(`/event-subscriptions/${subscription.id}/stop`, { subscriptionId: 'forged' }, token)).status, 400)
     assert.equal((await call(`/event-subscriptions/${subscription.id}/stop`, {}, token)).status, 200)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }

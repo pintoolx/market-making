@@ -89,7 +89,7 @@ Required production checks:
 
 1. Set Railway `DATABASE_URL=${{Postgres.DATABASE_URL}}`, deploy, and confirm
    `/health` plus the Builder authenticated session route.
-2. Confirm the migration table contains 001–013 and that the Builder service
+2. Confirm the migration table contains 001–014 and that the Builder service
    uses a database role with only the application schema permissions.
 3. Run one real multi-turn request with the configured OpenAI key and inspect
    only public draft/tool events.

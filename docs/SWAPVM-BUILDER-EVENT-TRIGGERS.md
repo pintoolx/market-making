@@ -2,7 +2,7 @@
 
 The design uses standing authorization and event-driven reevaluation. It does not renew reports every ten minutes. This specification defines worker and recovery requirements; deployed behavior must be supported by implementation and environment evidence.
 
-The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health, lease-based outbox dispatch and resident worker persistence in migrations 010–013. The resident worker serializes active evaluation per subscription, cancels unsent work on stop or switch, draft revision, consent revoke or template withdrawal, checks the current binding before delivery, orders pending reports behind earlier unresolved nonces and reconciles `broadcast` rows after restart. Signed event ingress, market/log normalizers and a confirmed EVM log source with bounded backfill/reorg replay are available as deployment adapters; CRE and chain delivery adapters remain deployment-provided, and without a verified delivery adapter the service fails closed.
+The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health, lease-based outbox dispatch and resident worker persistence in migrations 010–014. The resident worker serializes active evaluation per subscription, cancels unsent work on stop or switch, draft revision, consent revoke or template withdrawal, checks the current binding before delivery, orders pending reports behind earlier unresolved nonces and reconciles `broadcast` rows after restart. Signed event ingress, market/log normalizers and a confirmed EVM log source with bounded backfill/reorg replay are available as deployment adapters; CRE and chain delivery adapters remain deployment-provided, and without a verified delivery adapter the service fails closed.
 
 ## Contract and delivery semantics
 
@@ -28,6 +28,8 @@ Verified Provider template + explicit Maker consent
 ```
 
 Events request evaluation; they are not trusted prices, reports or authorization. The first worker can use a CRE HTTP adapter. Local CLI simulation and authorized production HTTP delivery have different trust guarantees. Native CRE EVM log triggers are an optional adapter, not a reason to duplicate event processing.
+
+Subscription creation accepts an optional `source`, such as `market.kraken` or `chain.sepolia.guard`. Omission uses `*` for all sources, preserving existing subscriptions and the current UI default. A named source filters evaluation jobs and received/reorg notifications; the evaluator rechecks it against the stored event identity. Changing the source creates a new subscription generation and cancels unsent work from the previous enabled subscription. This is source-level routing; per-Maker/strategy log filtering remains a separate requirement.
 
 | Source | Required behavior |
 |---|---|

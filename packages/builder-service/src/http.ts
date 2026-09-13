@@ -179,7 +179,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
           const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
           return send(await events.current(actor.owner, eventSubscriptionDraft[1]!, expectedRevision))
         }
-        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/), consentId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
+        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/), consentId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/), source: z.union([z.literal('*'), z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/)]).optional() }).strict().parse(await readJson(request))
         return send(await events.enable(actor.owner, requestId as string, { draftId: eventSubscriptionDraft[1], ...body }))
       }
       const bindingConfirm = route.match(/^\/authorization-bindings\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/confirm$/)

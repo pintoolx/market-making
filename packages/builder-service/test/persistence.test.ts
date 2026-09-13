@@ -34,15 +34,15 @@ after(async () => {
 
 test('real PostgreSQL migrations serialize, verify checksums and preserve unrelated data', async () => {
   const applied = await Promise.all([migrate(pool), migrate(pool)])
-  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 13)
+  assert.equal(applied.reduce((sum, r) => sum + r.applied, 0), 14)
   assert.equal((await pool.query('SELECT value FROM public.legacy_marker')).rows[0].value, 'keep')
-  assert.deepEqual(await migrate(pool), { available: 13, applied: 0 })
+  assert.deepEqual(await migrate(pool), { available: 14, applied: 0 })
   const dir = await mkdtemp(join(tmpdir(), 'builder-migration-'))
   try {
     const sql = await readFile(new URL('../migrations/001_drafts_and_jobs.sql', import.meta.url), 'utf8')
     await writeFile(join(dir, '001_drafts_and_jobs.sql'), sql + '\n-- changed migration\n')
     await assert.rejects(migrate(pool, pathToFileURL(dir + '/')), /checksum mismatch/)
-    assert.deepEqual(await migrate(pool), { available: 13, applied: 0 })
+    assert.deepEqual(await migrate(pool), { available: 14, applied: 0 })
   } finally { await rm(dir, { recursive: true, force: true }) }
 })
 

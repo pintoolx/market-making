@@ -32,7 +32,7 @@ export type AutomationConsentIntent = { schemaVersion: 1; id: string; owner: str
 export type AutomationConsent = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
   contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
   message: string; signature: `0x${string}`; consentDigest: `0x${string}`; active: boolean; registrationReady: false };
-export type EventSubscription = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; generation: number;
+export type EventSubscription = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; source: string; generation: number;
   state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null;
   lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null };
 export type EventHealth = { source: string; chainId?: number; blockHash: `0x${string}` | null; observedAt: string | null; health: 'healthy' | 'stale' | 'recovered' | 'error'; errorCode?: string; updatedAt: string };
@@ -133,8 +133,8 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
     eventSubscription: async (draft: Draft) => (await call<{ subscription: EventSubscription | null; revision: number; registrationReady: false }>(
       `/drafts/${draft.id}/event-subscription?revision=${draft.revision}`)).subscription,
     eventHealth: (limit = 100) => call<{ health: EventHealth[] }>(`/events/health?limit=${limit}`),
-    enableEventSubscription: (draft: Draft, artifactId: string, consentId: string, key: string) => call<{ subscription: EventSubscription }>(
-      `/drafts/${draft.id}/event-subscription`, { expectedRevision: draft.revision, artifactId, consentId }, key),
+    enableEventSubscription: (draft: Draft, artifactId: string, consentId: string, key: string, source = '*') => call<{ subscription: EventSubscription }>(
+      `/drafts/${draft.id}/event-subscription`, { expectedRevision: draft.revision, artifactId, consentId, source }, key),
     stopEventSubscription: (subscriptionId: string, key: string) => call<{ subscription: EventSubscription }>(
       `/event-subscriptions/${subscriptionId}/stop`, {}, key),
     authorizationBinding: async (draft: Draft) => (await call<{ binding: AuthorizationBinding | null; revision: number; registrationReady: false }>(
