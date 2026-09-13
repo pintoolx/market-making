@@ -11,6 +11,7 @@
 contracts/*
 !contracts/aqua-executor
 contracts/aqua-executor/*
+!contracts/aqua-executor/package.json
 !contracts/aqua-executor/src
 !contracts/aqua-executor/artifacts
 contracts/aqua-executor/artifacts/*
