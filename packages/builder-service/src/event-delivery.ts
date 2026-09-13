@@ -9,6 +9,7 @@ import { conflict, notFound, ServiceError } from './errors.ts'
 import { mutation, ownerSchema } from './requests.ts'
 import { readActiveAutomationConsent, type AutomationConsent } from './automation.ts'
 import { readAuthorizationBinding, type AuthorizationBinding } from './bindings.ts'
+import { cancelUnsentEventWork } from './event-control.ts'
 
 const sourceSchema = z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/)
 const eventIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/)
@@ -48,12 +49,6 @@ async function readSubscription(client: Pick<PoolClient, 'query'>, owner: string
   const row = (await client.query(`SELECT * FROM builder.event_subscriptions WHERE id=$1 AND owner=$2${lock ? ' FOR UPDATE' : ''}`, [id, owner])).rows[0]
   if (!row) throw notFound()
   return subscription(row)
-}
-async function cancelUnsent(client: Pick<PoolClient, 'query'>, subscriptionId: string) {
-  await client.query(`UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='subscription-stopped'
-    WHERE subscription_id=$1 AND state IN ('pending','running')`, [subscriptionId])
-  await client.query(`UPDATE builder.report_deliveries SET status='failed',error_code='subscription-stopped',updated_at=clock_timestamp()
-    WHERE subscription_id=$1 AND status='pending'`, [subscriptionId])
 }
 /** Durable event inbox, evaluation queue and change-only standing report delivery. */
 export function createEventDelivery(pool: Pool, profile: DeploymentProfile, dependencies: EventDeliveryDependencies = {}) {
@@ -96,7 +91,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         const switched = await client.query(`UPDATE builder.event_subscriptions SET state='stopped',stopped_at=clock_timestamp(),updated_at=clock_timestamp()
           WHERE owner=$1 AND state='enabled' RETURNING id,revision`, [owner])
         for (const row of switched.rows) {
-          await cancelUnsent(client, String(row.id))
+          await cancelUnsentEventWork(client, [String(row.id)])
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.switched',$2,$3) ON CONFLICT DO NOTHING", [owner, row.id, row.revision])
         }
         const row = (await client.query(`INSERT INTO builder.event_subscriptions(id,owner,draft_id,revision,artifact_id,consent_id,generation)
@@ -119,7 +114,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       return mutation(pool, owner, requestId, 'event-subscription.stop', value, async client => {
         const sub = await readSubscription(client, owner, value.subscriptionId, true)
         if (sub.state !== 'stopped') {
-          await cancelUnsent(client, sub.id)
+          await cancelUnsentEventWork(client, [sub.id])
           await client.query("UPDATE builder.event_subscriptions SET state='stopped',stopped_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1 AND owner=$2", [sub.id, owner])
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.stopped',$2,$3) ON CONFLICT DO NOTHING", [owner, sub.id, sub.revision])
         }

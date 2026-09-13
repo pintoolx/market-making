@@ -3,6 +3,7 @@ import { contentDigest, draftSchema, idSchema, type StrategyDraft, type Diff, ty
 import { conflict, notFound, ServiceError } from './errors.ts'
 import { ownerSchema } from './requests.ts'
 import { assertTurnLease, supersedeTurns, type TurnLease } from './turn-lease.ts'
+import { cancelUnsentEventWork } from './event-control.ts'
 
 /** Internal transaction helpers shared by public edits and explicit user review.
  * Callers hold the owned draft lock across any read/change/receipt operation. */
@@ -35,6 +36,7 @@ export async function persistDraftChange(client: PoolClient, before: StrategyDra
   await client.query('UPDATE builder.conversations SET title=$3,updated_at=clock_timestamp() WHERE id=$1 AND owner=$2', [saved.rows[0].conversation_id, draft.owner, draft.spec.title])
   const stopped = await client.query(`UPDATE builder.event_subscriptions SET state='stopped',stopped_at=clock_timestamp(),updated_at=clock_timestamp()
     WHERE owner=$1 AND draft_id=$2 AND state IN ('enabled','paused') RETURNING id,revision`, [draft.owner, draft.id])
+  await cancelUnsentEventWork(client, stopped.rows.map(row => String(row.id)))
   for (const row of stopped.rows) await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.stopped',$2,$3) ON CONFLICT DO NOTHING", [draft.owner, row.id, row.revision])
   // Running jobs reconcile their own lease/revision; only unstarted work is cancelled here.
   await client.query(`UPDATE builder.jobs SET state='cancelled',completed_at=clock_timestamp()

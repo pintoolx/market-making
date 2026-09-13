@@ -9,6 +9,7 @@ import { transaction } from './database.ts'
 import { conflict, notFound, ServiceError } from './errors.ts'
 import { mutation, ownerSchema } from './requests.ts'
 import { readRequirementReceipt } from './requirement-reviews.ts'
+import { cancelUnsentEventWork } from './event-control.ts'
 
 const prepareSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, artifactId: idSchema }).strict()
 const confirmSchema = z.object({ intentId: idSchema, digest: hashSchema, signature: z.string().regex(/^0x[0-9a-fA-F]{130,132}$/) }).strict()
@@ -122,8 +123,9 @@ export function createAutomation(pool: Pool, profile: DeploymentProfile) {
         const existing = (await client.query('SELECT consent_id FROM builder.automation_consent_revocations WHERE consent_id=$1', [consent.id])).rows[0]
         if (!existing) {
           await client.query('INSERT INTO builder.automation_consent_revocations(consent_id,owner,message,signature) VALUES($1,$2,$3,$4)', [consent.id, owner, message, value.signature])
-          await client.query(`UPDATE builder.event_subscriptions SET state='stopped', stopped_at=clock_timestamp(), updated_at=clock_timestamp()
-            WHERE owner=$1 AND consent_id=$2 AND state='enabled'`, [owner, consent.id])
+          const stopped = await client.query(`UPDATE builder.event_subscriptions SET state='stopped', stopped_at=clock_timestamp(), updated_at=clock_timestamp()
+            WHERE owner=$1 AND consent_id=$2 AND state='enabled' RETURNING id`, [owner, consent.id])
+          await cancelUnsentEventWork(client, stopped.rows.map(row => String(row.id)), 'automation-consent-revoked')
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'automation-consent.revoked',$2,$3)", [owner, consent.id, consent.revision])
         }
         return { consent: { ...consent, active: false as const }, registrationReady: false as const }
