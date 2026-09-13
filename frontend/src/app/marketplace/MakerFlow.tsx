@@ -70,7 +70,11 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
   const lastLinkedStrategy = useRef<string | null>(null);
+  const accountWalletKey = account.addresses.map(address => address.toLowerCase()).sort().join(',');
   const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
+  const setupMakerAddress = editingExisting && mandate
+    ? account.addresses.find(address => address.toLowerCase() === mandate.maker.toLowerCase())
+    : makerAddress;
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
   useEffect(() => { consumeMarketplaceReturn(); }, []);
@@ -127,8 +131,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       if (!linkedId) setPhase('choose');
       return;
     }
-    const restoreKey = `${makerAddress?.toLowerCase()}:${linkedMandateId ?? ''}`;
-    if (!makerAddress) {
+    const restoreKey = `${accountWalletKey}:${linkedMandateId ?? ''}`;
+    if (!account.ready || !account.authenticated || !accountWalletKey) {
       restoredMaker.current = '';
       setMandate(null);
       setPhase('choose');
@@ -143,7 +147,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     getMandate(linkedMandateId)
       .then(state => {
         if (!current || openingLinkedStrategy.current) return;
-        if (state.maker.toLowerCase() !== makerAddress.toLowerCase()) throw new Error('This liquidity setup belongs to a different wallet.');
+        if (!accountWalletKey.split(',').includes(state.maker.toLowerCase())) throw new Error('This liquidity setup belongs to a wallet that is not linked to this account.');
         restoredMaker.current = restoreKey;
         saveMandateReference(state.maker, state.mandateId);
         setError('');
@@ -151,10 +155,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         setSelected([]);
         setPhase('monitor');
       })
-      .catch(() => { if (current && linkedMandateId) setError('Unable to open this liquidity setup. Check the link and connected wallet, then reload.'); })
+      .catch(reason => { if (current && linkedMandateId) setError(reason instanceof Error ? reason.message : 'Unable to open this liquidity setup. Reload and try again.'); })
       .finally(() => { if (current) setRefreshing(false); });
     return () => { current = false; };
-  }, [makerAddress, linkedMandateId, linkedId]);
+  }, [account.ready, account.authenticated, accountWalletKey, linkedMandateId, linkedId]);
 
   const catalogMatchesWallet = !!makerAddress;
   const isExecutable = (item: Listing) => {
@@ -187,7 +191,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   };
 
   const submit = async () => {
-    if (!makerAddress || selected.length === 0) {
+    if (!setupMakerAddress || selected.length === 0) {
       setError('Connect the wallet that will provide liquidity before continuing.');
       return;
     }
@@ -200,9 +204,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         maxToken0Value1: decimalToAtomic(maxWethInventory, 6),
         maxSwapValue1: decimalToAtomic(maxTrade, 6),
         authorization: 'until-changed',
-      }, CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, makerAddress);
+      }, CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, setupMakerAddress);
       const state = await createMandate({
-        maker: makerAddress,
+        maker: setupMakerAddress,
         // An adaptive listing is one product whose first provisioned profile is
         // evaluated at activation. Later evaluations can authorize another
         // profile without asking the Maker to buy a second strategy.
@@ -290,14 +294,15 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
   if ((phase === 'choose' && (linkedMandateId || linkedId)) || loadingLinked) {
     const backHref = linkedMandateId ? '/profile?tab=making' : '/maker';
-    const waitingForAccount = !account.ready || executableCatalog === null;
+    const waitingForAccount = !account.ready || (!!linkedId && executableCatalog === null) || (!!linkedMandateId && refreshing);
     return <section className={aqua.flow}>
       <Link className={aqua.backLink} href={backHref}>← {linkedMandateId ? 'My liquidity' : 'All strategies'}</Link>
       <PageHead eyebrow={linkedMandateId ? 'My liquidity' : 'Liquidity setup'} title={linkedMandateId ? 'Your liquidity' : 'Set up your liquidity'} />
       {error ? <p role="alert" className={aqua.errorNotice}>{error}</p>
         : waitingForAccount ? <p role="status">Loading your workspace…</p>
           : !account.authenticated ? <Primary onClick={account.login}>Connect liquidity wallet</Primary>
-            : !makerAddress ? <p>This setup belongs to a different liquidity wallet. Connect that wallet to continue.</p>
+            : linkedMandateId ? <p role="status">Loading your liquidity…</p>
+              : !makerAddress ? <p>This setup belongs to a different liquidity wallet. Connect that wallet to continue.</p>
               : <p role="status">{linkedMandateId ? 'Loading your liquidity…' : 'Loading your strategy…'}</p>}
     </section>;
   }
