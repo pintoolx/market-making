@@ -79,3 +79,15 @@ Required production checks:
 
 No CRE upload, activation or public-chain transaction is performed by this
 wiring change.
+
+## Rollout evidence
+
+On 2026-09-13, Railway deployment
+`34b5b223-5550-4628-9cf6-9f59c46de03f` (main commit `6a9a2e03`) reached
+`SUCCESS` with one running replica. The service log showed the Builder design
+worker ready, and `GET /health` returned `status: ok`, chain `11155111` and
+network `Ethereum Sepolia`. An unauthenticated Builder capabilities request
+returned `authentication-required`; an unsigned event-ingress request returned
+`event-ingress-unavailable`, confirming the route is mounted while ingress stays
+disabled until its HMAC secret is configured. No event gateway variables are
+configured, so the event worker remains off and cannot fabricate reports.
