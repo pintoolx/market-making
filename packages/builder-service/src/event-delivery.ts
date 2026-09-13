@@ -216,6 +216,15 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new ServiceError('invalid-request')
       return (await pool.query(`SELECT id FROM builder.report_deliveries WHERE status='pending' AND next_attempt_at<=clock_timestamp() ORDER BY created_at,id LIMIT $1`, [limit])).rows.map(row => String(row.id))
     },
+    /**
+     * Reports marked broadcast may have been sent successfully immediately
+     * before the worker process stopped. They must be reconciled on restart
+     * instead of being broadcast a second time.
+     */
+    async broadcastDeliveries(limit = 20) {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new ServiceError('invalid-request')
+      return (await pool.query(`SELECT id FROM builder.report_deliveries WHERE status='broadcast' ORDER BY updated_at,created_at,id LIMIT $1`, [limit])).rows.map(row => String(row.id))
+    },
     async reconcile(deliveryId: string) {
       idSchema.parse(deliveryId)
       const row = (await pool.query(`SELECT d.*,s.* FROM builder.report_deliveries d JOIN builder.event_subscriptions s ON s.id=d.subscription_id AND s.owner=d.owner WHERE d.id=$1`, [deliveryId])).rows[0]
