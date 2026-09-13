@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatUnits } from 'viem';
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventSubscription, type AuthorizationBinding, type TransactionPlan } from './client';
+import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventHealth, type EventSubscription, type AuthorizationBinding, type TransactionPlan } from './client';
 import { evidenceLabel, simulationState, verifyCompilation, verifyInventory,
   isReportEvidenceHash, isReportNonce, verifyTransactionPlan, type Compilation, type CompilationItem, type InventoryResult, type SimulationDetail, type SimulationItem } from './preparation';
 import BuilderDialog from './BuilderDialog';
@@ -20,6 +20,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   const [inventory, setInventory] = useState<InventoryResult | null>(null), [artifact, setArtifact] = useState<Compilation | null>(null);
   const [consent, setConsent] = useState<AutomationConsent | null>(null);
   const [subscription, setSubscription] = useState<EventSubscription | null>(null);
+  const [eventHealth, setEventHealth] = useState<EventHealth[]>([]);
   const [binding, setBinding] = useState<AuthorizationBinding | null>(null);
   const [reportDigest, setReportDigest] = useState(''), [reportTransactionHash, setReportTransactionHash] = useState(''), [reportNonce, setReportNonce] = useState('');
   const [registrationPlan, setRegistrationPlan] = useState<TransactionPlan | null>(null), [cancellationPlan, setCancellationPlan] = useState<TransactionPlan | null>(null);
@@ -36,13 +37,13 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   }, [onSessionExpired]);
   const load = useCallback(async () => {
     const ticket = ++refreshEpoch.current;
-    const [saved, compiled, simulations, currentConsent, currentSubscription, currentBinding] = await Promise.all([api.draft(draft.id), api.compilations(draft.id), api.simulations(draft.id), api.automationConsent(draft), api.eventSubscription(draft), api.authorizationBinding(draft)]);
+    const [saved, compiled, simulations, currentConsent, currentSubscription, currentBinding, health] = await Promise.all([api.draft(draft.id), api.compilations(draft.id), api.simulations(draft.id), api.automationConsent(draft), api.eventSubscription(draft), api.authorizationBinding(draft), api.eventHealth()]);
     if (!live.current || ticket !== refreshEpoch.current) return;
     const changed = saved.draft.revision !== draft.revision || saved.draft.owner !== draft.owner;
     const current = !changed && compiled.artifacts.find(a => Number(a.revision) === draft.revision && a.manifestHash === digestJson(profile));
     const selected = current ? verifyCompilation(await api.compilation(current.artifactId), draft, current.artifactId) : null;
     if (!live.current || ticket !== refreshEpoch.current) return;
-    setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations); setConsent(currentConsent); setSubscription(currentSubscription); setBinding(currentBinding);
+    setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations); setConsent(currentConsent); setSubscription(currentSubscription); setBinding(currentBinding); setEventHealth(health.health);
     setDetail(value => value && simulations.simulations.some(r => r.id === value.id && r.state === value.state && r.current === value.current) ? value : null);
   }, [api, draft]);
   useEffect(() => {
@@ -211,6 +212,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
       </section>
       <section aria-label="Event management consent"><h3>5. Event triggers and automatic report updates</h3>
         <p>Events request a new standing report only while this strategy, version and trusted Guard binding remain valid. Automatic updates do not swap, rebalance, approve, ship or dock assets. Consent expiry stops delivery and requires a new wallet signature.</p>
+        {eventHealth.length > 0 && <div className={styles.consentResult}><strong>Event source monitoring</strong><ul>{eventHealth.map(source => <li key={source.source}>{source.source}: {source.health}{source.observedAt ? ` · last observed ${new Date(source.observedAt).toLocaleString('en-US')}` : ''}{source.errorCode ? ` · ${source.errorCode}` : ''}</li>)}</ul><small>Monitoring health describes the public event source. It does not revoke a standing Guard report or guarantee that a pause transaction was delivered.</small></div>}
         {consent?.active ? <div className={styles.consentResult}><strong>{subscription?.state === 'enabled' ? 'Event management enabled' : 'Consent is valid, but the event service is not enabled'}</strong><p>Consent expires: {new Date(consent.expiresAt).toLocaleString('en-US')} · Bound strategy hash: <span className={styles.address}>{consent.strategyHash}</span></p>{binding && <p>Guard report binding: {binding.reportTransactionHash} · nonce {binding.reportNonce}</p>}{subscription?.lastEvaluatedAt && <p>Last evaluation: {new Date(subscription.lastEvaluatedAt).toLocaleString('en-US')}{subscription.lastChangedAt ? ` · Last condition change: ${new Date(subscription.lastChangedAt).toLocaleString('en-US')}` : ''}</p>}<button disabled={!!busy || stale} onClick={() => void act('Stopping event management', revokeAutomation)}>Stop automatic updates</button></div>
           : <div className={styles.consentResult}><p>{consent ? 'The previous consent expired or was stopped.' : 'Event management is not authorized.'}</p>{!binding && <p className={styles.notice}>Complete trusted Guard report binding and Maker signature before enabling event triggers. The agent and this screen cannot substitute for that step.</p>}<button className={styles.primary} disabled={!!busy || stale || !artifact || !binding} onClick={() => void act('Preparing event-management consent', enableAutomation)}>Enable automatic event updates</button><small>The current Maker wallet signs a message bound to this strategy revision. The service accepts only that signature and never receives the private key.</small></div>}
       </section>

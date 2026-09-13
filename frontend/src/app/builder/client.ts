@@ -35,6 +35,7 @@ export type AutomationConsent = { schemaVersion: 1; id: string; intentId: string
 export type EventSubscription = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; generation: number;
   state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null;
   lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null };
+export type EventHealth = { source: string; chainId?: number; blockHash: `0x${string}` | null; observedAt: string | null; health: 'healthy' | 'stale' | 'recovered' | 'error'; errorCode?: string; updatedAt: string };
 export type AuthorizationBinding = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
   manifestHash: `0x${string}`; contentDigest: `0x${string}`; maker: string; guard: string; router: string; strategyHash: `0x${string}`; programHash: `0x${string}`;
   orderHash: `0x${string}`; reportSchema: 2; reportDigest: `0x${string}`; reportTransactionHash: `0x${string}`; reportNonce: string;
@@ -131,6 +132,7 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
       `/automation-consents/${consentId}/revoke`, { signature }, key),
     eventSubscription: async (draft: Draft) => (await call<{ subscription: EventSubscription | null; revision: number; registrationReady: false }>(
       `/drafts/${draft.id}/event-subscription?revision=${draft.revision}`)).subscription,
+    eventHealth: (limit = 100) => call<{ health: EventHealth[] }>(`/events/health?limit=${limit}`),
     enableEventSubscription: (draft: Draft, artifactId: string, consentId: string, key: string) => call<{ subscription: EventSubscription }>(
       `/drafts/${draft.id}/event-subscription`, { expectedRevision: draft.revision, artifactId, consentId }, key),
     stopEventSubscription: (subscriptionId: string, key: string) => call<{ subscription: EventSubscription }>(

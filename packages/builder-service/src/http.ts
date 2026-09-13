@@ -92,7 +92,8 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         if (eventRoute[1] === 'ingest') return send(await events.ingest(verified), 202)
         const value = z.object({ source: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/), chainId: z.number().int().positive().optional(), cursor: z.record(z.string(), z.unknown()),
           blockHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(), observedAt: z.string().datetime({ offset: true }).optional(), health: z.enum(['healthy', 'stale', 'recovered', 'error']), errorCode: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional() }).strict().parse(verified)
-        return send(await events.health(value.source, value), 202)
+        const { source, ...healthInput } = value
+        return send(await events.health(source, healthInput), 202)
       }
       const privyHeader = request.headers['x-privy-access-token']
       const identity = verifyPrivy ? await verifyPrivy(typeof privyHeader === 'string' ? privyHeader : undefined) : undefined
@@ -103,6 +104,13 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
       if (route === '/auth/session' && !post) return send({ actor })
       if (route === '/auth/logout' && post) return send(await auth.logout(request.headers.authorization))
       if (route === '/capabilities' && !post) return send({ profileId: config.profileId, capabilities: getCapabilities() })
+      if (route === '/events/health' && !post) {
+        if (!events) throw new ServiceError('profile-unavailable', 503)
+        if ([...url.searchParams.keys()].some(key => key !== 'limit')) throw new ServiceError('invalid-request')
+        const limitValue = url.searchParams.get('limit')
+        const limit = limitValue === null ? 100 : z.coerce.number().int().positive().max(500).parse(limitValue)
+        return send({ health: await events.readHealth(limit) })
+      }
       const requestId = request.headers['idempotency-key']
       if (post && (typeof requestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(requestId))) throw new ServiceError('idempotency-key-required')
       const reviewConfirm = route.match(/^\/requirement-reviews\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/confirm$/)

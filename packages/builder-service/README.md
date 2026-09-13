@@ -68,6 +68,7 @@ All paths are relative to `/v1/builder`. All mutation bodies are strict JSON. Dr
 | POST `/drafts/:id/event-subscription` | `{ expectedRevision, artifactId, consentId }`; enables a revision-bound resident event subscription |
 | GET `/drafts/:id/event-subscription?revision=N` | Current event subscription state and last evaluation/report identity |
 | POST `/event-subscriptions/:id/stop` | `{}`; stops event delivery only; it is not a Guard revoke or Aqua dock |
+| GET `/events/health?limit=N` | Authenticated public source-health summaries; does not expose the durable cursor or private policy |
 | POST `/drafts/:id/authorization-binding` | `{ expectedRevision, artifactId, reportDigest, reportTransactionHash, reportNonce }`; verifies trusted Guard evidence and prepares the Maker binding message |
 | GET `/drafts/:id/authorization-binding?revision=N` | Current exact artifact/report binding |
 | POST `/authorization-bindings/:id/confirm` | `{ digest, signature }`; records the Maker's explicit signature after trusted report verification |
