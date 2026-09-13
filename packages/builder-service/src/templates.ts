@@ -10,6 +10,7 @@ import { allocationSchema, assertTemplateInstance, contentDigest, digestJson, dr
 import { conflict, notFound, ServiceError } from './errors.ts'
 import { mutation, ownerSchema, requestReceipt } from './requests.ts'
 import { readRequirementReceipt } from './requirement-reviews.ts'
+import { cancelUnsentEventWork } from './event-control.ts'
 
 export interface TemplateOptions {
   origin: string;
@@ -166,6 +167,7 @@ export function createTemplates(pool: Pool, profile: DeploymentProfile, options:
           const paused = await client.query(`UPDATE builder.event_subscriptions s SET state='paused',updated_at=clock_timestamp()
             FROM builder.drafts d WHERE d.id=s.draft_id AND d.owner=s.owner AND s.state='enabled'
               AND d.snapshot->'templatePin'->>'templateId'=$1 AND (d.snapshot->'templatePin'->>'version')::bigint=$2 RETURNING s.id,s.owner,s.revision`, [value.templateId, value.version])
+          await cancelUnsentEventWork(client, paused.rows.map(row => String(row.id)), 'template-withdrawn')
           for (const row of paused.rows) await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.paused',$2,$3) ON CONFLICT DO NOTHING", [row.owner, row.id, row.revision])
         }
         return readVersion(client, value.templateId, value.version)
