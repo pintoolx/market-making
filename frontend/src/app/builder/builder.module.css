@@ -181,6 +181,11 @@
 .consentResult { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #edf2fa; }
 .consentResult p { overflow-wrap: anywhere; }
 .consentResult small { display: block; margin-top: 12px; font-size: 11px; line-height: 1.8; color: var(--muted); }
+.planResult { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #edf2fa; }
+.planResult p { overflow-wrap: anywhere; }
+.planResult ol { margin: 14px 0; }
+.planResult li { margin: 12px 0; overflow-wrap: anywhere; }
+.planResult details { margin: 8px 0 0; }
 @media (max-width: 620px) { .requirementReview { padding: 0 16px; } }
 @media (max-width: 620px) { .preparation { padding: 8px 16px 18px; } .preparation h3 { font-size: 18px; } }
 @media (max-width: 620px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); } .dialogHeading { padding: 14px 16px; gap: 12px; } .dialogHeading h2 { font-size: 16px; } .publicReview, .privatePanel, .dialogFooter, .catalog, .catalogDetail, .publicationComplete { padding: 18px 16px; } .formGrid { grid-template-columns: minmax(0, 1fr); gap: 0; } .dialog h3 { font-size: 20px; } }

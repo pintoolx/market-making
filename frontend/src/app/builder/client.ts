@@ -39,6 +39,11 @@ export type AuthorizationBinding = { schemaVersion: 1; id: string; intentId: str
   manifestHash: `0x${string}`; contentDigest: `0x${string}`; maker: string; guard: string; router: string; strategyHash: `0x${string}`; programHash: `0x${string}`;
   orderHash: `0x${string}`; reportSchema: 2; reportDigest: `0x${string}`; reportTransactionHash: `0x${string}`; reportNonce: string;
   makerMessage: string; makerSignature: `0x${string}`; bindingDigest: `0x${string}`; registrationReady: false };
+export type TransactionPlan = { schemaVersion: 1; kind: 'registration' | 'cancellation'; id: string; chainId: number; owner: string; maker: `0x${string}`;
+  draftId: string; revision: number; artifactId: string; contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`;
+  programHash: `0x${string}`; orderHash: `0x${string}`; tokens: `0x${string}`[]; amounts: string[];
+  transactions: { kind: string; to: `0x${string}`; data: `0x${string}`; value: '0x0'; description: string; spender?: `0x${string}`; token?: `0x${string}`; amountAtomic?: string }[];
+  preconditions: string[]; registrationReady: false };
 export type Turn = { id: string; state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'; messageId: string | null };
 export type TurnEvent = { sequence: string; attempt: number; kind: 'started' | 'text' | 'tool' | 'completed' | 'failed' | 'cancelled' | 'superseded'; payload: { text?: string; name?: string; ok?: boolean } };
 
@@ -69,6 +74,8 @@ export class BuilderError extends Error {
       'authorization-binding-required': 'Verify the latest Guard report binding before enabling event management.', 'binding-proof-unavailable': 'Trusted Guard report evidence is unavailable.',
       'binding-proof-mismatch': 'The Guard report does not match this strategy revision.', 'authorization-binding-expired': 'The binding review expired. Verify the Guard report again.',
       'authorization-binding-mismatch': 'The binding or strategy revision changed. Verify it again.', 'authorization-binding-integrity': 'The authorization binding could not be verified. Reload and retry.',
+      'invalid-authorization-binding-signature': 'The Guard binding signature does not match this Maker wallet.', 'transaction-plan-integrity': 'The transaction plan failed its integrity checks. Prepare it again.',
+      'wallet-ownership-required': 'Connect the Maker wallet that owns this strategy before preparing transactions.',
     } as Record<string, string>)[code] ?? 'Unable to connect to the strategy workspace. Please retry.');
   }
 }
@@ -135,6 +142,10 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
         { expectedRevision: draft.revision, artifactId, reportDigest, reportTransactionHash, reportNonce }, key),
     confirmAuthorizationBinding: (intentId: string, digest: `0x${string}`, signature: `0x${string}`, key: string) => call<{ binding: AuthorizationBinding }>(
       `/authorization-bindings/${intentId}/confirm`, { digest, signature }, key),
+    prepareRegistration: (draft: Draft, artifactId: string, key: string) => call<{ plan: TransactionPlan; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/registration-plan`, { expectedRevision: draft.revision, artifactId }, key),
+    prepareCancellation: (draft: Draft, artifactId: string, key: string) => call<{ plan: TransactionPlan; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/cancellation-plan`, { expectedRevision: draft.revision, artifactId }, key),
     inventory: (draft: Draft) => call<InventoryResult>(`/drafts/${draft.id}/inventory?revision=${draft.revision}`),
     compilations: (id: string) => call<{ artifacts: CompilationItem[] }>(`/drafts/${id}/artifacts`),
     compilation: (id: string) => call<Compilation>(`/artifacts/${id}`),

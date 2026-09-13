@@ -1,5 +1,5 @@
 import { canonical, contentDigest, decodeGuardedOrder, digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import type { Draft, Token } from './client';
+import type { Draft, Token, TransactionPlan } from './client';
 
 // Public browser projections. No executor, worker, signer or provider transport is imported.
 export type CompilationItem = { artifactId: string; revision: string; manifestHash: string; createdAt: string };
@@ -54,6 +54,22 @@ export function verifyInventory(value: InventoryResult, draft: Draft) {
   if (s.strategies.length > 41 || amounts.some(a => !/^(0|[1-9]\d{0,77})$/.test(a) || BigInt(a) >= 1n << 256n) ||
     s.strategies.some(r => r.balances.length !== 2 || new Set(r.balances.map(b => b.token)).size !== 2 ||
       r.balances.some(b => !s.tokens.some(t => t.address === b.token)))) throw new Error('preparation-result-mismatch');
+  return value;
+}
+
+const hash = (value: unknown): value is `0x${string}` => typeof value === 'string' && /^0x[0-9a-fA-F]{64}$/.test(value);
+export const isReportEvidenceHash = hash;
+export const isReportNonce = (value: string) => /^[1-9][0-9]{0,19}$/.test(value);
+
+/** Check a server-created unsigned plan before displaying calldata to a wallet. */
+export function verifyTransactionPlan(value: { plan: TransactionPlan; digest: `0x${string}` }, draft: Draft, artifact: Compilation, expectedKind: TransactionPlan['kind']) {
+  const p = value.plan, payload = artifact.payload;
+  if (value.digest !== digestJson(p) || p.schemaVersion !== 1 || p.kind !== expectedKind || p.registrationReady !== false || p.chainId !== profile.chainId ||
+    p.owner !== draft.owner || p.maker.toLowerCase() !== draft.maker?.toLowerCase() || p.draftId !== draft.id || p.revision !== draft.revision || p.artifactId !== artifact.artifactId ||
+    p.contentDigest !== contentDigest(draft) || p.manifestHash !== digestJson(profile) || p.strategyHash !== payload.strategyHash || p.programHash !== payload.programHash || p.orderHash !== payload.orderHash ||
+    canonical(p.tokens) !== canonical(payload.tokens) || canonical(p.amounts) !== canonical(payload.amounts) || !p.preconditions.length ||
+    p.transactions.length !== (expectedKind === 'registration' ? 3 : 1) || p.transactions.some(t => t.value !== '0x0' || !/^0x[0-9a-fA-F]{40}$/.test(t.to) || !/^0x[0-9a-fA-F]*$/.test(t.data) || !t.description))
+    throw new Error('preparation-result-mismatch');
   return value;
 }
 
