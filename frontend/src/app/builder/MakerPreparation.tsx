@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatUnits } from 'viem';
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventHealth, type EventSubscription, type AuthorizationBinding, type TransactionPlan } from './client';
+import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventHealth, type EventSubscription, type AuthorizationBinding, type TransactionPlan, type ReportDelivery } from './client';
 import { evidenceLabel, simulationState, verifyCompilation, verifyInventory,
   isReportEvidenceHash, isReportNonce, verifyTransactionPlan, type Compilation, type CompilationItem, type InventoryResult, type SimulationDetail, type SimulationItem } from './preparation';
 import BuilderDialog from './BuilderDialog';
@@ -21,6 +21,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   const [consent, setConsent] = useState<AutomationConsent | null>(null);
   const [subscription, setSubscription] = useState<EventSubscription | null>(null);
   const [eventHealth, setEventHealth] = useState<EventHealth[]>([]);
+  const [deliveries, setDeliveries] = useState<ReportDelivery[]>([]);
   const [binding, setBinding] = useState<AuthorizationBinding | null>(null);
   const [reportDigest, setReportDigest] = useState(''), [reportTransactionHash, setReportTransactionHash] = useState(''), [reportNonce, setReportNonce] = useState('');
   const [registrationPlan, setRegistrationPlan] = useState<TransactionPlan | null>(null), [cancellationPlan, setCancellationPlan] = useState<TransactionPlan | null>(null);
@@ -42,7 +43,9 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
     const changed = saved.draft.revision !== draft.revision || saved.draft.owner !== draft.owner;
     const current = !changed && compiled.artifacts.find(a => Number(a.revision) === draft.revision && a.manifestHash === digestJson(profile));
     const selected = current ? verifyCompilation(await api.compilation(current.artifactId), draft, current.artifactId) : null;
+    const reports = currentSubscription ? await api.eventDeliveries(currentSubscription.id) : { deliveries: [] };
     if (!live.current || ticket !== refreshEpoch.current) return;
+    setDeliveries(reports.deliveries);
     setStale(changed); setArtifacts(compiled.artifacts); setArtifact(selected); setRuns(simulations.simulations); setConsent(currentConsent); setSubscription(currentSubscription); setBinding(currentBinding); setEventHealth(health.health);
     setDetail(value => value && simulations.simulations.some(r => r.id === value.id && r.state === value.state && r.current === value.current) ? value : null);
   }, [api, draft]);
@@ -51,7 +54,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
     void load().catch(fail).finally(() => { if (live.current) setBusy(''); });
     return () => { live.current = false; };
   }, [load, fail]);
-  const pending = runs.some(active);
+  const pending = runs.some(active) || subscription?.state === 'enabled';
   useEffect(() => {
     if (!pending) return;
     let timer: ReturnType<typeof setTimeout>, disposed = false;
@@ -128,7 +131,11 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
     }
   }
   async function enableAutomation() {
-    if (!artifact || stale || !binding) return;
+    if (!artifact || stale || (!binding && !draft.templatePin)) return;
+    if (consent?.active) {
+      await api.enableEventSubscription(draft, artifact.artifactId, consent.id, crypto.randomUUID());
+      await load(); return;
+    }
     const intent = await api.prepareAutomationConsent(draft, artifact.artifactId, crypto.randomUUID());
     setBusy('Confirm event-management consent in your wallet');
     const signature = await signMessage(intent.intent.message);
@@ -139,7 +146,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   async function revokeAutomation() {
     if (!consent?.active) return;
     const message = ['Pintool Builder revoke automation consent v1', `consent: ${consent.id}`, `owner: ${consent.owner.slice(7)}`,
-      `draft: ${consent.draftId}`, `strategyHash: ${consent.strategyHash}`, `scope: ${consent.scope}`].join('\\n');
+      `draft: ${consent.draftId}`, `strategyHash: ${consent.strategyHash}`, `scope: ${consent.scope}`].join('\n');
     setBusy('Confirm stopping event management in your wallet');
     await api.revokeAutomationConsent(consent.id, await signMessage(message), crypto.randomUUID());
     await load();
@@ -201,20 +208,21 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
           {detail.report ? <ul>{detail.report.cases.map(c => <li key={c.name}><span>{c.passed === null ? 'Not run' : c.passed ? 'Passed' : 'Failed'}</span> {c.name}{c.error ? ` · ${c.error}` : ''}</li>)}</ul> : <p>This job does not have complete results yet.</p>}
           <button onClick={() => setDetail(null)}>Hide cases</button></div>}
       </section>
-      <section aria-label="Guard report binding"><h3>4. Verify Guard report binding</h3>
+      {!draft.templatePin && <section aria-label="Guard report binding"><h3>4. Verify Guard report binding</h3>
         <p>Provide the public digest, accepted transaction hash and report nonce from the latest Guard report. The service independently checks Sepolia RPC, Router, Guard, Maker, strategy and schema before creating a signing intent.</p>
-        {binding && <div className={styles.consentResult}><strong>Guard report verified and Maker-bound</strong><p>Strategy hash: <span className={styles.address}>{binding.strategyHash}</span></p><p>Accepted report: <span className={styles.address}>{binding.reportTransactionHash}</span> · nonce {binding.reportNonce}</p><p>Binding digest: <span className={styles.address}>{binding.bindingDigest}</span></p><small>This message signature authorizes event report management for this exact revision. It does not approve tokens, ship, dock or send a transaction. Submit a newer accepted report below when the standing authorization is renewed.</small></div>}
+        {binding && <div className={styles.consentResult}><strong>Guard report verified and Maker-bound</strong><p>Strategy hash: <span className={styles.address}>{binding.strategyHash}</span></p><p>Accepted report: <span className={styles.address}>{binding.reportTransactionHash}</span> · nonce {binding.reportNonce}</p><p>Binding digest: <span className={styles.address}>{binding.bindingDigest}</span></p><small>This message signature authorizes event report management for this exact revision. It does not approve tokens, ship, dock or send a transaction. Submit a newer accepted report below when the effective authorization changes.</small></div>}
         <fieldset disabled={!!busy || stale || !artifact}><label htmlFor="guard-report-digest">Report digest (32-byte hex)<input id="guard-report-digest" value={reportDigest} onChange={event => setReportDigest(event.target.value.trim())} placeholder="0x…" autoComplete="off" /></label>
             <label htmlFor="guard-report-transaction">Accepted report transaction hash<input id="guard-report-transaction" value={reportTransactionHash} onChange={event => setReportTransactionHash(event.target.value.trim())} placeholder="0x…" autoComplete="off" /></label>
             <label htmlFor="guard-report-nonce">Report nonce<input id="guard-report-nonce" inputMode="numeric" value={reportNonce} onChange={event => setReportNonce(event.target.value.replace(/[^0-9]/g, ''))} placeholder="1" autoComplete="off" /></label>
             <button className={styles.primary} disabled={!artifact || !!busy || stale || !isReportEvidenceHash(reportDigest) || !isReportEvidenceHash(reportTransactionHash) || !isReportNonce(reportNonce)} onClick={() => void act('Verifying Guard report evidence', bindGuardReport)}>{bindingIntent.current ? 'Retry Guard binding' : binding ? 'Verify newer report and sign binding' : 'Verify report and sign binding'}</button>
             <small>Only public report evidence belongs here. Never paste a private key, API key or policy input.</small></fieldset>
-      </section>
-      <section aria-label="Event management consent"><h3>5. Event triggers and automatic report updates</h3>
-        <p>Events request a new standing report only while this strategy, version and trusted Guard binding remain valid. Automatic updates do not swap, rebalance, approve, ship or dock assets. Consent expiry stops delivery and requires a new wallet signature.</p>
+      </section>}
+      <section aria-label="Event management consent"><h3>Event triggers and automatic report updates</h3>
+        <p>Your signature enables evaluation of this exact strategy and Provider version. A new template instance queues its first report; later events request a report only when effective conditions change. Automatic updates do not swap, rebalance, approve, ship or dock assets. Consent expiry stops delivery and requires a new wallet signature.</p>
+        {deliveries.length > 0 && <div className={styles.consentResult}><strong>Report delivery</strong><ul>{deliveries.map(report => <li key={report.id}>Nonce {report.nonce}: {report.status === 'broadcast' ? 'Awaiting verified chain receipt' : report.status === 'accepted' ? 'Accepted onchain' : report.status === 'pending' ? 'Queued' : 'Not delivered'}{report.transactionHash && isReportEvidenceHash(report.transactionHash) && <a href={`https://sepolia.etherscan.io/tx/${report.transactionHash}`} target="_blank" rel="noreferrer"> View transaction</a>}</li>)}</ul><small>Report acceptance and Aqua registration are separate. A pending or failed report does not authorize trading.</small></div>}
         {eventHealth.length > 0 && <div className={styles.consentResult}><strong>Event source monitoring</strong><ul>{eventHealth.map(source => <li key={source.source}>{source.source}: {source.health}{source.observedAt ? ` · last observed ${new Date(source.observedAt).toLocaleString('en-US')}` : ''}{source.errorCode ? ` · ${source.errorCode}` : ''}</li>)}</ul><small>Monitoring health describes the public event source. It does not revoke a standing Guard report or guarantee that a pause transaction was delivered.</small></div>}
-        {consent?.active ? <div className={styles.consentResult}><strong>{subscription?.state === 'enabled' ? 'Event management enabled' : 'Consent is valid, but the event service is not enabled'}</strong><p>Consent expires: {new Date(consent.expiresAt).toLocaleString('en-US')} · Bound strategy hash: <span className={styles.address}>{consent.strategyHash}</span></p>{binding && <p>Guard report binding: {binding.reportTransactionHash} · nonce {binding.reportNonce}</p>}{subscription?.lastEvaluatedAt && <p>Last evaluation: {new Date(subscription.lastEvaluatedAt).toLocaleString('en-US')}{subscription.lastChangedAt ? ` · Last condition change: ${new Date(subscription.lastChangedAt).toLocaleString('en-US')}` : ''}</p>}<button disabled={!!busy || stale} onClick={() => void act('Stopping event management', revokeAutomation)}>Stop automatic updates</button></div>
-          : <div className={styles.consentResult}><p>{consent ? 'The previous consent expired or was stopped.' : 'Event management is not authorized.'}</p>{!binding && <p className={styles.notice}>Complete trusted Guard report binding and Maker signature before enabling event triggers. The agent and this screen cannot substitute for that step.</p>}<button className={styles.primary} disabled={!!busy || stale || !artifact || !binding} onClick={() => void act('Preparing event-management consent', enableAutomation)}>Enable automatic event updates</button><small>The current Maker wallet signs a message bound to this strategy revision. The service accepts only that signature and never receives the private key.</small></div>}
+        {consent?.active ? <div className={styles.consentResult}><strong>{subscription?.state === 'enabled' ? 'Event management enabled' : 'Consent is valid, but the event service is not enabled'}</strong><p>Consent expires: {new Date(consent.expiresAt).toLocaleString('en-US')} · Bound strategy hash: <span className={styles.address}>{consent.strategyHash}</span></p>{binding && <p>Guard report binding: {binding.reportTransactionHash} · nonce {binding.reportNonce}</p>}{subscription?.lastEvaluatedAt && <p>Last evaluation: {new Date(subscription.lastEvaluatedAt).toLocaleString('en-US')}{subscription.lastChangedAt ? ` · Last condition change: ${new Date(subscription.lastChangedAt).toLocaleString('en-US')}` : ''}</p>}{subscription?.state !== 'enabled' && <button disabled={!!busy || stale || !artifact} onClick={() => void act('Enabling event management', enableAutomation)}>Enable with current consent</button>}<button disabled={!!busy || stale} onClick={() => void act('Stopping event management', revokeAutomation)}>Stop automatic updates</button></div>
+          : <div className={styles.consentResult}><p>{consent ? 'The previous consent expired or was stopped.' : 'Event management is not authorized.'}</p>{!binding && !draft.templatePin && <p className={styles.notice}>Complete trusted Guard report binding and Maker signature before enabling event triggers. The agent and this screen cannot substitute for that step.</p>}<button className={styles.primary} disabled={!!busy || stale || !artifact || (!binding && !draft.templatePin)} onClick={() => void act('Preparing event-management consent', enableAutomation)}>Enable automatic event updates</button><small>The current Maker wallet signs a message bound to this strategy revision. The service accepts only that signature and never receives the private key.</small></div>}
       </section>
       <section aria-label="Unsigned wallet plans"><h3>6. Review unsigned wallet plans</h3>
         <p>These plans contain exact ERC-20 approval, Aqua ship or Aqua dock calldata for the current artifact. They are unsigned and never broadcast here. A wallet must perform a fresh balance, allowance, chain and receipt preflight immediately before signing.</p>

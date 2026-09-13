@@ -3,6 +3,7 @@ import type { PolicyEnvelope, PublicationIntent, StrategyDraft, StrategySpec, Te
 import type { Compilation, CompilationItem, InventoryResult, SimulationDetail, SimulationItem } from './preparation';
 
 // Public API projection only; the backend owns validation, ownership and transitions.
+export type ReportDelivery = { id: string; nonce: string; status: 'pending' | 'broadcast' | 'accepted' | 'failed'; transactionHash: string | null; reportDigest: string | null; errorCode: string | null; updatedAt: string };
 export type Token = { address: string; symbol: string; decimals: number };
 export type Draft = StrategyDraft;
 export type TemplateItem = { templateId: string; version: number; digest: `0x${string}`; provider: `0x${string}`; title: string;
@@ -130,6 +131,7 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
       `/automation-consents/${intentId}/confirm`, { digest, signature }, key),
     revokeAutomationConsent: (consentId: string, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
       `/automation-consents/${consentId}/revoke`, { signature }, key),
+    eventDeliveries: (subscriptionId: string) => call<{ deliveries: ReportDelivery[] }>(`/event-subscriptions/${subscriptionId}/deliveries`),
     eventSubscription: async (draft: Draft) => (await call<{ subscription: EventSubscription | null; revision: number; registrationReady: false }>(
       `/drafts/${draft.id}/event-subscription?revision=${draft.revision}`)).subscription,
     eventHealth: (limit = 100) => call<{ health: EventHealth[] }>(`/events/health?limit=${limit}`),

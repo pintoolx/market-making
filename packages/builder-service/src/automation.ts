@@ -49,8 +49,13 @@ export async function readActiveAutomationConsent(client: Reader, owner: string,
     WHERE c.owner=$1 AND c.draft_id=$2 AND c.revision=$3 AND r.consent_id IS NULL ORDER BY c.created_at DESC LIMIT 1`, [owner, draftId, revision])).rows[0]
   if (!row) return null
   const consent = row.payload as AutomationConsent
-  if (row.consent_digest !== consent.consentDigest || consent.owner !== owner || consent.draftId !== draftId || consent.revision !== revision || consent.registrationReady !== false)
+  if (row.consent_digest !== consent.consentDigest || consent.consentDigest !== consentDigest(consent) ||
+    consent.message !== consentMessage({ ...consent, id: consent.intentId }) ||
+    consent.owner !== owner || consent.draftId !== draftId || consent.revision !== revision || consent.registrationReady !== false)
     throw new ServiceError('automation-consent-integrity', 500)
+  let signed = false
+  try { signed = await verifyMessage({ address: owner.slice(7) as `0x${string}`, message: consent.message, signature: consent.signature }) } catch { /* redact */ }
+  if (!signed) throw new ServiceError('automation-consent-integrity', 500)
   return consent.expiresAt > new Date().toISOString() ? consent : null
 }
 async function currentArtifact(client: PoolClient, profile: DeploymentProfile, owner: string, input: { draftId: string; expectedRevision: number; artifactId: string }) {

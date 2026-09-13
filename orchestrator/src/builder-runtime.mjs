@@ -1,4 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { sepoliaStandingProfile } from '../../packages/strategy-builder/src/index.ts';
 import { createRpcBindingVerifier } from './builder-binding-verifier.mjs';
 
@@ -62,6 +64,23 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
     throw new Error('Builder event gateway requires evaluator URL, delivery URL and token together');
   const configuredEventGateway = eventWorkerEnabled && evaluatorUrl && deliveryUrl && gatewayToken
     ? createHttpEventGateway({ evaluatorUrl, deliveryUrl, token: gatewayToken, timeoutMs: integer(env.BUILDER_EVENT_GATEWAY_TIMEOUT_MS, 120000) }) : undefined;
+  let configuredCreBridge;
+  if (eventWorkerEnabled && env.BUILDER_EVENT_ADAPTER === 'cre-simulation') {
+    if (configuredEventGateway || !profile || !templatesKey || !env.BUILDER_CRE_PROJECT_DIRECTORY || env.BUILDER_CRE_EXCLUSIVE_BROADCASTER !== 'true')
+      throw new Error('CRE simulation requires a profile, public workflow key, project directory and exclusive broadcaster; remove HTTP gateway configuration');
+    const projectDirectory = resolve(env.BUILDER_CRE_PROJECT_DIRECTORY);
+    const baseConfig = JSON.parse(await readFile(resolve(projectDirectory, 'market-maker-auth/config.staging.json'), 'utf8'));
+    const { createBuilderCreBridge } = await import('./builder-cre-bridge.mjs');
+    configuredCreBridge = createBuilderCreBridge(pool, profile, {
+      baseConfig, projectDirectory, origin: config.allowedOrigin, workflowPublicKey: templatesKey, rpcUrl: config.rpcUrl,
+      environmentFile: env.BUILDER_CRE_ENV_FILE || '/dev/null', env,
+      broadcastEnabled: env.BUILDER_CRE_BROADCAST_ENABLED === 'true', timeoutMs: 120000,
+    });
+    if (env.BUILDER_EVENT_LEASE_MS && integer(env.BUILDER_EVENT_LEASE_MS, 300000) < 240000)
+      throw new Error('CRE simulation requires an evaluation lease of at least 240000 ms');
+  } else if (eventWorkerEnabled && env.BUILDER_EVENT_ADAPTER && env.BUILDER_EVENT_ADAPTER !== 'http') {
+    throw new Error('unsupported Builder event adapter');
+  }
   const eventSourceAddress = env.BUILDER_EVENT_EVM_ADDRESS?.trim();
   const eventSourceFromBlock = env.BUILDER_EVENT_EVM_FROM_BLOCK?.trim();
   const configuredEventSourceValues = [eventSourceAddress, eventSourceFromBlock].filter(Boolean).length;
@@ -120,10 +139,10 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
     // No default evaluator or broadcaster is installed. Running without an
     // explicitly injected adapter fails closed and never fabricates a Guard
     // report; queued work is retained with a stable failure state for review.
-    const eventDependencies = dependencies.eventDelivery ?? configuredEventGateway ?? {};
+    const eventDependencies = dependencies.eventDelivery ?? configuredCreBridge ?? configuredEventGateway ?? {};
     tasks.push(runEventWorker(pool, profile, eventDependencies, {
       pollMs: integer(env.BUILDER_EVENT_POLL_MS, 1000),
-      leaseMs: integer(env.BUILDER_EVENT_LEASE_MS, 30000),
+      leaseMs: integer(env.BUILDER_EVENT_LEASE_MS, configuredCreBridge ? 300000 : 30000),
       signal: shutdown.signal,
       ...(dependencies.eventSources ? { sources: dependencies.eventSources } : (configuredEventSource ? { sources: [configuredEventSource] } : {})),
       ...(dependencies.outboxDispatch ? { outbox: dependencies.outboxDispatch } : {}),

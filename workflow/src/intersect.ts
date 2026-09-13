@@ -22,6 +22,7 @@ import {
 	type DecisionTrace,
 	type GuardReportV1,
 	type MakerLimits,
+	type BuilderMakerLimits,
 	type MarketSnapshot,
 	type ProviderStrategy,
 	type ReportIdentity,
@@ -30,7 +31,7 @@ import {
 
 export type IntersectInput = {
 	strategy: ProviderStrategy
-	limits: MakerLimits
+	limits: MakerLimits | BuilderMakerLimits
 	market: MarketSnapshot
 	identity: ReportIdentity
 	/** Unix seconds (from `runtime.now()`, never `Date.now()`). */
@@ -74,7 +75,8 @@ const token1ValueToToken0 = (value1: bigint, market: MarketSnapshot): bigint => 
 	return num / den
 }
 
-export function makerToken0Ceiling(limits: MakerLimits, market: MarketSnapshot): bigint {
+export function makerToken0Ceiling(limits: MakerLimits | BuilderMakerLimits, market: MarketSnapshot): bigint {
+	if (limits.schemaVersion === 4) return BigInt(limits.maxPostBalance0)
 	const shareValue1 = (BigInt(limits.maxBudget1) * BigInt(limits.maxToken0ShareBps)) / BPS
 	const value1 = limits.schemaVersion !== 1 ? min(shareValue1, BigInt(limits.maxToken0Value1)) : shareValue1
 	return token1ValueToToken0(value1, market)
@@ -99,17 +101,17 @@ export function computeAuthorization(input: IntersectInput): Authorization {
 	// ── 2. Per-swap caps: the stricter side wins ──
 	const providerCap0 = rule ? BigInt(rule.maxAmount0PerSwap) : 0n
 	const providerCap1 = rule ? BigInt(rule.maxAmount1PerSwap) : 0n
-	const makerCap0 = limits.schemaVersion !== 1
+	const makerCap0 = limits.schemaVersion === 2 || limits.schemaVersion === 3
 		? token1ValueToToken0(BigInt(limits.maxSwapValue1), market)
 		: BigInt(limits.maxAmount0PerSwap)
-	const makerCap1 = limits.schemaVersion !== 1 ? BigInt(limits.maxSwapValue1) : BigInt(limits.maxAmount1PerSwap)
+	const makerCap1 = limits.schemaVersion === 2 || limits.schemaVersion === 3 ? BigInt(limits.maxSwapValue1) : BigInt(limits.maxAmount1PerSwap)
 	let maxAmount0PerSwap = clampU128(min(providerCap0, makerCap0))
 	let maxAmount1PerSwap = clampU128(min(providerCap1, makerCap1))
 
 	// ── 3. Inventory caps: Maker's budget/share translated at the current price,
 	//       then intersected with the Provider's own inventory ceilings ──
 	const makerPost0 = makerToken0Ceiling(limits, market)
-	const makerPost1 = BigInt(limits.maxBudget1)
+	const makerPost1 = BigInt(limits.schemaVersion === 4 ? limits.maxPostBalance1 : limits.maxBudget1)
 	const providerPost0 = BigInt(strategy.inventory.maxBalance0)
 	const providerPost1 = BigInt(strategy.inventory.maxBalance1)
 	let maxPostBalance0 = clampU128(min(providerPost0, makerPost0))
@@ -151,7 +153,7 @@ export function computeAuthorization(input: IntersectInput): Authorization {
 	}
 
 	// ── 5. Validity window: the shortest of rule TTL, Maker TTL, Guard maximum ──
-	const standing = limits.schemaVersion === 3
+	const standing = limits.schemaVersion === 3 || limits.schemaVersion === 4
 	const ttlSec = standing ? 0 : Math.min(rule?.ttlSec ?? MAX_REPORT_LIFETIME_SEC, limits.maxTtlSec, MAX_REPORT_LIFETIME_SEC)
 	const validAfter = nowSec
 	const validUntil = standing ? 0 : nowSec + ttlSec

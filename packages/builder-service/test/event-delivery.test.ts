@@ -1,6 +1,7 @@
 import { before, after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
+import { encodeEventTopics, encodeAbiParameters, parseAbi } from 'viem'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { mkdtemp, readdir, readFile, writeFile, rm } from 'node:fs/promises'
@@ -27,9 +28,9 @@ function barrier() {
   return { promise, resolve }
 }
 
-async function fixture(reportNonce = '1', connection = pool) {
+async function fixture(reportNonce = '1', connection = pool, account = privateKeyToAccount(generatePrivateKey())) {
   const pool = connection
-  const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
+  const owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
   const created = await store.create(owner, randomUUID(), { title: 'Event strategy', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
@@ -73,7 +74,7 @@ test('migration 016 preserves pre-existing reports while cancelling only unsent 
       await upgraded.query(`INSERT INTO builder.report_deliveries(id,subscription_id,owner,generation,evaluation_job_id,report_hash,nonce,payload,status)
         VALUES($1,$2,$3,1,$4,$5,$6,'{}',$7)`, [deliveryId, enabled.subscription.id, f.owner, jobId, reportHash, String(index + 2), status])
     }
-    assert.deepEqual(await migrate(upgraded), { available: 16, applied: 1 })
+    assert.deepEqual(await migrate(upgraded), { available: 17, applied: 2 })
     const deliveries = (await upgraded.query('SELECT id,status,error_code FROM builder.report_deliveries ORDER BY nonce')).rows
     assert.deepEqual(deliveries.map(row => row.id), oldDeliveries)
     assert.deepEqual(deliveries.map(row => row.status), ['failed', 'broadcast', 'accepted'])
@@ -82,7 +83,7 @@ test('migration 016 preserves pre-existing reports while cancelling only unsent 
     assert.equal(replacement.jobs.length, 1); assert.equal(oldJobs.includes(replacement.jobs[0]!), false)
     const history = (await upgraded.query('SELECT id,result,reorged_at FROM builder.evaluation_jobs WHERE id=ANY($1::text[])', [oldJobs])).rows
     assert.equal(history.length, 3); assert.ok(history.every(row => row.reorged_at && oldDeliveries.includes(row.result.deliveryId)))
-    assert.deepEqual(await migrate(upgraded), { available: 16, applied: 0 })
+    assert.deepEqual(await migrate(upgraded), { available: 17, applied: 0 })
   } finally {
     await upgraded.end()
     await admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`)
@@ -524,11 +525,13 @@ test('the resident worker applies source reorg identities before claiming evalua
 })
 
 test('a re-included transaction with the same log identity can be evaluated after cancellation', async () => {
-  const f = await fixture(), sourceName = 'chain.sepolia.reincluded', oldEvent = { source: sourceName, eventId: 'same-log', kind: 'guard.changed', payload: { block: 'old' }, observedAt: new Date().toISOString(), chainId: profile.chainId, blockNumber: '10', blockHash: '0x' + '1'.repeat(64), transactionHash: '0x' + '2'.repeat(64), logIndex: 0 }
+  const f = await fixture(), sourceName = 'chain.sepolia.reincluded', oldEvent = { source: sourceName, eventId: 'same-log', kind: 'guard.changed', payload: { address: profile.aqua,
+    topics: encodeEventTopics({ abi: parseAbi(['event Docked(address maker,address app,bytes32 strategyHash)']), eventName: 'Docked' }),
+    data: encodeAbiParameters([{type:'address'}, {type:'address'}, {type:'bytes32'}], [f.account.address, profile.router, f.binding.strategyHash]) }, observedAt: new Date().toISOString(), chainId: profile.chainId, blockNumber: '10', blockHash: '0x' + '1'.repeat(64), transactionHash: '0x' + '2'.repeat(64), logIndex: 0 }
   const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ reincluded: true }), report: { reincluded: true } }) })
   const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
   const first = await events.ingest(oldEvent); assert.ok(first.jobs.length >= 1); assert.equal((await events.markReorg(sourceName, oldEvent.eventId)).changed, true)
-  const replacement = { ...oldEvent, payload: { block: 'new' }, blockHash: '0x' + '3'.repeat(64) }
+  const replacement = { ...oldEvent, blockHash: '0x' + '3'.repeat(64) }
   const second = await events.ingest(replacement); assert.equal(second.duplicate, false); assert.ok(second.jobs.length >= 1)
   let job: Awaited<ReturnType<typeof events.claimEvaluation>> = null
   for (let attempt = 0; attempt < 20 && !job; attempt++) {
@@ -633,4 +636,71 @@ test('trusted binding requires an independently verified standing report and an 
   const confirmed = await bindings.confirm(f.owner, randomUUID(), { intentId: prepared.intent.id, digest: prepared.digest, signature: await f.account.signMessage({ message: prepared.intent.message }) })
   assert.equal(confirmed.binding.strategyHash, compiled.payload.strategyHash); assert.equal((await bindings.current(f.owner, f.draft.id, 2)).binding?.reportTransactionHash, reportTransactionHash)
   await assert.rejects(bindings.confirm('wallet:' + privateKeyToAccount(generatePrivateKey()).address.toLowerCase(), randomUUID(), { intentId: prepared.intent.id, digest: prepared.digest, signature: confirmed.binding.makerSignature }), /not-found/)
+})
+
+test('CRE bridge persists exact report nonce and blocks other Makers until uncertain broadcast is reconciled', async () => {
+  const { createBuilderCreBridge } = await import('../../../orchestrator/src/builder-cre-bridge.mjs')
+  const { encodeBuilderReport, builderTermsHash } = await import('../../../orchestrator/src/builder-cre-protocol.mjs')
+  const a = await fixture(), b = await fixture(), prepared = new Map(), receipts = new Map(), sent: string[] = []
+  for (const f of [a, b]) {
+    const artifact = await createArtifacts(pool, profile).get(f.owner, f.artifact.artifactId)
+    prepared.set(f.owner, { bindingDigest: digestJson({ maker: f.owner }), config: { maker: f.owner.slice(7), strategyHash: artifact.payload.strategyHash,
+      guard: profile.guard, router: profile.router, builderSimulation: true, builderEnvelope: artifact.payload.params.guard!.caps },
+      payload: { maker: f.owner.slice(7), strategyHash: artifact.payload.strategyHash } })
+  }
+  let ambiguous = true
+  const bridge = createBuilderCreBridge(pool, profile, { baseConfig: { publishMode: 'don-report', marketSource: 'kraken', transport: { profile: 'cre-simulation' } } }, {
+    load: async ref => prepared.get(ref.owner),
+    chain: {
+      snapshot: async () => ({ fromBlock: '100', nonceFloor: '9007199254740993', termsHash: null, activeHash: '0x' + '0'.repeat(64) }),
+      accepted: async input => receipts.get(encodeBuilderReport(input.report).digest) ?? null,
+    },
+    simulate: async ({ config, payload }) => {
+      const report = { schemaVersion: '2', chainId: String(profile.chainId), guard: profile.guard, router: profile.router,
+        maker: payload.maker, strategyHash: payload.strategyHash, token0: profile.tokens[0]!.address, token1: profile.tokens[1]!.address,
+        nonce: payload.builder.nonce ?? '1', validAfter: payload.builder.validAfter ?? String(Math.floor(Date.now() / 1000)), validUntil: '0', allowedDirections: '3', ...config.builderEnvelope }
+      if (payload.builder.phase === 'evaluate') return { requestId: payload.requestId, status: 'evaluated', report, termsHash: builderTermsHash(report), observedAt: new Date().toISOString() }
+      sent.push(payload.builder.deliveryId!)
+      assert.equal(payload.builder.nonce, '9007199254740994')
+      const encoded = encodeBuilderReport(report), proof = { transactionHash: digestJson({ delivery: payload.builder.deliveryId }), receipt: { reportDigest: encoded.digest } }
+      if (ambiguous) throw new Error('unknown after broadcast PRIVATE_CANARY')
+      receipts.set(encoded.digest, proof)
+      return { status: 'accepted', nonce: report.nonce, reportDigest: encoded.digest, transactionHash: proof.transactionHash }
+    },
+  })
+  const events = createEventDelivery(pool, profile, bridge)
+  const deliveries: Array<{ f: typeof a; id: string; nonce: string }> = []
+  for (const [index, f] of [a, b].entries()) {
+    const source = `test.cre.${index}`
+    await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source })
+    await events.ingest({ source, eventId: randomUUID(), kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    // Claim this test's job without consuming other scenarios' retry queues.
+    const jobId = (await pool.query("SELECT id FROM builder.evaluation_jobs WHERE owner=$1 AND state='pending' ORDER BY created_at DESC LIMIT 1", [f.owner])).rows[0].id
+    const token = randomUUID()
+    await pool.query("UPDATE builder.evaluation_jobs SET state='running',lease_token=$2,lease_until=clock_timestamp()+interval '1 minute',attempts=attempts+1 WHERE id=$1", [jobId, token])
+    const result = await events.evaluate(jobId, token); assert.ok('deliveryId' in result, JSON.stringify(result))
+    deliveries.push({ f, id: result.deliveryId!, nonce: result.nonce! })
+  }
+  await assert.rejects(events.deliver(deliveries[0]!.id), /reconciliation-required/)
+  await assert.rejects(events.deliver(deliveries[1]!.id), /broadcaster-unresolved/)
+  assert.equal(sent.length, 1)
+  assert.equal((await pool.query('SELECT attempts FROM builder.report_deliveries WHERE id=$1', [deliveries[1]!.id])).rows[0].attempts, 0)
+  const first = (await pool.query('SELECT payload,nonce FROM builder.report_deliveries WHERE id=$1', [deliveries[0]!.id])).rows[0]
+  const encoded = encodeBuilderReport({ ...first.payload.candidate, nonce: String(first.nonce) })
+  receipts.set(encoded.digest, { transactionHash: digestJson({ recovered: true }), receipt: { reportDigest: encoded.digest } })
+  assert.equal((await events.reconcile(deliveries[0]!.id)).status, 'accepted')
+  ambiguous = false
+  await pool.query("UPDATE builder.report_deliveries SET next_attempt_at=clock_timestamp() WHERE id=$1", [deliveries[1]!.id])
+  assert.equal((await events.deliver(deliveries[1]!.id)).status, 'accepted')
+  assert.equal(sent.length, 2)
+  assert.deepEqual((await pool.query('SELECT state FROM builder.cre_delivery_attempts WHERE delivery_id=ANY($1::text[])', [deliveries.map(d => d.id)])).rows.map(row => row.state), ['accepted', 'accepted'])
+})
+
+test('concurrent selections for different drafts still leave one enabled strategy per Maker', async () => {
+  const a = await fixture(), b = await fixture('1', pool, a.account), events = createEventDelivery(pool, profile)
+  const selections = await Promise.all([a, b].map(f => events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2,
+    artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'test.selection' })))
+  const states = (await pool.query('SELECT state FROM builder.event_subscriptions WHERE id=ANY($1::text[])', [selections.map(s => s.subscription.id)])).rows.map(row => row.state).sort()
+  assert.deepEqual(states, ['enabled', 'stopped'])
+  for (const selected of selections) await events.stop(a.owner, randomUUID(), { subscriptionId: selected.subscription.id })
 })

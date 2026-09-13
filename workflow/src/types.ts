@@ -138,6 +138,18 @@ export type MakerLimitsV1 = z.infer<typeof makerLimitsV1Schema>
 export type MakerLimitsV2 = z.infer<typeof makerLimitsV2Schema>
 export type MakerLimits = z.infer<typeof makerLimitsSchema>
 
+/** Public caps from a compiled Builder instance and its signed standing consent.
+ * This is intentionally not accepted by the legacy confidential Maker schema.
+ */
+const atomicCap = z.string().regex(/^(0|[1-9][0-9]*)$/).max(39)
+	.pipe(z.string().refine(value => BigInt(value) < (1n << 128n), 'expected uint128'))
+export const builderMakerLimitsSchema = z.object({
+	schemaVersion: z.literal(4), authorization: z.literal('until-changed'),
+	maxAmount0PerSwap: atomicCap, maxAmount1PerSwap: atomicCap,
+	maxPostBalance0: atomicCap, maxPostBalance1: atomicCap,
+}).strict()
+export type BuilderMakerLimits = z.infer<typeof builderMakerLimitsSchema>
+
 // ─── Market snapshot (non-secret observation) ───────────────
 
 export const marketSnapshotSchema = z

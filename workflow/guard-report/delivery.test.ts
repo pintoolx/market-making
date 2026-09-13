@@ -181,3 +181,21 @@ test('changed terms and reactivation issue a report with a nonce above the saved
   expect(submitPublicReport(t.runtime, t.config.publicReport, simulation).changed).toBe(true)
   expect(writes).toBe(1)
 })
+
+test('Builder exact nonce fails before write if an external report consumed the allocation', () => {
+  const t = setup(simulation, { schemaVersion: '2', validUntil: '0' })
+  t.guard.reportSchemaVersion = () => 2
+  expect(() => submitPublicReport(t.runtime, t.config.publicReport, simulation, { exactNonce: true })).toThrow('nonce is stale')
+  expect(t.writes()).toBe(0)
+})
+
+test('Builder unchanged output preserves the saved identity without claiming the new nonce', () => {
+  const t = setup(simulation, { schemaVersion: '2', validUntil: '0' })
+  t.guard.reportSchemaVersion = () => 2
+  t.guard.activeStrategyHash = () => t.config.publicReport.strategyHash
+  const result = submitPublicReport(t.runtime, { ...t.config.publicReport, nonce: '18446744073709551614' }, simulation, { exactNonce: true })
+  expect(result.changed).toBe(false)
+  expect(result.nonce).toBe(t.config.publicReport.nonce)
+  expect(result.transactionHash).toBeUndefined()
+  expect(t.writes()).toBe(0)
+})

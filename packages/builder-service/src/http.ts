@@ -163,6 +163,11 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
         return send(await automation.prepare(actor.owner, requestId as string, { draftId: automationDraft[1], ...body }))
       }
+      const eventDeliveries = route.match(/^\/event-subscriptions\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/deliveries$/)
+      if (eventDeliveries && !post) {
+        if (!events) throw new ServiceError('builder-profile-unavailable', 503)
+        return send({ deliveries: await events.deliveries(actor.owner, eventDeliveries[1]!) })
+      }
       const eventSubscriptionAction = route.match(/^\/event-subscriptions\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/stop$/)
       if (eventSubscriptionAction && post) {
         if (!events) throw new ServiceError('profile-unavailable', 503)
