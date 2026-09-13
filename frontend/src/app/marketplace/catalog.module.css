@@ -12,12 +12,12 @@
   margin: 0;
 }
 
-.grid .cardActions {
+article > .cardActions {
   grid-template-columns: minmax(0, 1fr);
   padding: 20px 16px 16px;
 }
 
-.grid .cardActions :is(button, a) {
+.cardActions :is(button, a) {
   width: 100%;
   min-height: 44px;
 }
