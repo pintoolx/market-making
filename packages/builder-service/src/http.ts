@@ -17,6 +17,7 @@ import { createRequirementReviews } from './requirement-reviews.ts'
 import { createTransactionPlans } from './transaction-plans.ts'
 import { createAutomation } from './automation.ts'
 import { createEventDelivery } from './event-delivery.ts'
+import type { EventIngress } from './event-adapters.ts'
 import { createAuthorizationBindings, type BindingDependencies } from './bindings.ts'
 
 const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, reject) => {
@@ -36,7 +37,7 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
 export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string },
-  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'>; binding?: BindingDependencies } = {}) {
+  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'>; binding?: BindingDependencies; eventIngress?: EventIngress } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
@@ -81,6 +82,18 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
       if (request.method === 'POST' && request.headers['content-type']?.split(';')[0] !== 'application/json') throw new ServiceError('json-required', 415)
       const post = request.method === 'POST', route = url.pathname.slice('/v1/builder'.length)
       if (post && (route === '/auth/challenge' || route === '/auth/login')) limit(request, 60)
+      const eventRoute = route.match(/^\/events\/(ingest|health)$/)
+      if (eventRoute && post) {
+        if (!events || !dependencies.eventIngress) throw new ServiceError('event-ingress-unavailable', 503)
+        const body = await readJson(request)
+        let verified: unknown
+        try { verified = dependencies.eventIngress.verify({ headers: request.headers, body }) }
+        catch { throw new ServiceError('event-signature-invalid', 401) }
+        if (eventRoute[1] === 'ingest') return send(await events.ingest(verified), 202)
+        const value = z.object({ source: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/), chainId: z.number().int().positive().optional(), cursor: z.record(z.string(), z.unknown()),
+          blockHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional(), observedAt: z.string().datetime({ offset: true }).optional(), health: z.enum(['healthy', 'stale', 'recovered', 'error']), errorCode: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional() }).strict().parse(verified)
+        return send(await events.health(value.source, value), 202)
+      }
       const privyHeader = request.headers['x-privy-access-token']
       const identity = verifyPrivy ? await verifyPrivy(typeof privyHeader === 'string' ? privyHeader : undefined) : undefined
       if (post && (route === '/auth/challenge' || route === '/auth/login')) {
