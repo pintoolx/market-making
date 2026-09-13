@@ -1,0 +1,9 @@
+.card { min-width: 0; gap: 16px; }
+.identity { min-width: 0; overflow-wrap: anywhere; }
+.manage { min-height: 44px; flex-shrink: 0; }
+.details { display: flex; flex-wrap: wrap; gap: 8px 24px; color: #4a5872; font-size: 13px; line-height: 1.5; }
+.details time { color: #0e0f28; }
+@media (max-width: 620px) {
+  .manage { width: 100%; }
+  .details { flex-direction: column; gap: 6px; }
+}

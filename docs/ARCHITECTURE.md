@@ -59,3 +59,12 @@ The checked-in Ethereum Sepolia deployment uses canonical WETH, Circle testnet U
 A production Chainlink deployment also requires Confidential Workflows access, Vault DON secrets, an authorized HTTP trigger signing key and a Guard configured for the official forwarder and workflow identity. Network, contract and Explorer evidence must always resolve to the same chain.
 
 For the executable Aqua lifecycle, current CLMM scope and evidence boundaries, see [Aqua flow and CLMM](AQUA-FLOW-AND-CLMM.md). A validated public market observation can now feed the existing policy evaluator through the [market adapter](../workflow/src/market-observation.ts); the main confidential handler now acquires observations itself in live mode and shares the validated report delivery adapter. The separate [local preview](../workflow/scripts/preview-market-observation.ts) still produces no delivery.
+
+
+## Liquidity history and profile navigation
+
+Liquidity opens the strategy marketplace. Existing setups are listed in **Profile → My liquidity** (`/profile?tab=making`); each Manage liquidity link opens the corresponding `/maker?mandate=...` monitor. A saved browser reference never redirects marketplace navigation automatically.
+
+`GET /v1/mandates?maker=<address>` returns public summaries of the configured network's stored mandates for that wallet, ordered by activity. Each summary contains its ID, Maker address, strategy identities, network, report sequence and last activity time. It does not return private limits, encrypted envelopes, cached readiness or an active-trading claim. Like the existing public state read routes, this endpoint exposes public metadata; possession of a link is not transaction authorization. The query performs no CRE evaluation, RPC readiness refresh or chain write.
+
+Profile queries the connected Ethereum wallets and retains separate mandate IDs even when they use the same strategy. Loading failures are shown with Retry, rather than as an empty portfolio. Opening a monitor re-verifies its current evidence. Removing a browser entry is not a revocation mechanism, so Profile does not offer a misleading Remove action. New Maker submissions no longer persist private limit values in the legacy local proposal summary.

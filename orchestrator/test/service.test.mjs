@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -150,4 +150,32 @@ test('service records only verified Aqua settlement and Guard rejection receipts
   assert.equal(rejected.events[0].type, 'swap-rejected');
   assert.deepEqual(verified[1], [hash('f'), second.strategyHash, '0x0']);
   await assert.rejects(service.recordExecution(state.mandateId, { providerStrategyId: 'featured-tight-market', transactionHash: hash('9'), outcome: 'rejected' }), HttpError);
+});
+
+
+test('liquidity history lists public summaries for one Maker without executing or exposing policies', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'pintool-history-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const records = [
+    { ...structuredClone(state), mandateId: 'mandate-older', debugSecret: 'must-not-leave-store' },
+    { ...structuredClone(state), mandateId: 'mandate-newer', evidence: { ...state.evidence, sequence: '2' },
+      events: [{ ...state.events[0], occurredAt: '2026-09-13T11:50:00.000Z' }] },
+    { ...structuredClone(state), mandateId: 'mandate-other-wallet', maker: router },
+  ];
+  for (const record of records) await writeFile(join(dir, `${record.mandateId}.json`), JSON.stringify(record));
+  await writeFile(join(dir, 'mandate-older.maker-envelope.json'), 'not readable as JSON');
+  await writeFile(join(dir, 'activation-index.json'), 'not a mandate');
+  const unexpected = async () => { throw new Error('Listing must not invoke execution or RPC'); };
+  const service = createService({ ...config, stateDir: dir }, { runner: unexpected, verifyReceipt: unexpected, readLpReadiness: unexpected });
+  const summaries = await service.list(inputMaker.toUpperCase().replace('0X', '0x'));
+  assert.deepEqual(summaries.map(item => item.mandateId), ['mandate-newer', 'mandate-older']);
+  assert.deepEqual(Object.keys(summaries[0]).sort(), ['mandateId', 'maker', 'strategies', 'chainId', 'networkName', 'reportSequence', 'lastActivityAt'].sort());
+  assert.deepEqual(summaries[0].strategies, [{ listingId: 'featured-tight-market', name: 'Tight Market' }]);
+  assert.equal(summaries[0].lastActivityAt, '2026-09-13T11:50:00.000Z');
+  assert.equal(JSON.stringify(summaries).includes('must-not-leave-store'), false);
+  assert.equal(JSON.stringify(summaries).includes('maxAmountPerSwapAtomic'), false);
+  assert.deepEqual(await service.list('0x3333333333333333333333333333333333333333'), []);
+  await assert.rejects(service.list('../'), /Maker address is invalid/);
+  await assert.rejects(service.list(null), /Maker address is invalid/);
+  assert.equal((await readFile(join(dir, 'mandate-older.maker-envelope.json'), 'utf8')), 'not readable as JSON');
 });
