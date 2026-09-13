@@ -37,6 +37,13 @@ with sync_playwright() as p:
     expect(dialog.get_by_text('Current v2 compilation saved')).to_be_visible()
     commits = [r for r in sent if r['url'].endswith('/compile')]
     assert len(commits) == 2 and commits[0]['key'] == commits[1]['key'] and commits[0]['body'] == commits[1]['body']
+    dialog.get_by_role('button', name='Prepare approve and ship plan').click()
+    expect(dialog.get_by_text('Registration plan v2')).to_be_visible()
+    expect(dialog.get_by_text('Approve', exact=False).first).to_be_visible()
+    dialog.get_by_role('button', name='Prepare dock plan').click()
+    expect(dialog.get_by_text('Cancellation plan v2')).to_be_visible()
+    plan_requests = [r for r in sent if r['url'].endswith('/registration-plan') or r['url'].endswith('/cancellation-plan')]
+    assert len(plan_requests) == 2 and all(r['body'] and r['key'] for r in plan_requests)
     page.request.get('http://127.0.0.1:3311/fixture/simulation-control?slow=true')
     page.route('**/artifacts/*/simulations', lost_commit, times=1)
     dialog.get_by_role('button', name='Simulate current compilation').click()

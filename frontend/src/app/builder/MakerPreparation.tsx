@@ -2,9 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatUnits } from 'viem';
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventSubscription, type AuthorizationBinding } from './client';
+import { BuilderError, type BuilderClient, type Draft, type AutomationConsent, type EventSubscription, type AuthorizationBinding, type TransactionPlan } from './client';
 import { evidenceLabel, simulationState, verifyCompilation, verifyInventory,
-  type Compilation, type CompilationItem, type InventoryResult, type SimulationDetail, type SimulationItem } from './preparation';
+  isReportEvidenceHash, isReportNonce, verifyTransactionPlan, type Compilation, type CompilationItem, type InventoryResult, type SimulationDetail, type SimulationItem } from './preparation';
 import BuilderDialog from './BuilderDialog';
 import styles from './builder.module.css';
 
@@ -12,7 +12,7 @@ const active = (run: SimulationItem) => ['pending', 'running'].includes(run.stat
 const stateLabel = { shipped: 'Registered', docked: 'Docked', 'unregistered-for-pair': 'Not registered for this pair', 'inconsistent-pair': 'Inconsistent pair state' };
 const units = (value: string, decimals: number) => formatUnits(BigInt(value), decimals);
 
-/** Read-only preparation and isolated background jobs. This component has no wallet signer. */
+/** Read-only preparation and isolated background jobs. It only requests explicit message signatures; asset transactions stay unsigned. */
 export default function MakerPreparation({ api, draft, onClose, onSessionExpired, signMessage }: {
   api: BuilderClient; draft: Draft; onClose(): void; onSessionExpired(): void; signMessage(message: string): Promise<`0x${string}`>;
 }) {
@@ -21,9 +21,13 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
   const [consent, setConsent] = useState<AutomationConsent | null>(null);
   const [subscription, setSubscription] = useState<EventSubscription | null>(null);
   const [binding, setBinding] = useState<AuthorizationBinding | null>(null);
+  const [reportDigest, setReportDigest] = useState(''), [reportTransactionHash, setReportTransactionHash] = useState(''), [reportNonce, setReportNonce] = useState('');
+  const [registrationPlan, setRegistrationPlan] = useState<TransactionPlan | null>(null), [cancellationPlan, setCancellationPlan] = useState<TransactionPlan | null>(null);
   const [artifacts, setArtifacts] = useState<CompilationItem[]>([]), [runs, setRuns] = useState<SimulationItem[]>([]), [detail, setDetail] = useState<SimulationDetail | null>(null);
   const live = useRef(true), working = useRef(false), refreshEpoch = useRef(0);
   const compileKey = useRef<string | null>(null), simulationKey = useRef<string | null>(null), cancelKeys = useRef(new Map<string, string>());
+  const bindingPrepareKey = useRef<string | null>(null), bindingIntent = useRef<{ id: string; message: string; digest: `0x${string}` } | null>(null);
+  const bindingConfirmKey = useRef<string | null>(null), planKeys = useRef({ registration: null as string | null, cancellation: null as string | null });
   const fail = useCallback((e: unknown) => {
     if (!live.current) return;
     if (e instanceof BuilderError && e.status === 401) { onSessionExpired(); return; }
@@ -92,6 +96,35 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
         !['mock', 'fork-with-overrides'].includes(saved.report.mode) || saved.report.passed !== saved.report.cases.every(c => c.passed !== false) ||
         saved.report.coverageComplete !== saved.report.cases.every(c => c.passed === true)))) throw new Error('preparation-result-mismatch');
     setDetail(saved);
+  }
+  async function bindGuardReport() {
+    if (!artifact || stale) return;
+    if (!isReportEvidenceHash(reportDigest) || !isReportEvidenceHash(reportTransactionHash) || !isReportNonce(reportNonce)) {
+      setError('Enter a 32-byte report digest, transaction hash and a positive report nonce from the accepted Guard report.'); return;
+    }
+    bindingPrepareKey.current ??= crypto.randomUUID();
+    let intent = bindingIntent.current;
+    if (!intent) {
+      const prepared = await api.prepareAuthorizationBinding(draft, artifact.artifactId, reportDigest as `0x${string}`, reportTransactionHash as `0x${string}`, reportNonce, bindingPrepareKey.current);
+      intent = { id: prepared.intent.id, message: prepared.intent.message, digest: prepared.digest }; bindingIntent.current = intent;
+    }
+    setBusy('Confirm trusted Guard binding in your wallet');
+    const signature = await signMessage(intent.message);
+    bindingConfirmKey.current ??= crypto.randomUUID();
+    const result = await api.confirmAuthorizationBinding(intent.id, intent.digest, signature, bindingConfirmKey.current);
+    if (live.current) { setBinding(result.binding); bindingPrepareKey.current = null; bindingIntent.current = null; bindingConfirmKey.current = null; }
+  }
+  async function prepareWalletPlan(kind: TransactionPlan['kind']) {
+    if (!artifact || stale) return;
+    planKeys.current[kind] ??= crypto.randomUUID();
+    const result = kind === 'registration'
+      ? await api.prepareRegistration(draft, artifact.artifactId, planKeys.current.registration!)
+      : await api.prepareCancellation(draft, artifact.artifactId, planKeys.current.cancellation!);
+    const verified = verifyTransactionPlan(result, draft, artifact, kind).plan;
+    if (live.current) {
+      if (kind === 'registration') setRegistrationPlan(verified); else setCancellationPlan(verified);
+      planKeys.current[kind] = null;
+    }
   }
   async function enableAutomation() {
     if (!artifact || stale || !binding) return;
@@ -167,12 +200,27 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
           {detail.report ? <ul>{detail.report.cases.map(c => <li key={c.name}><span>{c.passed === null ? 'Not run' : c.passed ? 'Passed' : 'Failed'}</span> {c.name}{c.error ? ` · ${c.error}` : ''}</li>)}</ul> : <p>This job does not have complete results yet.</p>}
           <button onClick={() => setDetail(null)}>Hide cases</button></div>}
       </section>
-      <section aria-label="Event management consent"><h3>4. Event triggers and automatic report updates</h3>
+      <section aria-label="Guard report binding"><h3>4. Verify Guard report binding</h3>
+        <p>Provide the public digest, accepted transaction hash and report nonce from the latest Guard report. The service independently checks Sepolia RPC, Router, Guard, Maker, strategy and schema before creating a signing intent.</p>
+        {binding ? <div className={styles.consentResult}><strong>Guard report verified and Maker-bound</strong><p>Strategy hash: <span className={styles.address}>{binding.strategyHash}</span></p><p>Accepted report: <span className={styles.address}>{binding.reportTransactionHash}</span> · nonce {binding.reportNonce}</p><p>Binding digest: <span className={styles.address}>{binding.bindingDigest}</span></p><small>This message signature authorizes event report management for this exact revision. It does not approve tokens, ship, dock or send a transaction.</small></div>
+          : <fieldset disabled={!!busy || stale || !artifact}><label htmlFor="guard-report-digest">Report digest (32-byte hex)<input id="guard-report-digest" value={reportDigest} onChange={event => setReportDigest(event.target.value.trim())} placeholder="0x…" autoComplete="off" /></label>
+            <label htmlFor="guard-report-transaction">Accepted report transaction hash<input id="guard-report-transaction" value={reportTransactionHash} onChange={event => setReportTransactionHash(event.target.value.trim())} placeholder="0x…" autoComplete="off" /></label>
+            <label htmlFor="guard-report-nonce">Report nonce<input id="guard-report-nonce" inputMode="numeric" value={reportNonce} onChange={event => setReportNonce(event.target.value.replace(/[^0-9]/g, ''))} placeholder="1" autoComplete="off" /></label>
+            <button className={styles.primary} disabled={!artifact || !!busy || stale || !isReportEvidenceHash(reportDigest) || !isReportEvidenceHash(reportTransactionHash) || !isReportNonce(reportNonce)} onClick={() => void act('Verifying Guard report evidence', bindGuardReport)}>{bindingIntent.current ? 'Retry Guard binding' : 'Verify report and sign binding'}</button>
+            <small>Only public report evidence belongs here. Never paste a private key, API key or policy input.</small></fieldset>}
+      </section>
+      <section aria-label="Event management consent"><h3>5. Event triggers and automatic report updates</h3>
         <p>Events request a new standing report only while this strategy, version and trusted Guard binding remain valid. Automatic updates do not swap, rebalance, approve, ship or dock assets. Consent expiry stops delivery and requires a new wallet signature.</p>
         {consent?.active ? <div className={styles.consentResult}><strong>{subscription?.state === 'enabled' ? 'Event management enabled' : 'Consent is valid, but the event service is not enabled'}</strong><p>Consent expires: {new Date(consent.expiresAt).toLocaleString('en-US')} · Bound strategy hash: <span className={styles.address}>{consent.strategyHash}</span></p>{binding && <p>Guard report binding: {binding.reportTransactionHash} · nonce {binding.reportNonce}</p>}{subscription?.lastEvaluatedAt && <p>Last evaluation: {new Date(subscription.lastEvaluatedAt).toLocaleString('en-US')}{subscription.lastChangedAt ? ` · Last condition change: ${new Date(subscription.lastChangedAt).toLocaleString('en-US')}` : ''}</p>}<button disabled={!!busy || stale} onClick={() => void act('Stopping event management', revokeAutomation)}>Stop automatic updates</button></div>
           : <div className={styles.consentResult}><p>{consent ? 'The previous consent expired or was stopped.' : 'Event management is not authorized.'}</p>{!binding && <p className={styles.notice}>Complete trusted Guard report binding and Maker signature before enabling event triggers. The agent and this screen cannot substitute for that step.</p>}<button className={styles.primary} disabled={!!busy || stale || !artifact || !binding} onClick={() => void act('Preparing event-management consent', enableAutomation)}>Enable automatic event updates</button><small>The current Maker wallet signs a message bound to this strategy revision. The service accepts only that signature and never receives the private key.</small></div>}
       </section>
-      <p className={styles.notice}>Next, verify each requirement and configure private Maker limits before reviewing approve/ship transactions. Preparation results and event consent do not enable trading.</p>
+      <section aria-label="Unsigned wallet plans"><h3>6. Review unsigned wallet plans</h3>
+        <p>These plans contain exact ERC-20 approval, Aqua ship or Aqua dock calldata for the current artifact. They are unsigned and never broadcast here. A wallet must perform a fresh balance, allowance, chain and receipt preflight immediately before signing.</p>
+        <div className={styles.actions}><button disabled={!!busy || stale || !artifact} onClick={() => void act('Preparing registration transaction plan', () => prepareWalletPlan('registration'))}>{planKeys.current.registration ? 'Retry registration plan' : 'Prepare approve and ship plan'}</button><button disabled={!!busy || stale || !artifact} onClick={() => void act('Preparing cancellation transaction plan', () => prepareWalletPlan('cancellation'))}>{planKeys.current.cancellation ? 'Retry cancellation plan' : 'Prepare dock plan'}</button></div>
+        {registrationPlan && <div className={styles.planResult}><strong>Registration plan v{registrationPlan.revision}</strong><p>Strategy hash: <span className={styles.address}>{registrationPlan.strategyHash}</span></p><ol>{registrationPlan.transactions.map((transaction, index) => <li key={`${transaction.kind}-${index}`}><strong>{transaction.description}</strong><br /><span className={styles.address}>to {transaction.to}</span><details><summary>View calldata</summary><pre>{transaction.data}</pre></details></li>)}</ol><p className={styles.notice}>Prepared record only. Revalidate wallet state and every precondition before signing.</p></div>}
+        {cancellationPlan && <div className={styles.planResult}><strong>Cancellation plan v{cancellationPlan.revision}</strong><p>Strategy hash: <span className={styles.address}>{cancellationPlan.strategyHash}</span></p><ol>{cancellationPlan.transactions.map((transaction, index) => <li key={`${transaction.kind}-${index}`}><strong>{transaction.description}</strong><br /><span className={styles.address}>to {transaction.to}</span><details><summary>View calldata</summary><pre>{transaction.data}</pre></details></li>)}</ol><p className={styles.notice}>Docking does not revoke ERC-20 allowances or alter a previously accepted Guard report.</p></div>}
+      </section>
+      <p className={styles.notice}>Preparation proves public consistency and creates reviewable plans. It does not approve, ship, dock, authorize a new report or enable trading until the separate wallet and Guard gates are completed.</p>
     </div>
   </BuilderDialog>;
 }
