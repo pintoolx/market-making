@@ -41,11 +41,13 @@ export default function StrategyPage() {
   useEffect(() => { setBack(prepareMarketplaceReturn().url); }, [routeKey]);
   useEffect(() => {
     let alive = true;
-    const makerAddress = account.addresses[0];
+    const makerAddress = account.address;
+    setCatalog(null); setCatalogError(false);
+    if (!makerAddress) return () => { alive = false; };
     getExecutableStrategies(makerAddress).then(value => { if (alive) setCatalog({ maker: value.maker?.toLowerCase() ?? makerAddress?.toLowerCase() ?? '', ids: value.strategies.map(s => s.id) }); })
       .catch(() => { if (alive) setCatalogError(true); });
     return () => { alive = false; };
-  }, [account.addresses]);
+  }, [account.address]);
   useEffect(() => {
     let alive = true;
     setLoaded(null); setError(''); setCopied(''); setCheckingNames(true);
@@ -67,7 +69,7 @@ export default function StrategyPage() {
     return () => { alive = false; };
   }, [id, ens, routeKey, router]);
 
-  const maker = account.addresses.find(address => address.toLowerCase() === catalog?.maker);
+  const maker = account.address && account.address.toLowerCase() === catalog?.maker ? account.address : undefined;
   const executable = !!listing && !!maker && (listing.executionProfileIds ?? [listing.id]).every(value => catalog?.ids.includes(value));
   const canActivate = !!maker && !!listing?.releaseId;
   const useLink = listing ? '/maker?' + new URLSearchParams({ strategy: listing.id, start: '1',
@@ -81,7 +83,7 @@ export default function StrategyPage() {
       : !catalog || checkingNames ? <Primary disabled>{catalogError ? 'Unable to check availability' : 'Checking availability…'}</Primary>
         : listing?.ensError ? <p role="alert" className={aqua.muted}>{listing.ensError} Open the strategy again from the marketplace to review it by publication ID.</p>
           : executable || canActivate ? <Link href={useLink} className={primary.primary}>{executable ? 'Use this strategy' : 'Add liquidity'}</Link>
-            : <p className={aqua.muted}>This strategy is linked to a different liquidity wallet. Choose another strategy or connect that wallet.</p>}
+            : <p className={aqua.muted}>Connect the wallet you want to use for liquidity.</p>}
   </>;
 
   return <div className={`${styles.page} ${aqua.page}`}>

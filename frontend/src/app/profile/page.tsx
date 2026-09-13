@@ -61,7 +61,7 @@ function Providing() {
 // Same shell as the marketplace pages. Strategies come first; profile details live in the Account tab.
 export default function ProfilePage() {
   const account = useAccount();
-  const { profile, save } = useBasicProfile(account.userId ?? 'guest');
+  const { profile, save } = useBasicProfile(account.userId ?? 'guest', account.address);
   const [tab, setTab] = useState<Tab>('providing');
   const selectTab = (next: Tab) => {
     setTab(next);

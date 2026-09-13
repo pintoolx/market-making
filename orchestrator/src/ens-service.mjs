@@ -22,7 +22,12 @@ export function createEnsService(config, registry, dependencies = {}) {
   }
   const publicManifest = record => ({ name: record.name, pointer: releasePointer(record.release, record.digest), release: record.release, signature: record.signature });
   async function manifest(name, pointer) {
-    const saved = JSON.parse(await readFile(file(name, pointer.publicationDigest), 'utf8'));
+    let saved;
+    try { saved = JSON.parse(await readFile(file(name, pointer.publicationDigest), 'utf8')); }
+    catch (error) {
+      if (error?.code === 'ENOENT') throw new Error('Approve this strategy revision for the ENS name before publishing the link.');
+      throw error;
+    }
     if (saved.name !== name || JSON.stringify(releasePointer(saved.release, saved.digest)) !== JSON.stringify(pointer)
       || !await verifyMessage({ address: pointer.provider, message: manifestMessage(name, rootName, saved.release, saved.digest), signature: saved.signature })) throw new Error('The public ENS manifest is invalid.');
     return saved;

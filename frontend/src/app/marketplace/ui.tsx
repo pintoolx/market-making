@@ -54,12 +54,15 @@ export function ListingCard({ listing, action }: { listing: Listing; action?: Re
 
   return <StrategyCardShell tags={tags} title={listing.name} action={action}>
       <p className={`${aqua.summary} ${aqua.preserveLines}`}>{listing.summary}</p>
+      {(listing.ensName || listing.ensSelection) && <div className={aqua.cardRule}>
+        <span className={aqua.eyebrow}>{listing.ensStatus === 'historical' ? 'Historical strategy name' : 'Verified strategy name'}</span>
+        <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>
+        {listing.ensStatus === 'historical' && <p className={aqua.muted}>This name now points to a newer update.</p>}
+      </div>}
       <div className={aqua.cardRule}>
         <span className={aqua.eyebrow}>Provided by</span>
-      {(listing.ensName || listing.ensSelection) && <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName ?? listing.ensSelection!.name}</p>}
-      {listing.ensStatus === 'historical' && <p className={aqua.muted}>This name now points to a newer update.</p>}
-      <ProviderIdentity listing={listing} />
-      {listing.feePct === 0 && <p className={aqua.feeLine}>No strategy fee</p>}
+        <ProviderIdentity listing={listing} />
+        {listing.feePct === 0 && <p className={aqua.feeLine}>No strategy fee</p>}
       </div>
   </StrategyCardShell>;
 }

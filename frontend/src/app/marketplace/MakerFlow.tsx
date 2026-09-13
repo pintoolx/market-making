@@ -71,7 +71,9 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const openingLinkedStrategy = useRef(false);
   const lastLinkedStrategy = useRef<string | null>(null);
   const accountWalletKey = account.addresses.map(address => address.toLowerCase()).sort().join(',');
-  const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
+  // The active Privy wallet is the wallet the user chose for this session.
+  // Linked wallets are retained only for opening an existing mandate safely.
+  const makerAddress = account.address;
   const setupMakerAddress = editingExisting && mandate
     ? account.addresses.find(address => address.toLowerCase() === mandate.maker.toLowerCase())
     : makerAddress;
@@ -81,7 +83,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   useEffect(() => {
     let current = true;
     if (!makerAddress) {
-      setExecutableCatalog({ maker: '', ids: new Set() });
+      setExecutableCatalog(null);
       return;
     }
     getExecutableStrategies(makerAddress)
@@ -98,6 +100,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
     lastLinkedStrategy.current = linkedId;
     if (!start) { router.replace(strategyHref(linkedId, linkedEns ?? undefined)); return; }
+    if (!account.ready || !account.authenticated || !makerAddress) { setLoadingLinked(false); return; }
     let current = true;
     setLoadingLinked(true); setSelected([]); setError('');
     const load = async () => {
@@ -115,7 +118,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     load().catch(reason => { if (current) setError(reason instanceof Error ? reason.message : 'This strategy could not be loaded.'); })
       .finally(() => { if (current) setLoadingLinked(false); });
     return () => { current = false; };
-  }, [linkedId, linkedEns, start, router]);
+  }, [linkedId, linkedEns, start, router, account.ready, account.authenticated, makerAddress]);
   useEffect(() => {
     if (phase !== 'choose' || linkedId) return;
     const frame = requestAnimationFrame(restoreMarketplaceScroll);
@@ -294,7 +297,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
   if ((phase === 'choose' && (linkedMandateId || linkedId)) || loadingLinked) {
     const backHref = linkedMandateId ? '/profile?tab=making' : '/maker';
-    const waitingForAccount = !account.ready || (!!linkedId && executableCatalog === null) || (!!linkedMandateId && refreshing);
+    const waitingForAccount = !account.ready || (!!linkedId && account.authenticated && !!makerAddress && executableCatalog === null) || (!!linkedMandateId && refreshing);
     return <section className={aqua.flow}>
       <Link className={aqua.backLink} href={backHref}>← {linkedMandateId ? 'My liquidity' : 'All strategies'}</Link>
       <PageHead eyebrow={linkedMandateId ? 'My liquidity' : 'Liquidity setup'} title={linkedMandateId ? 'Your liquidity' : 'Set up your liquidity'} />
@@ -302,7 +305,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         : waitingForAccount ? <p role="status">Loading your workspace…</p>
           : !account.authenticated ? <Primary onClick={account.login}>Connect liquidity wallet</Primary>
             : linkedMandateId ? <p role="status">Loading your liquidity…</p>
-              : !makerAddress ? <p>This setup belongs to a different liquidity wallet. Connect that wallet to continue.</p>
+              : !makerAddress ? <p>Connect the wallet you want to use for liquidity.</p>
               : <p role="status">{linkedMandateId ? 'Loading your liquidity…' : 'Loading your strategy…'}</p>}
     </section>;
   }
@@ -330,7 +333,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       }} />}
 
     {phase === 'activate' && !makerAddress && <div className={aqua.panel}>
-      {account.authenticated ? <p>This strategy belongs to a different liquidity wallet. Connect that wallet to continue.</p> : <Primary onClick={account.login}>Connect liquidity wallet</Primary>}
+      {account.authenticated ? <p>Connect the wallet you want to use for liquidity.</p> : <Primary onClick={account.login}>Connect liquidity wallet</Primary>}
     </div>}
 
     {phase === 'limits' && <div className={aqua.editorGrid}>

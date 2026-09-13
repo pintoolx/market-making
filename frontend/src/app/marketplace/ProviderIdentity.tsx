@@ -1,17 +1,22 @@
 'use client';
 
 import Avatar from '../components/shared/Avatar';
-import CopyAddress from '../profile/CopyAddress';
+import { useAccount } from '../providers/useAccount';
+import { useBasicProfile, useProviderProfile } from '../profile/profileStore';
 import type { Listing } from './publishedStore';
 import aqua from './aqua.module.css';
 
 export default function ProviderIdentity({ listing }: { listing: Listing }) {
+  const account = useAccount();
+  const ownProfile = useBasicProfile(account.userId ?? 'guest', account.address).profile;
+  const address = !!listing.provider && /^0x[0-9a-f]{40}$/i.test(listing.provider);
+  const cachedProfile = useProviderProfile(address ? listing.provider : undefined);
   if (!listing.provider) return null;
-  const address = /^0x[0-9a-f]{40}$/i.test(listing.provider);
-  const label = listing.providerName ?? (address ? `${listing.provider.slice(0, 6)}…${listing.provider.slice(-4)}` : listing.provider);
+  const isCurrentProvider = address && account.address?.toLowerCase() === listing.provider.toLowerCase();
+  const profile = isCurrentProvider ? ownProfile : cachedProfile;
+  const label = profile.displayName || listing.providerName || (address ? 'Strategy Provider' : listing.provider);
   return <div className={`${aqua.byline} ${aqua.providerIdentity}`}>
-    <Avatar name={address ? 'Provider' : label} src={listing.providerAvatar} size={28} brand={listing.provider === 'PinTool Strategies'} />
-    <span>{listing.providerName ?? (!address ? label : '')}</span>
-    {address && <CopyAddress key={listing.provider} address={listing.provider} short />}
+    <Avatar name={label} src={listing.providerAvatar ?? profile.avatar} size={28} brand={listing.provider === 'PinTool Strategies'} />
+    <span>{label}</span>
   </div>;
 }

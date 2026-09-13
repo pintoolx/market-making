@@ -71,7 +71,7 @@ test('withdrawal, missing approval, tampered storage and pointer substitution fa
   const f = await fixture(t), { saved, input } = await f.publish();
   await f.ens.saveManifest(input); f.setPointer(releasePointer(saved, saved.digest));
   const next = await f.publish(2);
-  await assert.rejects(f.ens.latestApproved(name), /ENOENT/);
+  await assert.rejects(f.ens.latestApproved(name), /Approve this strategy revision/);
   await f.ens.saveManifest(next.input);
   assert.equal((await f.ens.latestApproved(name)).pointer.version, 2);
   f.setPointer({ ...releasePointer(saved, saved.digest), publicationDigest: hash('0') });

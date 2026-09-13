@@ -10,27 +10,54 @@ export const X_HANDLE = /^@?[A-Za-z0-9_]{1,15}$/;
 
 // Kept in this browser, keyed by the Privy user id, until a backend stores profiles.
 const key = (userId: string) => `pintool.profile.${userId}`;
+const providerKey = (address: string) => `pintool.providerProfile.${address.toLowerCase()}`;
+const PROFILE_CHANGED = 'pintool:profile-changed';
 
-export function useBasicProfile(userId: string) {
+const readProfile = (storageKey: string): BasicProfile => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Partial<BasicProfile> | null;
+    return { ...EMPTY_PROFILE, ...stored };
+  } catch {
+    return EMPTY_PROFILE;
+  }
+};
+
+export function useBasicProfile(userId: string, address?: string) {
   const [profile, setProfile] = useState<BasicProfile>(EMPTY_PROFILE);
 
   // Read after mount so server and first client render match.
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(key(userId)) ?? 'null') as Partial<BasicProfile> | null;
-      setProfile({ ...EMPTY_PROFILE, ...stored });
-    } catch {
-      setProfile(EMPTY_PROFILE);
+    const stored = readProfile(key(userId));
+    setProfile(stored);
+    if (address && (stored.displayName || stored.avatar || stored.bio || stored.xHandle)) {
+      try { localStorage.setItem(providerKey(address), JSON.stringify(stored)); } catch { /* Keep the account profile only. */ }
+      window.dispatchEvent(new Event(PROFILE_CHANGED));
     }
-  }, [userId]);
+  }, [userId, address]);
 
   const save = useCallback((next: BasicProfile) => {
     const clean = { displayName: next.displayName.trim(), bio: next.bio.trim(), xHandle: next.xHandle.trim().replace(/^@/, ''), avatar: next.avatar };
-    try { localStorage.setItem(key(userId), JSON.stringify(clean)); } catch { /* storage unavailable: keep in memory only */ }
+    try {
+      localStorage.setItem(key(userId), JSON.stringify(clean));
+      if (address) localStorage.setItem(providerKey(address), JSON.stringify(clean));
+    } catch { /* storage unavailable: keep in memory only */ }
     setProfile(clean);
-  }, [userId]);
+    window.dispatchEvent(new Event(PROFILE_CHANGED));
+  }, [userId, address]);
 
   return { profile, save };
+}
+
+export function useProviderProfile(address?: string) {
+  const [profile, setProfile] = useState<BasicProfile>(EMPTY_PROFILE);
+  useEffect(() => {
+    const refresh = () => setProfile(address ? readProfile(providerKey(address)) : EMPTY_PROFILE);
+    refresh();
+    window.addEventListener(PROFILE_CHANGED, refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener(PROFILE_CHANGED, refresh); window.removeEventListener('storage', refresh); };
+  }, [address]);
+  return profile;
 }
 
 const AVATAR_SIZE = 160;

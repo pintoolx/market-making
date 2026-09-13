@@ -31,6 +31,7 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [approved, setApproved] = useState<PublicManifest | null>(null);
+  const [checkingApproval, setCheckingApproval] = useState(false);
   const epoch = useRef(0);
   const name = status?.provider ? `${strategyLabel}.${status.provider.name}` : '';
   const refresh = useCallback(async () => {
@@ -52,7 +53,25 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
     void refresh();
     return () => { activeEpoch.current++; };
   }, [refresh]);
-  useEffect(() => { setApproved(null); setCurrentVersion(null); setSuccess(''); }, [name, latest?.digest]);
+  useEffect(() => {
+    let active = true;
+    setApproved(null); setCurrentVersion(null); setSuccess('');
+    if (!name || !root || !latest || latest.state !== 'published') { setCheckingApproval(false); return () => { active = false; }; }
+    setCheckingApproval(true);
+    const loadPublicationState = async () => {
+      const [saved, resolved] = await Promise.all([
+        request<PublicManifest>(`/v1/ens/manifest?name=${encodeURIComponent(name)}&releaseId=${latest.id}&version=${latest.version}`)
+          .then(manifest => verifyManifest(manifest, root)).catch(() => null),
+        resolveEnsStrategy(name).catch(() => null),
+      ]);
+      if (!active) return;
+      setApproved(saved);
+      if (resolved?.pointer.releaseId === latest.id && resolved.pointer.version === latest.version
+        && resolved.pointer.publicationDigest === latest.digest) setCurrentVersion(resolved.pointer.version);
+    };
+    void loadPublicationState().finally(() => { if (active) setCheckingApproval(false); });
+    return () => { active = false; };
+  }, [name, root, latest]);
   const act = async (job: (tx: ReturnType<typeof ensTransactions>) => Promise<void>) => {
     if (busy) return;
     const generation = epoch.current;
@@ -112,9 +131,12 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
         <label>Name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
         <p className={styles.name}>{name}</p>
         <p>{latest?.state === 'published' ? `${latest.name} · Revision ${latest.version}` : 'Publish this strategy before assigning a name.'}</p>
-        <div className={aqua.actionRow}><Primary disabled={!account.walletConnected || !latest || latest.state !== 'published'} onClick={approve}>Approve strategy</Primary><Secondary disabled={!account.walletConnected || !latest || latest.state !== 'published'} onClick={publish}>Publish ENS link</Secondary></div>
+        <div className={aqua.actionRow}>
+          <Primary disabled={checkingApproval || !account.walletConnected || !latest || latest.state !== 'published'} onClick={approve}>{approved ? 'Strategy approved' : 'Approve strategy'}</Primary>
+          <Secondary disabled={checkingApproval || !account.walletConnected || !approved || currentVersion === latest.version} onClick={publish}>{currentVersion === latest.version ? 'ENS link published' : 'Publish ENS link'}</Secondary>
+        </div>
         {currentVersion && <p role="status">ENS points to revision {currentVersion}.</p>}
-        <p className={aqua.hint}>Approve the strategy first, then publish its ENS link.</p>
+        <p className={aqua.hint}>{checkingApproval ? 'Checking this strategy revision…' : approved ? 'The approved revision is ready to publish.' : 'Approve the strategy first, then publish its ENS link.'}</p>
       </fieldset>
       <details className={styles.advanced}><summary>Advanced · Publisher permissions</summary>
       <form onSubmit={e => { e.preventDefault(); void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, true); setSuccess('Publisher can update this strategy’s version record.'); }); }}>

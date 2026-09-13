@@ -185,6 +185,8 @@ export function makeServer(config, dependencies = {}) {
           combined.set(id, { ...item, id });
         }
         for (const item of combined.values()) {
+          const itemMaker = item.maker ?? config.strategyMaker;
+          if (makerFilter && itemMaker !== makerFilter) continue;
           if (item.release) {
             try {
               const [record, latest] = await Promise.all([registry.read(item.release.id, item.release.version), registry.latest(item.release.id)]);
