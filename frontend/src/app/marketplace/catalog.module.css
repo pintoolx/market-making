@@ -1,0 +1,23 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+
+.grid > article {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+}
+
+article > .cardActions {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 20px 16px 16px;
+}
+
+.cardActions :is(button, a) {
+  width: 100%;
+  min-height: 44px;
+}

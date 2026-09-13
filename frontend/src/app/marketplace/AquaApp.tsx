@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Primary from '../components/shared/Primary';
 import SiteHeader from '../components/shared/SiteHeader';
@@ -13,18 +13,12 @@ import aqua from './aqua.module.css';
 export type Screen = 'home' | 'provider' | 'maker';
 const PATHS: Record<Screen, string> = { home: '/', provider: '/studio', maker: '/maker' };
 
-// Shell for /, /studio and /maker. Each flow keeps its own steps; re-clicking the current role tab restarts it.
+// Shared shell; route changes determine the active flow without forced remounts.
 export default function AquaApp({ screen }: { screen: Screen }) {
   const router = useRouter();
   const pageRef = useRef<HTMLDivElement>(null);
-  const [restart, setRestart] = useState(0);
   const scrollTop = () => pageRef.current?.scrollTo({ top: 0 });
-  const goTo = (next: Screen) => {
-    if (next !== screen) { router.push(PATHS[next]); return; }
-    if (window.location.search) router.push(PATHS[next]);
-    scrollTop();
-    setRestart(n => n + 1);
-  };
+  const goTo = (next: Screen) => router.push(PATHS[next]);
 
   // Everything on the home screen fits one desktop viewport: pitch + role choice on top, architecture below.
   const home = <div className={aqua.home}>
@@ -92,12 +86,12 @@ export default function AquaApp({ screen }: { screen: Screen }) {
 
   return (
     <div ref={pageRef} data-marketplace-scroll={screen === 'maker' ? true : undefined} className={`${styles.page} ${aqua.page}`}>
-      <SiteHeader role={screen === 'home' ? null : screen} showRoles={screen !== 'home'} onReselect={() => goTo(screen)} />
+      <SiteHeader role={screen === 'home' ? null : screen} showRoles={screen !== 'home'} />
       <main className={styles.mainScroll}>
         <div className={`${styles.main} ${screen === 'home' ? aqua.mainHome : ''}`}>
           {screen === 'home' ? home
-            : screen === 'provider' ? <ProviderFlow key={restart} scrollTop={scrollTop} />
-            : <Suspense fallback={<p role="status">Loading strategies…</p>}><MakerFlow key={restart} scrollTop={scrollTop} /></Suspense>}
+            : screen === 'provider' ? <Suspense fallback={<p role="status">Loading your workspace…</p>}><ProviderFlow scrollTop={scrollTop} /></Suspense>
+            : <Suspense fallback={<p role="status">Loading strategies…</p>}><MakerFlow scrollTop={scrollTop} /></Suspense>}
         </div>
       </main>
       <SiteFooter />

@@ -19,17 +19,17 @@ try {
   admin = database(url.toString()); await admin.query(`CREATE DATABASE "${name}"`)
   url.pathname = '/' + name; pool = database(url.toString()); await migrate(pool)
   const store = createStore(pool, sepoliaStandingProfile.id)
-  const created = await store.create(fixtureOwner, randomUUID(), { title: '逐項公開限制與曲線切換', kind: 'template' })
+  const created = await store.create(fixtureOwner, randomUUID(), { title: 'Incremental public limits and curve changes', kind: 'template' })
   const model = openAIModel({ apiKey: process.env.OPENAI_API_KEY ?? '', modelId })
   const deadline = Math.floor(Date.now() / 1000) + 7 * 86400
   const prompts = [
-    '我要在 Ethereum Sepolia 發布 WETH/USDC 一般乘積曲線模板、零费率。先只保存單筆 WETH 上限 0.05；USDC 單筆、兩種庫存上限和期限都還沒決定，這輪不要替我填。也不要設定 Maker 資產。',
-    '接著只補 USDC 單筆最多 125，保留 WETH 單筆 0.05。其他未決定的欄位仍不要替我填。',
-    `現在補成交後庫存 WETH 最多 2、USDC 最多 5000，策略期限 Unix ${deadline}。請保存並驗證，其他設定全部保留。`,
-    '我決定把曲線換成 Pegged，參考價格 2500 USDC/WETH、amplification 1；原本單筆、庫存、期限與零費率全部保留，更新舊的曲線要求。',
-    '我改採固定區間 CLMM，價格 2200 到 2800 USDC/WETH。取代前面 Pegged 曲線需求，其他已確認限制完全保留。',
-    '只把 WETH 單筆上限從 0.05 收緊到 0.04，其他所有設定與限制保留。',
-    '先不要修改：如果我同時要求 WETH 單筆不得超過 0.04，又要求放寬成 0.1，這兩項是否矛盾？請指出衝突讓我確認，不要替我選。',
+    'I want a zero-fee WETH/USDC constant-product template on Ethereum Sepolia. Save only a WETH per-swap limit of 0.05 for now. Leave the USDC limit, both inventory limits and deadline undecided. Do not fill them in or allocate Maker assets.',
+    'Add only a USDC per-swap limit of 125. Keep WETH at 0.05 and leave other undecided fields empty.',
+    `Now add post-swap inventory limits of 2 WETH / 5000 USDC and Unix deadline ${deadline}. Save and validate, preserving everything else.`,
+    'Change to Pegged with reference price 2500 USDC/WETH and amplification 1. Preserve per-swap limits, inventory limits, deadline and zero fees. Update the old curve requirement.',
+    'Switch to fixed-range CLMM at 2200 to 2800 USDC/WETH. Replace the Pegged requirement and preserve all confirmed limits.',
+    'Tighten only the WETH per-swap limit from 0.05 to 0.04. Preserve all other settings and limits.',
+    'Do not edit yet. Are a WETH per-swap maximum of 0.04 and a request to raise it to 0.1 contradictory? Identify the conflict for my review without choosing for me.',
   ].slice(0, turnLimit)
   const evidence: unknown[] = []
   const path = new URL('../../../.cache/builder/', import.meta.url)

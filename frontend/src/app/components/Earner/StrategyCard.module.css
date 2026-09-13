@@ -153,7 +153,7 @@
   z-index: 1;
 }
 
-/* Primary / Secondary 元件尺寸（對齊 Figma 546:10146–48） */
+/* Primary / Secondary dimensions match Figma 546:10146–48. */
 .mainRowSecondary {
   width: 85px;
   flex-shrink: 0;
@@ -285,7 +285,7 @@
     align-self: stretch;
   }
 
-  /* 與 InviteCodeModal .inputWrapper：預設黑、focus 藍、錯誤紅 */
+  /* Match InviteCodeModal input colors: dark default, blue focus, red error. */
   .fundsInput {
     flex: 1;
     min-width: 0;
@@ -355,7 +355,7 @@
     color: #d6295d;
   }
 
-  /* 四格百分比橫排 */
+  /* Four percentage controls in one row. */
   .pctGrid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

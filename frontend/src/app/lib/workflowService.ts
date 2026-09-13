@@ -2,7 +2,7 @@ import { supabase, ensureJwtWalletClaimForWorkflowsRls } from './supabase';
 import { CanvasNode, Connection } from '../components/Creator/WorkflowCanvas';
 import { transformToBackendFormat, BackendWorkflowFormat } from './workflowTransformer';
 
-/** PostgrestError 在 DevTools 有時印成 `{}`，改抽欄位方便除錯 */
+/** Extract PostgrestError fields because DevTools may otherwise display an empty object. */
 function supabaseErrFields(err: unknown): Record<string, unknown> {
   if (!err || typeof err !== 'object') return { raw: String(err) };
   const e = err as Record<string, unknown>;
@@ -125,7 +125,7 @@ export interface WorkflowData {
 }
 
 /**
- * 取得該 wallet 的 active account ID
+ * Get the active account ID for this wallet.
  */
 export async function getActiveAccountId(walletAddress: string): Promise<string | null> {
   try {
@@ -137,12 +137,12 @@ export async function getActiveAccountId(walletAddress: string): Promise<string 
       .limit(1);
 
     if (error) {
-      // 如果查詢出錯，返回 null（表示沒有 account）
+      // Return null on query errors, indicating no account.
       console.warn('Error fetching active account:', error);
       return null;
     }
 
-    // 如果沒有資料，返回 null
+    // Return null when there is no data.
     if (!data || data.length === 0) {
       return null;
     }
@@ -154,12 +154,12 @@ export async function getActiveAccountId(walletAddress: string): Promise<string 
   }
 }
 
-/** 對齊 public.accounts.status CHECK：active | inactive | closed */
+/** Match the public.accounts.status constraint: active | inactive | closed. */
 export type AccountLifecycleStatus = 'active' | 'inactive' | 'closed';
 
 /**
- * 由帳戶列推導生命週期；無綁定帳戶（無列）為 none。
- * 若僅有舊欄位 is_active，則向後相容。
+ * Derive the lifecycle from the account row; no linked row means none.
+ * Support the legacy is_active field when it is the only status field.
  */
 export function accountLifecycleFromRow(
   row: { status?: string | null; is_active?: boolean | null } | null | undefined
@@ -190,7 +190,7 @@ export async function updateAccountStatus(
 }
 
 /**
- * 建立新的 workflow
+ * Create a workflow.
  */
 export async function createWorkflow(
   walletAddress: string,
@@ -220,10 +220,10 @@ export async function createWorkflow(
       .single();
 
     if (error) {
-      // 處理重複名稱的錯誤
+      // Handle duplicate-name errors.
       if (error.code === '23505') {
-        // 唯一約束違反：同一個 wallet address 和 name 的組合已存在
-        // 建立一個自定義錯誤，但不要讓它在 console 中顯示為 uncaught error
+        // The unique wallet-address/name combination already exists.
+        // Create a handled error rather than an uncaught console error.
         interface DuplicateError extends Error {
           code: string;
           originalError: unknown;
@@ -232,7 +232,7 @@ export async function createWorkflow(
         const duplicateError = new Error(`Workflow name "${name}" already exists. Please choose a different name.`) as DuplicateError;
         duplicateError.code = 'DUPLICATE_NAME';
         duplicateError.originalError = error;
-        duplicateError.isHandled = true; // 標記為已處理，避免在 console 中顯示為 uncaught error
+        duplicateError.isHandled = true; // Mark handled to avoid an uncaught console error.
         throw duplicateError;
       }
       const msg = workflowInsertUserMessage(error);
@@ -249,7 +249,7 @@ export async function createWorkflow(
 }
 
 /**
- * 更新現有的 workflow
+ * Update a workflow.
  */
 export async function updateWorkflow(
   workflowId: string,
@@ -276,15 +276,15 @@ export async function updateWorkflow(
     }
 
     if (updates.nodes !== undefined || updates.connections !== undefined) {
-      // 如果更新 nodes 或 connections，直接轉換為後端格式
-      // 注意：這裡假設 updates.nodes 和 updates.connections 是完整的前端格式
+      // Convert updated nodes and connections to the backend format.
+      // Updates must contain complete frontend nodes and connections.
       if (updates.nodes !== undefined && updates.connections !== undefined) {
-        // 取得 active accountId（如果有的話）
+        // Obtain the active accountId if one exists.
         const accountId = await getActiveAccountId(walletAddress);
         const backendDefinition = transformToBackendFormat(updates.nodes, updates.connections, accountId);
         updateData.definition = backendDefinition;
       } else {
-        // 如果只更新其中一個，需要先取得現有的 definition
+        // Read the existing definition if only nodes or connections changed.
         const { data: existing } = await supabase
           .from('workflows')
           .select('definition')
@@ -296,8 +296,8 @@ export async function updateWorkflow(
           throw new Error('Workflow not found or access denied');
         }
 
-        // 這裡需要從後端格式轉回前端格式，然後再轉回後端格式
-        // 為了簡化，建議同時提供 nodes 和 connections
+        // Convert from backend to frontend format before converting back.
+        // Prefer providing nodes and connections together.
         throw new Error('Partial update of nodes/connections requires both nodes and connections');
       }
     }
@@ -322,7 +322,7 @@ export async function updateWorkflow(
 }
 
 /**
- * 取得特定 user 的所有 workflows
+ * Get all workflows for a user.
  */
 export async function getUserWorkflows(walletAddress: string): Promise<WorkflowData[]> {
   try {
@@ -345,7 +345,7 @@ export async function getUserWorkflows(walletAddress: string): Promise<WorkflowD
 }
 
 /**
- * 依 workflow id 取得「第一次執行」的 started_at（public.workflow_executions 最早一筆，同 owner_wallet_address）
+ * Read the earliest workflow_executions.started_at for this workflow and owner_wallet_address.
  */
 export async function fetchFirstExecutionStartedAtByWorkflowIds(
   walletAddress: string,
@@ -381,7 +381,7 @@ export async function fetchFirstExecutionStartedAtByWorkflowIds(
 }
 
 /**
- * 取得單一 workflow
+ * Get one workflow.
  */
 export async function getWorkflow(
   workflowId: string,
@@ -411,7 +411,7 @@ export async function getWorkflow(
 }
 
 /**
- * 刪除 workflow
+ * Delete a workflow.
  */
 export async function deleteWorkflow(
   workflowId: string,

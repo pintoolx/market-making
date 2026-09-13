@@ -13,16 +13,16 @@ export interface Strategy {
   usageCount: number;
   isActive: boolean;
   /**
-   * 綁定之 public.accounts 生命週期；none = 尚無 current_workflow_id 對應帳戶
+   * Lifecycle of the linked public.accounts row; none means no account references current_workflow_id.
    */
   accountLifecycle?: 'active' | 'inactive' | 'closed' | 'none';
   previewImage?: string;
   capital?: number;
   pnl?: number;
   healthWarning?: string;
-  /** ISO 字串，來自 workflows.created_at */
+  /** ISO timestamp from workflows.created_at. */
   deployedAt?: string | null;
-  /** ISO 字串，該 workflow 在 workflow_executions 最早的 started_at */
+  /** ISO timestamp of this workflow's earliest workflow_executions.started_at. */
   firstExecutionStartedAt?: string | null;
 }
 

@@ -1,40 +1,59 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Primary from '../components/shared/Primary';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Secondary from '../components/shared/Secondary';
+import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
 import { PageHead } from './ui';
 import ClmmPublisher from './ClmmPublisher';
-import { LP_CAPABILITIES } from '../../../../shared/lp-release.mjs';
+import TemplateDraftEditor from './TemplateDraftEditor';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
-import Link from 'next/link';
+import catalog from './catalog.module.css';
 
-const PUBLISHABLE_TEMPLATES = AQUA_TEMPLATES.filter(template => LP_CAPABILITIES[template.id]?.publication);
+function StudioCard({ label, title, description, action, onSelect }: { label: string; title: string; description: string; action: string; onSelect(): void }) {
+  return <article className={`${styles.card} ${aqua.card}`}>
+    <div className={styles.cardBg} aria-hidden="true" />
+    <div className={styles.cardBody}>
+      <div className={styles.tagRow}><span className={`${styles.tag} ${aqua.chip}`}>{label}</span></div>
+      <h3 className={styles.cardTitle}>{title}</h3>
+      <p className={aqua.summary}>{description}</p>
+    </div>
+    <div className={`${styles.cardActions} ${catalog.cardActions}`}>
+      <Secondary fullWidth onClick={onSelect}>{action}</Secondary>
+    </div>
+  </article>;
+}
 
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
-  const [editing, setEditing] = useState(false);
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('edit') === 'clmm') {
-      setEditing(true);
-      window.history.replaceState(null, '', '/studio');
-    }
-  }, []);
-  if (editing) return <ClmmPublisher onBack={() => { setEditing(false); scrollTop(); }} />;
+  const account = useAccount();
+  const router = useRouter();
+  const params = useSearchParams();
+  const editing = params.get('edit');
+  const open = (id: string | null) => {
+    router.push(id ? `/studio?edit=${encodeURIComponent(id)}` : '/studio');
+    scrollTop();
+  };
+  const template = AQUA_TEMPLATES.find(t => t.id === editing);
+  if (template?.id === 'clmm') return <ClmmPublisher onBack={() => open(null)} />;
+  if (template) {
+    if (!account.ready) return <p role="status">Loading your workspace…</p>;
+    const owner = account.address?.toLowerCase() ?? account.userId ?? 'guest';
+    return <TemplateDraftEditor key={`${owner}:${template.id}`} template={template} owner={owner} onBack={() => open(null)} />;
+  }
   return <section className={aqua.flow}>
-    <PageHead eyebrow="Provider Studio" title="Choose an LP template.">
-      Publish a version of your CLMM strategy for Makers to review. CLMM is currently the available template.
+    <PageHead eyebrow="Provider Studio" title="Start with your strategy.">
+      Customize a template or design your own with the strategy assistant.
     </PageHead>
-    <p><Link href="/ens">Manage your ENS strategy names and publishers →</Link></p>
-    {process.env.NEXT_PUBLIC_BUILDER_ENABLED === 'true' && <p><Link href="/builder">透過對話設計你的策略 →</Link></p>}
-    <div className={`${styles.grid} ${aqua.grid}`}>
-      {PUBLISHABLE_TEMPLATES.map(template => <article key={template.id} className={aqua.panel}>
-          <span className={aqua.eyebrow}>{template.label}</span>
-          <h2>{template.name}</h2><p>{template.summary}</p>
-          <p className={aqua.muted}>Set your price range and trading limits, then sign a version to publish it.</p>
-          <Primary onClick={() => { setEditing(true); scrollTop(); }}>Open CLMM editor</Primary>
-        </article>)}
+    <div className={aqua.sectionTop}>
+      <h2 className={aqua.sectionTitle}>Choose a starting point</h2>
+      <span className={aqua.muted}>{AQUA_TEMPLATES.length + 1} options</span>
     </div>
-    <p className={aqua.muted}>Publishing makes a strategy available for review. Makers complete activation before it can quote trades.</p>
+    <div className={catalog.grid}>
+      {AQUA_TEMPLATES.map(t => <StudioCard key={t.id} label={t.label} title={t.name} description={t.summary} action="Customize template" onSelect={() => open(t.id)} />)}
+      <StudioCard label="Strategy Builder" title="Build your own"
+        description="Describe your goals, compare supported curves and refine your strategy with the assistant."
+        action="Open Strategy Builder" onSelect={() => router.push('/builder')} />
+    </div>
   </section>;
 }

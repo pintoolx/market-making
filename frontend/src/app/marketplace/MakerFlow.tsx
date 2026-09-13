@@ -12,12 +12,11 @@ import { createMandate, getExecutableStrategies, getMandate, reevaluateExecution
 import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealForConfidentialWorkflow } from './confidentialEnvelope';
 import { ADAPTIVE_PROFILE_IDS, presentMandate } from './mandatePresentation';
 
-import { readMandateReference, saveMandateReference } from './mandateReferenceStore';
+import { saveMandateReference } from './mandateReferenceStore';
 import { usePublishedListings, type Listing } from './publishedStore';
-import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
-import styles from './page.module.css';
 import aqua from './aqua.module.css';
+import catalog from './catalog.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { discoverStrategyNames } from '../ens/strategyNames';
 import { FEATURED } from './featuredStrategies';
@@ -55,13 +54,13 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const start = params.get('start') === '1';
   const [loadingLinked, setLoadingLinked] = useState(false);
   const { published } = usePublishedListings();
-  const { save } = useProposals();
   const [selected, setSelected] = useState<Listing[]>([]);
   const [budget, setBudget] = useState('20');
   const [exposure, setExposure] = useState('60');
   const [maxWethInventory, setMaxWethInventory] = useState('12');
   const [maxTrade, setMaxTrade] = useState('1');
   const [phase, setPhase] = useState<Phase>('choose');
+  const [editingExisting, setEditingExisting] = useState(false);
   const [mandate, setMandate] = useState<MandateState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reevaluating, setReevaluating] = useState(false);
@@ -71,12 +70,11 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
-  const returningToMarketplace = useRef(false);
   const lastLinkedStrategy = useRef<string | null>(null);
   const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
-  useEffect(() => { returningToMarketplace.current ||= consumeMarketplaceReturn(); }, []);
+  useEffect(() => { consumeMarketplaceReturn(); }, []);
   useEffect(() => {
     let current = true;
     getExecutableStrategies()
@@ -117,19 +115,31 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => cancelAnimationFrame(frame);
   }, [phase, published.length, linkedId]);
   useEffect(() => {
+    // Browsing Liquidity never opts into restoring a previous execution session.
+    if (!linkedMandateId) {
+      restoredMaker.current = '';
+      setMandate(null);
+      setEditingExisting(false);
+      setRefreshing(false);
+      if (!linkedId) setPhase('choose');
+      return;
+    }
     const restoreKey = `${makerAddress?.toLowerCase()}:${linkedMandateId ?? ''}`;
-    if (!makerAddress || restoredMaker.current === restoreKey
-      || openingLinkedStrategy.current || (!linkedMandateId && returningToMarketplace.current)) return;
+    if (!makerAddress) {
+      restoredMaker.current = '';
+      setMandate(null);
+      setPhase('choose');
+      return;
+    }
+    if (restoredMaker.current === restoreKey || openingLinkedStrategy.current) return;
     if (linkedMandateId && !/^mandate-[a-f0-9-]{36}$/.test(linkedMandateId)) {
       setError('This mandate link is invalid.'); return;
     }
-    const reference = linkedMandateId ? { mandateId: linkedMandateId } : readMandateReference(makerAddress);
-    if (!reference) return;
     let current = true;
     setRefreshing(true);
-    getMandate(reference.mandateId)
+    getMandate(linkedMandateId)
       .then(state => {
-        if (!current || openingLinkedStrategy.current || (!linkedMandateId && returningToMarketplace.current)) return;
+        if (!current || openingLinkedStrategy.current) return;
         if (state.maker.toLowerCase() !== makerAddress.toLowerCase()) throw new Error('This mandate belongs to a different Maker wallet.');
         restoredMaker.current = restoreKey;
         saveMandateReference(state.maker, state.mandateId);
@@ -141,7 +151,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       .catch(() => { if (current && linkedMandateId) setError('Unable to open this mandate. Check the link and Maker wallet, then reload.'); })
       .finally(() => { if (current) setRefreshing(false); });
     return () => { current = false; };
-  }, [makerAddress, linkedMandateId]);
+  }, [makerAddress, linkedMandateId, linkedId]);
 
   const catalogMatchesWallet = !!makerAddress;
   const isExecutable = (item: Listing) => {
@@ -152,8 +162,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     .map(item => ({ ...item, executionReady: isExecutable(item) }));
   const go = (next: Phase) => {
     if (next === 'detail' && selected[0]) { router.push(strategyHref(selected[0].id, selected[0].ensName)); return; }
+    if (next === 'monitor') setEditingExisting(false);
     if (next === 'choose') {
-      returningToMarketplace.current = true;
       restoredMaker.current = '';
       if (linkedId || linkedMandateId) router.push('/maker');
     }
@@ -200,17 +210,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       setMandate(state);
       saveMandateReference(state.maker, state.mandateId);
       router.replace(`/maker?mandate=${encodeURIComponent(state.mandateId)}`);
-      selected.forEach(item => save({
-        id: item.id,
-        strategyName: item.name,
-        mechanism: item.template.label,
-        budget: budget.trim(),
-        maxExposure: exposure.trim(),
-        maxWeakAsset: maxWethInventory.trim(),
-        maxTrade: maxTrade.trim(),
-        authorization: 'until-changed',
-        feePct: item.feePct,
-      }));
       go('monitor');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'The mandate could not be created.');
@@ -253,6 +252,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   };
   const editLimits = () => {
     if (!mandate) return;
+    setEditingExisting(true);
     const strategy = mandate.strategies.find(item => item.status === 'active') ?? mandate.strategies[0];
     if (!strategy) { go('choose'); return; }
     const listing = listings.find(item => (item.executionProfileIds ?? [item.id]).includes(strategy.listingId));
@@ -270,10 +270,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const previousStep = phase === 'activate' ? { phase: 'detail' as const, label: 'Strategy details' } : phase === 'detail'
     ? { phase: 'choose' as const, label: 'Strategy marketplace' }
     : phase === 'limits'
-      ? { phase: 'detail' as const, label: 'Strategy details' }
+      ? editingExisting ? { phase: 'monitor' as const, label: 'Liquidity overview' } : { phase: 'detail' as const, label: 'Strategy details' }
       : phase === 'review'
         ? { phase: 'limits' as const, label: 'Private limits' }
-        : phase === 'monitor' ? { phase: 'choose' as const, label: 'Strategy marketplace' } : null;
+        : null;
 
   const currentStep = ['choose', 'detail', 'activate'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
   const title = phase === 'choose' ? 'Find a strategy for your liquidity.'
@@ -284,7 +284,23 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         : phase === 'submitting' ? reevaluating ? 'Re-evaluating execution.' : 'Creating your mandate.'
           : 'Your liquidity mandate.';
 
+  // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
+  if ((phase === 'choose' && (linkedMandateId || linkedId)) || loadingLinked) {
+    const backHref = linkedMandateId ? '/profile?tab=making' : '/maker';
+    const waitingForAccount = !account.ready || executableCatalog === null;
+    return <section className={aqua.flow}>
+      <Link className={aqua.backLink} href={backHref}>← {linkedMandateId ? 'My liquidity' : 'Strategy marketplace'}</Link>
+      <PageHead eyebrow={linkedMandateId ? 'My liquidity' : 'Strategy setup'} title={linkedMandateId ? 'Your liquidity' : 'Set up your strategy'} />
+      {error ? <p role="alert" className={aqua.errorNotice}>{error}</p>
+        : waitingForAccount ? <p role="status">Loading your workspace…</p>
+          : !account.authenticated ? <Primary onClick={account.login}>Connect Maker wallet</Primary>
+            : !makerAddress ? <p>Connect the Maker wallet for this setup.</p>
+              : <p role="status">{linkedMandateId ? 'Loading your liquidity…' : 'Loading your strategy…'}</p>}
+    </section>;
+  }
+
   return <section className={aqua.flow}>
+    {phase === 'monitor' && <Link href="/profile?tab=making" className={aqua.backLink}>← My liquidity</Link>}
     {previousStep && <button type="button" className={aqua.backLink} onClick={() => go(previousStep.phase)}>← {previousStep.label}</button>}
     <PageHead eyebrow="Maker Marketplace" title={title} accent={phase === 'monitor' ? 'One balance, guarded continuously.' : undefined} headingRef={heading}>
       {phase === 'choose' && 'Explore strategies built for self-custodial liquidity on Aqua.'}
@@ -297,12 +313,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     <Steps steps={STEPS} current={currentStep} />
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
-    {loadingLinked && <p role="status">Loading selected strategy…</p>}
-    {phase === 'choose' && !loadingLinked && <>
-      {mandate && <Secondary onClick={() => { go('monitor'); void refresh(); }}>View current mandate</Secondary>}
+    {phase === 'choose' && <>
       <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
-      <div className={`${styles.grid} ${aqua.grid}`}>
+      <div className={catalog.grid}>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
       </div>
     </>}

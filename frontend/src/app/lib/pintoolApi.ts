@@ -1,8 +1,8 @@
 /**
  * PinTool API Client
  *
- * Part 1 (Sign In): 由前端直接呼叫 supabase.auth.signInWithWeb3() 完成
- * Part 2 (業務操作): getChallenge -> sign -> API with Supabase JWT Bearer + signature
+ * Part 1 (Sign In): the frontend calls supabase.auth.signInWithWeb3() directly.
+ * Part 2 (business operations): getChallenge -> sign -> API with Supabase JWT Bearer and signature.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_PINTOOL_API_URL || 'https://pintool-backend-production.up.railway.app';
@@ -51,7 +51,7 @@ export interface RedeemReferralCodeResponse {
   message?: string;
 }
 
-/** POST /api/referrals/admin/codes — 需先 getChallenge + 錢包簽名，再帶入 signature */
+/** POST /api/referrals/admin/codes requires getChallenge, a wallet signature and the signature in the request. */
 export interface AdminCreateReferralCodesRequest {
   adminWalletAddress: string;
   signature: string;
@@ -95,7 +95,7 @@ export interface ExecuteWorkflowResponse {
 
 // ─── Helper ─────────────────────────────────────────────
 
-/** 建立帶 Supabase JWT Bearer token 的 headers */
+/** Create headers with the Supabase JWT Bearer token. */
 function authHeaders(jwtToken: string): Record<string, string> {
   return {
     'Content-Type': 'application/json',
@@ -103,12 +103,12 @@ function authHeaders(jwtToken: string): Record<string, string> {
   };
 }
 
-// ─── Auth Challenge (用於業務操作的即時簽名) ─────────────
+// Auth Challenge: fresh signatures for business operations.
 
 /**
- * 取得 business challenge
- * 用於需要額外授權的操作（init/delete/export wallet）
- * 後端會將 challenge 存入 auth_challenges 表
+ * Obtain a business-operation challenge.
+ * Used for actions needing additional authorization: init/delete/export wallet.
+ * The backend stores the challenge in auth_challenges.
  */
 export async function getChallenge(walletAddress: string): Promise<ChallengeResponse> {
   const res = await fetch(`${API_BASE}/api/auth/challenge`, {
@@ -125,11 +125,11 @@ export async function getChallenge(walletAddress: string): Promise<ChallengeResp
   return res.json();
 }
 
-// ─── Crossmint Wallets (Part 2 業務操作) ────────────────
+// Crossmint Wallets: Part 2 business operations.
 
 /**
- * 初始化錢包（建立 Crossmint 託管錢包）
- * 需要：Supabase JWT Bearer + 業務 challenge 簽名
+ * Initialize a Crossmint custodial wallet.
+ * Requires Supabase JWT Bearer and a signed business-operation challenge.
  */
 export async function initWallet(
   jwtToken: string,
@@ -153,8 +153,8 @@ export async function initWallet(
 }
 
 /**
- * 刪除（關閉）錢包帳戶
- * 需要：Supabase JWT Bearer + 業務 challenge 簽名
+ * Delete (close) a wallet account.
+ * Requires Supabase JWT Bearer and a signed business-operation challenge.
  */
 export async function deleteWallet(
   jwtToken: string,
@@ -179,9 +179,9 @@ export async function deleteWallet(
 }
 
 /**
- * 導出錢包私鑰
- * 需要：Supabase JWT Bearer + 業務 challenge 簽名
- * 注意：MPC 錢包可能不支援此操作
+ * Export the wallet private key.
+ * Requires Supabase JWT Bearer and a signed business-operation challenge.
+ * MPC wallets may not support this operation.
  */
 export async function exportWallet(
   jwtToken: string,
@@ -205,8 +205,8 @@ export async function exportWallet(
 }
 
 /**
- * 從 Crossmint 託管錢包提領資金
- * 需要：Supabase JWT Bearer + 業務 challenge 簽名
+ * Withdraw funds from a Crossmint custodial wallet.
+ * Requires Supabase JWT Bearer and a signed business-operation challenge.
  */
 export async function withdrawWallet(
   jwtToken: string,
@@ -239,8 +239,8 @@ export interface MyReferralCodeItem {
 }
 
 /**
- * 取得目前使用者可分享的邀請碼列表。
- * GET /api/referrals/my-codes — Authorization: Bearer Supabase JWT（不需錢包簽名）。
+ * List the invite codes the current user may share.
+ * GET /api/referrals/my-codes requires Supabase JWT Bearer authentication, without a wallet signature.
  */
 export async function fetchMyReferralCodes(jwtToken: string): Promise<MyReferralCodeItem[]> {
   const res = await fetch(`${API_BASE}/api/referrals/my-codes`, {
@@ -275,9 +275,9 @@ export async function fetchMyReferralCodes(jwtToken: string): Promise<MyReferral
 }
 
 /**
- * 兌換邀請碼
+ * Redeem an invite code.
  * POST /api/referrals/redeem — Authorization: Bearer Supabase JWT。
- * 後端從 JWT 解析 walletAddress；body 只接受 { code, metadata }。
+ * The backend derives walletAddress from the JWT; the body accepts only code and metadata.
  */
 export async function redeemReferralCode(
   jwtToken: string,
@@ -303,8 +303,8 @@ export async function redeemReferralCode(
 // ─── Workflows ──────────────────────────────────────────
 
 /**
- * 執行 workflow
- * 只需要 Supabase JWT Bearer token
+ * Execute a workflow.
+ * Requires only the Supabase JWT Bearer token.
  */
 export async function executeWorkflow(
   jwtToken: string,

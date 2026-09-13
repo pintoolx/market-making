@@ -23,7 +23,7 @@ function isValidFundAmount(s: string): boolean {
   return Number.isFinite(n) && n > 0;
 }
 
-/** 百分比金額：勿用 Math.round，否則 capital=1、10% 會變 0 而非 0.1 */
+/** Do not round percentage amounts: 10% of capital=1 must remain 0.1, not 0. */
 function formatPctOfCapital(capital: number, pct: number): string {
   if (!Number.isFinite(capital)) return '0';
   const raw = (capital * pct) / 100;

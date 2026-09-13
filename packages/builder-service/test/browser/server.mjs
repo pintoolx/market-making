@@ -48,7 +48,7 @@ const server = createServer(async (req, res) => {
       res.end(await readFile(new URL('../../../../.cache/builder/browser' + req.url, import.meta.url))); return;
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end('<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pintool local UI test</title><link rel="stylesheet" href="/entry.css"><div id="root"></div><script type="module" src="/entry.js"></script></html>');
+    res.end('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pintool local UI test</title><link rel="stylesheet" href="/entry.css"><div id="root"></div><script type="module" src="/entry.js"></script></html>');
   } catch { res.statusCode = 500; res.end('Test request failed'); }
 });
 try {
@@ -61,7 +61,7 @@ console.log('Builder browser fixture ready on localhost:3311');
 
 const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
 function fixtureModel(draft, content) {
-  const slow = content.includes('慢慢'), narrow = content.includes('2700'), partial = content.includes('單項');
+  const slow = content.includes('Slowly'), narrow = content.includes('2700'), partial = content.includes('Single field');
   const edits = narrow ? [{ field: 'maxPrice', value: '2700' }] : [
     { field: 'baseToken', value: 'WETH' }, { field: 'quoteToken', value: 'USDC' }, { field: 'curve', value: 'concentrated' },
     { field: 'minPrice', value: '2200' }, { field: 'maxPrice', value: '2800' }, { field: 'feeBps', value: '0' },
@@ -69,9 +69,9 @@ function fixtureModel(draft, content) {
     { field: 'maxPostBalanceBase', value: '2' }, { field: 'maxPostBalanceQuote', value: '5000' },
     { field: 'deadline', value: String(Math.floor(Date.now() / 1000) + 604800) },
   ];
-  const selectedEdits = content.includes('極小配置') ? [{ field: 'allocationBase', value: '0.000000000000000001' }, { field: 'allocationQuote', value: '0.000001' }]
+  const selectedEdits = content.includes('tiny allocations') ? [{ field: 'allocationBase', value: '0.000000000000000001' }, { field: 'allocationQuote', value: '0.000001' }]
     : partial ? edits.filter(e => ['baseToken', 'quoteToken', 'maxAmountBasePerSwap'].includes(e.field)) : edits;
-  const title = content.match(/模板驗收-[a-z0-9]+/)?.[0];
+  const title = content.match(/template-acceptance-[a-z0-9]+/)?.[0];
   if (title) selectedEdits.push({ field: 'title', value: title });
   let step = 0;
   return new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ async start(c) {
@@ -82,9 +82,9 @@ function fixtureModel(draft, content) {
     }) });
     else {
       c.enqueue({ type: 'text-start', id: 'reply' });
-      const text = slow ? '我正在逐項比較策略的風險與限制，還沒有修改任何設定。'.repeat(20)
-        : partial ? '已保存單筆 WETH 上限 0.05，其他限制尚未設定。'
-        : `已保存策略設定。\n\n- 固定區間：**2200–${narrow ? '2700' : '2800'} USDC/WETH**\n- 單筆上限：0.05 WETH / 125 USDC\n- 成交後庫存：2 WETH / 5000 USDC\n\n仍是草稿，尚未發布。`;
+      const text = slow ? 'I am comparing strategy risks and limits without changing any settings.'.repeat(20)
+        : partial ? 'Saved the WETH per-swap limit of 0.05. Other limits are not set.'
+        : `Saved strategy parameters.\n\n- Fixed range: **2200–${narrow ? '2700' : '2800'} USDC/WETH**\n- Per-swap limits: 0.05 WETH / 125 USDC\n- Post-swap inventory: 2 WETH / 5000 USDC\n\nThis remains an unpublished draft.`;
       for (let i = 0; i < text.length; i += 10) { c.enqueue({ type: 'text-delta', id: 'reply', delta: text.slice(i, i + 10) }); await delay(slow ? 80 : 30); }
       c.enqueue({ type: 'text-end', id: 'reply' });
     }

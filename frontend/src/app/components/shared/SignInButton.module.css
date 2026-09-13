@@ -13,7 +13,7 @@
   gap: 16px;
 }
 
-/* 已登入錢包觸發鈕：沿用 Primary，內層排 icon + 文字 */
+/* Signed-in wallet trigger reuses Primary with an icon/text row. */
 .walletAddressPrimary {
   white-space: nowrap;
 }
@@ -29,13 +29,13 @@
   align-items: center;
 }
 
-/* 僅錢包鈕＋下拉為 hover 區，避免滑過 SOL 餘額也打開選單 */
+/* Only the wallet trigger and menu form the hover area, not the SOL balance. */
 .walletMenuAnchor {
   position: relative;
   display: inline-block;
 }
 
-/* 填補鈕與選單間隙，避免移入選單時誤觸 anchor 的 mouseleave */
+/* Bridge the trigger/menu gap to avoid accidental mouseleave. */
 .walletMenuAnchor::after {
   content: '';
   position: absolute;
@@ -46,7 +46,7 @@
   z-index: 1;
 }
 
-/* Figma 617:31768 — 錢包下拉：#e4eaf2、2px #0e0f28、硬陰影；列 48px、圖示 28、分隔線 */
+/* Figma 617:31768: wallet menu uses a light surface, 2px dark border, hard shadow, 48px rows and 28px icons. */
 .dropdownMenu {
   position: absolute;
   top: 100%;
@@ -92,7 +92,7 @@
   transition: color 80ms ease-out;
 }
 
-/* logo.svg 填色為 #e4eaf2：淺底列用濾鏡轉成 #0e0f28 感；藍底列還原為稿面淺色 */
+/* Filter the light logo to dark on light rows; restore its light fill on blue rows. */
 .menuItemLogo {
   flex-shrink: 0;
   width: 28px;
@@ -109,7 +109,7 @@
   filter: none;
 }
 
-/* Canvas 列：2×2 logo，與舊版相同語意，尺寸對齊 28px 圖示欄 */
+/* Canvas row: a 2x2 logo aligned with the 28px icon column. */
 .menuCanvasIcon {
   width: 28px;
   height: 28px;
@@ -152,7 +152,7 @@
   background: #d7e1ee;
 }
 
-/* Hover／focus：617:31809 Sign out；鍵盤焦點同視覺 */
+/* Figma 617:31809: Sign out hover and keyboard focus share styling. */
 .menuItem:hover,
 .menuItem:focus-visible {
   background: #2050f2;
@@ -164,7 +164,7 @@
   color: #e4eaf2;
 }
 
-/* 617:31850 — 已在 /workflows */
+/* Figma 617:31850: already on /workflows. */
 .menuItemActive {
   background: #2050f2;
   color: #e4eaf2;
@@ -174,12 +174,12 @@
   color: #e4eaf2;
 }
 
-/* 焦點在藍底上，用淺色內縮框 */
+/* Use an inset light focus outline on blue. */
 .menuItem:focus-visible {
   outline: 2px solid #e4eaf2;
   outline-offset: -2px;
 }
-/* SOL 餘額：下拉選單內的資訊列（非互動） */
+/* Noninteractive SOL balance row in the dropdown. */
 .menuBalanceRow {
   box-sizing: border-box;
   height: 48px;
@@ -197,7 +197,7 @@
   user-select: text;
 }
 
-/* 下拉選單統一圖示框：28×28，與 logo / X icon 對齊 */
+/* Use a consistent 28x28 icon frame for logos and the X icon. */
 .menuIconBox {
   width: 28px;
   height: 28px;
@@ -316,7 +316,7 @@
   box-shadow: 0px 1px 0px #0E0F28 !important;
 }
 
-/* 只針對 Select Wallet 觸發按鈕，不影響彈窗內的錢包選項 */
+/* Target only Select Wallet triggers, not wallet choices inside the dialog. */
 .signInContainer :global(.wallet-adapter-button-trigger) {
   padding: 4px 16px !important;
   background: #2050F2 !important;

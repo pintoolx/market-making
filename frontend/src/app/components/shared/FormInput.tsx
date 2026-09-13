@@ -4,11 +4,11 @@ import React from 'react';
 import styles from './FormInput.module.css';
 
 export interface FormInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'className'> {
-  /** 驗證錯誤時外框與文字為桃紅 #D6295D */
+  /** Validation errors use pink #D6295D for the border and text. */
   error?: boolean;
-  /** 外層撐滿父層寬度 */
+  /** Fill the parent width. */
   fullWidth?: boolean;
-  /** 輸入框左側（如 SOL icon）；勿用 prop 名 prefix（與原生 input 型別衝突） */
+  /** Leading content such as a SOL icon. Avoid the native input prop name prefix. */
   leadingSlot?: React.ReactNode;
   className?: string;
   shellClassName?: string;

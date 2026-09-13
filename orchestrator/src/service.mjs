@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { decodeEventLog, decodeFunctionData, encodeAbiParameters, keccak256, parseAbi } from 'viem';
 import { readLpReadiness } from './lp-readiness.mjs';
@@ -181,6 +181,31 @@ export function createService(config, dependencies = {}) {
     return state;
   };
   return {
+    async list(maker) {
+      if (typeof maker !== 'string' || !ADDRESS.test(maker) || /^0x0{40}$/i.test(maker)) throw new HttpError(400, 'Maker address is invalid.');
+      let files;
+      try { files = await readdir(stateDir, { withFileTypes: true }); }
+      catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+      const summaries = [];
+      for (const file of files) {
+        // Only public mandate records belong in this index, never encrypted envelopes.
+        if (!file.isFile() || !/^mandate-[A-Za-z0-9._-]+\.json$/.test(file.name) || file.name.endsWith('.maker-envelope.json')) continue;
+        const id = file.name.slice(0, -5);
+        const current = await load(id);
+        if (current.maker?.toLowerCase() !== maker.toLowerCase() || current.evidence?.chainId !== config.chainId) continue;
+        if (current.mandateId !== id) throw new Error('stored mandate ID does not match its file');
+        validateState(current, config);
+        const activity = current.events.map(event => event.occurredAt).filter(value => typeof value === 'string' && Number.isFinite(Date.parse(value)));
+        const lastActivityAt = activity.length ? new Date(Math.max(...activity.map(Date.parse))).toISOString() : null;
+        summaries.push({ mandateId: id, maker: current.maker.toLowerCase(),
+          strategies: current.strategies.map(({ listingId, name }) => ({ listingId, name })),
+          chainId: current.evidence.chainId, networkName: current.evidence.networkName,
+          reportSequence: current.evidence.sequence, lastActivityAt });
+      }
+      // Reading the index does not evaluate policies, refresh authorizations or imply trading readiness.
+      return summaries.sort((a, b) => (Date.parse(b.lastActivityAt ?? '') || 0) - (Date.parse(a.lastActivityAt ?? '') || 0)
+        || (BigInt(a.reportSequence) > BigInt(b.reportSequence) ? -1 : BigInt(a.reportSequence) < BigInt(b.reportSequence) ? 1 : a.mandateId.localeCompare(b.mandateId)));
+    },
     async create(input) {
       const parsed = parseCreate(input);
       const { ensSelections, ...runnerInput } = parsed;

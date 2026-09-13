@@ -36,6 +36,6 @@ test('inventory display is bound to the Maker, revision, verified pair and alloc
     v => { v.inventory.commitmentsComplete = true; }]) {
     const changed = structuredClone(value); mutate(changed); assert.throws(() => verifyInventory(changed, d));
   }
-  assert.match(evidenceLabel('mock'), /非鏈上/); assert.match(evidenceLabel('fork-with-overrides'), /合成/);
-  assert.match(evidenceLabel('live-read'), /鏈上讀取/);
+  assert.match(evidenceLabel('mock'), /No onchain/); assert.match(evidenceLabel('fork-with-overrides'), /Synthetic/);
+  assert.match(evidenceLabel('live-read'), /Sepolia read/);
 });

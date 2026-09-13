@@ -8,13 +8,14 @@ import SiteHeader from '../components/shared/SiteHeader';
 import SiteFooter from '../components/shared/SiteFooter';
 import { useAccount } from '../providers/useAccount';
 import { usePublishedListings } from '../marketplace/publishedStore';
-import { useProposals } from '../marketplace/proposalStore';
+import MyLiquidity from './MyLiquidity';
 import { ListingCard } from '../marketplace/ui';
 import AccountDetails from './AccountDetails';
+import EnsWorkspace from '../ens/EnsWorkspace';
+import EnsPublisher from '../ens/EnsPublisher';
 import Avatar from '../components/shared/Avatar';
 import ConfirmButton from './ConfirmButton';
 import CopyAddress from './CopyAddress';
-import { strategyHref } from '../marketplace/strategyLinks';
 import { useBasicProfile } from './profileStore';
 import styles from '../marketplace/page.module.css';
 import aqua from '../marketplace/aqua.module.css';
@@ -24,7 +25,7 @@ type Tab = 'providing' | 'making' | 'account';
 function Tabs({ tab, setTab, showAccount }: { tab: Tab; setTab: (tab: Tab) => void; showAccount: boolean }) {
   return <div className={aqua.filters} aria-label="Profile sections">
     <Secondary aria-pressed={tab === 'providing'} onClick={() => setTab('providing')}>Providing</Secondary>
-    <Secondary aria-pressed={tab === 'making'} onClick={() => setTab('making')}>Making</Secondary>
+    <Secondary aria-pressed={tab === 'making'} onClick={() => setTab('making')}>My liquidity</Secondary>
     {showAccount && <Secondary aria-pressed={tab === 'account'} onClick={() => setTab('account')}>Account</Secondary>}
   </div>;
 }
@@ -57,42 +58,15 @@ function Providing() {
   </>;
 }
 
-function Making() {
-  const router = useRouter();
-  const { proposals, remove } = useProposals();
-  if (!proposals.length) return <Empty title="No mandates yet" text="Choose a strategy in the marketplace and create your first liquidity mandate." action="Explore strategies" href="/maker" />;
-  return <>
-    <div className={aqua.sectionTop}>
-      <h2 className={aqua.sectionTitle}>Your liquidity mandates</h2>
-      <span className={aqua.muted}>{proposals.length} configured</span>
-    </div>
-    <div className={aqua.proposalList}>
-      {proposals.map(item => <article key={item.id} className={aqua.panel}>
-        <div className={aqua.panelHead}>
-          <div>
-            <span className={aqua.eyebrow}>{item.mechanism} · Mandate configured</span>
-            <h3 className={aqua.proposalTitle}>{item.strategyName}</h3>
-          </div>
-          <div className={aqua.cardButtons}>
-            <Primary onClick={() => router.push(strategyHref(item.id))}>Review</Primary>
-            <ConfirmButton label="Remove" confirmLabel="Yes, remove" onConfirm={() => remove(item.id)} />
-          </div>
-        </div>
-        <div className={`${styles.metrics} ${aqua.metrics}`}>
-          <div><span className={styles.metricLabel}>Budget</span><span className={styles.metricValue}>{item.budget} USDC</span></div>
-          <div><span className={styles.metricLabel}>Max exposure</span><span className={styles.metricValue}>{item.maxExposure}%</span></div>
-          <div><span className={styles.metricLabel}>Provider fee</span><span className={styles.metricValue}>{item.feePct ? `${item.feePct}% of profit` : 'None'}</span></div>
-        </div>
-      </article>)}
-    </div>
-  </>;
-}
-
 // Same shell as the marketplace pages. Strategies come first; profile details live in the Account tab.
 export default function ProfilePage() {
   const account = useAccount();
   const { profile, save } = useBasicProfile(account.userId ?? 'guest');
   const [tab, setTab] = useState<Tab>('providing');
+  const selectTab = (next: Tab) => {
+    setTab(next);
+    window.history.replaceState(null, '', next === 'providing' ? '/profile' : `/profile?tab=${next}`);
+  };
   // /profile?tab=making (or account) opens that tab directly.
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('tab');
@@ -118,10 +92,12 @@ export default function ProfilePage() {
                     : account.enabled ? 'Log in at the top right to put your name on strategies and keep your profile.' : 'Login is not configured: add NEXT_PUBLIC_PRIVY_APP_ID.'}</p>
                 </div>
               </div>
-              <Tabs tab={current} setTab={setTab} showAccount={signedIn} />
+              <Tabs tab={current} setTab={selectTab} showAccount={signedIn} />
               {current === 'account'
-                ? <AccountDetails key={account.userId} profile={profile} onSave={save} loginMethod={account.method} email={account.email} wallet={account.address} walletNote={account.embedded ? 'Created by Privy for your email login' : undefined} />
-                : current === 'making' ? <Making /> : <Providing />}
+                ? <><AccountDetails key={account.userId} profile={profile} onSave={save} loginMethod={account.method} email={account.email} wallet={account.address} walletNote={account.embedded ? 'Created by Privy for your email login' : undefined} />
+                  <EnsWorkspace key={account.address} account={account} mode="identity" />
+                  <details><summary>Advanced · Publish for another Provider</summary><EnsPublisher key={account.address} account={account} /></details></>
+                : current === 'making' ? <MyLiquidity key={`${account.authenticated}:${account.addresses.map(address => address.toLowerCase()).sort().join(',')}`} account={account} /> : <Providing />}
             </>}
           </section>
         </div>

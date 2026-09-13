@@ -25,7 +25,7 @@ after(async () => {
 })
 async function prepared() {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
-  const created = await store.create(owner, randomUUID(), { title: '背景模擬', kind: 'maker' })
+  const created = await store.create(owner, randomUUID(), { title: 'Background simulation', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     allocations: { baseAtomic: '10000000000000000', quoteAtomic: '25000000' },
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], feeBps: 0, deadline: Math.floor(Date.now() / 1000) + 86400, model: { kind: 'xyc' },
@@ -103,14 +103,14 @@ test('edits invalidate completed evidence and discard in-flight results; cancell
   const sims = createSimulations(pool, profile), store = createStore(pool, profile.id), p = await prepared()
   const done = await sims.start(p.owner, randomUUID(), p.input); await sims.finish((await sims.claim())!, p.report)
   const running = await sims.start(p.owner, randomUUID(), p.input), claim = (await sims.claim())!
-  await store.patch(p.owner, randomUUID(), { draftId: p.draft.id, expectedRevision: 2, patch: { spec: { title: '新的需求' } } })
+  await store.patch(p.owner, randomUUID(), { draftId: p.draft.id, expectedRevision: 2, patch: { spec: { title: 'New requirements' } } })
   assert.deepEqual(await sims.finish(claim, p.report), { state: 'cancelled' })
   assert.equal((await sims.get(p.owner, done.id)).current, false)
   assert.ok((await sims.list(p.owner, p.draft.id)).every(r => r.current === false))
   assert.equal((await sims.get(p.owner, running.id)).report, null)
   await assert.rejects(sims.start(p.owner, randomUUID(), p.input), /artifact-stale/)
   const q = await prepared(), turns = createTurns(pool)
-  const turn = await turns.accept(q.owner, randomUUID(), { conversationId: q.conversationId, expectedRevision: 2, content: '開始模擬' })
+  const turn = await turns.accept(q.owner, randomUUID(), { conversationId: q.conversationId, expectedRevision: 2, content: 'Start simulation' })
   const lease = (await turns.claim())!; await turns.cancel(q.owner, turn.id)
   await assert.rejects(createSimulations(pool, profile, lease).start(q.owner, randomUUID(), q.input), /agent-turn-stale/)
   assert.equal((await sims.list(q.owner, q.draft.id)).length, 0)
@@ -206,7 +206,7 @@ test('HTTP queues owned artifacts, exposes recoverable status, and accepts neith
 
 test('AI SDK simulation tool enqueues through scoped authority without claiming a completed fork', async () => {
   const p = await prepared(), turns = createTurns(pool), sims = createSimulations(pool, profile)
-  const turn = await turns.accept(p.owner, randomUUID(), { conversationId: p.conversationId, content: '開始背景模擬，先不要做錢包交易。', expectedRevision: 2 })
+  const turn = await turns.accept(p.owner, randomUUID(), { conversationId: p.conversationId, content: 'Start a background simulation without wallet transactions.', expectedRevision: 2 })
   let step = 0
   const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } }
   const model = new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ start(c) {
@@ -214,7 +214,7 @@ test('AI SDK simulation tool enqueues through scoped authority without claiming 
     if (step === 0) c.enqueue({ type: 'tool-call', toolCallId: 'inspect', toolName: 'inspectStrategy', input: JSON.stringify({ view: 'current' }) })
     else if (step === 1) c.enqueue({ type: 'tool-call', toolCallId: 'simulate', toolName: 'simulateLifecycle', input: JSON.stringify({ artifactId: p.input.artifactId, expectedRevision: 2 }) })
     else {
-      c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: '已排入背景模擬，結果尚未完成。' }); c.enqueue({ type: 'text-end', id: 'reply' })
+      c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: 'Background simulation queued; results are not complete yet.' }); c.enqueue({ type: 'text-end', id: 'reply' })
     }
     c.enqueue({ type: 'finish', finishReason: { unified: step++ < 2 ? 'tool-calls' : 'stop', raw: undefined }, usage }); c.close()
   } }) }) })

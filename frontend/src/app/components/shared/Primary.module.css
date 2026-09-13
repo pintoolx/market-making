@@ -1,6 +1,6 @@
-/* Primary（藍色主按鈕）— default / hover / active / disabled */
-/* 用 filter: drop-shadow 取代 box-shadow，陰影沿圓角輪廓一體，較不像「第二塊矩形」 */
-/* Hover 位移與 Secondary 一致：translateY(-2px)，陰影深度 4→6px */
+/* Primary blue action: default, hover, active and disabled states. */
+/* A drop-shadow follows rounded corners instead of creating a second rectangular outline. */
+/* Match Secondary hover: translateY(-2px), shadow depth 4px to 6px. */
 
 .primary {
   position: relative;
@@ -24,7 +24,7 @@
   text-decoration: none;
   transform: translateY(0);
   filter: drop-shadow(0 2px 0 #0e0f28);
-  /* 只過渡位移與陰影；放開滑鼠後若仍偏慢，多半是這段在從 :active 插回 :hover */
+  /* Animate only position and shadow; release returns from active to hover. */
   transition:
     transform 80ms ease-out,
     filter 80ms ease-out;
@@ -35,7 +35,7 @@
   outline-offset: 2px;
 }
 
-/* 與 .primary 相同行為，主色 #f22085（關閉 canvas 等） */
+/* Same behavior with pink #f22085 for actions such as closing a canvas. */
 .primaryAccentPink {
   background: #f22085;
 }
@@ -52,7 +52,7 @@
   word-wrap: break-word;
 }
 
-/* Hover — 與 Secondary 相同移動／陰影幅度 */
+/* Match Secondary hover movement and shadow depth. */
 .primary:hover:not(:disabled) {
   transform: translateY(-2px);
   filter: drop-shadow(0 4px 0 #0e0f28);
@@ -63,7 +63,7 @@
   text-align: center;
 }
 
-/* Active — 按下瞬間到位（不與 hover 過渡搶時間） */
+/* Apply active state immediately without competing with hover transitions. */
 .primary:active:not(:disabled) {
   transition-duration: 0ms;
   transform: translateY(1px);

@@ -9,7 +9,7 @@ test('provider failure metadata is redacted before SDK error logging', async () 
   })
   try {
     const model = openAIModel({ apiKey: marker })
-    await assert.rejects(async () => await model.doStream({ prompt: [{ role: 'user', content: [{ type: 'text', text: '公開測試' }] }] }), (error: unknown) => {
+    await assert.rejects(async () => await model.doStream({ prompt: [{ role: 'user', content: [{ type: 'text', text: 'Public test' }] }] }), (error: unknown) => {
       assert.equal(error instanceof Error && error.message, 'model-unavailable')
       assert.equal((error as { statusCode: number }).statusCode, 401)
       assert.equal(JSON.stringify(error).includes(marker), false)

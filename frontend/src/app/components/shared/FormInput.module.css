@@ -1,4 +1,4 @@
-/* 與 Deploy modal / Invite code 一致：黑框＋底部陰影；focus 藍框；error 桃紅 #D6295D */
+/* Match deployment/invite inputs: dark outline and bottom shadow, blue focus, pink #D6295D error. */
 
 .shell {
   box-sizing: border-box;
@@ -64,7 +64,7 @@
   box-sizing: border-box;
 }
 
-/* 有 leadingSlot 時 input 在 innerRow 內，高度由列撐開 */
+/* With a leading slot, the inner row controls the input height. */
 .shell .innerRow .input {
   height: auto;
   min-height: 0;

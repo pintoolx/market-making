@@ -37,15 +37,15 @@ interface ConfigPanelProps {
 // Asset options built from centralized TOKEN_PRICES
 const ASSET_OPTIONS = [
   { value: 'SOL', label: 'SOL', icon: '/solana.svg', price: `$${TOKEN_PRICES.SOL.toLocaleString('en-US')}` },
-  // 後端 TOKEN_ADDRESS 用的是 JITOSOL（全大寫），這裡 value 對齊後端
+  // Match the backend TOKEN_ADDRESS key: JITOSOL is uppercase.
   { value: 'JITOSOL', label: 'JitoSOL', icon: '/jitosol.svg', price: `$${TOKEN_PRICES.JitoSOL.toLocaleString('en-US')}` },
   { value: 'USDC', label: 'USDC', icon: '/usdc.svg', price: `$${TOKEN_PRICES.USDC.toLocaleString('en-US')}` },
 ];
 
-// Jupiter Swap 支援的 token 清單（對齊後端 TokenTicker = keyof TOKEN_ADDRESS）
+// Jupiter Swap tokens match the backend TokenTicker = keyof TOKEN_ADDRESS.
 const JUPITER_TICKERS = ['USDC', 'SOL', 'JITOSOL', 'mSOL', 'bSOL', 'jupSOL', 'INF', 'hSOL', 'stSOL'] as const;
 
-// Jupiter token options: 對有 icon/price 的 token 做美化，其他用預設 icon + 不顯示價格
+// Use known token icons and prices, otherwise a default icon without a price.
 const JUPITER_TOKEN_OPTIONS = JUPITER_TICKERS.map((t) => {
   const pretty = ASSET_OPTIONS.find((o) => o.value === t);
   return (

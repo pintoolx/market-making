@@ -22,7 +22,7 @@ after(async () => {
 const scenarios = [{ name: 'two-way', trades: [{ tokenIn: 'base' as const, amountInAtomic: '100000000000000' }, { tokenIn: 'quote' as const, amountInAtomic: '250000' }] }]
 async function prepared(kind: 'xyc' | 'concentrated' | 'pegged' = 'xyc', template = false) {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
-  const created = await store.create(owner, randomUUID(), { title: '公開情境預覽', kind: template ? 'template' : 'maker' })
+  const created = await store.create(owner, randomUUID(), { title: 'Public scenario previews', kind: template ? 'template' : 'maker' })
   const allocations = { baseAtomic: '10000000000000000', quoteAtomic: '25000000' }
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     ...(template ? {} : { allocations }), spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], feeBps: 0, deadline: Math.floor(Date.now() / 1000) + 86400,
@@ -70,7 +70,7 @@ test('template comparisons are explicitly hypothetical and never produce executa
 test('draft edits, restores and manifest changes preserve historical previews with stale status; cancelled turns cannot save previews', async () => {
   const previews = createPreviews(pool, profile), store = createStore(pool, profile.id), p = await prepared(), key = randomUUID()
   const saved = await previews.preview(p.owner, key, p.input)
-  await store.patch(p.owner, randomUUID(), { draftId: p.draft.id, expectedRevision: 2, patch: { spec: { title: '另一版本' } } })
+  await store.patch(p.owner, randomUUID(), { draftId: p.draft.id, expectedRevision: 2, patch: { spec: { title: 'Another version' } } })
   assert.equal((await previews.get(p.owner, saved.previewId)).current, false)
   assert.deepEqual(await previews.preview(p.owner, key, p.input), saved)
   await assert.rejects(previews.preview(p.owner, randomUUID(), p.input), /draft-changed/)
@@ -80,7 +80,7 @@ test('draft edits, restores and manifest changes preserve historical previews wi
   assert.equal((await previews.get(p.owner, next.previewId)).current, true)
   assert.equal((await createPreviews(pool, { ...profile, forwarder: '0x3333333333333333333333333333333333333333' }).get(p.owner, next.previewId)).current, false)
   const q = await prepared(), turns = createTurns(pool)
-  const turn = await turns.accept(q.owner, randomUUID(), { conversationId: q.conversationId, expectedRevision: 2, content: '情境比較' }), lease = (await turns.claim())!
+  const turn = await turns.accept(q.owner, randomUUID(), { conversationId: q.conversationId, expectedRevision: 2, content: 'Compare scenarios' }), lease = (await turns.claim())!
   await turns.cancel(q.owner, turn.id)
   await assert.rejects(createPreviews(pool, profile, lease).preview(q.owner, randomUUID(), q.input), /agent-turn-stale/)
 })
@@ -122,13 +122,13 @@ test('authenticated HTTP preview routes bind owner/resource, reject configuratio
 
 test('the ninth AI SDK tool converts human units, saves the result, and cannot claim settlement readiness', async () => {
   const p = await prepared(), turns = createTurns(pool)
-  const turn = await turns.accept(p.owner, randomUUID(), { conversationId: p.conversationId, expectedRevision: 2, content: '預覽賣出 0.0001 WETH 後反向賣出 0.25 USDC。' })
+  const turn = await turns.accept(p.owner, randomUUID(), { conversationId: p.conversationId, expectedRevision: 2, content: 'Preview selling 0.0001 WETH, then selling 0.25 USDC in the reverse direction.' })
   let step = 0
   const model = new MockLanguageModelV4({ doStream: async () => ({ stream: new ReadableStream({ start(c) {
     c.enqueue({ type: 'stream-start', warnings: [] })
     if (step === 0) c.enqueue({ type: 'tool-call', toolCallId: 'preview', toolName: 'previewScenarios', input: JSON.stringify({ expectedRevision: 2,
       hypotheticalAllocations: null, scenarios: [{ name: 'two-way', trades: [{ tokenIn: 'base', amount: '0.0001' }, { tokenIn: 'quote', amount: '0.25' }] }] }) })
-    else { c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: '已保存數學預覽，尚未驗證錢包或完整成交。' }); c.enqueue({ type: 'text-end', id: 'reply' }) }
+    else { c.enqueue({ type: 'text-start', id: 'reply' }); c.enqueue({ type: 'text-delta', id: 'reply', delta: 'Mathematical preview saved; wallet and full settlement remain unverified.' }); c.enqueue({ type: 'text-end', id: 'reply' }) }
     c.enqueue({ type: 'finish', finishReason: { unified: step++ === 0 ? 'tool-calls' : 'stop', raw: '' },
       usage: { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } } }); c.close()
   } }) }) })

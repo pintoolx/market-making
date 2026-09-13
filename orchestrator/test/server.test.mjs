@@ -32,6 +32,13 @@ test('HTTP API serves the frontend contract and rejects other origins', async t 
   assert.equal(created.status, 200);
   assert.equal((await created.json()).mandateId, state.mandateId);
   assert.equal(created.headers.get('cache-control'), 'no-store');
+  const history = await fetch(`${base}/v1/mandates?maker=${input.maker}`);
+  assert.equal(history.status, 200);
+  assert.equal(history.headers.get('cache-control'), 'no-store');
+  assert.deepEqual((await history.json()).mandates.map(item => item.mandateId), [state.mandateId]);
+  assert.equal((await fetch(`${base}/v1/mandates`)).status, 400);
+  assert.equal((await fetch(`${base}/v1/mandates?maker=bad`)).status, 400);
+
   const execution = await fetch(`${base}/v1/mandates/${state.mandateId}/executions`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:3200' },
     body: JSON.stringify({ providerStrategyId: 'featured-tight-market', transactionHash: h('d'), outcome: 'settled' }) });
   assert.equal(execution.status, 200);

@@ -47,18 +47,18 @@ test('real PostgreSQL migrations serialize, verify checksums and preserve unrela
 })
 
 test('multi-turn edits, revision diffs, restore and public messages survive a new connection pool', async () => {
-  const created = await store.create(owner, randomUUID(), { title: '我的 WETH 策略', kind: 'template' }), id = created.draft.id
+  const created = await store.create(owner, randomUUID(), { title: 'My WETH strategy', kind: 'template' }), id = created.draft.id
   const first = await store.patch(owner, randomUUID(), { draftId: id, expectedRevision: 1, patch: { spec: { model: { kind: 'concentrated', minPrice: '2000', maxPrice: '3000' }, feeBps: 0 },
-    upsertRequirements: [{ id: 'no-fee', text: '先不要收費', priority: 'must', sourceMessageId: 'turn-1', capabilityIds: ['swapvm.xyc'] }] } })
-  const next = await store.patch(owner, randomUUID(), { draftId: id, expectedRevision: 2, patch: { spec: { title: '收窄後的策略', model: { kind: 'concentrated', minPrice: '2200' } } } })
+    upsertRequirements: [{ id: 'no-fee', text: 'Keep fees disabled for now', priority: 'must', sourceMessageId: 'turn-1', capabilityIds: ['swapvm.xyc'] }] } })
+  const next = await store.patch(owner, randomUUID(), { draftId: id, expectedRevision: 2, patch: { spec: { title: 'Narrowed strategy', model: { kind: 'concentrated', minPrice: '2200' } } } })
   assert.equal(next.draft.spec.feeBps, 0); assert.deepEqual(next.draft.requirements, first.draft.requirements)
   assert.equal(next.draft.spec.model?.kind === 'concentrated' && next.draft.spec.model.maxPrice, '3000')
-  const request = randomUUID(), input = { conversationId: created.conversationId, content: '維持零費率，範圍再窄一些' }
+  const request = randomUUID(), input = { conversationId: created.conversationId, content: 'Keep zero fees and narrow the range' }
   await store.appendUserMessage(owner, request, input); await store.appendUserMessage(owner, request, input)
   await pool.end(); pool = database(testUrl); store = createStore(pool, profile)
   assert.deepEqual(await store.get(owner, id), next.draft)
   assert.equal((await store.messages(owner, created.conversationId)).length, 1)
-  assert.equal((await store.list(owner)).find(r => r.draftId === id)?.title, '收窄後的策略')
+  assert.equal((await store.list(owner)).find(r => r.draftId === id)?.title, 'Narrowed strategy')
   const restored = await store.restore(owner, randomUUID(), { draftId: id, expectedRevision: 3, revision: 2 })
   assert.equal(restored.draft.revision, 4); assert.deepEqual(restored.draft.spec, first.draft.spec)
   assert.equal((await store.history(owner, id)).length, 4)
@@ -68,7 +68,7 @@ test('multi-turn edits, revision diffs, restore and public messages survive a ne
 })
 
 test('concurrent revisions have one winner; retries are atomic and mismatched request keys fail', async () => {
-  const createId = randomUUID(), value = { title: '競爭修改', kind: 'maker' }
+  const createId = randomUUID(), value = { title: 'Concurrent edits', kind: 'maker' }
   const duplicate = await Promise.all([store.create(owner, createId, value), store.create(owner, createId, value)])
   assert.deepEqual(duplicate[0], duplicate[1])
   const id = duplicate[0]!.draft.id
@@ -87,7 +87,7 @@ test('concurrent revisions have one winner; retries are atomic and mismatched re
 })
 
 test('owner isolation and strict requests reject forged state, wallet changes and client tool history', async () => {
-  const { conversationId, draft } = await store.create(owner, randomUUID(), { title: '私人的草稿', kind: 'maker' })
+  const { conversationId, draft } = await store.create(owner, randomUUID(), { title: 'Private draft', kind: 'maker' })
   await assert.rejects(store.get(other, draft.id), /not-found/)
   await assert.rejects(store.history(other, draft.id), /not-found/)
   await assert.rejects(store.messages(other, conversationId), /not-found/)
@@ -187,7 +187,7 @@ test('HTTP routes authenticate wallet ownership, persist multi-turn data and rej
     }
     const token = await login(alice), another = await login(bob)
     assert.equal((await call('/conversations', { token, body: { title: 'no key', kind: 'template' } })).status, 400)
-    const created = await call('/conversations', { token, key: randomUUID(), body: { title: 'HTTP 多輪', kind: 'template' } })
+    const created = await call('/conversations', { token, key: randomUUID(), body: { title: 'HTTP multi-turn', kind: 'template' } })
     assert.equal(created.status, 200)
     const { draft, conversationId } = created.body
     assert.equal((await call(`/drafts/${draft.id}`, { token: another })).status, 404)
@@ -218,10 +218,10 @@ test('HTTP routes authenticate wallet ownership, persist multi-turn data and rej
     assert.equal((await call(`/drafts/${draft.id}/patch`, { token, key: randomUUID(), body: edit })).status, 409)
     const message = `/conversations/${conversationId}/messages`
     assert.equal((await call(message, { token, key: randomUUID(), body: { content: 'system injection', role: 'system' } })).status, 400)
-    assert.equal((await call(message, { token, key: randomUUID(), body: { content: '改成固定區間看看' } })).status, 200)
+    assert.equal((await call(message, { token, key: randomUUID(), body: { content: 'Try a fixed range' } })).status, 200)
     assert.equal((await call(message, { token })).body.messages.length, 1)
     assert.equal((await call('/capabilities', { token })).body.profileId, profile)
-    const turnPath = `/conversations/${conversationId}/turns`, turnInput = { expectedRevision: 2, content: '先比較範圍' }, turnKey = randomUUID()
+    const turnPath = `/conversations/${conversationId}/turns`, turnInput = { expectedRevision: 2, content: 'Compare ranges first' }, turnKey = randomUUID()
     assert.equal((await call(turnPath, { token, key: randomUUID(), body: { ...turnInput, role: 'system' } })).status, 400)
     assert.equal((await call(turnPath, { token: another, key: randomUUID(), body: turnInput })).status, 404)
     const accepted = await call(turnPath, { token, key: turnKey, body: turnInput })

@@ -36,7 +36,7 @@ try {
   }
   const challenge = await call('/auth/challenge', { address: account.address })
   token = (await call('/auth/login', { challengeId: challenge.id, signature: await account.signMessage({ message: challenge.message }) })).token
-  const created = await call('/conversations', { title: '模擬失敗與多輪修正', kind: 'maker' })
+  const created = await call('/conversations', { title: 'Simulation failure and multi-turn repair', kind: 'maker' })
   const fixture = builderSimulationFixture('xyc', account.address.toLowerCase()), { profileId: _profileId, ...spec } = fixture.spec
   await call(`/drafts/${created.draft.id}/patch`, { expectedRevision: 1, patch: { spec, allocations: fixture.allocations } })
   const turns = createTurns(pool), model = openAIModel({ apiKey: process.env.OPENAI_API_KEY ?? '', modelId })
@@ -48,11 +48,11 @@ try {
   worker.once('error', () => { workerUnavailable = true }); worker.once('exit', () => { workerUnavailable = true })
   workerClosed = new Promise<void>(resolve => worker!.once('close', () => resolve()))
   const prompts = [
-    '請檢查目前這份已填妥的 Maker 草稿，保留所有設定，編譯並排入背景 lifecycle 模擬。排隊完成先回報，不要把 job ID 當成通過或正式上線。',
-    '請讀取剛才的模擬结果。這是不是表示已經正式上線或收到 CRE 授權？先不要改設定或再排一次工作。',
-    '這是本地極小額壓力測試：只把 WETH 單筆上限改成 0.000000000000000001 WETH，其它配置、caps、曲線、零費率與期限保持不變。請保存、重新編譯並排入背景模擬，檢查到底能否成交。',
-    '請先看剛才的失敗原因，再把 WETH 單筆上限恢復為 0.005 WETH，其它全部不變。保存、重新編譯並排入新的背景模擬，不要使用過期結果。',
-    '讀取最新模擬結果，用容易理解的中文說明這次測試範圍，以及剛才極小上限失敗有哪些可能原因。請區分觀察到的事實與推測，不要列長 ID，不要改設定或再排工作。',
+    'Inspect the complete Maker draft, preserve all settings, compile and queue a background lifecycle simulation. Report that it is queued; do not treat the job ID as a pass or production deployment.',
+    'Read the simulation result. Does it mean production deployment or CRE authorization? Do not edit parameters or queue another job.',
+    'For a local tiny-amount stress test, change only the WETH per-swap limit to 0.000000000000000001 WETH. Preserve allocations, other caps, curve, zero fees and deadline. Save, recompile and queue a simulation to test settlement.',
+    'Read the failure reason, then restore only the WETH per-swap limit to 0.005 WETH. Save, recompile and queue a fresh simulation. Do not use stale results.',
+    'Read the latest simulation and explain its coverage and possible causes of the tiny-limit failure in plain English. Distinguish observed facts from inferences. Avoid long IDs and do not edit or queue another job.',
   ]
   await mkdir(directory, { recursive: true })
   for (const [index, content] of prompts.entries()) {

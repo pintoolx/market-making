@@ -1,4 +1,4 @@
-# 不使用 npm update -g npm（易觸發全域 npm 依賴錯誤）；以官方 Node 映像內建版本為準。
+# Use the Node image bundled npm; globally updating npm can break dependencies.
 FROM node:20-bookworm AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -8,7 +8,7 @@ FROM node:20-bookworm AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Zeabur: 在服務「環境變數」填入同名變數，建置時會自動注入為 ARG（多階段建置需明寫 ARG）。
+# Zeabur injects matching service environment variables as build ARGs; declare them in each build stage.
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_PINTOOL_API_URL

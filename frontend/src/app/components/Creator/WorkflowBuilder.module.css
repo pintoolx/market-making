@@ -109,7 +109,7 @@
   display: flex;
     flex-direction: column;
   }
-/* 未登入或未通過邀請碼：不顯示 Canvas；入口由全站 InviteCodeModal 負責 */
+/* Hide the canvas until login and invite acceptance; InviteCodeModal owns entry. */
 .canvasGate {
   flex: 1;
   min-height: 0;
@@ -279,7 +279,7 @@
       box-shadow: 0px 1px 0px black;
 }
 
-/* Deploy overlay — 須高於 .toolbar (10000)，否則 header 會露在遮罩上；低於 Toast (10100) */
+/* Above the toolbar (10000), below Toast (10100), so the header cannot escape the overlay. */
 .deployOverlay {
   position: absolute;
   inset: 0;
@@ -305,12 +305,12 @@
     box-sizing: border-box;
   }
   
-  /* Deploy 結果／錯誤畫面（對齊 Figma 垂直置中感） */
+  /* Vertically centered deployment result/error view. */
   .deployModalOutcome {
     justify-content: center;
   }
   
-  /* Figma 589:15352 — 部署中（Confirming） */
+  /* Figma 589:15352: Confirming deployment. */
   .deployDeployingWrap {
     align-self: stretch;
     display: flex;
@@ -376,7 +376,7 @@
     line-height: 1.35;
   }
   
-  /* Figma 576:14299 — Deploy 入金成功後導向 /workflows */
+  /* Figma 576:14299: redirect to /workflows after successful funding. */
   .deployPortfolioRedirectWrap {
     align-self: stretch;
     display: flex;
@@ -556,7 +556,7 @@
     width: 100%;
   }
   
-  /* Figma 576:14277：四格均分一列，gap 8 */
+  /* Figma 576:14277: four equal columns with an 8px gap. */
   .deployPctRow {
     align-self: stretch;
     display: grid;
@@ -565,7 +565,7 @@
     width: 100%;
   }
   
-  /* 未入金成功：% 鈕用 Secondary，與 Figma sButton 字重接近 */
+  /* Before funding, percentage controls use Secondary typography. */
   .deployPctSecondary {
     flex: 1 1 0;
     min-width: 0;
@@ -623,7 +623,7 @@
     box-sizing: border-box;
 }
 
-/* Figma：Cancel / Next 等寬撐滿列 */
+/* Equal-width Cancel / Next actions fill the row. */
 .deployActionGrow {
   flex: 1 1 0;
   min-width: 0;
@@ -709,7 +709,7 @@
   font-weight: 500;
 }
 
-/* Step 1: name input 唯讀顯示 */
+/* Step 1 name input is read-only. */
 .deployNameReadonly {
   flex: 1;
   height: 48px;
@@ -734,7 +734,7 @@
   min-height: 56px;
 }
 
-/* Step 2 區塊 */
+/* Step 2 section. */
 .deployStep2Section {
   align-self: stretch;
   display: flex;
@@ -742,7 +742,7 @@
   gap: 10px;
 }
 
-/* Figma 620:31892 / 620:32237 — SOL 輸入與下方 rent 紅字 */
+/* Figma 620:31892 / 620:32237: SOL input and rent error. */
 .deployFundFieldStack {
   align-self: stretch;
   display: flex;
@@ -921,7 +921,7 @@
   flex-shrink: 0;
   object-fit: contain;
 }
-/* Figma 596:16129 / 596:16348 — Close canvas confirmation（與 deploy 同 overlay） */
+/* Figma 596:16129 / 596:16348: canvas-close confirmation shares the deployment overlay. */
 .closeCanvasIntro {
   display: flex;
   flex-direction: column;

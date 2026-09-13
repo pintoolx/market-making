@@ -5,7 +5,7 @@ import styles from './Secondary.module.css';
 
 export interface SecondaryProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
-  /** 與 Secondary 同視覺，但為靜態區塊（無 hover／click 互動），例如餘額顯示 */
+  /** A static block with Secondary styling and no hover/click interaction, such as a balance display. */
   presentational?: boolean;
 }
 

@@ -28,7 +28,7 @@ const envelope = (): PolicyEnvelope => ({ version: 1, ephemeralPublicKey: random
 const allocations = { baseAtomic: '10000000000000000', quoteAtomic: '25000000' }
 async function prepared(model: StrategySpec['model'] = { kind: 'xyc' }) {
   const p = person(), store = createStore(pool, profile.id), t = templates()
-  const created = await store.create(p.owner, randomUUID(), { title: 'Provider 公開模板', kind: 'template' })
+  const created = await store.create(p.owner, randomUUID(), { title: 'Public Provider template', kind: 'template' })
   const { draft } = await store.patch(p.owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: { spec: {
     baseToken: profile.tokens[0], quoteToken: profile.tokens[1], feeBps: 0, deadline: Math.floor(Date.now() / 1000) + 86400, model,
     guardEnvelope: { maxAmountBasePerSwap: '5000000000000000', maxAmountQuotePerSwap: '12500000', maxPostBalanceBase: '20000000000000000', maxPostBalanceQuote: '50000000' },

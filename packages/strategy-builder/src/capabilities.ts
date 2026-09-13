@@ -27,22 +27,22 @@ const RECIPES = ['guarded-xyc-v2', 'guarded-concentrated-v2', 'guarded-pegged-v2
 type Definition = Pick<Capability, 'id' | 'label' | 'layer' | 'description'> & Partial<Omit<Capability, 'id' | 'label' | 'layer' | 'description'>>
 function define(d: Definition): Capability {
   return { keywords: [], opcodes: [], parameters: [], prerequisites: [], sideEffects: [], recipes: [],
-    sourceImplemented: evidence('unverified', '尚未核對來源'), sdkEncodable: evidence('unverified', '尚未核對編碼'),
-    runtimeVerified: evidence('unverified', '需目標部署的 recipe 執行證據；本地測試不等於 testnet 驗證'),
-    compositionTested: evidence('unverified', '需要 Guard 組合驗證'), productEnabled: evidence('blocked', '尚未接入 Builder'),
-    routingCompatible: evidence('unverified', '尚未接入聚合器／resolver；自家 taker 成功不代表已收錄'), ...d }
+    sourceImplemented: evidence('unverified', 'Source not verified'), sdkEncodable: evidence('unverified', 'Encoding not verified'),
+    runtimeVerified: evidence('unverified', 'Requires recipe execution evidence on the target deployment; local tests do not establish testnet verification'),
+    compositionTested: evidence('unverified', 'Guard composition verification required'), productEnabled: evidence('blocked', 'Not integrated into Builder'),
+    routingCompatible: evidence('unverified', 'Not integrated with an aggregator or resolver; a successful local taker does not establish routing inclusion'), ...d }
 }
-const source = (file: string) => evidence('verified', '已核對固定版本來源', swapvm + file)
-const sdk = evidence('verified', 'executor 使用固定 SDK 0.4.4 與 golden encoding', 'contracts/aqua-executor/src/compile.ts')
-const recipeTests = evidence('verified', '本地上游 router + Guard V2 + mock tokens；雙向、caps、撤銷與拒絕',
+const source = (file: string) => evidence('verified', 'Pinned source version verified', swapvm + file)
+const sdk = evidence('verified', 'Executor uses pinned SDK 0.4.4 and golden encoding', 'contracts/aqua-executor/src/compile.ts')
+const recipeTests = evidence('verified', 'Local upstream router, Guard V2 and mock tokens; both directions, caps, revocation and rejection',
   'contracts/aqua-executor/test/guard-v2-recipes.test.ts', 'contracts/aqua-executor/test/concentrated.test.ts')
-const coreEnabled = evidence('verified', 'Builder 核心可驗證／編譯；錢包仍須通過 manifest、binding 及 simulation gates')
+const coreEnabled = evidence('verified', 'Builder core supports validation and compilation; wallet operations still require manifest, binding and simulation checks')
 
 const definitions: Capability[] = [
   ...(['xyc', 'concentrated', 'pegged'] as const).map(kind => define({
-    id: `curve.${kind}`, label: { xyc: 'Constant product', concentrated: '固定區間 CLMM', pegged: 'Pegged AMM' }[kind], layer: 'swapvm',
-    description: { xyc: '以實際庫存的乘積曲線報價。', concentrated: '在已固定的上下價格區間集中流動性；不自動跟價。', pegged: '依固定 reference/rate 和 amplification 使用 pegged 曲線，不保證外部價格維持錨定。' }[kind],
-    keywords: { xyc: ['xyc', 'constant', '全區間', '做市'], concentrated: ['clmm', '區間', '集中', 'range'], pegged: ['pegged', '錨定', 'stable', '參考價'] }[kind],
+    id: `curve.${kind}`, label: { xyc: 'Constant product', concentrated: 'Fixed-range CLMM', pegged: 'Pegged AMM' }[kind], layer: 'swapvm',
+    description: { xyc: 'Quotes using a constant-product curve over actual inventory.', concentrated: 'Concentrates liquidity between fixed price bounds; does not automatically track the market.', pegged: 'Uses a pegged curve with a fixed reference/rate and amplification; does not guarantee an external price peg.' }[kind],
+    keywords: { xyc: ['xyc', 'constant', 'full-range', 'market-making'], concentrated: ['clmm', 'range', 'concentrated', 'range'], pegged: ['pegged', 'pegged', 'stable', 'reference price'] }[kind],
     opcodes: { xyc: [17], concentrated: [18, 17], pegged: [31] }[kind],
     parameters: kind === 'xyc' ? [] : kind === 'concentrated'
       ? [{ name: 'minPrice', unit: 'quote/base', constraint: 'positive; below maxPrice' }, { name: 'maxPrice', unit: 'quote/base', constraint: 'positive; fixed at review' }]
@@ -52,46 +52,46 @@ const definitions: Capability[] = [
     sourceImplemented: source(`instructions/${kind === 'xyc' ? 'XYCSwap' : kind === 'concentrated' ? 'XYCConcentrate' : 'PeggedSwap'}.sol`),
     sdkEncodable: sdk, compositionTested: recipeTests, productEnabled: coreEnabled,
   })),
-  define({ id: 'modifier.deadline', label: '策略期限', layer: 'swapvm', description: '在 program deadline 後拒絕交易；與 report expiry 分開。',
-    opcodes: [13], keywords: ['期限', 'deadline', '到期'], parameters: [{ name: 'deadline', unit: 'Unix seconds', constraint: 'positive uint40' }],
+  define({ id: 'modifier.deadline', label: 'Strategy deadline', layer: 'swapvm', description: 'Rejects swaps after the program deadline, independently of report expiry.',
+    opcodes: [13], keywords: ['deadline', 'deadline', 'expiry'], parameters: [{ name: 'deadline', unit: 'Unix seconds', constraint: 'positive uint40' }],
     recipes: RECIPES, sourceImplemented: source('instructions/Controls.sol'), sdkEncodable: sdk, compositionTested: recipeTests, productEnabled: coreEnabled }),
-  define({ id: 'modifier.salt', label: '不可變策略識別', layer: 'swapvm', description: '每個實例固定 salt；已 dock 的 hash 不重用。',
+  define({ id: 'modifier.salt', label: 'Immutable strategy identity', layer: 'swapvm', description: 'Each instance has a fixed salt; docked hashes are not reused.',
     opcodes: [20], recipes: RECIPES, parameters: [{ name: 'salt', unit: 'uint64 decimal string', constraint: 'server-generated once per instance' }],
     sourceImplemented: source('instructions/Controls.sol'), sdkEncodable: sdk, compositionTested: recipeTests, productEnabled: coreEnabled }),
-  define({ id: 'fee.lp-input', label: '固定 LP 輸入費', layer: 'swapvm', description: '對成交輸入收取固定 LP 費率；不是 protocol fee。',
-    keywords: ['費率', '手續費', 'fee'], opcodes: [21], parameters: [{ name: 'feeBps', unit: 'bps', constraint: '0–9999; ABI scale 1e9' }],
+  define({ id: 'fee.lp-input', label: 'Fixed LP input fee', layer: 'swapvm', description: 'Charges a fixed LP fee on swap input, distinct from protocol fees.',
+    keywords: ['fee', 'trading fee', 'fee'], opcodes: [21], parameters: [{ name: 'feeBps', unit: 'bps', constraint: '0–9999; ABI scale 1e9' }],
     sourceImplemented: source('instructions/Fee.sol'), sdkEncodable: sdk,
-    productEnabled: evidence('blocked', '非零費率需要完成 Guard gross/net 與實際庫存 accounting；零費率可用') }),
-  define({ id: 'modifier.decay', label: 'Decay', layer: 'swapvm', description: '按上次成交時間衰減虛擬庫存偏移；不是自動 rebalance。',
-    keywords: ['decay', '衰減', 'mev'], opcodes: [19], parameters: [{ name: 'periodSeconds', unit: 'seconds', constraint: 'uint16; no backward jumps' }],
+    productEnabled: evidence('blocked', 'Nonzero fees require Guard gross/net and actual inventory accounting verification; zero fees are supported') }),
+  define({ id: 'modifier.decay', label: 'Decay', layer: 'swapvm', description: 'Decays virtual inventory offsets based on the last swap time; does not automatically rebalance.',
+    keywords: ['decay', 'decay', 'mev'], opcodes: [19], parameters: [{ name: 'periodSeconds', unit: 'seconds', constraint: 'uint16; no backward jumps' }],
     sourceImplemented: source('instructions/Decay.sol'), sdkEncodable: sdk,
-    productEnabled: evidence('blocked', '待驗證 quote/swap state、Guard 實際庫存與曲線組合') }),
-  define({ id: 'access.taker-token', label: 'Taker 持幣條件', layer: 'swapvm', description: '依 taker 的 ERC20 餘額或供給占比限制成交。',
-    keywords: ['白名單', '持幣', 'taker', 'access'], opcodes: [14, 15, 16], sourceImplemented: source('instructions/Controls.sol'),
-    productEnabled: evidence('blocked', '須驗證 caller context、Guard 組合及分發路徑') }),
-  define({ id: 'access.origin-token', label: '交易 origin 持幣條件', layer: 'swapvm', description: '核對 tx.origin；不等同 taker gate 或通用地址白名單。',
-    keywords: ['origin', '持幣'], opcodes: [33], sourceImplemented: source('instructions/Controls.sol'),
-    productEnabled: evidence('blocked', '須核對 aggregator／smart wallet 的 tx.origin 語意') }),
-  define({ id: 'control.branch', label: '原生條件分支', layer: 'swapvm', description: '只允許已核對 recipe 的控制流程，不接受任意 jump。',
+    productEnabled: evidence('blocked', 'Quote/swap state, actual Guard inventory and curve composition remain unverified') }),
+  define({ id: 'access.taker-token', label: 'Taker token holdings gate', layer: 'swapvm', description: 'Restricts swaps by taker ERC20 balance or share of supply.',
+    keywords: ['allowlist', 'token holdings', 'taker', 'access'], opcodes: [14, 15, 16], sourceImplemented: source('instructions/Controls.sol'),
+    productEnabled: evidence('blocked', 'Caller context, Guard composition and distribution paths require verification') }),
+  define({ id: 'access.origin-token', label: 'Transaction-origin token holdings gate', layer: 'swapvm', description: 'Checks tx.origin; differs from taker gating or a general address allowlist.',
+    keywords: ['origin', 'token holdings'], opcodes: [33], sourceImplemented: source('instructions/Controls.sol'),
+    productEnabled: evidence('blocked', 'Aggregator and smart-wallet tx.origin semantics require verification') }),
+  define({ id: 'control.branch', label: 'Native conditional branch', layer: 'swapvm', description: 'Allows verified recipe control flow only; arbitrary jumps are rejected.',
     opcodes: [10, 11, 12], sourceImplemented: source('instructions/Controls.sol'),
-    productEnabled: evidence('blocked', '目前僅 straight-line guarded recipes；未知分支或繞過 gate 均拒絕') }),
-  define({ id: 'fee.protocol', label: 'Protocol fee', layer: 'swapvm', description: '獨立於 LP input fee；本產品預設關閉。',
-    opcodes: [27, 28, 29, 30], sourceImplemented: source('instructions/Fee.sol'), productEnabled: evidence('blocked', '目前產品範圍外，不可換成 LP fee') }),
+    productEnabled: evidence('blocked', 'Only straight-line guarded recipes are supported; unknown branches or gate bypasses are rejected') }),
+  define({ id: 'fee.protocol', label: 'Protocol fee', layer: 'swapvm', description: 'Separate from LP input fees; disabled by default in this product.',
+    opcodes: [27, 28, 29, 30], sourceImplemented: source('instructions/Fee.sol'), productEnabled: evidence('blocked', 'Outside current product scope; must not be substituted for LP fees') }),
   ...(['directions', 'per-swap', 'inventory', 'active-strategy', 'standing', 'revoke'] as const).map(kind => define({
-    id: `guard.${kind}`, label: { directions: 'Maker 買賣方向', 'per-swap': '逐筆數量上限', inventory: '成交後庫存上限', 'active-strategy': '單一 active strategy', standing: 'Standing 授權', revoke: 'Maker 持續撤銷' }[kind],
-    layer: 'guard', description: { directions: '以 Maker 視角區分買與賣；report 的 bits 採 taker 視角。', 'per-swap': '限制每筆交換的 token 原子數量；不等於每日累計。', inventory: '讀取實際 Aqua 庫存檢查成交後上限；不保證庫存底線或即時 USD 比例。', 'active-strategy': '每 Maker 一個 active hash；enabled B 會取代 A，paused B 不必然停用 A。', standing: '直到變更或撤銷；服務離線不自動過期。', revoke: 'Maker 錢包持續撤銷；解除後仍需新的 enabled report。' }[kind],
-    keywords: [kind, 'guard', '限制', '風控'], opcodes: [32], recipes: RECIPES,
-    sourceImplemented: evidence('verified', '已核對 standing-v2 合約', 'contracts/aqua-executor/contracts/AquaGuardV2.sol'),
-    sdkEncodable: evidence('verified', '固定 opcode 32 + target/envelope；不是 SDK regular builder 的 opcode', 'contracts/aqua-executor/src/guard.ts'),
+    id: `guard.${kind}`, label: { directions: 'Maker trading directions', 'per-swap': 'Per-swap amount limits', inventory: 'Post-swap inventory limits', 'active-strategy': 'Single active strategy', standing: 'Standing authorization', revoke: 'Persistent Maker revocation' }[kind],
+    layer: 'guard', description: { directions: 'Buy and sell use the Maker perspective; report bits use the taker perspective.', 'per-swap': 'Limits atomic token amounts per swap, not daily cumulative volume.', inventory: 'Checks actual Aqua inventory against post-swap ceilings; does not guarantee inventory floors or a live USD ratio.', 'active-strategy': 'One active hash per Maker: enabling B replaces A; pausing B does not necessarily disable A.', standing: 'Remains valid until changed or revoked; service downtime does not cause automatic expiry.', revoke: 'Persistent revocation by the Maker wallet; clearing it still requires a new enabled report.' }[kind],
+    keywords: [kind, 'guard', 'limits', 'risk controls'], opcodes: [32], recipes: RECIPES,
+    sourceImplemented: evidence('verified', 'Standing-v2 contract verified', 'contracts/aqua-executor/contracts/AquaGuardV2.sol'),
+    sdkEncodable: evidence('verified', 'Pinned opcode 32 with target/envelope; not an opcode in the regular SDK builder', 'contracts/aqua-executor/src/guard.ts'),
     compositionTested: recipeTests, productEnabled: coreEnabled,
   })),
-  define({ id: 'policy.market-rules', label: '私密市場條件', layer: 'workflow', description: '依價格／波動條件、優先順序與 fallback 決定方向、單筆上限或暫停。條件由 CRE 評估，Guard 不自行讀 oracle。',
-    keywords: ['波動', '價格條件', '暫停', 'volatility', 'policy'], recipes: RECIPES,
+  define({ id: 'policy.market-rules', label: 'Private market conditions', layer: 'workflow', description: 'Price and volatility conditions, priority and fallback determine directions, per-swap limits or pauses. CRE evaluates conditions; Guard does not read oracles directly.',
+    keywords: ['volatility', 'price conditions', 'pause', 'volatility', 'policy'], recipes: RECIPES,
     sourceImplemented: evidence('verified', 'first matching rule wins; no match pauses', 'workflow/src/types.ts', 'workflow/src/intersect.ts'),
-    productEnabled: evidence('blocked', 'Builder 私密規則編輯器及可信 binding 待接；不可透過模型傳私密規則') }),
-  define({ id: 'aqua.lifecycle', label: 'Aqua 註冊與取消', layer: 'aqua', description: 'ship 登錄 virtual balance，資產仍在 Maker；dock 不撤銷 allowance。',
-    keywords: ['註冊', '取消', '資金', 'ship', 'dock'], recipes: RECIPES,
-    sourceImplemented: evidence('verified', '固定 Aqua ABI', `https://github.com/1inch/aqua/blob/${AQUA_COMMIT}/src/interfaces/IAqua.sol`),
+    productEnabled: evidence('blocked', 'Builder private-policy and trusted-binding integration remain pending; private rules must not pass through the model') }),
+  define({ id: 'aqua.lifecycle', label: 'Aqua registration and docking', layer: 'aqua', description: 'Ship records virtual balances while assets remain with the Maker; dock does not revoke allowances.',
+    keywords: ['registration', 'cancel', 'funds', 'ship', 'dock'], recipes: RECIPES,
+    sourceImplemented: evidence('verified', 'Pinned Aqua ABI', `https://github.com/1inch/aqua/blob/${AQUA_COMMIT}/src/interfaces/IAqua.sol`),
     compositionTested: recipeTests, productEnabled: coreEnabled }),
 ]
 

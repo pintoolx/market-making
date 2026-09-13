@@ -7,8 +7,8 @@ import { adminCreateReferralCodes } from '../../lib/pintoolApi';
 const DEFAULT_EXPIRES = '2026-12-31T23:59:59.000Z';
 
 /**
- * 暫時開發用：POST /api/referrals/admin/codes（Bearer JWT + challenge 簽名 + 完整 body）
- * z-index 高於 InviteCodeModal。僅在 /adminref 使用；上線前可刪除此檔與該 route。
+ * Development-only: POST /api/referrals/admin/codes with Bearer JWT, signed challenge and full request body.
+ * Stack above InviteCodeModal. Used only by /adminref; remove the route and component before release if unnecessary.
  */
 export default function DevReferralAdminToolbar() {
   const { accessToken, isAuthenticated, walletAddress, getBusinessSignature } = useAuth();

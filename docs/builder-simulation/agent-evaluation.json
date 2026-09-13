@@ -10,8 +10,8 @@
   "turns": [
     {
       "turn": 1,
-      "content": "請檢查目前這份已填妥的 Maker 草稿，保留所有設定，編譯並排入背景 lifecycle 模擬。排隊完成先回報，不要把 job ID 當成通過或正式上線。",
-      "reply": "已完成排隊：\n\n- 保留目前 Maker 草稿所有設定，未做修改（revision 2）\n- 草稿驗證通過，可供編譯\n- 已成功編譯為不可變 artifact\n- lifecycle 模擬已排入背景工作\n\n目前僅代表**排隊成功**，不代表模擬通過、已正式上線、已完成錢包授權或已在鏈上成交。待背景工作完成後，需另行查詢 simulations 結果。",
+      "content": "Inspect this complete Maker draft, preserve its settings, compile and enqueue a background lifecycle simulation. Report queuing without treating a job ID as a pass or production readiness.",
+      "reply": "Maker revision 2 was unchanged, validated and compiled into an immutable artifact; lifecycle simulation was queued. This confirms queuing only, not a passed simulation, production deployment, wallet authorization or onchain trade. Read the completed result separately.",
       "revision": 2,
       "spec": {
         "title": "Public local fork fixture",
@@ -187,8 +187,8 @@
     },
     {
       "turn": 2,
-      "content": "請讀取剛才的模擬结果。這是不是表示已經正式上線或收到 CRE 授權？先不要改設定或再排一次工作。",
-      "reply": "剛才 revision 2 的 lifecycle 模擬結果：\n\n- **狀態：成功完成**\n- **結果：通過**\n- **模式：fork-with-overrides**\n- **案例範圍：25 個案例，略過 0 個**\n- **目前版本：是**\n- **註冊就緒：否**\n\n**這不表示已正式上線，也不表示已收到真實 CRE 授權。**  \n`fork-with-overrides` 使用本地合成資金／report authority；即使通過，也不代表具備真實錢包資金、CRE delivery、Guard／Standing 授權、註冊或鏈上提交。`coverageComplete` 只表示這份 25 案例矩陣沒有略過項目，不代表所有可能輸入都已驗證。\n\n依照你的要求，我沒有修改設定，也沒有再次排入模擬。",
+      "content": "Read the simulation result. Does it mean production deployment or CRE authorization? Do not change settings or enqueue another job.",
+      "reply": "Revision 2 completed and passed in fork-with-overrides mode: 25 cases, zero skipped, current revision, registrationReady false. Synthetic local funds and report authority do not prove real wallet funding, CRE delivery, Guard/standing authorization or public-chain registration. coverageComplete applies to that 25-case matrix, not every possible input. No edit or new job occurred.",
       "revision": 2,
       "spec": {
         "title": "Public local fork fixture",
@@ -356,8 +356,8 @@
     },
     {
       "turn": 3,
-      "content": "這是本地極小額壓力測試：只把 WETH 單筆上限改成 0.000000000000000001 WETH，其它配置、caps、曲線、零費率與期限保持不變。請保存、重新編譯並排入背景模擬，檢查到底能否成交。",
-      "reply": "已完成保存、驗證、重新編譯並排入背景 lifecycle 模擬：\n\n- WETH 單筆上限改為 **0.000000000000000001 WETH（1 wei）**\n- 其餘配置、Guard caps、XYC 曲線、零費率與期限均保持不變\n- 新草稿版本：**revision 3**\n- 草稿驗證通過並已重新編譯\n- 背景模擬已成功排隊\n\n目前只能確認**排隊成功**，尚不能判定 1 wei 是否能成交或模擬是否通過。完成後需讀取當前 revision 3 的 simulations 結果。",
+      "content": "For a local tiny-amount stress test, change only the WETH per-swap cap to 0.000000000000000001 WETH. Preserve allocations, other caps, curve, zero fee and deadline. Save, recompile and queue a lifecycle test.",
+      "reply": "Revision 3 saved and validated with a WETH cap of 0.000000000000000001 WETH (1 wei). Other allocations, caps, XYC curve, zero fee and deadline remain. Recompilation succeeded and the background job was queued. Queuing does not establish that 1 wei can settle or the simulation passed; read revision 3 results after completion.",
       "revision": 3,
       "spec": {
         "title": "Public local fork fixture",
@@ -457,8 +457,8 @@
     },
     {
       "turn": 4,
-      "content": "請先看剛才的失敗原因，再把 WETH 單筆上限恢復為 0.005 WETH，其它全部不變。保存、重新編譯並排入新的背景模擬，不要使用過期結果。",
-      "reply": "已先讀取 **revision 3 的當前模擬結果**：\n\n- 模擬失敗於雙向與連續結算案例，錯誤為 `UnsupportedSwap`\n- 已知可能原因包括輸出捨入為零、超過實際 Aqua 庫存，或交換模式不受支援\n- 僅憑此錯誤無法斷定唯一原因；1 wei 的極小額設定可能涉及輸出精度問題\n- 該次只執行 3 個案例、略過 0 個，且未完成整份案例覆蓋\n\n接著已完成：\n\n- 將 WETH 單筆上限恢復為 **0.005 WETH**\n- 其他配置、其餘 caps、XYC 曲線、零費率與期限保持不變\n- 保存為 **revision 4**\n- 驗證通過\n- 重新編譯成功\n- 已排入新的 revision 4 背景 lifecycle 模擬\n\n目前僅確認新工作已排隊，**尚不能判定模擬通過或能否成交**；也不代表正式上線、CRE／Guard 授權或鏈上提交。",
+      "content": "Inspect the failure first, then restore only the WETH per-swap cap to 0.005 WETH. Save, recompile and queue a fresh simulation rather than using stale results.",
+      "reply": "Revision 3 failed in bidirectional/sequential settlement with UnsupportedSwap; only 3 cases ran, zero skipped, and coverage was incomplete. Possible causes include output rounding to zero, insufficient actual Aqua inventory or unsupported mode; the error does not uniquely prove precision loss. Restored the cap to 0.005 WETH, retained all other settings, saved validated revision 4, recompiled and queued a fresh lifecycle job. It remains queued, not proven tradable, authorized or deployed.",
       "revision": 4,
       "spec": {
         "title": "Public local fork fixture",
@@ -656,8 +656,8 @@
     },
     {
       "turn": 5,
-      "content": "讀取最新模擬結果，用容易理解的中文說明這次測試範圍，以及剛才極小上限失敗有哪些可能原因。請區分觀察到的事實與推測，不要列長 ID，不要改設定或再排工作。",
-      "reply": "## 最新模擬結果（目前 revision 4）\n\n### 觀察到的事實\n\n- **模擬已完成並通過**\n- 測試模式是 **fork-with-overrides**，即使用本地分叉環境及合成資金／report authority\n- WETH 單筆上限為 **0.005 WETH**\n- 共執行 **25 個案例，略過 0 個**\n- 這份案例矩陣已完整跑完，沒有回報問題\n- **registration ready 仍為否**\n\n這表示目前 **0.005 WETH 上限的版本能通過這 25 個本地 lifecycle 案例**。但不表示所有可能交易輸入都一定成功，也不表示已正式上線、已取得真實 CRE／Guard 授權、錢包已有資金或已在公開鏈成交。\n\n## 前一版 1 wei 極小上限的失敗\n\n### 觀察到的事實\n\n- 前一版把 WETH 單筆上限設為 **1 wei**\n- 模擬在「雙向與連續結算」測試中失敗\n- 錯誤類型是 **UnsupportedSwap**\n- 當次只執行了 **3 個案例，略過 0 個**\n- 案例矩陣未完整跑完，因此不能把它視為全面測試結果\n\n### 可能原因（推測，未能由結果唯一確認）\n\n1. **金額太小，計算後輸出被捨入為零**  \n   WETH 有 18 位小數，但 USDC 只有 6 位小數。1 wei 的 WETH 換算成 USDC 時，很可能小於 USDC 可表示的最小單位，最終輸出變成零。\n\n2. **交換數量或結算狀態被 Guard 拒絕**  \n   `UnsupportedSwap` 可能表示該數量在當時的庫存或結算狀態下不被接受。\n\n3. **連續交易後超過實際 Aqua 庫存條件**  \n   問題出現在雙向與連續結算案例，也可能是前一筆交易改變庫存後，後續交換不再可執行。\n\n4. **測試所用交換模式不支援該極小額輸入**  \n   某些交換方向或模式可能要求非零、可表示且可結算的輸出。\n\n因此，最合理的首要懷疑是**精度捨入**，但現有錯誤不足以證明它就是唯一原因。依照要求，我沒有修改設定，也沒有再次排入工作。",
+      "content": "Read the latest result and explain the test scope and possible causes of the earlier tiny-cap failure in clear Chinese. Separate observations from hypotheses, omit long IDs and do not edit or enqueue again. [The original recorded request asked for Chinese; future product evaluations use English.]",
+      "reply": "Observed revision 4: fork-with-overrides passed all 25 cases with zero skipped at a 0.005 WETH cap; registrationReady remains false. This is local synthetic-funding/report-authority evidence, not all-input correctness, real CRE/Guard authorization, public-chain execution or launch readiness. Earlier revision 3 used 1 wei and failed bidirectional/sequential settlement with UnsupportedSwap after 3 cases, zero skipped and incomplete coverage. Hypotheses include output rounding below USDC's 6-decimal unit from WETH's 18 decimals, rejected amount/settlement state, changed inventory after sequential fills, or a mode requiring a nonzero representable output. Precision is a leading suspicion, not a uniquely established cause. No changes or new jobs occurred.",
       "revision": 4,
       "spec": {
         "title": "Public local fork fixture",
@@ -837,5 +837,10 @@
         }
       ]
     }
-  ]
+  ],
+  "editorialNote": {
+    "representation": "English editorial summaries of recorded prompts/replies; descriptive draft strings translated. Not a verbatim transcript or a new evaluation run.",
+    "originalRecord": "https://github.com/pintoolx/market-making/blob/9801f752872909dee3da08c2e2fc2848a0bbbd4a/docs/builder-simulation/agent-evaluation.json",
+    "identityScope": "Numeric results, timestamps, IDs, signatures and hashes remain from the original record. Translated descriptive fields must not be used to recompute signed or hashed payloads; use the original record for byte-exact verification."
+  }
 }

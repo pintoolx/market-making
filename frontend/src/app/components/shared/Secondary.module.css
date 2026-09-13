@@ -1,5 +1,5 @@
-/* Secondary — 淺底主按鈕；Click 時變為藍底白字（設計稿） */
-/* 與 Primary 相同：filter: drop-shadow 取代 box-shadow；Hover 陰影 2→4px、translateY(-2px) */
+/* Secondary uses a light surface; pressing switches to blue with white text. */
+/* Use drop-shadow like Primary: hover depth 2px to 4px and translateY(-2px). */
 
 .secondary {
   position: relative;
@@ -24,7 +24,7 @@
   text-decoration: none;
   transform: translateY(0);
   filter: drop-shadow(0 2px 0 #0e0f28);
-  /* 僅過渡位移／陰影；color/background 不過渡（見先前註解） */
+  /* Transition only position and shadow, not color or background. */
   transition:
     transform 80ms ease-out,
     filter 80ms ease-out,
@@ -51,7 +51,7 @@
   filter: drop-shadow(0 4px 0 #0e0f28);
 }
 
-/* Active（Click）— 藍底白字（button 提高權重，並涵蓋 hover+active 同時成立） */
+/* Active state uses blue and white, including simultaneous hover and active states. */
 button.secondary:active:not(:disabled),
 button.secondary:hover:active:not(:disabled) {
   transition-duration: 0ms;
@@ -99,8 +99,8 @@ button.secondary:hover:active:not(:disabled) .label {
 }
 
 /*
- * 與 .secondary 同外觀，非按鈕、不參與點擊。
- * 子元素一併關閉 pointer-events，否則滑過內嵌圖片仍會觸發外層 :hover。
+ * Match Secondary appearance without button semantics or interaction.
+ * Disable child pointer events so embedded images cannot trigger parent hover.
  */
 .secondaryPresentational,
 .secondaryPresentational * {

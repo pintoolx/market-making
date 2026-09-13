@@ -87,7 +87,7 @@
     box-sizing: border-box;
   }
   
-  /* Hover 顯示關閉：僅 X 按鈕，無漸層遮罩 */
+  /* Reveal only the close button on hover, without a gradient mask. */
   .tabCloseOverlay {
     position: absolute;
     top: 0;
