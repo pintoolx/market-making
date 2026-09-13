@@ -13,7 +13,7 @@ const bookSchema = z.object({ error: z.array(z.string()).max(0), result: z.objec
 /** Mirrors workflow market-data quality rules for a single price observation:
  * 60s book age, 5s skew, positive levels, uncrossed book, upward-rounded <=100bps spread.
  * ETH/USDC is explicitly a market proxy for these Sepolia tokens, not their redemption value. */
-export function priceFromKrakenBook(template: TemplateVersion, body: unknown, observedAt: number): PriceSnapshot {
+export function priceFromKrakenBook(template: Pick<TemplateVersion, 'spec'>, body: unknown, observedAt: number): PriceSnapshot {
   if (!Number.isSafeInteger(observedAt) || observedAt <= 0) throw new Error('invalid-observation-time')
   const spec = template.spec, weth = sepoliaStandingProfile.tokens.find(t => t.symbol === 'WETH')!, usdc = sepoliaStandingProfile.tokens.find(t => t.symbol === 'USDC')!
   const forward = spec.baseToken?.address === weth.address && spec.quoteToken?.address === usdc.address
@@ -35,7 +35,7 @@ export function priceFromKrakenBook(template: TemplateVersion, body: unknown, ob
 }
 
 /** Operator adapter: one fixed public URL, no credentials, redirects or caller-selected source. */
-export async function krakenTemplatePrice(template: TemplateVersion, signal?: AbortSignal): Promise<PriceSnapshot> {
+export async function readKrakenBook(signal?: AbortSignal): Promise<{ body: unknown; receivedAt: number }> {
   const combined = AbortSignal.any([AbortSignal.timeout(8000), ...(signal ? [signal] : [])])
   try {
     const response = await fetch(TEMPLATE_PRICE_SOURCE, { signal: combined, redirect: 'error', headers: { accept: 'application/json' } })
@@ -51,6 +51,11 @@ export async function krakenTemplatePrice(template: TemplateVersion, signal?: Ab
         chunks.push(value)
       }
     } finally { await reader.cancel().catch(() => {}); reader.releaseLock() }
-    return priceFromKrakenBook(template, JSON.parse(Buffer.concat(chunks).toString('utf8')), Date.now())
+    return { body: JSON.parse(Buffer.concat(chunks).toString('utf8')), receivedAt: Date.now() }
   } catch { throw new ServiceError('template-price-unavailable', 503) }
+}
+
+export async function krakenTemplatePrice(template: TemplateVersion, signal?: AbortSignal): Promise<PriceSnapshot> {
+  const observation = await readKrakenBook(signal)
+  return priceFromKrakenBook(template, observation.body, observation.receivedAt)
 }

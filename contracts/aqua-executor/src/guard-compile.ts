@@ -31,10 +31,10 @@ export function compileGuardedV2(p: AquaStrategyParams, guard: Hex, caps: GuardC
 function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 | 2): GuardedCompiled {
   if (p.program.kind === 'concentrated' && version !== 2) throw new Error('concentrated liquidity requires Guard v2 real inventory accounting')
   const base = compile(p)
-  // Guard V2 checks the gross input and actual Aqua balance after SwapVM's
-  // flat input fee has restored the taker-defined amount. V1 remains frozen at
-  // zero fee because its virtual-balance accounting was never composed with fees.
-  if (version === 1 && p.program.feeBps !== 0) throw new Error('Guard v1 recipes require zero fee')
+  // Fee calls runLoop recursively. An appended Guard executes inside that call,
+  // before gross input is restored, so both per-swap and inventory caps would
+  // undercount the input. All current Guard recipes therefore require zero fee.
+  if (p.program.feeBps !== 0) throw new Error('Guard recipes require zero fee: gross-input enforcement is not available')
   for (const address of [p.maker, ...p.tokens, guard]) {
     if (getAddress(address) === zeroAddress) throw new Error('guarded v1 requires nonzero addresses')
   }
@@ -49,7 +49,6 @@ function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 
   const builder = new S.AquaProgramBuilder().deadline({ deadline: BigInt(p.program.deadline) })
   // Preserve the established zero-fee bytecode; a zero-valued fee instruction
   // would change every existing strategy hash without changing its semantics.
-  if (p.program.feeBps !== 0) builder.flatFeeAmountInXD({ fee: BigInt(p.program.feeBps) * 100_000n })
   const prefix = appendCurve(builder, p)
     .salt({ salt: BigInt(p.program.salt) }).build()
   // SDK 0.4.4's Aqua builder has no Extruction method. Append the pinned router's

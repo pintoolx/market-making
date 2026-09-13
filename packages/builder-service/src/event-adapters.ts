@@ -12,6 +12,7 @@ const observedAt = z.string().datetime({ offset: true })
 
 export type EventSourceBatch = {
   events: unknown[]
+  skipped?: boolean
   cursor?: Record<string, unknown>
   observedAt?: string
   chainId?: number
@@ -113,7 +114,7 @@ type EvmLogRecord = {
 
 type EvmLogReader = {
   getBlockNumber(): Promise<bigint>
-  getBlock(input: { blockNumber: bigint }): Promise<{ hash?: Hex } | null>
+  getBlock(input: { blockNumber: bigint }): Promise<{ hash?: Hex; timestamp: bigint } | null>
   getLogs(input: { address: Address; topics?: readonly unknown[]; fromBlock: bigint; toBlock: bigint }): Promise<readonly EvmLogRecord[]>
 }
 
@@ -176,10 +177,13 @@ export function createEvmLogSource(options: EvmLogSourceOptions): EventSource {
   if (!/^[a-z][a-z0-9._-]{0,63}$/.test(kind)) throw new Error('kind is invalid')
   const clock = options.clock ?? (() => new Date())
   const reader: EvmLogReader = options.reader ?? (() => {
-    const client = createPublicClient({ transport: http(rpcUrl) })
+    const client = createPublicClient({ transport: http(rpcUrl, { timeout: 10000, retryCount: 1 }) })
     return {
-      getBlockNumber: () => client.getBlockNumber(),
-      getBlock: ({ blockNumber }) => client.getBlock({ blockNumber }).then(block => ({ hash: block.hash })),
+      getBlockNumber: async () => {
+        if (await client.getChainId() !== options.chainId) throw new Error('event source chain mismatch')
+        return client.getBlockNumber()
+      },
+      getBlock: ({ blockNumber }) => client.getBlock({ blockNumber }).then(block => ({ hash: block.hash, timestamp: block.timestamp })),
       getLogs: input => client.getLogs(input as never) as Promise<readonly EvmLogRecord[]>,
     }
   })()
@@ -197,6 +201,9 @@ export function createEvmLogSource(options: EvmLogSourceOptions): EventSource {
 
       const headBlock = await reader.getBlock({ blockNumber: safeHead })
       if (!headBlock?.hash) throw new Error('rpc returned a block without hash')
+      const headTime = Number(headBlock.timestamp) * 1000
+      if (!Number.isSafeInteger(headTime) || headTime > clock().getTime() + 30000 || headTime < clock().getTime() - (120 + confirmations * 15) * 1000)
+        throw new Error('event source head is stale')
       const reorged = new Set<string>(), divergent = new Set<string>()
       // Checking the bounded history every poll catches a reorg even when the
       // provider has already advanced beyond the block that changed.
@@ -217,7 +224,8 @@ export function createEvmLogSource(options: EvmLogSourceOptions): EventSource {
       }
 
       const events: PublicEvent[] = []
-      while (nextBlock <= safeHead) {
+      let ranges = 0
+      while (nextBlock <= safeHead && ranges++ < 5) {
         if (signal.aborted) return { events, chainId: options.chainId, blockHash: headBlock.hash, observedAt: clock().toISOString(), cursor: { nextBlock: nextBlock.toString(), headBlock: safeHead.toString(), headHash: headBlock.hash, history }, reorgedEventIds: [...reorged] }
         const toBlock = nextBlock + maxBlockRange - 1n < safeHead ? nextBlock + maxBlockRange - 1n : safeHead
         const logs = await reader.getLogs({ address: options.address, topics, fromBlock: nextBlock, toBlock })
@@ -239,7 +247,9 @@ export function createEvmLogSource(options: EvmLogSourceOptions): EventSource {
         .filter(entry => BigInt(entry.blockNumber) >= safeHead - maxReorgDepth)
         .slice(-256)
       events.sort((a, b) => Number(BigInt(a.blockNumber ?? '0') - BigInt(b.blockNumber ?? '0')) || (a.logIndex ?? 0) - (b.logIndex ?? 0))
-      return { events, chainId: options.chainId, blockHash: headBlock.hash, observedAt: clock().toISOString(), reorgedEventIds: [...reorged], cursor: { nextBlock: nextBlock.toString(), headBlock: safeHead.toString(), headHash: headBlock.hash, history } }
+      const observedBlock = nextBlock > safeHead ? headBlock : await reader.getBlock({ blockNumber: nextBlock - 1n })
+      if (!observedBlock?.hash) throw new Error('event source progress block missing')
+      return { events, chainId: options.chainId, blockHash: headBlock.hash, observedAt: new Date(Number(observedBlock.timestamp) * 1000).toISOString(), reorgedEventIds: [...reorged], cursor: { nextBlock: nextBlock.toString(), headBlock: safeHead.toString(), headHash: headBlock.hash, history } }
     },
   }
 }

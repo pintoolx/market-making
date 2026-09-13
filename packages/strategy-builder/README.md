@@ -7,7 +7,7 @@ Implemented in this first batch:
 - Strict public draft/intent inputs, owner/revision checks, partial updates, readable diffs and restore-as-new-revision. Artifact bindings reject stale confirmations, including after restoring an earlier draft.
 - A catalog accounting for every non-reserved instruction in the deployed Aqua opcode table, with separate source, SDK, runtime, composition, product and routing evidence. Unknown/reserved instructions remain rejected.
 - Validation of public recipe inputs, fixed ranges, supported token metadata, finite deadlines, allocations and immutable Guard envelopes. Templates and Maker instances are distinct; a template cannot compile before instantiation.
-- Deterministic XYC, concentrated and pegged compilation with fixed LP input fees through the existing SDK adapter, with an independent bytecode/order decoder. Exported executor params preserve an explicit Guard V2 recipe.
+- Deterministic zero-fee XYC, concentrated and pegged compilation through the existing SDK adapter, with an independent bytecode/order decoder. Exported executor params preserve an explicit Guard V2 recipe. Nonzero fees are blocked by the [current Guard limitation](../../docs/BUILDER-FEE-GUARD-LIMITATION.md); historical bytes remain decodable for recovery.
 - Local upstream-router/Guard integration tests with mock tokens: both directions, caps, rejected trades, persistent Maker revocation and dock. This is separate from Sepolia evidence.
 
 Run from repository root:

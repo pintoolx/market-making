@@ -1,0 +1,81 @@
+{
+  "mode": "real-cli-and-postgres-evaluation-with-live-guard-reads",
+  "publicMarketSource": "kraken-and-sepolia",
+  "observedGuardBlock": "11696960",
+  "chainWrites": 0,
+  "providerSignatureVerified": true,
+  "makerConsentVerified": true,
+  "firstActivationQueued": true,
+  "allocatedNonce": "1",
+  "deliveryStatus": "pending",
+  "publicCandidate": {
+    "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+    "maker": "0x7188d249b1f2afc27f3986707eddd13446182ab0",
+    "nonce": "1789315686",
+    "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+    "token0": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+    "token1": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "chainId": "11155111",
+    "validAfter": "1789315686",
+    "validUntil": "0",
+    "strategyHash": "0x7e25dc483adc74938c7595502f71540c6099665970df783926d9b46d350a7c55",
+    "schemaVersion": "2",
+    "maxPostBalance0": "10000000000000000",
+    "maxPostBalance1": "25000000",
+    "allowedDirections": "3",
+    "maxAmount0PerSwap": "500000000000000",
+    "maxAmount1PerSwap": "1000000"
+  },
+  "signedOutagePolicy": {
+    "sources": [
+      "probe.market"
+    ],
+    "onRecovery": "reevaluate",
+    "maxAgeSeconds": 300
+  },
+  "outageCandidates": [
+    {
+      "nonce": "2",
+      "report": {
+        "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "maker": "0x7188d249b1f2afc27f3986707eddd13446182ab0",
+        "nonce": "1789315718",
+        "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "token0": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "token1": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "chainId": "11155111",
+        "validAfter": "1789315718",
+        "validUntil": "0",
+        "strategyHash": "0x7e25dc483adc74938c7595502f71540c6099665970df783926d9b46d350a7c55",
+        "schemaVersion": "2",
+        "maxPostBalance0": "0",
+        "maxPostBalance1": "0",
+        "allowedDirections": "0",
+        "maxAmount0PerSwap": "0",
+        "maxAmount1PerSwap": "0"
+      }
+    },
+    {
+      "nonce": "3",
+      "report": {
+        "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+        "maker": "0x7188d249b1f2afc27f3986707eddd13446182ab0",
+        "nonce": "1789315736",
+        "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+        "token0": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+        "token1": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "chainId": "11155111",
+        "validAfter": "1789315736",
+        "validUntil": "0",
+        "strategyHash": "0x7e25dc483adc74938c7595502f71540c6099665970df783926d9b46d350a7c55",
+        "schemaVersion": "2",
+        "maxPostBalance0": "10000000000000000",
+        "maxPostBalance1": "25000000",
+        "allowedDirections": "3",
+        "maxAmount0PerSwap": "500000000000000",
+        "maxAmount1PerSwap": "1000000"
+      }
+    }
+  ],
+  "pauseWithoutDecryptionKey": true
+}

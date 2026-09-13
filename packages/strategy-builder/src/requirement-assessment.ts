@@ -44,7 +44,13 @@ function compareCriterion(c: RequirementCriterion, draft: StrategyDraft): Assess
   const field = c.field
   if (field === 'baseToken' || field === 'quoteToken') { actual = spec[field]?.symbol ?? null; decimals = null }
   else if (field === 'curve') { actual = spec.model?.kind ?? null; decimals = null }
-  else if (field === 'feeBps' || field === 'deadline') { actual = spec[field]?.toString() ?? null; decimals = 0; limitation = field === 'feeBps' ? 'The fixed fee is applied before curve pricing; the gross input remains the amount credited to Aqua and the immutable Guard envelope caps that gross amount. This does not create a protocol fee or guarantee profitability.' : '' }
+  else if (field === 'feeBps' || field === 'deadline') {
+    actual = spec[field]?.toString() ?? null; decimals = 0
+    if (field === 'feeBps') {
+      limitation = 'Only zero LP fee is enabled. The legacy nonzero fee recipe undercounts gross input inside Guard and cannot be activated.'
+      if ((spec.feeBps ?? 0) !== 0 || (c.relation !== 'at-most' && c.expected !== '0')) enforcement = 'unsupported'
+    }
+  }
   else if (field === 'minPrice' || field === 'maxPrice') {
     actual = spec.model?.kind === 'concentrated' ? spec.model[field] ?? null : null
     unit = ` ${spec.quoteToken?.symbol ?? 'quote'}/${spec.baseToken?.symbol ?? 'base'}`

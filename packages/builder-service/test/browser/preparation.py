@@ -71,7 +71,7 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Check liquidity and test execution').click()
     expect(dialog.get_by_text('All cases in this result passed. Requirements, policy and wallet checks remain.')).to_be_visible(timeout=20000)
     page.request.get('http://127.0.0.1:3311/fixture/simulation-control?slow=false')
-    cards = dialog.locator('article')
+    cards = dialog.get_by_role('region', name='Swap simulation', exact=True).locator('article')
     expect(cards).to_have_count(3)
     cards.first.get_by_role('button', name='View v2 cases').click()
     expect(dialog.get_by_role('heading', name='Case details · v2')).to_be_visible()

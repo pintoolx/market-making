@@ -10,16 +10,19 @@ import { conflict, notFound, ServiceError } from './errors.ts'
 import { mutation, ownerSchema } from './requests.ts'
 import { readRequirementReceipt } from './requirement-reviews.ts'
 import { cancelUnsentEventWork } from './event-control.ts'
+import { outagePolicySchema, type OutagePolicy } from './outage-policy.ts'
 
-const prepareSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, artifactId: idSchema }).strict()
+const prepareSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, artifactId: idSchema, outagePolicy: outagePolicySchema.optional() }).strict()
 const confirmSchema = z.object({ intentId: idSchema, digest: hashSchema, signature: z.string().regex(/^0x[0-9a-fA-F]{130,132}$/) }).strict()
 const revokeSchema = z.object({ consentId: idSchema, signature: z.string().regex(/^0x[0-9a-fA-F]{130,132}$/) }).strict()
 type Reader = Pick<PoolClient, 'query'>
 export interface AutomationConsentIntent {
+  outagePolicy?: OutagePolicy;
   schemaVersion: 1; id: string; owner: string; draftId: string; revision: number; artifactId: string; contentDigest: `0x${string}`;
   manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string; registrationReady: false;
 }
 export interface AutomationConsent {
+  outagePolicy?: OutagePolicy;
   schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
   contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery';
   expiresAt: string; message: string; signature: `0x${string}`; consentDigest: `0x${string}`; active: true; registrationReady: false;
@@ -27,7 +30,9 @@ export interface AutomationConsent {
 export function consentMessage(intent: AutomationConsentIntent) {
   return ['Pintool Builder automation consent v1', `owner: ${intent.owner.slice(7)}`, `draft: ${intent.draftId}`,
     `revision: ${intent.revision}`, `artifact: ${intent.artifactId}`, `strategyHash: ${intent.strategyHash}`, `scope: ${intent.scope}`,
-    `expiresAt: ${intent.expiresAt}`, `manifestHash: ${intent.manifestHash}`, `contentDigest: ${intent.contentDigest}`].join('\n')
+    `expiresAt: ${intent.expiresAt}`, `manifestHash: ${intent.manifestHash}`, `contentDigest: ${intent.contentDigest}`,
+    ...(intent.outagePolicy ? [`outagePolicy: ${JSON.stringify(outagePolicySchema.parse(intent.outagePolicy))}`,
+      'Permit a zero-direction report while selected sources are unavailable or stale. On recovery, reevaluate the still-selected strategy. This does not guarantee pause delivery during an outage and does not authorize asset transactions.'] : [])].join('\n')
 }
 export function revokeMessage(consent: Pick<AutomationConsent, 'id' | 'owner' | 'draftId' | 'strategyHash' | 'scope'>) {
   return ['Pintool Builder revoke automation consent v1', `consent: ${consent.id}`, `owner: ${consent.owner.slice(7)}`,
@@ -36,12 +41,12 @@ export function revokeMessage(consent: Pick<AutomationConsent, 'id' | 'owner' | 
 function intentDigest(intent: AutomationConsentIntent) {
   return digestJson({ schemaVersion: intent.schemaVersion, id: intent.id, owner: intent.owner, draftId: intent.draftId,
     revision: intent.revision, artifactId: intent.artifactId, contentDigest: intent.contentDigest, manifestHash: intent.manifestHash,
-    strategyHash: intent.strategyHash, scope: intent.scope, expiresAt: intent.expiresAt, registrationReady: false })
+    strategyHash: intent.strategyHash, scope: intent.scope, expiresAt: intent.expiresAt, registrationReady: false, ...(intent.outagePolicy ? { outagePolicy: intent.outagePolicy } : {}) })
 }
-function consentDigest(consent: Pick<AutomationConsent, 'id' | 'intentId' | 'owner' | 'draftId' | 'revision' | 'artifactId' | 'contentDigest' | 'manifestHash' | 'strategyHash' | 'scope' | 'expiresAt' | 'signature'>) {
+function consentDigest(consent: Pick<AutomationConsent, 'id' | 'intentId' | 'owner' | 'draftId' | 'revision' | 'artifactId' | 'contentDigest' | 'manifestHash' | 'strategyHash' | 'scope' | 'expiresAt' | 'signature' | 'outagePolicy'>) {
   return digestJson({ id: consent.id, intentId: consent.intentId, owner: consent.owner, draftId: consent.draftId, revision: consent.revision,
     artifactId: consent.artifactId, contentDigest: consent.contentDigest, manifestHash: consent.manifestHash, strategyHash: consent.strategyHash,
-    scope: consent.scope, expiresAt: consent.expiresAt, signature: consent.signature })
+    scope: consent.scope, expiresAt: consent.expiresAt, signature: consent.signature, ...(consent.outagePolicy ? { outagePolicy: consent.outagePolicy } : {}) })
 }
 export async function readActiveAutomationConsent(client: Reader, owner: string, draftId: string, revision: number) {
   const row = (await client.query(`SELECT c.payload,c.consent_digest FROM builder.automation_consents c
@@ -76,7 +81,7 @@ export function createAutomation(pool: Pool, profile: DeploymentProfile) {
         const now = new Date(), expiresAt = new Date(now.getTime() + 30 * 24 * 3600_000).toISOString()
         const intent: AutomationConsentIntent = { schemaVersion: 1, id: randomUUID(), owner, draftId: draft.id, revision: draft.revision,
           artifactId: value.artifactId, contentDigest: contentDigest(draft), manifestHash: digestJson(profile), strategyHash: artifact.payload.strategyHash,
-          scope: 'standing-report-delivery', expiresAt, registrationReady: false }
+          scope: 'standing-report-delivery', expiresAt, registrationReady: false, ...(value.outagePolicy ? { outagePolicy: value.outagePolicy } : {}) }
         const digest = digestJson(intent), message = consentMessage(intent)
         await client.query(`INSERT INTO builder.automation_consent_intents(id,owner,draft_id,revision,artifact_id,payload_digest,payload,expires_at)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [intent.id, owner, draft.id, draft.revision, value.artifactId, digest, JSON.stringify({ ...intent, message }), expiresAt])
@@ -103,10 +108,10 @@ export function createAutomation(pool: Pool, profile: DeploymentProfile) {
         if (existing) return { consent: existing.payload as AutomationConsent, registrationReady: false as const }
         const id = randomUUID(), consent: AutomationConsent = { schemaVersion: 1, id, intentId: intent.id, owner, draftId: draft.id, revision: draft.revision,
           artifactId: intent.artifactId, contentDigest: intent.contentDigest, manifestHash: intent.manifestHash, strategyHash: intent.strategyHash,
-          scope: intent.scope, expiresAt: intent.expiresAt, message: intent.message, signature: value.signature as `0x${string}`,
+          scope: intent.scope, expiresAt: intent.expiresAt, message: intent.message, signature: value.signature as `0x${string}`, ...(intent.outagePolicy ? { outagePolicy: intent.outagePolicy } : {}),
           consentDigest: consentDigest({ id, intentId: intent.id, owner, draftId: draft.id, revision: draft.revision, artifactId: intent.artifactId,
             contentDigest: intent.contentDigest, manifestHash: intent.manifestHash, strategyHash: intent.strategyHash, scope: intent.scope, expiresAt: intent.expiresAt,
-            signature: value.signature as `0x${string}` }), active: true, registrationReady: false }
+            signature: value.signature as `0x${string}`, ...(intent.outagePolicy ? { outagePolicy: intent.outagePolicy } : {}) }), active: true, registrationReady: false }
         await client.query(`INSERT INTO builder.automation_consents(id,owner,intent_id,draft_id,revision,artifact_id,content_digest,manifest_hash,strategy_hash,scope,expires_at,message,signature,consent_digest,payload)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, [consent.id, owner, intent.id, draft.id, draft.revision, intent.artifactId, intent.contentDigest,
           intent.manifestHash, intent.strategyHash, intent.scope, intent.expiresAt, intent.message, consent.signature, consent.consentDigest, JSON.stringify(consent)])

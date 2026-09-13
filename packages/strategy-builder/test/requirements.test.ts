@@ -31,7 +31,7 @@ test('proposed parameter meanings use exact token units and separate configured 
   assert.equal(compare(parameter('maxAmountQuotePerSwap', '0.0000001')).enforcement, 'unsupported')
   assert.equal(compare(parameter('feeBps', '0.1')).enforcement, 'unsupported')
   assert.equal(compare(parameter('curve', 'concentrated', 'at-least')).enforcement, 'unsupported')
-  assert.equal(assessRequirementCriterion(parameter('feeBps', '30'), { ...draft, spec: { ...draft.spec, feeBps: 30 } }).enforcement, 'onchain_enforced')
+  assert.equal(assessRequirementCriterion(parameter('feeBps', '30'), { ...draft, spec: { ...draft.spec, feeBps: 30 } }).enforcement, 'unsupported')
   assert.match(compare(parameter('feeBps', '30')).limitation, /gross input/)
 })
 

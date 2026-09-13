@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { encodeFunctionData, parseAbi, type Hex } from 'viem'
-import { canonical, contentDigest, digestJson, idSchema, revisionSchema, type DeploymentProfile } from '@pintool/strategy-builder'
+import { canonical, contentDigest, digestJson, draftSchema, idSchema, revisionSchema, type DeploymentProfile } from '@pintool/strategy-builder'
 import { readCompiledArtifact, type CompiledPayload } from './artifacts.ts'
 import { readOwnedDraft } from './draft-persistence.ts'
 import { transaction } from './database.ts'
@@ -16,7 +16,8 @@ const aquaAbi = parseAbi([
   'function ship(address app, bytes strategy, address[] tokens, uint256[] amounts) returns (bytes32 strategyHash)',
   'function dock(address app, bytes32 strategyHash, address[] tokens)',
 ])
-type PlanKind = 'registration' | 'cancellation'
+const guardAbi = parseAbi(['function setStrategyRevoked(bytes32 strategyHash,bool revoked)'])
+export type PlanKind = 'registration' | 'cancellation' | 'guard-revoke' | 'guard-unrevoke' | 'allowance-revoke'
 type PlanInput = { draftId: string; expectedRevision: number; artifactId: string }
 type Transaction = { kind: string; to: Hex; data: Hex; value: '0x0'; description: string; spender?: Hex; token?: Hex; amountAtomic?: string }
 export interface TransactionPlan {
@@ -36,7 +37,7 @@ function zodPlanInput(kind: PlanKind) {
 function orderOf(payload: CompiledPayload) {
   return { maker: payload.order.maker, traits: BigInt(payload.order.traits), data: payload.order.data }
 }
-function makePlan(kind: PlanKind, id: string, profile: DeploymentProfile, draft: Awaited<ReturnType<typeof readOwnedDraft>>,
+export function makePlan(kind: PlanKind, id: string, profile: DeploymentProfile, draft: Awaited<ReturnType<typeof readOwnedDraft>>,
   artifactId: string, payload: CompiledPayload): TransactionPlan {
   const tokens = payload.tokens as Hex[], amounts = payload.amounts.map(String), maker = draft.maker! as Hex
   const transactions: Transaction[] = []
@@ -45,14 +46,24 @@ function makePlan(kind: PlanKind, id: string, profile: DeploymentProfile, draft:
     transactions.push({ kind: 'erc20-approve', to: token, data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [profile.aqua, BigInt(amountAtomic)] }),
       value: '0x0', description: `Approve ${token} to Aqua for the shipped allocation`, spender: profile.aqua, token, amountAtomic })
   }
-  transactions.push(kind === 'registration'
+  if (kind === 'allowance-revoke') for (const token of tokens) transactions.push({ kind: 'erc20-approve', to: token,
+    data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [profile.aqua, 0n] }), value: '0x0',
+    description: `Revoke the shared Aqua allowance for ${token}`, spender: profile.aqua, token, amountAtomic: '0' })
+  else if (kind === 'guard-revoke' || kind === 'guard-unrevoke') transactions.push({ kind, to: profile.guard,
+    data: encodeFunctionData({ abi: guardAbi, functionName: 'setStrategyRevoked', args: [payload.strategyHash, kind === 'guard-revoke'] }),
+    value: '0x0', description: kind === 'guard-revoke' ? 'Revoke this strategy directly in Guard' : 'Clear revocation; a fresh enabled report is still required' })
+  else transactions.push(kind === 'registration'
     ? { kind: 'aqua-ship', to: profile.aqua, data: encodeFunctionData({ abi: aquaAbi, functionName: 'ship', args: [profile.router, payload.strategy, tokens, amounts.map(BigInt)] }), value: '0x0', description: 'Ship this immutable strategy to Aqua' }
     : { kind: 'aqua-dock', to: profile.aqua, data: encodeFunctionData({ abi: aquaAbi, functionName: 'dock', args: [profile.router, payload.strategyHash, tokens] }), value: '0x0', description: 'Dock this strategy and close its Aqua balances' })
   return { schemaVersion: 1, kind, id, chainId: profile.chainId, owner: draft.owner, maker, draftId: draft.id, revision: draft.revision,
     artifactId, contentDigest: contentDigest(draft), manifestHash: digestJson(profile), strategyHash: payload.strategyHash, programHash: payload.programHash, orderHash: payload.orderHash,
     tokens, amounts, transactions, preconditions: kind === 'registration'
       ? ['Wallet is the Maker address and connected to the profile chain', 'Current token balances and allowances are freshly read before signing', 'Current requirement receipt, if any, is still valid', 'Ship receipt and Aqua rawBalances are read back before enabling reports']
-      : ['Wallet is the Maker address and connected to the profile chain', 'The strategy hash is still present and active state is read before signing', 'Dock receipt and Aqua rawBalances are read back before marking stopped'], registrationReady: false }
+      : kind === 'cancellation'
+        ? ['Wallet is the Maker address and connected to the profile chain', 'The strategy hash is still present and active state is read before signing', 'Dock receipt and Aqua rawBalances are read back before marking stopped']
+        : kind === 'allowance-revoke'
+          ? ['Wallet is the Maker address and connected to the profile chain', 'Aqua allowances are shared across this wallet\'s strategies', 'Exact Approval receipts and token allowance readback are required']
+          : ['Wallet is the Maker address and connected to the profile chain', 'The exact strategy revocation flag is checked in Guard', 'Clearing revocation still requires a new enabled report before trading'], registrationReady: false }
 }
 async function ensureRequirements(client: PoolClient, profile: DeploymentProfile, draft: Awaited<ReturnType<typeof readOwnedDraft>>) {
   if (draft.requirements.length && !await readRequirementReceipt(client, profile, draft)) throw conflict('requirement-review-required')
@@ -66,11 +77,15 @@ export function createTransactionPlans(pool: Pool, profile: DeploymentProfile) {
       if (draft.kind !== 'maker' || draft.maker !== owner.slice(7)) throw new ServiceError('wallet-ownership-required', 403)
       if (kind === 'registration') await ensureRequirements(client, profile, draft)
       const artifact = await readCompiledArtifact(client, profile, owner, value.artifactId, true)
-      if (artifact.payload.draftId !== draft.id || artifact.payload.revision !== draft.revision || !artifact.current) throw conflict('artifact-stale')
-      if (canonical(artifact.payload.tokens) !== canonical([draft.spec.baseToken!.address, draft.spec.quoteToken!.address])) throw new ServiceError('transaction-plan-integrity', 500)
-      const plan = makePlan(kind, randomUUID(), profile, draft, value.artifactId, artifact.payload), payloadDigest = digestJson(plan)
+      if (artifact.payload.draftId !== draft.id || artifact.payload.manifestHash !== digestJson(profile) ||
+        (kind === 'registration' && !artifact.current)) throw conflict('artifact-stale')
+      // Risk-reducing operations must remain available for an expired/edited strategy.
+      const historical = (await client.query('SELECT snapshot FROM builder.draft_revisions WHERE draft_id=$1 AND revision=$2 AND owner=$3', [draft.id, artifact.payload.revision, owner])).rows[0]
+      const planDraft = historical ? draftSchema.parse(historical.snapshot) : draft
+      if (contentDigest(planDraft) !== artifact.payload.contentDigest || canonical(artifact.payload.tokens) !== canonical([planDraft.spec.baseToken!.address, planDraft.spec.quoteToken!.address])) throw new ServiceError('transaction-plan-integrity', 500)
+      const plan = makePlan(kind, randomUUID(), profile, planDraft, value.artifactId, artifact.payload), payloadDigest = digestJson(plan)
       await client.query(`INSERT INTO builder.transaction_plans(id,owner,draft_id,revision,artifact_id,kind,manifest_hash,content_digest,strategy_hash,payload_digest,payload)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [plan.id, owner, draft.id, draft.revision, value.artifactId, kind, plan.manifestHash, plan.contentDigest, plan.strategyHash, payloadDigest, JSON.stringify(plan)])
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [plan.id, owner, planDraft.id, planDraft.revision, value.artifactId, kind, plan.manifestHash, plan.contentDigest, plan.strategyHash, payloadDigest, JSON.stringify(plan)])
       await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,$2,$3,$4)", [owner, `transaction-plan.${kind}`, plan.id, draft.revision])
       return { plan, digest: payloadDigest }
     })
@@ -78,6 +93,12 @@ export function createTransactionPlans(pool: Pool, profile: DeploymentProfile) {
   return {
     prepareRegistration: (owner: string, requestId: string, input: unknown) => prepare(owner, requestId, 'registration', input),
     prepareCancellation: (owner: string, requestId: string, input: unknown) => prepare(owner, requestId, 'cancellation', input),
+    prepareControl: (owner: string, requestId: string, kind: Exclude<PlanKind, 'registration' | 'cancellation'>, input: unknown) => prepare(owner, requestId, kind, input),
+    async list(owner: string, draftId: string) {
+      ownerSchema.parse(owner); idSchema.parse(draftId)
+      await readOwnedDraft(pool, owner, draftId)
+      return (await pool.query('SELECT payload,payload_digest AS digest FROM builder.transaction_plans WHERE owner=$1 AND draft_id=$2 ORDER BY created_at DESC LIMIT 100', [owner, draftId])).rows.map(row => ({ plan: row.payload as TransactionPlan, digest: row.digest as Hex }))
+    },
     async get(owner: string, planId: string) {
       ownerSchema.parse(owner); idSchema.parse(planId)
       const row = (await pool.query('SELECT payload,payload_digest FROM builder.transaction_plans WHERE id=$1 AND owner=$2', [planId, owner])).rows[0]

@@ -37,7 +37,8 @@ try {
   const instance = await templates.instantiate(makerOwner, randomUUID(), { templateId: published.template.templateId, version: published.template.version, digest: published.digest,
     allocations: { baseAtomic: '1000000000000000', quoteAtomic: '2500000' } });
   const artifact = await createArtifacts(pool, profile).compile(makerOwner, randomUUID(), { draftId: instance.draft.id, expectedRevision: instance.draft.revision });
-  const automation = createAutomation(pool, profile), prepared = await automation.prepare(makerOwner, randomUUID(), { draftId: instance.draft.id, expectedRevision: instance.draft.revision, artifactId: artifact.artifactId });
+  const automation = createAutomation(pool, profile), prepared = await automation.prepare(makerOwner, randomUUID(), { draftId: instance.draft.id, expectedRevision: instance.draft.revision, artifactId: artifact.artifactId,
+    outagePolicy: { sources: ['probe.market'], maxAgeSeconds: 300, onRecovery: 'reevaluate' } });
   const { consent } = await automation.confirm(makerOwner, randomUUID(), { intentId: prepared.intent.id, digest: prepared.digest, signature: await maker.signMessage({ message: prepared.intent.message }) });
   const baseConfig = JSON.parse(await readFile(new URL('../market-maker-auth/config.staging.json', import.meta.url), 'utf8'));
   const env = { ...process.env, TZ: 'UTC', SECRET_ENVELOPE_PRIVATE_KEY: hex(key), SECRET_PROVIDER_STRATEGY: JSON.stringify(policy), SECRET_PROVIDER_STRATEGY_DEFENSIVE: JSON.stringify(policy),
@@ -46,6 +47,7 @@ try {
   const bridge = createBuilderCreBridge(pool, profile, { baseConfig, origin, workflowPublicKey: publicKey,
     rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com', projectDirectory: fileURLToPath(new URL('../', import.meta.url)), env, broadcastEnabled: false });
   const events = createEventDelivery(pool, profile, bridge);
+  await events.health('probe.market', { health: 'healthy', cursor: {}, observedAt: new Date().toISOString() });
   const { subscription } = await events.enable(makerOwner, randomUUID(), { draftId: instance.draft.id, expectedRevision: instance.draft.revision, artifactId: artifact.artifactId, consentId: consent.id });
   const job = await events.claimEvaluation(300000); assert.ok(job); assert.equal(job.subscriptionId, subscription.id);
   const evaluated = await events.evaluate(job.id, job.token);
@@ -57,6 +59,26 @@ try {
   const evidence = { mode: 'real-cli-and-postgres-evaluation-with-live-guard-reads', publicMarketSource: 'kraken-and-sepolia', observedGuardBlock: saved.payload.fromBlock,
     chainWrites: 0, providerSignatureVerified: true, makerConsentVerified: true, firstActivationQueued: true,
     allocatedNonce: String(saved.nonce), deliveryStatus: saved.status, publicCandidate: saved.payload.candidate };
+  assert.equal(await events.scheduleHealthEvaluations(), 0);
+  await events.health('probe.market', { health: 'error', cursor: {}, observedAt: new Date().toISOString() });
+  assert.equal(await events.scheduleHealthEvaluations(), 1);
+  // Outage authorization must not depend on reading/decrypting private inputs.
+  env.SECRET_ENVELOPE_PRIVATE_KEY = 'deliberately-unusable-public-fixture';
+  const pausedJob = await events.claimEvaluation(300000), paused = await events.evaluate(pausedJob.id, pausedJob.token);
+  assert.equal(paused.result.status, 'changed', JSON.stringify(paused));
+  const pauseRow = (await pool.query('SELECT payload,nonce::text FROM builder.report_deliveries WHERE id=$1', [paused.deliveryId])).rows[0];
+  assert.equal(pauseRow.payload.candidate.allowedDirections, '0');
+  for (const k of ['maxAmount0PerSwap', 'maxAmount1PerSwap', 'maxPostBalance0', 'maxPostBalance1']) assert.equal(pauseRow.payload.candidate[k], '0');
+  env.SECRET_ENVELOPE_PRIVATE_KEY = hex(key);
+  await events.health('probe.market', { health: 'recovered', cursor: {}, observedAt: new Date().toISOString() });
+  assert.equal(await createEventDelivery(pool, profile, bridge).scheduleHealthEvaluations(), 1);
+  const recoveryJob = await events.claimEvaluation(300000), recovery = await events.evaluate(recoveryJob.id, recoveryJob.token);
+  assert.equal(recovery.result.status, 'changed', JSON.stringify(recovery));
+  const recoveryRow = (await pool.query('SELECT payload,nonce::text FROM builder.report_deliveries WHERE id=$1', [recovery.deliveryId])).rows[0];
+  assert.equal(recoveryRow.payload.candidate.allowedDirections, '3');
+  evidence.signedOutagePolicy = consent.outagePolicy;
+  evidence.outageCandidates = [pauseRow, recoveryRow].map(r => ({ nonce: r.nonce, report: r.payload.candidate }));
+  evidence.pauseWithoutDecryptionKey = true;
   if (process.argv[2]) await writeFile(process.argv[2], JSON.stringify(evidence, null, 2) + '\n');
   console.log(JSON.stringify(evidence, null, 2));
 } finally {

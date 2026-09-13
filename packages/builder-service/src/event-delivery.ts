@@ -11,6 +11,7 @@ import { readActiveAutomationConsent, type AutomationConsent } from './automatio
 import { readAuthorizationBinding, type AuthorizationBinding } from './bindings.ts'
 import { eventMatchesInstance } from './event-routing.ts'
 import { cancelUnsentEventWork } from './event-control.ts'
+import { readOutageState } from './outage-policy.ts'
 
 const sourceSchema = z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/)
 const subscriptionSourceSchema = z.union([z.literal('*'), sourceSchema])
@@ -29,7 +30,7 @@ type SubscriptionRow = { id: string; owner: string; draftId: string; revision: n
 type Snapshot = { subscription: SubscriptionRow; event: PublicEvent; draft: Awaited<ReturnType<typeof readOwnedDraft>>; artifact: Awaited<ReturnType<typeof readCompiledArtifact>>; consent: AutomationConsent; binding: AuthorizationBinding | null }
 export type EvaluationResult = { status: 'unchanged' | 'changed' | 'paused' | 'failed'; reportHash?: `0x${string}`; report?: Record<string, unknown>; reason?: string; observedAt?: string; nonceFloor?: string; chainStateChanged?: boolean }
 export type DeliveryReceipt = { transactionHash: `0x${string}`; receipt?: Record<string, unknown> }
-export type DeliveryReconciliation = DeliveryReceipt | { status: 'not-broadcast' } | { status: 'reverted'; transactionHash: `0x${string}`; receipt?: Record<string, unknown> } | null
+export type DeliveryReconciliation = DeliveryReceipt | { status: 'not-broadcast'; reevaluate?: boolean } | { status: 'reverted'; transactionHash: `0x${string}`; receipt?: Record<string, unknown> } | null
 /** Only use when no request could have reached the broadcaster. */
 export class DeliveryNotSentError extends ServiceError {}
 /** A busy broadcaster has not been contacted; defer without consuming a retry. */
@@ -78,7 +79,8 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
   async function currentSnapshot(client: PoolClient, sub: SubscriptionRow, event: PublicEvent) {
     const live = await readSubscription(client, sub.owner, sub.id, true)
     if (live.state !== 'enabled' || live.generation !== sub.generation || live.revision !== sub.revision) throw conflict('event-subscription-stopped')
-    if (live.source !== '*' && live.source !== event.source) throw conflict('event-source-mismatch')
+    const internalEvent = (event.source === 'builder.health' && event.kind === 'monitor.health') || (event.source === 'builder.retry' && event.kind === 'report.retry')
+    if (live.source !== '*' && live.source !== event.source && !internalEvent) throw conflict('event-source-mismatch')
     const draft = await readOwnedDraft(client, sub.owner, sub.draftId, true)
     if (draft.revision !== sub.revision) throw conflict('event-subscription-stale')
     const artifact = await readCompiledArtifact(client, profile, sub.owner, sub.artifactId, true)
@@ -95,6 +97,33 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     return transaction(pool, async client => readSubscription(client, owner, id))
   }
   return {
+    async scheduleHealthEvaluations() {
+      return transaction(pool, async client => {
+        const rows = (await client.query(`SELECT s.* FROM builder.event_subscriptions s JOIN builder.automation_consents c ON c.id=s.consent_id AND c.owner=s.owner
+          LEFT JOIN builder.automation_consent_revocations r ON r.consent_id=c.id
+          LEFT JOIN builder.subscription_health h ON h.subscription_id=s.id
+          WHERE s.state='enabled' AND c.expires_at>clock_timestamp() AND r.consent_id IS NULL AND c.payload ? 'outagePolicy'
+          ORDER BY h.updated_at ASC NULLS FIRST,s.id FOR UPDATE OF s SKIP LOCKED LIMIT 100`)).rows
+        let queued = 0
+        for (const row of rows) {
+          const sub = subscription(row), consent = await readActiveAutomationConsent(client, sub.owner, sub.draftId, sub.revision)
+          if (!consent?.outagePolicy || consent.id !== sub.consentId) continue
+          const health = await readOutageState(client, consent.outagePolicy)
+          const previous = (await client.query('SELECT pause_required FROM builder.subscription_health WHERE subscription_id=$1', [sub.id])).rows[0]
+          await client.query(`INSERT INTO builder.subscription_health(subscription_id,pause_required,unavailable) VALUES($1,$2,$3)
+            ON CONFLICT(subscription_id) DO UPDATE SET pause_required=EXCLUDED.pause_required,unavailable=EXCLUDED.unavailable,updated_at=clock_timestamp()`, [sub.id, health.pauseRequired, JSON.stringify(health.unavailable)])
+          if (previous?.pause_required === health.pauseRequired || (!previous && !health.pauseRequired)) continue
+          const source = 'builder.health', eventId = randomUUID(), id = randomUUID(), observedAt = new Date().toISOString()
+          const payload = { source, eventId, kind: 'monitor.health', payload: {}, observedAt }
+          await client.query(`INSERT INTO builder.event_inbox(source,event_id,kind,payload,observed_at) VALUES($1,$2,'monitor.health','{}',$3)`, [source, eventId, observedAt])
+          await client.query(`INSERT INTO builder.evaluation_jobs(id,subscription_id,owner,generation,source,event_id,input_digest,payload)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [id, sub.id, sub.owner, sub.generation, source, eventId, digestJson({ subscriptionId: sub.id, generation: sub.generation, event: payload }), JSON.stringify(payload)])
+          await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'monitoring.changed',$2,$3)", [sub.owner, id, sub.revision])
+          queued++
+        }
+        return queued
+      })
+    },
     async enable(owner: string, requestId: string, input: unknown) {
       const value = enableSchema.parse(input); ownerSchema.parse(owner)
       return mutation(pool, owner, requestId, 'event-subscription.enable', value, async client => {
@@ -149,7 +178,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async deliveries(owner: string, subscriptionId: string) {
       await publicSubscription(owner, subscriptionId)
       return (await pool.query(`SELECT id,nonce::text,status,transaction_hash AS "transactionHash",
-        receipt->>'reportDigest' AS "reportDigest",error_code AS "errorCode",updated_at AS "updatedAt"
+        receipt->>'reportDigest' AS "reportDigest",payload->'candidate'->>'allowedDirections' AS "allowedDirections",error_code AS "errorCode",updated_at AS "updatedAt"
         FROM builder.report_deliveries WHERE owner=$1 AND subscription_id=$2 ORDER BY created_at DESC,id DESC LIMIT 20`, [owner, subscriptionId])).rows
     },
     async stop(owner: string, requestId: string, input: unknown) {
@@ -360,10 +389,28 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         // not-broadcast is a terminal, persisted gateway fence: a delayed
         // request for this deliveryId must now be rejected by that gateway.
         const code = receipt.status === 'not-broadcast' ? 'delivery-not-broadcast' : 'delivery-reverted'
-        const updated = await pool.query(`UPDATE builder.report_deliveries SET status='failed',error_code=$2,transaction_hash=$3,receipt=$4,updated_at=clock_timestamp()
-          WHERE id=$1 AND status='broadcast' RETURNING status`, [deliveryId, code, 'transactionHash' in receipt ? receipt.transactionHash : null, JSON.stringify('receipt' in receipt ? receipt.receipt ?? null : null)])
-        const status = updated.rows[0]?.status ?? (await pool.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]?.status
-        return { status: String(status) }
+        return transaction(pool, async client => {
+          const sub = await readSubscription(client, row.owner, row.subscription_id, true)
+          const updated = await client.query(`UPDATE builder.report_deliveries SET status='failed',error_code=$2,transaction_hash=$3,receipt=$4,updated_at=clock_timestamp()
+            WHERE id=$1 AND status='broadcast' RETURNING status`, [deliveryId, code, 'transactionHash' in receipt ? receipt.transactionHash : null, JSON.stringify('receipt' in receipt ? receipt.receipt ?? null : null)])
+          // Only a trusted adapter's persisted no-send fence can request a new
+          // evaluation. An ambiguous transaction keeps its original identity.
+          if (updated.rowCount && receipt.status === 'not-broadcast' && receipt.reevaluate && sub.state === 'enabled') {
+            const previousJob = (await client.query('SELECT payload FROM builder.evaluation_jobs WHERE id=$1', [row.evaluation_job_id])).rows[0]
+            const attempt = previousJob?.payload?.source === 'builder.retry' ? Number(previousJob.payload.payload?.attempt ?? 0) + 1 : 1
+            const consent = await readActiveAutomationConsent(client, sub.owner, sub.draftId, sub.revision)
+            if (consent?.id === sub.consentId && Number.isSafeInteger(attempt) && attempt <= 3) {
+              const source = 'builder.retry', eventId = deliveryId, id = randomUUID(), observedAt = new Date().toISOString()
+              const event = { source, eventId, kind: 'report.retry', payload: { attempt }, observedAt }
+              await client.query(`INSERT INTO builder.event_inbox(source,event_id,kind,payload,observed_at) VALUES($1,$2,'report.retry',$3,$4)`, [source, eventId, JSON.stringify(event.payload), observedAt])
+              await client.query(`INSERT INTO builder.evaluation_jobs(id,subscription_id,owner,generation,source,event_id,input_digest,payload,available_at)
+                VALUES($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp()+interval '5 seconds')`, [id, sub.id, sub.owner, sub.generation, source, eventId, digestJson({ subscriptionId: sub.id, generation: sub.generation, event }), JSON.stringify(event)])
+              await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'report.reevaluation-requested',$2,$3)", [sub.owner, id, sub.revision])
+            }
+          }
+          const status = updated.rows[0]?.status ?? (await client.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]?.status
+          return { status: String(status) }
+        })
       }
       return acceptReceipt(deliveryId, receipt)
     },

@@ -31,12 +31,12 @@ Event ingress is independent from event evaluation. Set
 deduplicated and retained with block/transaction/log identity before they reach
 the worker. Set `BUILDER_EVENT_EVALUATOR_URL`,
 `BUILDER_EVENT_DELIVERY_URL` and `BUILDER_EVENT_GATEWAY_TOKEN` together before
-enabling `BUILDER_EVENT_WORKER_ENABLED`. The runtime uses the HTTPS event
-gateway adapter for the two trusted operations:
+enabling `BUILDER_EVENT_WORKER_ENABLED`. The runtime can use the HTTPS event gateway adapter for these two trusted
+operations, or the mutually exclusive opt-in [local CRE bridge](BUILDER-CRE-DELIVERY.md).
 
 Authenticated Maker sessions can read public source-health summaries at
 `GET /v1/builder/events/health?limit=N`. The response contains source, chain,
-last observation, block hash and health state only; it does not return the
+last observation, block hash, health state and outage-pause availability; it does not return the
 cursor or any private policy input.
 
 For an EVM log trigger, set `BUILDER_EVENT_EVM_ADDRESS` and
@@ -109,7 +109,7 @@ Required production checks:
 
 1. Set Railway `DATABASE_URL=${{Postgres.DATABASE_URL}}`, deploy, and confirm
    `/health` plus the Builder authenticated session route.
-2. Confirm the migration table contains 001–016 and that the Builder service
+2. Confirm the migration table contains 001–019 and that the Builder service
    uses a database role with only the application schema permissions.
 3. Run one real multi-turn request with the configured OpenAI key and inspect
    only public draft/tool events.
@@ -141,7 +141,24 @@ with a compatible worker. Local upgrade tests cover pre-existing pending,
 broadcast and accepted reports. The production gateway must support the durable
 delivery identity and terminal fencing contract before event delivery is enabled.
 
-## Rollout evidence
+## New opt-in services (PR #102)
+
+`BUILDER_WALLET_ENABLED=true` enables read-only RPC preflight/reconciliation;
+only the Maker browser wallet sends assets. It depends on the configured profile
+and RPC. Registration also requires an actual successful current fork simulation.
+`BUILDER_EVENT_MARKET_ENABLED=true` adds public Kraken events and
+`BUILDER_EVENT_EVM_ADDRESSES` adds selected-profile contract log sources.
+[CRE delivery](BUILDER-CRE-DELIVERY.md) documents exact options, source IDs,
+consented health transitions and bounded refresh after a fenced stale candidate.
+These settings were not applied to Railway in this PR.
+
+Migrations 017-019 add the broadcaster attempt lane, wallet execution journal
+and subscription health. Stop workers while upgrading, retain unresolved
+attempts/requests, and do not restart an older delivery worker against the newer
+schema. The single enabled subscription per Maker constraint intentionally
+rejects invalid existing selections instead of choosing one automatically.
+
+## Historical rollout evidence (before PR #102)
 
 On 2026-09-13, Railway deployment
 `34b5b223-5550-4628-9cf6-9f59c46de03f` (main commit `6a9a2e03`) reached

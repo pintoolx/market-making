@@ -1,5 +1,9 @@
 # Builder numerical scenario previews
 
+Updated 2026-09-14: new guarded previews use zero LP fees only. The historical
+fee calculation below does not establish safe Guard composition; see the
+[fee limitation](BUILDER-FEE-GUARD-LIMITATION.md).
+
 Verified 2026-09-13. This adds the ninth application tool, `previewScenarios`, and an immutable PostgreSQL preview history. It is a mathematical model of the decoded recipe, including the fixed LP input fee, under explicit assumptions. Live wallet inventory, actual report authorization, a router quote and settlement remain separate results.
 
 ## Calculation and boundaries

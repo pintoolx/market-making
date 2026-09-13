@@ -60,7 +60,7 @@ export async function readTrustedWorkflowInput(client: Pick<PoolClient, 'query'>
       strategyId: intent.encryption.strategyId, envelopeHash: keccak256(stringToHex(JSON.stringify(envelope))) }],
   }
   const bindingDigest = digestJson({ reference, config, consentDigest: consent.consentDigest, templateDigest: templateDigest(template) })
-  return { bindingDigest, config, payload: { maker: config.maker, strategyHash: config.strategyHash,
+  return { bindingDigest, config, outagePolicy: consent.outagePolicy, payload: { maker: config.maker, strategyHash: config.strategyHash,
     provider: template.provider, providerStrategyEnvelope: envelope } }
 }
 

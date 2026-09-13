@@ -55,8 +55,11 @@ export const configSchema = z.object({
 	transport: transportSchema.optional(),
 	/** Opt-in CLI bridge. Production workflow enrollment remains a separate integration. */
 	builderSimulation: z.boolean().default(false),
+	/** Trusted CLI configuration derived from explicit Maker outage consent. */
+	builderPause: z.boolean().default(false),
 	builderEnvelope: builderEnvelopeSchema.optional(),
 }).superRefine((config, ctx) => {
+	if (config.builderPause && !config.builderSimulation) ctx.addIssue({ code: 'custom', message: 'Outage pause requires the trusted Builder simulator' })
 	if (config.builderSimulation && (!config.builderEnvelope || config.transport?.profile === 'cre-production')) {
 		ctx.addIssue({ code: 'custom', message: 'Builder simulation requires a compiled public envelope and cannot use production transport' })
 	}
@@ -143,6 +146,36 @@ const parseSecretJson = <S extends z.ZodTypeAny>(schema: S, raw: string, label: 
 	return parsed.data
 }
 
+
+function finishBuilderAuthorization(runtime: TeeRuntime<Config>, input: ExecutionInput, report: ReturnType<typeof clampBuilderReport>, nowSec: number) {
+	if (!input.builder) throw new Error('Builder request required')
+	const config = runtime.config
+	const termsHash = standingTermsHash(report)
+	const base = { kind: 'builder-cre-result', schemaVersion: 1, requestId: input.requestId, evidenceMode: 'cre-local-simulation', termsHash }
+	let outcome: Record<string, unknown>
+	if (input.builder.phase === 'evaluate') {
+		outcome = { ...base, phase: 'evaluate', status: 'evaluated', report, observedAt: runtime.now().toISOString() }
+	} else {
+		const prepared = prepareBuilderDelivery(report, input.builder, nowSec)
+		if (prepared.status === 'stale') outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId, ...prepared }
+		else {
+			try {
+				const delivered = submitPublicReportFromTee(runtime, prepared.report, config.transport, { exactNonce: true })
+				outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId,
+					status: delivered.changed ? 'accepted' : 'already-effective', nonce: delivered.nonce,
+					reportDigest: delivered.reportDigest, transactionHash: delivered.transactionHash }
+			} catch (error) {
+				if (!(error instanceof ReportNonceStaleError)) throw error
+				outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId, status: 'stale', reason: 'nonce-stale' }
+			}
+		}
+	}
+	// This entry is restricted to the local simulator; only public results leave it.
+	const encoded = JSON.stringify(outcome)
+	runtime.log(encoded)
+	return encoded
+}
+
 // ─── Confidential execution ─────────────────────────────────
 // Everything here runs inside the enclave until publishAuthorization()
 // explicitly crosses back with `usingTheDons()` (only in don-report mode).
@@ -154,6 +187,16 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 		throw new Error('Builder request differs from its provisioned Maker instance')
 	if (input.builder?.phase === 'deliver' && (config.publishMode !== 'don-report' || config.transport?.profile !== 'cre-simulation')) throw new Error('Builder delivery requires CRE simulation transport')
 	if (!input.makerLimitsEnvelope && input.maker.toLowerCase() !== config.maker.toLowerCase()) throw new Error('Maker does not match the provisioned confidential policy')
+	if (config.builderPause && input.builder) {
+		const now = Math.floor(runtime.now().getTime() / 1000)
+		// A consented pause only reduces authority. It must work when market HTTP
+		// acquisition is unavailable; no private data or fabricated prices are needed.
+		const report = clampBuilderReport({ schemaVersion: '2', chainId: String(GUARD_CONFIG.chainId), guard: config.guard, router: config.router,
+			maker: input.maker, strategyHash: input.strategyHash, token0: GUARD_CONFIG.token0, token1: GUARD_CONFIG.token1,
+			nonce: String(now), validAfter: String(now), validUntil: '0', allowedDirections: '0',
+			maxAmount0PerSwap: '0', maxAmount1PerSwap: '0', maxPostBalance0: '0', maxPostBalance1: '0' }, config.builderEnvelope!, { balance0: '0', balance1: '0' })
+		return finishBuilderAuthorization(runtime, input, report, now)
+	}
 	// Acquire and validate PUBLIC data before fetching private inputs. Only maker
 	// and public data-source config are used in DON capability calls.
 	if (config.marketSource === 'kraken' && input.marketSnapshot !== undefined) throw new Error('Live acquisition rejects caller-supplied marketSnapshot')
@@ -215,33 +258,7 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 
 	// NOTE: `authorization.trace` (matched rule id, which side bound each cap)
 	// is intentionally never logged or returned — it would leak the private inputs.
-	if (input.builder) {
-		const report = clampBuilderReport(guardReportV1ToJson(authorization.report), config.builderEnvelope!, market)
-		const termsHash = standingTermsHash(report)
-		const base = { kind: 'builder-cre-result', schemaVersion: 1, requestId: input.requestId, evidenceMode: 'cre-local-simulation', termsHash }
-		let outcome: Record<string, unknown>
-		if (input.builder.phase === 'evaluate') {
-			outcome = { ...base, phase: 'evaluate', status: 'evaluated', report, observedAt: runtime.now().toISOString() }
-		} else {
-			const prepared = prepareBuilderDelivery(report, input.builder, nowSec)
-			if (prepared.status === 'stale') outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId, ...prepared }
-			else {
-				try {
-					const delivered = submitPublicReportFromTee(runtime, prepared.report, config.transport, { exactNonce: true })
-					outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId,
-						status: delivered.changed ? 'accepted' : 'already-effective', nonce: delivered.nonce,
-						reportDigest: delivered.reportDigest, transactionHash: delivered.transactionHash }
-				} catch (error) {
-					if (!(error instanceof ReportNonceStaleError)) throw error
-					outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId, status: 'stale', reason: 'nonce-stale' }
-				}
-			}
-		}
-		// This entry is restricted to the local simulator; only public results leave it.
-		const encoded = JSON.stringify(outcome)
-		runtime.log(encoded)
-		return encoded
-	}
+	if (input.builder) return finishBuilderAuthorization(runtime, input, clampBuilderReport(guardReportV1ToJson(authorization.report), config.builderEnvelope!, market), nowSec)
 
 	// ── 4. Deliver (seam) ──
 	const published = publishAuthorization(runtime, authorization)

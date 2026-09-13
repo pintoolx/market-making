@@ -409,6 +409,17 @@ describe('scenario isolation', () => {
 describe('Builder two-phase simulation', () => {
   const envelope = { maxAmount0PerSwap: '100000000000000000', maxAmount1PerSwap: '1000000000',
     maxPostBalance0: '2000000000000000000', maxPostBalance1: '9000000000' }
+  test('consented pause requires no market or secret capability and only returns zero authority', () => {
+    const t = makeFakeTeeRuntime()
+    t.runtime.config = configSchema.parse({ ...makeConfig(), marketSource: 'kraken', marketSnapshot: undefined,
+      builderSimulation: true, builderPause: true, builderEnvelope: envelope })
+    const value = JSON.parse(onHttpTrigger(t.runtime, httpPayload({ requestId: 'outage-evaluation', maker: t.runtime.config.maker,
+      strategyHash: t.runtime.config.strategyHash, builder: { phase: 'evaluate' } })))
+    expect(value.report.allowedDirections).toBe('0')
+    for (const key of Object.keys(envelope)) expect(value.report[key]).toBe('0')
+    expect(t.secretCalls).toEqual([]); expect(t.crossedToDons()).toBe(0)
+    expect(() => configSchema.parse({ ...makeConfig(), builderPause: true })).toThrow('trusted Builder')
+  })
   test('evaluation uses public atomic Maker caps and only a Provider secret; no write or private output', () => {
     const t = makeFakeTeeRuntime({ PROVIDER_STRATEGY: JSON.stringify(PROVIDER) })
     t.runtime.config = configSchema.parse({ ...makeConfig(), builderSimulation: true, builderEnvelope: envelope })

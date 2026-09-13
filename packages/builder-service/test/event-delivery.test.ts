@@ -8,6 +8,7 @@ import { mkdtemp, readdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { readOutageState } from '../src/outage-policy.ts'
 import { DeliveryNotSentError } from '../src/event-delivery.ts'
 import { database, migrate, createStore, createArtifacts, createAutomation, createEventDelivery, runEventWorker, revokeMessage, builderHandler, createAuthorizationBindings, bindingMessage, createOutboxDispatcher, createEvmLogSource, createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate } from '../src/index.ts'
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder'
@@ -74,7 +75,7 @@ test('migration 016 preserves pre-existing reports while cancelling only unsent 
       await upgraded.query(`INSERT INTO builder.report_deliveries(id,subscription_id,owner,generation,evaluation_job_id,report_hash,nonce,payload,status)
         VALUES($1,$2,$3,1,$4,$5,$6,'{}',$7)`, [deliveryId, enabled.subscription.id, f.owner, jobId, reportHash, String(index + 2), status])
     }
-    assert.deepEqual(await migrate(upgraded), { available: 17, applied: 2 })
+    assert.deepEqual(await migrate(upgraded), { available: 19, applied: 4 })
     const deliveries = (await upgraded.query('SELECT id,status,error_code FROM builder.report_deliveries ORDER BY nonce')).rows
     assert.deepEqual(deliveries.map(row => row.id), oldDeliveries)
     assert.deepEqual(deliveries.map(row => row.status), ['failed', 'broadcast', 'accepted'])
@@ -83,7 +84,7 @@ test('migration 016 preserves pre-existing reports while cancelling only unsent 
     assert.equal(replacement.jobs.length, 1); assert.equal(oldJobs.includes(replacement.jobs[0]!), false)
     const history = (await upgraded.query('SELECT id,result,reorged_at FROM builder.evaluation_jobs WHERE id=ANY($1::text[])', [oldJobs])).rows
     assert.equal(history.length, 3); assert.ok(history.every(row => row.reorged_at && oldDeliveries.includes(row.result.deliveryId)))
-    assert.deepEqual(await migrate(upgraded), { available: 17, applied: 0 })
+    assert.deepEqual(await migrate(upgraded), { available: 19, applied: 0 })
   } finally {
     await upgraded.end()
     await admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`)
@@ -152,7 +153,7 @@ test('reorg cancels an evaluated unsent report and re-inclusion retains the old 
 })
 
 test('definitely unsent requests retry with the same identity while terminal reconciliation permits a new evaluation', async () => {
-  for (const outcome of [{ status: 'not-broadcast' as const }, { status: 'reverted' as const, transactionHash: ('0x' + 'c'.repeat(64)) as `0x${string}` }]) {
+  for (const outcome of [{ status: 'not-broadcast' as const }, { status: 'not-broadcast' as const, reevaluate: true }, { status: 'reverted' as const, transactionHash: ('0x' + 'c'.repeat(64)) as `0x${string}` }]) {
     const f = await fixture(), source = 'test.local-failure', identities: string[] = []
     const events = createEventDelivery(pool, profile, {
       evaluate: async () => ({ status: 'changed', reportHash: digestJson({ terms: 1 }), report: { terms: 1 } }),
@@ -172,7 +173,13 @@ test('definitely unsent requests retry with the same identity while terminal rec
     const saved = (await pool.query('SELECT error_code,transaction_hash FROM builder.report_deliveries WHERE id=$1', [first.deliveryId])).rows[0]
     assert.equal(saved.error_code, outcome.status === 'not-broadcast' ? 'delivery-not-broadcast' : 'delivery-reverted')
     assert.equal(saved.transaction_hash, 'transactionHash' in outcome ? outcome.transactionHash : null)
-    await events.ingest({ source, eventId: randomUUID(), kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    if ('reevaluate' in outcome) {
+      const automatic = (await pool.query("SELECT id,source FROM builder.evaluation_jobs WHERE owner=$1 AND state='pending'", [f.owner])).rows
+      assert.equal(automatic.length, 1); assert.equal(automatic[0].source, 'builder.retry')
+      await events.reconcile(first.deliveryId)
+      assert.equal((await pool.query("SELECT count(*)::int n FROM builder.evaluation_jobs WHERE owner=$1 AND state='pending'", [f.owner])).rows[0].n, 1)
+      await pool.query('UPDATE builder.evaluation_jobs SET available_at=clock_timestamp() WHERE id=$1', [automatic[0].id])
+    } else await events.ingest({ source, eventId: randomUUID(), kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
     const retry = await events.claimEvaluation(); assert.ok(retry)
     const second = await events.evaluate(retry.id, retry.token); assert.ok(second.deliveryId); assert.notEqual(second.deliveryId, first.deliveryId); assert.equal(second.nonce, '3')
     await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
@@ -565,7 +572,7 @@ test('EVM log source backfills confirmed ranges and emits identities for reorged
   let logs: FakeLog[] = [{ address: profile.guard as `0x${string}`, topics: [h('a')], data: '0x' as `0x${string}`, blockNumber: 2n, blockHash: h('2'), transactionHash: h('b'), logIndex: 0 }]
   const reader = {
     getBlockNumber: async () => 3n,
-    getBlock: async ({ blockNumber }: { blockNumber: bigint }) => ({ hash: blocks.get(blockNumber) }),
+    getBlock: async ({ blockNumber }: { blockNumber: bigint }) => ({ hash: blocks.get(blockNumber), timestamp: 1000n }),
     getLogs: async ({ fromBlock, toBlock }: { fromBlock: bigint; toBlock: bigint }) => logs.filter(log => log.blockNumber >= fromBlock && log.blockNumber <= toBlock),
   }
   const source = createEvmLogSource({ source: 'chain.sepolia.guard', rpcUrl: 'https://rpc.example.test', chainId: profile.chainId, address: profile.guard as `0x${string}`, fromBlock: 1n, confirmations: 0, maxBlockRange: 2n, reader: reader as never, clock: () => new Date(1000000) })
@@ -703,4 +710,49 @@ test('concurrent selections for different drafts still leave one enabled strateg
   const states = (await pool.query('SELECT state FROM builder.event_subscriptions WHERE id=ANY($1::text[])', [selections.map(s => s.subscription.id)])).rows.map(row => row.state).sort()
   assert.deepEqual(states, ['enabled', 'stopped'])
   for (const selected of selections) await events.stop(a.owner, randomUUID(), { subscriptionId: selected.subscription.id })
+})
+
+
+test('signed outage sources pause only on transitions, recover after restart and never expand legacy consent', async () => {
+  const databaseName = name + '_outage', url = new URL(process.env.BUILDER_TEST_DATABASE_URL ?? '')
+  await admin.query(`CREATE DATABASE "${databaseName}"`)
+  url.pathname = '/' + databaseName
+  const pool = database(url.toString())
+  try {
+  await migrate(pool)
+  const f = await fixture('1', pool), legacy = await fixture('1', pool), source = 'test.outage', automation = createAutomation(pool, profile)
+  const outagePolicy = { sources: [source], maxAgeSeconds: 60, onRecovery: 'reevaluate' as const }
+  const prepared = await automation.prepare(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, outagePolicy })
+  assert.match(prepared.intent.message, /zero-direction report/)
+  const confirmed = await automation.confirm(f.owner, randomUUID(), { intentId: prepared.intent.id, digest: prepared.digest,
+    signature: await f.account.signMessage({ message: prepared.intent.message }) })
+  const events = createEventDelivery(pool, profile, { evaluate: async input => {
+    const state = await readOutageState(pool, input.consent.outagePolicy)
+    return { status: 'changed', reportHash: digestJson(state.pauseRequired), report: { paused: state.pauseRequired } }
+  } })
+  const first = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: confirmed.consent.id, source })
+  const old = await events.enable(legacy.owner, randomUUID(), { draftId: legacy.draft.id, expectedRevision: 2, artifactId: legacy.artifact.artifactId, consentId: legacy.consent.id, source })
+  await events.health(source, { cursor: {}, observedAt: new Date().toISOString(), health: 'healthy' })
+  assert.equal(await events.scheduleHealthEvaluations(), 0)
+  await events.health(source, { cursor: {}, observedAt: new Date().toISOString(), health: 'error' })
+  assert.equal(await events.scheduleHealthEvaluations(), 1)
+  assert.equal(await createEventDelivery(pool, profile).scheduleHealthEvaluations(), 0, 'restart retains the last transition')
+  const job = await events.claimEvaluation(); assert.ok(job); assert.equal(job.owner, f.owner)
+  const paused = await events.evaluate(job.id, job.token); assert.equal(paused.result.status, 'changed')
+  assert.equal((await pool.query('SELECT payload FROM builder.report_deliveries WHERE id=$1', [paused.deliveryId])).rows[0].payload.paused, true)
+  await events.health(source, { cursor: {}, observedAt: new Date().toISOString(), health: 'recovered' })
+  assert.equal(await events.scheduleHealthEvaluations(), 1)
+  const recovery = await events.claimEvaluation(); assert.ok(recovery)
+  const resumed = await events.evaluate(recovery.id, recovery.token)
+  assert.equal((await pool.query('SELECT payload FROM builder.report_deliveries WHERE id=$1', [resumed.deliveryId])).rows[0].payload.paused, false)
+  await events.health(source, { cursor: {}, observedAt: new Date(Date.now() - 120000).toISOString(), health: 'healthy' })
+  assert.equal(await events.scheduleHealthEvaluations(), 1, 'stale observations count as an outage')
+  await automation.revoke(f.owner, randomUUID(), { consentId: confirmed.consent.id, signature: await f.account.signMessage({ message: revokeMessage(confirmed.consent) }) })
+  assert.equal(await events.scheduleHealthEvaluations(), 0)
+  assert.equal((await events.get(f.owner, first.subscription.id)).state, 'stopped')
+  await events.stop(legacy.owner, randomUUID(), { subscriptionId: old.subscription.id })
+  } finally {
+    await pool.end()
+    await admin.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`)
+  }
 })

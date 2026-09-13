@@ -3,7 +3,11 @@ import { z } from 'zod'
 import type { ScenarioInput } from 'aqua-executor/builder-preview'
 import { DraftConflict, draftSchema, digestJson, getCapabilities, patchSchema, scaledDecimal, validateStrategy,
   assessRequirements, assessRequirementCriteria, type StrategyDraft, type DeploymentProfile, type DraftPatch } from '@pintool/strategy-builder'
-import { requirementCriteriaSchema } from '@pintool/strategy-builder'
+import { requirementCriterionSchema } from '@pintool/strategy-builder'
+
+// OpenAI strict function schemas accept anyOf, but not the oneOf emitted by
+// Zod's discriminatedUnion. Literal type tags keep these variants disjoint.
+const modelCriteriaSchema = z.array(z.union(requirementCriterionSchema.options)).min(1).max(12)
 
 export interface DesignRepository {
   read(): Promise<StrategyDraft>
@@ -18,6 +22,7 @@ export interface DesignRepository {
   previews?(): Promise<unknown>
   inventory?(expectedRevision: number): Promise<unknown>
   templateContext?(expectedRevision: number): Promise<unknown>
+  lifecycleStatus?(): Promise<unknown>
   registrationPlan?(requestId: string, expectedRevision: number, artifactId: string): Promise<unknown>
   cancellationPlan?(requestId: string, expectedRevision: number, artifactId: string): Promise<unknown>
 }
@@ -29,8 +34,11 @@ export const designEditSchema = z.object({
   expectedRevision: z.number().int(), operation: z.enum(['patch', 'restore']), restoreRevision: z.number().int().nullable(),
   edits: z.array(z.object({ field: z.enum(paths), value: z.string().max(120) }).strict()).max(24),
   requirements: z.array(z.object({ id: z.string().nullable(), text: z.string().max(1200), priority: z.enum(['must','prefer']), capabilityIds: z.array(z.string()).max(12),
-    criteria: requirementCriteriaSchema.nullable().optional() }).strict()).max(20),
+    criteria: modelCriteriaSchema.nullable().optional() }).strict()).max(20),
 }).strict()
+const modelDesignEditSchema = designEditSchema.extend({ requirements: z.array(designEditSchema.shape.requirements.element.extend({
+  criteria: modelCriteriaSchema.nullable(),
+})).max(20) })
 export const visibleDraft = (input: StrategyDraft) => {
   const draft = draftSchema.parse(input)
   return { id: draft.id, revision: draft.revision, kind: draft.kind, maker: draft.maker, allocations: draft.allocations,
@@ -116,7 +124,7 @@ export function createDesignTools(context: { repository: DesignRepository; profi
     }
   }
   return {
-    getCapabilities: tool({ description: 'Discover SwapVM, Guard, CRE and Aqua mechanisms, limitations and separate evidence layers. Use short mechanism keywords or null for the full inventory, not a paragraph. Fixed LP input fees are available only in the verified Guard V2 recipe; protocol and dynamic fees remain blocked.',
+    getCapabilities: tool({ description: 'Discover SwapVM, Guard, CRE and Aqua mechanisms, limitations and separate evidence layers. Use short mechanism keywords or null for the full inventory, not a paragraph. Only zero LP fee is currently enabled; nonzero LP input fees are blocked because the legacy Guard composition undercounts gross input. Protocol and dynamic fees remain blocked.',
       strict: true, inputSchema: z.object({ query: z.string().nullable() }).strict(), execute: ({ query }) => safe(async () => {
         await read()
         return getCapabilities(query ? { text: query } : {}).map(c => ({ id: c.id, label: c.label, layer: c.layer, description: c.description,
@@ -139,7 +147,7 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         return repository.inventory(expectedRevision)
       }) }),
     createOrPatchDraft: tool({ description: 'Edit this existing owned draft or restore a previous revision. Values are decimal strings; allocations and Guard caps use HUMAN token units, prices use quote/base, fees use bps, deadline uses Unix seconds. Unmentioned fields persist. Set curve before its parameters. Requirement IDs are null for new requirements or an existing ID when refining. This does not publish, approve, register or broadcast anything.',
-      strict: true, inputSchema: designEditSchema, execute: (input, options) => safe(async () => {
+      strict: true, inputSchema: modelDesignEditSchema, execute: (input, options) => safe(async () => {
         const draft = await read()
         const requestId = 'agent-' + digestJson({ turnId: context.turnId, toolCallId: options.toolCallId }).slice(2)
         let result: Awaited<ReturnType<DesignRepository['patch']>>
@@ -209,6 +217,7 @@ export function createDesignTools(context: { repository: DesignRepository; profi
         if (view === 'simulations') return { draft: visibleDraft(draft), simulations: await repository.simulations?.() ?? [] }
         return view === 'history' ? { draft: visibleDraft(draft), history: await repository.history() } : {
           ...visibleDraft(draft), ...(draft.templatePin ? { templateContext: await repository.templateContext?.(draft.revision) ?? null } : {}),
+          ...(repository.lifecycleStatus ? { lifecycleStatus: await repository.lifecycleStatus() } : {}),
         }
       }) }),
     exportStrategy: tool({ description: 'Export the current public draft as a portable non-executable specification. No private policy, signature or transaction is included. Executable artifact export requires the later compiler/simulation stage.',

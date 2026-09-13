@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { z } from 'zod'
+import { asSchema } from 'ai'
 import { draftSchema, patchDraft, sepoliaStandingProfile } from '@pintool/strategy-builder'
 import { createDesignTools, designEditSchema, editToPatch, resolveProfileToken, visibleDraft } from '../src/design-tools.ts'
 
@@ -11,6 +12,24 @@ const draft = () => draftSchema.parse({ schemaVersion: 1, id: 'draft', owner: 'w
   requirements: [{ id: 'keep-zero-fee', text: 'Keep zero fees', priority: 'must', sourceMessageId: 'first', capabilityIds: ['curve.concentrated'] }],
   salt: '1', createdAt: '2026-09-13T00:00:00.000Z', updatedAt: '2026-09-13T00:00:00.000Z' })
 const input = (edits: { field: string; value: string }[]) => designEditSchema.parse({ expectedRevision: 1, operation: 'patch', restoreRevision: null, edits, requirements: [] })
+
+test('all twelve tools emit OpenAI strict schemas including nested requirement criteria', async () => {
+  const tools = createDesignTools({ profile, turnId: 'turn', sourceMessageId: 'message', nowSec: 1, repository: {
+    read: async () => draft(), history: async () => [], patch: async () => { throw new Error('unused') }, restore: async () => { throw new Error('unused') },
+  } })
+  function verify(schema: unknown) {
+    if (!schema || typeof schema !== 'object') return
+    const node = schema as Record<string, unknown>
+    assert.equal('oneOf' in node, false, 'OpenAI rejects Zod discriminatedUnion oneOf')
+    if (node.type === 'object') {
+      assert.equal(node.additionalProperties, false)
+      assert.deepEqual([...(node.required as string[] ?? [])].sort(), Object.keys(node.properties as object ?? {}).sort(), 'Every property must be required; nullable represents optional model values')
+    }
+    for (const value of Object.values(node)) if (Array.isArray(value)) value.forEach(verify); else verify(value)
+  }
+  assert.equal(Object.keys(tools).length, 12)
+  for (const tool of Object.values(tools)) verify(await asSchema<unknown>(tool.inputSchema).jsonSchema)
+})
 
 test('history tool results contain JSON values even when a repository returns PostgreSQL Date objects', async () => {
   const d = draft(), tools = createDesignTools({ profile, turnId: 'turn', sourceMessageId: 'message', nowSec: 1, repository: {

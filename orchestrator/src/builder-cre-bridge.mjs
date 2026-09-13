@@ -6,6 +6,7 @@ import { DeliveryNotSentError, DeliveryDeferredError } from '../../packages/buil
 import { encodeBuilderReport, reportSchema, builderTermsHash } from './builder-cre-protocol.mjs';
 import { createCreSimulator, CreNotStartedError } from './builder-cre-simulator.mjs';
 import { createBuilderCreChain } from './builder-cre-chain.mjs';
+import { readOutageState } from '../../packages/builder-service/src/outage-policy.ts';
 
 const savedSchema = z.object({ schemaVersion: z.literal(1), candidate: reportSchema,
   bindingDigest: z.string().regex(/^0x[0-9a-f]{64}$/), fromBlock: z.string().regex(/^(0|[1-9][0-9]*)$/).max(78),
@@ -26,7 +27,8 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
   // A single broadcaster must be exclusive to this adapter. This conservative
   // lane intentionally serializes all Makers on the configured chain.
   const lane = `builder-cre:${profile.chainId}`;
-  const configFor = trusted => ({ ...options.baseConfig, ...trusted.config, providerStrategies: [] });
+  const configFor = async trusted => ({ ...options.baseConfig, ...trusted.config, providerStrategies: [],
+    builderPause: (await readOutageState(pool, trusted.outagePolicy)).pauseRequired });
   const check = (candidate, trusted) => {
     const report = reportSchema.parse(candidate), config = trusted.config;
     if (!matches(report.maker, config.maker) || !matches(report.strategyHash, config.strategyHash) || report.chainId !== String(profile.chainId) ||
@@ -45,7 +47,7 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
   }
   async function finish(id, expected, attempt) {
     if (attempt.expected_digest !== expected.digest) throw new Error('builder-cre-attempt-integrity');
-    if (attempt.state === 'not-sent') return { status: 'not-broadcast' };
+    if (attempt.state === 'not-sent') return { status: 'not-broadcast', ...(attempt.outcome?.reason === 'stale' ? { reevaluate: true } : {}) };
     // Reverify receipts even if an earlier process saved an accepted result.
     const proof = await chain.accepted({ report: expected.report, fromBlock: String(attempt.from_block), transactionHash: attempt.transaction_hash ?? undefined });
     if (!proof) return null;
@@ -58,7 +60,7 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
       const trusted = await load(reference(input.subscription));
       const before = await chain.snapshot(trusted.config.maker, trusted.config.strategyHash);
       const payload = { ...trusted.payload, requestId: `builder-${randomUUID()}`, builder: { phase: 'evaluate' } };
-      const result = await simulate({ config: configFor(trusted), payload });
+      const result = await simulate({ config: await configFor(trusted), payload });
       if (result.status !== 'evaluated' || result.requestId !== payload.requestId) throw new Error('builder-cre-evaluation-invalid');
       const candidate = check(result.report, trusted), termsHash = builderTermsHash(candidate);
       if (termsHash !== result.termsHash || Date.now() - Date.parse(result.observedAt) > 300000 || Date.parse(result.observedAt) > Date.now() + 30000) throw new Error('builder-cre-evaluation-stale');
@@ -70,7 +72,7 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
     },
     async deliver(input) {
       const client = await pool.connect();
-      let locked = false, destroy = false;
+      let locked = false, destroy = false, attemptMayExist = false;
       try {
         locked = (await client.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS locked', [lane])).rows[0].locked;
         if (!locked) throw new DeliveryDeferredError('builder-cre-broadcaster-busy', 503);
@@ -79,6 +81,7 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
           row.report_hash !== input.reportHash || digestJson(row.payload) !== digestJson(input.report)) throw new DeliveryNotSentError('builder-cre-request-mismatch', 400);
         const prior = (await client.query('SELECT * FROM builder.cre_delivery_attempts WHERE delivery_id=$1', [input.deliveryId])).rows[0];
         if (prior) {
+          attemptMayExist = true;
           const recovered = await finish(input.deliveryId, candidate, prior);
           if (recovered && !('status' in recovered)) return recovered;
           throw new Error('builder-cre-existing-attempt-requires-reconciliation');
@@ -93,11 +96,13 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
         await chain.snapshot(candidate.report.maker, candidate.report.strategyHash);
         const payload = { ...trusted.payload, requestId: `builder-${input.deliveryId}`, builder: { phase: 'deliver', deliveryId: input.deliveryId,
           nonce: input.nonce, validAfter: candidate.report.validAfter, termsHash: input.reportHash } };
+        const config = await configFor(trusted);
         // Commit the ambiguity fence before starting a process that might send.
+        attemptMayExist = true;
         await client.query(`INSERT INTO builder.cre_delivery_attempts(delivery_id,lane,state,expected_digest,from_block) VALUES($1,$2,'started',$3,$4)`,
           [input.deliveryId, lane, candidate.digest, saved.fromBlock]);
         let result;
-        try { result = await simulate({ config: configFor(trusted), payload }); }
+        try { result = await simulate({ config, payload }); }
         catch (error) {
           if (error instanceof CreNotStartedError) {
             await client.query("UPDATE builder.cre_delivery_attempts SET state='not-sent',outcome=$2,updated_at=clock_timestamp() WHERE delivery_id=$1", [input.deliveryId, JSON.stringify({ reason: 'process-not-started' })]);
@@ -114,6 +119,10 @@ export function createBuilderCreBridge(pool, profile, options, dependencies = {}
         const proof = await finish(input.deliveryId, candidate, attempt);
         if (!proof || 'status' in proof) throw new Error('builder-cre-reconciliation-required');
         return proof;
+      } catch (error) {
+        if (!attemptMayExist && !(error instanceof DeliveryNotSentError) && !(error instanceof DeliveryDeferredError))
+          throw new DeliveryNotSentError('builder-cre-preflight-failed', 503);
+        throw error;
       } finally {
         if (locked) try { await client.query('SELECT pg_advisory_unlock(hashtextextended($1,0))', [lane]); } catch { destroy = true; }
         client.release(destroy);

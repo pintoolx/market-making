@@ -3,7 +3,7 @@ import type { PolicyEnvelope, PublicationIntent, StrategyDraft, StrategySpec, Te
 import type { Compilation, CompilationItem, InventoryResult, SimulationDetail, SimulationItem } from './preparation';
 
 // Public API projection only; the backend owns validation, ownership and transitions.
-export type ReportDelivery = { id: string; nonce: string; status: 'pending' | 'broadcast' | 'accepted' | 'failed'; transactionHash: string | null; reportDigest: string | null; errorCode: string | null; updatedAt: string };
+export type ReportDelivery = { id: string; nonce: string; status: 'pending' | 'broadcast' | 'accepted' | 'failed'; allowedDirections?: string | null; transactionHash: string | null; reportDigest: string | null; errorCode: string | null; updatedAt: string };
 export type Token = { address: string; symbol: string; decimals: number };
 export type Draft = StrategyDraft;
 export type TemplateItem = { templateId: string; version: number; digest: `0x${string}`; provider: `0x${string}`; title: string;
@@ -27,10 +27,11 @@ export type RequirementReceipt = { schemaVersion: 1; engineVersion: string; revi
   draftId: string; fromRevision: number; revision: number; contentDigest: `0x${string}`; manifestHash: `0x${string}`;
   decisions: { requirementId: string; decision: 'confirm' | 'accept-limitation' }[]; userConfirmed: true; needsRecompile: boolean;
   confirmedAt: string; registrationReady: false };
-export type AutomationConsentIntent = { schemaVersion: 1; id: string; owner: string; draftId: string; revision: number; artifactId: string;
+export type OutagePolicy = { sources: string[]; maxAgeSeconds: number; onRecovery: 'reevaluate' };
+export type AutomationConsentIntent = { outagePolicy?: OutagePolicy; schemaVersion: 1; id: string; owner: string; draftId: string; revision: number; artifactId: string;
   contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
   message: string; registrationReady: false };
-export type AutomationConsent = { schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
+export type AutomationConsent = { outagePolicy?: OutagePolicy; schemaVersion: 1; id: string; intentId: string; owner: string; draftId: string; revision: number; artifactId: string;
   contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`; scope: 'standing-report-delivery'; expiresAt: string;
   message: string; signature: `0x${string}`; consentDigest: `0x${string}`; active: boolean; registrationReady: false };
 export type EventSubscription = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; source: string; generation: number;
@@ -41,12 +42,16 @@ export type AuthorizationBinding = { schemaVersion: 1; id: string; intentId: str
   manifestHash: `0x${string}`; contentDigest: `0x${string}`; maker: string; guard: string; router: string; strategyHash: `0x${string}`; programHash: `0x${string}`;
   orderHash: `0x${string}`; reportSchema: 2; reportDigest: `0x${string}`; reportTransactionHash: `0x${string}`; reportNonce: string;
   makerMessage: string; makerSignature: `0x${string}`; bindingDigest: `0x${string}`; registrationReady: false };
-export type TransactionPlan = { schemaVersion: 1; kind: 'registration' | 'cancellation'; id: string; chainId: number; owner: string; maker: `0x${string}`;
+export type TransactionPlan = { schemaVersion: 1; kind: 'registration' | 'cancellation' | 'guard-revoke' | 'guard-unrevoke' | 'allowance-revoke'; id: string; chainId: number; owner: string; maker: `0x${string}`;
   draftId: string; revision: number; artifactId: string; contentDigest: `0x${string}`; manifestHash: `0x${string}`; strategyHash: `0x${string}`;
   programHash: `0x${string}`; orderHash: `0x${string}`; tokens: `0x${string}`[]; amounts: string[];
   transactions: { kind: string; to: `0x${string}`; data: `0x${string}`; value: '0x0'; description: string; spender?: `0x${string}`; token?: `0x${string}`; amountAtomic?: string }[];
   preconditions: string[]; registrationReady: false };
 export type Turn = { id: string; state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'superseded'; messageId: string | null };
+export type WalletExecution = { id: string; owner: string; planId: string; step: number; version: string;
+  state: 'awaiting-wallet' | 'pending' | 'unverified' | 'confirmed' | 'reverted' | 'replaced' | 'rejected'; nonce: string; fromBlock: string;
+  request: { chainId: number; from: `0x${string}`; to: `0x${string}`; data: `0x${string}`; value: '0x0'; nonce: string; gas: string; expiresAt: string };
+  transactionHash: `0x${string}` | null; evidence: Record<string, unknown> | null; createdAt: string; updatedAt: string };
 export type TurnEvent = { sequence: string; attempt: number; kind: 'started' | 'text' | 'tool' | 'completed' | 'failed' | 'cancelled' | 'superseded'; payload: { text?: string; name?: string; ok?: boolean } };
 
 export class BuilderError extends Error {
@@ -78,6 +83,30 @@ export class BuilderError extends Error {
       'authorization-binding-mismatch': 'The binding or strategy revision changed. Verify it again.', 'authorization-binding-integrity': 'The authorization binding could not be verified. Reload and retry.',
       'invalid-authorization-binding-signature': 'The Guard binding signature does not match this Maker wallet.', 'transaction-plan-integrity': 'The transaction plan failed its integrity checks. Prepare it again.',
       'wallet-ownership-required': 'Connect the liquidity wallet that owns this strategy before preparing transactions.',
+      'wallet-execution-unavailable': 'Wallet execution is not enabled on this service.',
+      'wallet-simulation-required': 'Run a complete successful fork simulation of this compilation before signing registration.',
+      'wallet-plan-stale': 'This registration plan uses an earlier strategy version. Compile and review the current version.',
+      'wallet-strategy-expired': 'This strategy is expiring. Set a later deadline and compile again before registration.',
+      'wallet-transaction-unresolved': 'Check the pending wallet transaction before starting another one.',
+      'wallet-reconciliation-required': 'Recover the existing transaction or confirm that you closed the wallet request before retrying.',
+      'wallet-step-completed': 'This transaction step already has a confirmed receipt. Refresh wallet history.',
+      'wallet-preflight-expired': 'The wallet checks expired. Review the transaction again for fresh checks.',
+      'wallet-external-transaction-pending': 'This Maker wallet has another pending transaction. Wait for it to settle before retrying.',
+      'wallet-strategy-already-registered': 'This strategy is already registered in Aqua. Refresh its inventory and transaction history.',
+      'wallet-strategy-not-registered': 'This strategy is not currently registered for this pair. Refresh its inventory before docking.',
+      'wallet-strategy-revoked': 'This strategy has a direct Guard revocation. Review the revocation controls before registration.',
+      'wallet-insufficient-token-balance': 'The Maker wallet does not hold the requested token amounts. Fund it or adjust the allocations.',
+      'wallet-insufficient-allowance': 'Confirm both Aqua token approvals before signing ship.',
+      'wallet-insufficient-gas': 'The Maker wallet needs more Sepolia ETH for the estimated network fee.',
+      'wallet-chain-mismatch': 'The service RPC is on the wrong network. Wallet execution is unavailable until it is corrected.',
+      'wallet-chain-stale': 'The service could not obtain a fresh chain head. Retry the wallet checks later.',
+      'wallet-chain-reorg': 'The chain changed during verification. Check the transaction again.',
+      'wallet-profile-mismatch': 'The execution contracts do not match this deployment profile. Contact the service operator.',
+      'wallet-transaction-mismatch': 'This transaction hash does not match the Maker and nonce of the saved wallet request.',
+      'wallet-recovery-hash-required': 'Enter the transaction hash from your wallet to continue receipt recovery.',
+      'wallet-receipt-event-mismatch': 'The receipt does not prove the expected action. Its request stays unresolved.',
+      'wallet-readback-mismatch': 'The receipt and contract state could not be reconciled. Check the transaction again.',
+      'fee-guard-incompatible': 'Nonzero LP fees are blocked because this Guard composition cannot enforce gross input limits. Explicitly choose zero fees for a new strategy, or use dock and revoke to stop an older one.',
     } as Record<string, string>)[code] ?? 'Unable to connect to the strategy workspace. Please retry.');
   }
 }
@@ -125,8 +154,8 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
       call<{ receipt: RequirementReceipt }>(`/requirement-reviews/${reviewId}/confirm`, { digest, decisions }, key),
     automationConsent: async (draft: Draft) => (await call<{ consent: AutomationConsent | null; revision: number; registrationReady: false }>(
       `/drafts/${draft.id}/automation-consent?revision=${draft.revision}`)).consent,
-    prepareAutomationConsent: (draft: Draft, artifactId: string, key: string) => call<{ intent: AutomationConsentIntent; digest: `0x${string}` }>(
-      `/drafts/${draft.id}/automation-consent`, { expectedRevision: draft.revision, artifactId }, key),
+    prepareAutomationConsent: (draft: Draft, artifactId: string, key: string, outagePolicy?: OutagePolicy) => call<{ intent: AutomationConsentIntent; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/automation-consent`, { expectedRevision: draft.revision, artifactId, ...(outagePolicy ? { outagePolicy } : {}) }, key),
     confirmAutomationConsent: (intentId: string, digest: `0x${string}`, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
       `/automation-consents/${intentId}/confirm`, { digest, signature }, key),
     revokeAutomationConsent: (consentId: string, signature: `0x${string}`, key: string) => call<{ consent: AutomationConsent }>(
@@ -134,7 +163,7 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
     eventDeliveries: (subscriptionId: string) => call<{ deliveries: ReportDelivery[] }>(`/event-subscriptions/${subscriptionId}/deliveries`),
     eventSubscription: async (draft: Draft) => (await call<{ subscription: EventSubscription | null; revision: number; registrationReady: false }>(
       `/drafts/${draft.id}/event-subscription?revision=${draft.revision}`)).subscription,
-    eventHealth: (limit = 100) => call<{ health: EventHealth[] }>(`/events/health?limit=${limit}`),
+    eventHealth: (limit = 100) => call<{ health: EventHealth[]; outagePauseEnabled?: boolean }>(`/events/health?limit=${limit}`),
     enableEventSubscription: (draft: Draft, artifactId: string, consentId: string, key: string, source = '*') => call<{ subscription: EventSubscription }>(
       `/drafts/${draft.id}/event-subscription`, { expectedRevision: draft.revision, artifactId, consentId, source }, key),
     stopEventSubscription: (subscriptionId: string, key: string) => call<{ subscription: EventSubscription }>(
@@ -150,6 +179,12 @@ export function builderClient(identity: { getAccessToken(): Promise<string | nul
       `/drafts/${draft.id}/registration-plan`, { expectedRevision: draft.revision, artifactId }, key),
     prepareCancellation: (draft: Draft, artifactId: string, key: string) => call<{ plan: TransactionPlan; digest: `0x${string}` }>(
       `/drafts/${draft.id}/cancellation-plan`, { expectedRevision: draft.revision, artifactId }, key),
+    prepareControl: (draft: Draft, artifactId: string, kind: 'guard-revoke' | 'guard-unrevoke' | 'allowance-revoke', key: string) => call<{ plan: TransactionPlan; digest: `0x${string}` }>(
+      `/drafts/${draft.id}/${kind}-plan`, { expectedRevision: draft.revision, artifactId }, key),
+    walletTransactions: (draftId: string) => call<{ enabled: boolean; plans: { plan: TransactionPlan; digest: `0x${string}` }[]; executions: WalletExecution[] }>(`/drafts/${draftId}/wallet-transactions`),
+    prepareWalletTransaction: (planId: string, step: number, key: string) => call<{ execution: WalletExecution }>('/wallet-transactions/prepare', { planId, step }, key),
+    reconcileWalletTransaction: (executionId: string, transactionHash?: `0x${string}`) => call<{ execution: WalletExecution }>(`/wallet-transactions/${executionId}/reconcile`, { ...(transactionHash ? { transactionHash } : {}) }, crypto.randomUUID()),
+    rejectWalletTransaction: (executionId: string) => call<{ execution: WalletExecution }>(`/wallet-transactions/${executionId}/rejected`, {}, crypto.randomUUID()),
     inventory: (draft: Draft) => call<InventoryResult>(`/drafts/${draft.id}/inventory?revision=${draft.revision}`),
     compilations: (id: string) => call<{ artifacts: CompilationItem[] }>(`/drafts/${id}/artifacts`),
     compilation: (id: string) => call<Compilation>(`/artifacts/${id}`),

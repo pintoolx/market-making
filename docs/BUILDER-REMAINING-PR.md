@@ -1,35 +1,59 @@
 # Remaining Builder integration
 
-The user requested one PR for the remaining changes on 2026-09-13. Work belongs
-on `feat/builder-cre-delivery`. Review and fix the PR, then leave it unmerged.
-Only a subsequent explicit user instruction authorizes merging. Do not roll out
-this branch to Railway or change existing Maker positions as part of review.
+Updated 2026-09-14. The user requested one PR for the remaining changes.
+Work belongs on `feat/builder-cre-delivery`, Draft
+[PR #102](https://github.com/pintoolx/market-making/pull/102). Review and fix it,
+then leave it unmerged. Only a subsequent explicit user instruction authorizes
+merging. Do not roll out this branch to Railway or change existing Maker
+positions as part of review.
 
-The full product acceptance remains in `SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md`.
+The full acceptance remains in `SWAPVM-BUILDER-IMPLEMENTATION-GOAL.md`.
 Its merge/rollout completion criterion is deferred by this newer instruction.
 
-Implemented and locally verified in this batch:
+## Implemented in this PR
 
-- Two-phase Builder evaluation and delivery through the existing confidential
-  workflow, with a persisted report identity and exact nonce.
-- Trusted binding of a compiled Maker instance to the signed Provider version
-  and current Maker consent; no manual strategy catalog changes.
-- Event routing, selection, delivery ordering and uncertain-receipt recovery.
-- Browser first-consent and stop-updates flows, including the corrected revoke
-  signature message. Wallet plans remain unsigned.
-- Actual CRE CLI evaluation through signed template/consent and PostgreSQL,
-  with live market/Guard reads and no broadcast. See `BUILDER-CRE-DELIVERY.md`.
+- [x] Signed Provider version and Maker consent feed two-phase local CRE
+  evaluation/delivery with exact report identities/nonces, routing, ordering,
+  change-only updates and ambiguous-broadcast recovery.
+- [x] Capability/lifecycle context distinguishes implemented features, configured
+  services and observed chain evidence. Real OpenAI multi-turn evaluation checks
+  unsupported requests, alternatives and preservation of unrelated parameters.
+  All twelve tools now have OpenAI-compatible strict schemas.
+- [x] Maker wallet preflight, explicit signing, durable transaction history,
+  replacement/reorg/lost-response recovery and historical dock/revoke controls.
+  Actual browser wallet and settlement acceptance passes in a Sepolia fork.
+- [x] Public Kraken and multi-contract EVM sources; bounded requests/backfill,
+  persistent health transitions and signed source-outage pause/recovery.
+  Real CLI + PostgreSQL evaluation verifies healthy -> pause -> recovery.
+- [x] Reject unsafe legacy nonzero LP-fee/Guard composition. Regression tests
+  reproduce gross-input and real-inventory cap violations. New flows use zero
+  fees only; historical recovery remains available.
 
-Keep this as one draft PR while the remaining product acceptance is incomplete:
+See [wallet execution](BUILDER-WALLET-EXECUTION.md),
+[CRE delivery](BUILDER-CRE-DELIVERY.md),
+[fee limitation](BUILDER-FEE-GUARD-LIMITATION.md) and
+[verification](BUILDER-INTEGRATION-VERIFICATION.md).
 
-- [ ] Wallet transaction execution, replacement and failed-readback recovery.
-- [ ] Consented source-outage pause and recovery, with delivery evidence.
-- [ ] Complete requirement-to-settlement acceptance.
-- [ ] New public Sepolia lifecycle matrix and resident-worker recovery evidence.
+## Still outside completed acceptance
 
-Do not treat passing the integration checks as completion of these items. No
-rollout or public-chain write was performed in this batch.
+- [ ] New funded user-wallet/public Sepolia lifecycle: approve, ship, real report
+  acceptance, successful trade, rejected trade with unchanged balances, revoke,
+  dock and allowance revocation, with public receipts.
+- [ ] Resident worker public-chain outage pause/recovery and restart during
+  broadcast, including exact accepted nonces and canonical receipts.
+- [ ] Continuous natural-language requirement -> signed Provider version ->
+  Maker acceptance -> public settlement evidence in the deployed product.
+  Individual model, browser, CLI and fork tests do not prove this whole path.
+- [ ] User-authorized merge/rollout, production migrations/configuration and
+  live Privy/user-wallet acceptance. Keep these pending until explicitly allowed.
 
-Keep local simulation, fork evidence and public Sepolia evidence distinct. CRE
-deployment, activation and secret upload remain outside this authorization.
-Record verification and unresolved acceptance items in the final PR description.
+Public acceptance should use a newly selected disposable Maker controlled by
+the user; this review does not authorize reuse of existing Maker positions or
+reading their keys. Prepare the selected template, expected transaction plans
+and event scenarios first, then record wallet/report receipts during the
+authorized deployment stage. Fork hashes are not public receipts.
+
+Full SwapVM opcode coverage, new fee-aware Guard design and automatic asset
+rebalancing are deferred. CRE deployment, activation and secret upload remain
+outside this authorization. No new public-chain transaction or Railway rollout
+was performed for this implementation.

@@ -55,6 +55,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       BUILDER_TEST_DATABASE_URL: postgresql://pintool_test:local-ci-only@127.0.0.1:5432/postgres
+      BUILDER_WALLET_LOCAL_TEST: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -64,6 +65,9 @@ jobs:
         with:
           node-version: '24.14.0'
           cache: pnpm
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09
+        with:
+          version: v1.8.1
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter @pintool/builder-service --filter @pintool/strategy-builder --filter aqua-executor --filter @pintool/mandate-service
       - run: pnpm typecheck:builder-service
       - run: pnpm test:builder-service
