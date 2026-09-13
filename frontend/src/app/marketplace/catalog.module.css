@@ -1,23 +1,23 @@
-.templateGrid {
+.grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 20px;
   align-items: stretch;
 }
 
-.templateGrid > article {
+.grid > article {
   width: 100%;
   min-width: 0;
   height: 100%;
   margin: 0;
 }
 
-.templateGrid .cardActions {
+.grid .cardActions {
   grid-template-columns: minmax(0, 1fr);
   padding: 20px 16px 16px;
 }
 
-.templateGrid .cardActions button {
+.grid .cardActions :is(button, a) {
   width: 100%;
   min-height: 44px;
 }

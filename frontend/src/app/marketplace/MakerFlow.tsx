@@ -16,8 +16,9 @@ import { readMandateReference, saveMandateReference } from './mandateReferenceSt
 import { usePublishedListings, type Listing } from './publishedStore';
 import { useProposals } from './proposalStore';
 import { ListingCard, PageHead, Steps } from './ui';
-import styles from './page.module.css';
 import aqua from './aqua.module.css';
+import catalog from './catalog.module.css';
+import secondary from '../components/shared/Secondary.module.css';
 import EnsStrategySearch from '../ens/EnsStrategySearch';
 import { discoverStrategyNames } from '../ens/strategyNames';
 import { FEATURED } from './featuredStrategies';
@@ -63,6 +64,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [maxTrade, setMaxTrade] = useState('1');
   const [phase, setPhase] = useState<Phase>('choose');
   const [mandate, setMandate] = useState<MandateState | null>(null);
+  const [recentMandate, setRecentMandate] = useState<{ maker: string; id: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reevaluating, setReevaluating] = useState(false);
   const [error, setError] = useState('');
@@ -71,12 +73,11 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const didNavigate = useRef(false);
   const restoredMaker = useRef('');
   const openingLinkedStrategy = useRef(false);
-  const returningToMarketplace = useRef(false);
   const lastLinkedStrategy = useRef<string | null>(null);
   const makerAddress = account.addresses.find(address => executableCatalog?.maker === address.toLowerCase());
 
   useEffect(() => { if (didNavigate.current) heading.current?.focus(); }, [phase]);
-  useEffect(() => { returningToMarketplace.current ||= consumeMarketplaceReturn(); }, []);
+  useEffect(() => { consumeMarketplaceReturn(); }, []);
   useEffect(() => {
     let current = true;
     getExecutableStrategies()
@@ -117,19 +118,27 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     return () => cancelAnimationFrame(frame);
   }, [phase, published.length, linkedId]);
   useEffect(() => {
+    const reference = makerAddress ? readMandateReference(makerAddress) : null;
+    setRecentMandate(reference ? { maker: makerAddress!.toLowerCase(), id: reference.mandateId } : null);
+    // Browsing Liquidity never opts into restoring a previous execution session.
+    if (!linkedMandateId) {
+      restoredMaker.current = '';
+      setMandate(null);
+      setRefreshing(false);
+      if (!linkedId) setPhase('choose');
+      return;
+    }
     const restoreKey = `${makerAddress?.toLowerCase()}:${linkedMandateId ?? ''}`;
     if (!makerAddress || restoredMaker.current === restoreKey
-      || openingLinkedStrategy.current || (!linkedMandateId && returningToMarketplace.current)) return;
+      || openingLinkedStrategy.current) return;
     if (linkedMandateId && !/^mandate-[a-f0-9-]{36}$/.test(linkedMandateId)) {
       setError('This mandate link is invalid.'); return;
     }
-    const reference = linkedMandateId ? { mandateId: linkedMandateId } : readMandateReference(makerAddress);
-    if (!reference) return;
     let current = true;
     setRefreshing(true);
-    getMandate(reference.mandateId)
+    getMandate(linkedMandateId)
       .then(state => {
-        if (!current || openingLinkedStrategy.current || (!linkedMandateId && returningToMarketplace.current)) return;
+        if (!current || openingLinkedStrategy.current) return;
         if (state.maker.toLowerCase() !== makerAddress.toLowerCase()) throw new Error('This mandate belongs to a different Maker wallet.');
         restoredMaker.current = restoreKey;
         saveMandateReference(state.maker, state.mandateId);
@@ -141,7 +150,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       .catch(() => { if (current && linkedMandateId) setError('Unable to open this mandate. Check the link and Maker wallet, then reload.'); })
       .finally(() => { if (current) setRefreshing(false); });
     return () => { current = false; };
-  }, [makerAddress, linkedMandateId]);
+  }, [makerAddress, linkedMandateId, linkedId]);
 
   const catalogMatchesWallet = !!makerAddress;
   const isExecutable = (item: Listing) => {
@@ -153,7 +162,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const go = (next: Phase) => {
     if (next === 'detail' && selected[0]) { router.push(strategyHref(selected[0].id, selected[0].ensName)); return; }
     if (next === 'choose') {
-      returningToMarketplace.current = true;
       restoredMaker.current = '';
       if (linkedId || linkedMandateId) router.push('/maker');
     }
@@ -299,10 +307,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
 
     {loadingLinked && <p role="status">Loading selected strategy…</p>}
     {phase === 'choose' && !loadingLinked && <>
-      {mandate && <Secondary onClick={() => { go('monitor'); void refresh(); }}>View current mandate</Secondary>}
+      {recentMandate && recentMandate.maker === makerAddress?.toLowerCase() && <Link className={secondary.secondary} href={`/maker?mandate=${encodeURIComponent(recentMandate.id)}`}>View current mandate</Link>}
       <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
-      <div className={`${styles.grid} ${aqua.grid}`}>
+      <div className={catalog.grid}>
         {listings.map(item => <ListingCard key={item.id} listing={item} action={<StrategyLink id={item.id} ens={item.ensName} />} />)}
       </div>
     </>}
