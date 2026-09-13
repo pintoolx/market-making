@@ -2,7 +2,7 @@
 
 The design uses standing authorization and event-driven reevaluation. It does not renew reports every ten minutes. This specification defines worker and recovery requirements; deployed behavior must be supported by implementation and environment evidence.
 
-The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health, lease-based outbox dispatch and resident worker persistence in migrations 010–013. The resident worker serializes active evaluation per subscription, cancels unsent work on stop or switch, draft revision, consent revoke or template withdrawal, checks the current binding before delivery, orders pending reports behind earlier unresolved nonces and reconciles `broadcast` rows after restart. Signed event ingress, market/log normalizers and a confirmed EVM log source with bounded backfill/reorg replay are available as deployment adapters; CRE and chain delivery adapters remain deployment-provided, and without a verified delivery adapter the service fails closed.
+The Builder service currently implements the consent, event subscription, inbox/outbox, evaluation lease, change-only delivery, trusted binding, retry, cursor/reorg health, lease-based outbox dispatch and resident worker persistence in migrations 010–015. The resident worker serializes active evaluation per subscription, cancels unsent work on stop or switch, draft revision, consent revoke or template withdrawal, checks the current binding before delivery, orders pending reports behind earlier unresolved nonces and reconciles `broadcast` rows after restart. Signed event ingress, market/log normalizers and a confirmed EVM log source with bounded backfill/reorg replay are available as deployment adapters; CRE and chain delivery adapters remain deployment-provided, and without a verified delivery adapter the service fails closed.
 
 ## Contract and delivery semantics
 
@@ -29,6 +29,10 @@ Verified Provider template + explicit Maker consent
 
 Events request evaluation; they are not trusted prices, reports or authorization. The first worker can use a CRE HTTP adapter. Local CLI simulation and authorized production HTTP delivery have different trust guarantees. Native CRE EVM log triggers are an optional adapter, not a reason to duplicate event processing.
 
+Subscription creation accepts an optional `source`, such as `market.kraken` or `chain.sepolia.guard`. Omission uses `*` for all sources, preserving existing subscriptions and the current UI default. A named source filters evaluation jobs and received/reorg notifications; the evaluator rechecks it against the stored event identity. Changing the source creates a new subscription generation and cancels unsent work from the previous enabled subscription. This is source-level routing; per-Maker/strategy log filtering remains a separate requirement.
+
+Migration 014 also scopes outbox deduplication by owner so each matching Maker receives a notification for the same event. Existing outbox rows are preserved; previously suppressed notifications are not backfilled.
+
 | Source | Required behavior |
 |---|---|
 | Maker activation, switch or limit change | Check consent and current binding; program changes require a new compiled instance and wallet review |
@@ -48,6 +52,10 @@ Public data polling, health checks and missed-event reconciliation may use timer
 Persist automation consent, event subscriptions, inbox/outbox, evaluation jobs, deliveries and chain cursors. Use transactional outbox writes, deduplication keys, leases, retries, backfill and reorg handling. Event delivery is not inherently exactly once; make side effects safely reconcilable.
 
 Serialize work per Maker and recheck active binding generation immediately before delivery. Switching A to B must prevent stale A work from reactivating A. A paused report for B does not pause currently active A. A database cancellation cannot undo a transaction already broadcast; retain pending identities and reconcile late receipts before retrying. Coordinate a shared broadcaster's transaction nonce separately from report nonces.
+
+The database claim in `deliver()` checks for an earlier pending or broadcast report for the same Maker, including previous subscriptions. A blocked claim returns `waiting` and consumes no attempt. The pending list applies the same filter, and the resident worker sends through that list after evaluation. An unresolved broadcast from a stopped subscription therefore holds the next selection until reconciliation; another Maker's reports remain independent.
+
+Migration 015 allocates each nonce above both the independently verified binding report and the last locally allocated nonce, preserving exact uint64 values and failing without a delivery at exhaustion. Consecutive identical terms reuse pending/broadcast/accepted work; a failed delivery can be evaluated again. A later return from terms A to B to A creates a new delivery and nonce, with deduplication scoped to the completed evaluation rather than historical report hashes. The gateway must still verify current Guard state before broadcasting; the stored binding is a baseline, not a continuously refreshed chain nonce.
 
 Keep `lastEvaluatedAt`, `lastInputObservedAt`, `lastChangedAt` and `lastAcceptedReport` distinct. Show monitoring health separately from current onchain authorization.
 

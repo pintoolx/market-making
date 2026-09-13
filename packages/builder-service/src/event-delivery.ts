@@ -12,6 +12,7 @@ import { readAuthorizationBinding, type AuthorizationBinding } from './bindings.
 import { cancelUnsentEventWork } from './event-control.ts'
 
 const sourceSchema = z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/)
+const subscriptionSourceSchema = z.union([z.literal('*'), sourceSchema])
 const eventIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/)
 const publicEventSchema = z.object({
   source: sourceSchema, eventId: eventIdSchema, kind: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
@@ -19,11 +20,11 @@ const publicEventSchema = z.object({
   chainId: z.number().int().positive().optional(), blockNumber: z.string().regex(/^[0-9]+$/).optional(),
   blockHash: hashSchema.optional(), transactionHash: hashSchema.optional(), logIndex: z.number().int().nonnegative().optional(),
 }).strict()
-const enableSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, artifactId: idSchema, consentId: idSchema }).strict()
+const enableSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, artifactId: idSchema, consentId: idSchema, source: subscriptionSourceSchema.default('*') }).strict()
 const stopSchema = z.object({ subscriptionId: idSchema }).strict()
 export type PublicEvent = z.infer<typeof publicEventSchema>
 export const parsePublicEvent = (input: unknown) => publicEventSchema.parse(input)
-type SubscriptionRow = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; generation: number; state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null; lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null }
+type SubscriptionRow = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; source: string; generation: number; state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null; lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null }
 type Snapshot = { subscription: SubscriptionRow; event: PublicEvent; draft: Awaited<ReturnType<typeof readOwnedDraft>>; artifact: Awaited<ReturnType<typeof readCompiledArtifact>>; consent: AutomationConsent; binding: AuthorizationBinding }
 export type EvaluationResult = { status: 'unchanged' | 'changed' | 'paused' | 'failed'; reportHash?: `0x${string}`; report?: Record<string, unknown>; reason?: string; observedAt?: string }
 export type DeliveryReceipt = { transactionHash: `0x${string}`; receipt?: Record<string, unknown> }
@@ -36,7 +37,7 @@ export type EventDeliveryDependencies = {
 
 function asIso(value: Date | string | null) { return value === null ? null : value instanceof Date ? value.toISOString() : value }
 function subscription(row: Record<string, unknown>): SubscriptionRow {
-  return { id: String(row.id), owner: String(row.owner), draftId: String(row.draft_id), revision: Number(row.revision), artifactId: String(row.artifact_id), consentId: String(row.consent_id), generation: Number(row.generation), state: row.state as SubscriptionRow['state'],
+  return { id: String(row.id), owner: String(row.owner), draftId: String(row.draft_id), revision: Number(row.revision), artifactId: String(row.artifact_id), consentId: String(row.consent_id), source: String(row.source), generation: Number(row.generation), state: row.state as SubscriptionRow['state'],
     lastEventAt: asIso(row.last_event_at as Date | null), lastInputObservedAt: asIso(row.last_input_observed_at as Date | null), lastEvaluatedAt: asIso(row.last_evaluated_at as Date | null), lastChangedAt: asIso(row.last_changed_at as Date | null), lastReportHash: row.last_report_hash as `0x${string}` | null, lastReportNonce: row.last_report_nonce === null ? null : String(row.last_report_nonce), stoppedAt: asIso(row.stopped_at as Date | null) }
 }
 function eventValue(row: Record<string, unknown>): PublicEvent {
@@ -55,6 +56,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
   async function currentSnapshot(client: PoolClient, sub: SubscriptionRow, event: PublicEvent) {
     const live = await readSubscription(client, sub.owner, sub.id, true)
     if (live.state !== 'enabled' || live.generation !== sub.generation || live.revision !== sub.revision) throw conflict('event-subscription-stopped')
+    if (live.source !== '*' && live.source !== event.source) throw conflict('event-source-mismatch')
     const draft = await readOwnedDraft(client, sub.owner, sub.draftId, true)
     if (draft.revision !== sub.revision) throw conflict('event-subscription-stale')
     const artifact = await readCompiledArtifact(client, profile, sub.owner, sub.artifactId, true)
@@ -84,7 +86,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         const binding = await readAuthorizationBinding(client, owner, draft.id, draft.revision, value.artifactId)
         if (!binding) throw conflict('authorization-binding-required')
         if (binding.strategyHash.toLowerCase() !== artifact.payload.strategyHash.toLowerCase() || binding.manifestHash !== artifact.payload.manifestHash || binding.contentDigest !== artifact.payload.contentDigest || binding.guard.toLowerCase() !== profile.guard.toLowerCase() || binding.router.toLowerCase() !== profile.router.toLowerCase()) throw new ServiceError('authorization-binding-integrity', 500)
-        const existing = (await client.query(`SELECT * FROM builder.event_subscriptions WHERE owner=$1 AND draft_id=$2 AND revision=$3 AND artifact_id=$4 AND consent_id=$5 AND state='enabled' ORDER BY generation DESC LIMIT 1`, [owner, draft.id, draft.revision, value.artifactId, value.consentId])).rows[0]
+        const existing = (await client.query(`SELECT * FROM builder.event_subscriptions WHERE owner=$1 AND draft_id=$2 AND revision=$3 AND artifact_id=$4 AND consent_id=$5 AND source=$6 AND state='enabled' ORDER BY generation DESC LIMIT 1`, [owner, draft.id, draft.revision, value.artifactId, value.consentId, value.source])).rows[0]
         if (existing) return { subscription: subscription(existing), registrationReady: false as const }
         const latest = (await client.query('SELECT COALESCE(MAX(generation),0)::bigint AS generation FROM builder.event_subscriptions WHERE owner=$1 AND draft_id=$2', [owner, draft.id])).rows[0]
         const id = randomUUID(), generation = Number(latest.generation) + 1
@@ -94,8 +96,8 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
           await cancelUnsentEventWork(client, [String(row.id)])
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.switched',$2,$3) ON CONFLICT DO NOTHING", [owner, row.id, row.revision])
         }
-        const row = (await client.query(`INSERT INTO builder.event_subscriptions(id,owner,draft_id,revision,artifact_id,consent_id,generation)
-          VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`, [id, owner, draft.id, draft.revision, value.artifactId, value.consentId, generation])).rows[0]
+        const row = (await client.query(`INSERT INTO builder.event_subscriptions(id,owner,draft_id,revision,artifact_id,consent_id,source,generation)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [id, owner, draft.id, draft.revision, value.artifactId, value.consentId, value.source, generation])).rows[0]
         await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'event-subscription.enabled',$2,$3)", [owner, id, draft.revision])
         return { subscription: subscription(row), registrationReady: false as const }
       })
@@ -131,7 +133,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
           event.chainId ?? null, event.blockNumber ?? null, event.blockHash ?? null, event.transactionHash ?? null, event.logIndex ?? null])
         if (!inserted.rowCount) return { event, duplicate: true as const, jobs: [] as string[] }
         const subscriptions = (await client.query(`SELECT s.* FROM builder.event_subscriptions s JOIN builder.automation_consents c ON c.id=s.consent_id AND c.owner=s.owner
-          LEFT JOIN builder.automation_consent_revocations r ON r.consent_id=c.id WHERE s.state='enabled' AND r.consent_id IS NULL AND c.expires_at>clock_timestamp()`)).rows
+          LEFT JOIN builder.automation_consent_revocations r ON r.consent_id=c.id WHERE s.state='enabled' AND (s.source='*' OR s.source=$1) AND r.consent_id IS NULL AND c.expires_at>clock_timestamp()`, [event.source])).rows
         const jobs: string[] = []
         for (const row of subscriptions) {
           const sub = subscription(row), id = randomUUID(), payload = { source: event.source, eventId: event.eventId, kind: event.kind, payload: event.payload, observedAt: event.observedAt }, inputDigest = digestJson({ subscriptionId: sub.id, generation: sub.generation, event: payload })
@@ -140,7 +142,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
             WHERE builder.evaluation_jobs.state='cancelled' RETURNING id`, [id, sub.id, sub.owner, sub.generation, event.source, event.eventId, inputDigest, JSON.stringify(payload)])
           if (result.rowCount) jobs.push(id)
         }
-        await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.received',$1,revision FROM builder.event_subscriptions WHERE state='enabled' ON CONFLICT DO NOTHING", [event.source + ':' + event.eventId])
+        await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.received',$1,revision FROM builder.event_subscriptions WHERE state='enabled' AND (source='*' OR source=$2) ON CONFLICT DO NOTHING", [event.source + ':' + event.eventId, event.source])
         return { event, duplicate: false as const, jobs }
       })
     },
@@ -161,12 +163,12 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async evaluate(jobId: string, token: string) {
       idSchema.parse(jobId); idSchema.parse(token)
       const loaded = await transaction(pool, async client => {
-        const row = (await client.query(`SELECT j.*,s.* FROM builder.evaluation_jobs j JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
+        const row = (await client.query(`SELECT s.*,j.source AS event_source,j.event_id FROM builder.evaluation_jobs j JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
           WHERE j.id=$1 AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
         if (!row) throw conflict('lease-lost')
-        const eventRow = (await client.query('SELECT * FROM builder.event_inbox WHERE source=$1 AND event_id=$2 AND canonical=true', [row.source, row.event_id])).rows[0]
+        const eventRow = (await client.query('SELECT * FROM builder.event_inbox WHERE source=$1 AND event_id=$2 AND canonical=true', [row.event_source, row.event_id])).rows[0]
         if (!eventRow) throw conflict('event-reorged')
-        return { job: row, subscription: subscription(row), event: eventValue(eventRow) }
+        return { subscription: subscription(row), event: eventValue(eventRow) }
       })
       let result: EvaluationResult
       try {
@@ -177,7 +179,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       }
       if (result.status === 'changed' && (!result.reportHash || !result.report || typeof result.report !== 'object')) result = { status: 'failed', reason: 'invalid-evaluation-result' }
       return transaction(pool, async client => {
-        const current = (await client.query(`SELECT j.*,s.* FROM builder.evaluation_jobs j JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
+        const current = (await client.query(`SELECT s.*,j.attempts FROM builder.evaluation_jobs j JOIN builder.event_subscriptions s ON s.id=j.subscription_id AND s.owner=j.owner
           WHERE j.id=$1 AND j.lease_token=$2 AND j.state='running' AND j.lease_until>clock_timestamp() FOR UPDATE`, [jobId, token])).rows[0]
         if (!current) throw conflict('lease-lost')
         const sub = subscription(current), now = new Date().toISOString()
@@ -185,16 +187,33 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
           await client.query("UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='subscription-stopped' WHERE id=$1 AND lease_token=$2", [jobId, token])
           return { result: { status: 'paused' as const, reason: 'subscription-stopped', observedAt: now } }
         }
-        if (result.status === 'changed' && result.reportHash === sub.lastReportHash) result = { status: 'unchanged', observedAt: result.observedAt }
+        if (result.status === 'changed' && result.reportHash === sub.lastReportHash) {
+          const latest = (await client.query(`SELECT status FROM builder.report_deliveries
+            WHERE subscription_id=$1 AND generation=$2 AND nonce=$3`, [sub.id, sub.generation, sub.lastReportNonce])).rows[0]
+          if (latest && latest.status !== 'failed') result = { status: 'unchanged', observedAt: result.observedAt }
+        }
         if (result.status === 'changed') {
           const artifactRow = (await client.query('SELECT payload FROM builder.compiled_artifacts WHERE id=$1 AND owner=$2', [sub.artifactId, sub.owner])).rows[0]
           const strategyHash = artifactRow?.payload?.strategyHash
           if (typeof strategyHash !== 'string' || !/^0x[0-9a-f]{64}$/i.test(strategyHash)) throw new ServiceError('event-subscription-integrity', 500)
-          const sequence = (await client.query(`INSERT INTO builder.maker_report_sequences(owner,strategy_hash,next_nonce) VALUES($1,$2,1)
-            ON CONFLICT(owner,strategy_hash) DO UPDATE SET next_nonce=builder.maker_report_sequences.next_nonce+1,updated_at=clock_timestamp() RETURNING next_nonce`, [sub.owner, strategyHash])).rows[0]
+          const binding = await readAuthorizationBinding(client, sub.owner, sub.draftId, sub.revision, sub.artifactId)
+          if (!binding) throw conflict('authorization-binding-required')
+          // Continue above both the verified onchain baseline and all locally
+          // allocated nonces. Keep uint64 values as exact decimal strings.
+          const sequence = (await client.query(`INSERT INTO builder.maker_report_sequences(owner,strategy_hash,next_nonce)
+            SELECT $1,$2,$3::numeric+1 WHERE $3::numeric<18446744073709551615
+            ON CONFLICT(owner,strategy_hash) DO UPDATE
+              SET next_nonce=GREATEST(builder.maker_report_sequences.next_nonce,$3::numeric)+1,updated_at=clock_timestamp()
+              WHERE builder.maker_report_sequences.next_nonce<18446744073709551615
+            RETURNING next_nonce`, [sub.owner, strategyHash, binding.reportNonce])).rows[0]
+          if (!sequence) {
+            result = { status: 'failed', reason: 'report-nonce-exhausted', observedAt: now }
+            await client.query("UPDATE builder.evaluation_jobs SET state='failed',result=$3,error_code='report-nonce-exhausted',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2", [jobId, token, JSON.stringify(result)])
+            return { result }
+          }
           const nonce = String(sequence.next_nonce), deliveryId = randomUUID()
           await client.query(`INSERT INTO builder.report_deliveries(id,subscription_id,owner,generation,evaluation_job_id,report_hash,nonce,payload)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (subscription_id,generation,report_hash) DO NOTHING`, [deliveryId, sub.id, sub.owner, sub.generation, jobId, result.reportHash, nonce, JSON.stringify(result.report)])
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [deliveryId, sub.id, sub.owner, sub.generation, jobId, result.reportHash, nonce, JSON.stringify(result.report)])
           await client.query(`UPDATE builder.event_subscriptions SET last_event_at=clock_timestamp(),last_input_observed_at=$2,last_evaluated_at=clock_timestamp(),last_changed_at=clock_timestamp(),last_report_hash=$3,last_report_nonce=$4,updated_at=clock_timestamp() WHERE id=$1 AND owner=$5`, [sub.id, result.observedAt ?? loaded.event.observedAt, result.reportHash, nonce, sub.owner])
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'report-delivery.pending',$2,$3) ON CONFLICT DO NOTHING", [sub.owner, deliveryId, sub.revision])
           result = { ...result, observedAt: result.observedAt ?? now }
@@ -210,8 +229,18 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async deliver(deliveryId: string) {
       idSchema.parse(deliveryId)
       const claimed = await transaction(pool, async client => {
-        const row = (await client.query(`UPDATE builder.report_deliveries SET status='broadcast',attempts=attempts+1,updated_at=clock_timestamp() WHERE id=$1 AND status='pending' AND next_attempt_at<=clock_timestamp() RETURNING *`, [deliveryId])).rows[0]
-        if (!row) return null
+        // Enforce ordering at the claim itself: callers can bypass the pending
+        // list, and an old subscription may still have an unresolved broadcast.
+        const row = (await client.query(`UPDATE builder.report_deliveries d SET status='broadcast',attempts=d.attempts+1,updated_at=clock_timestamp()
+          WHERE d.id=$1 AND d.status='pending' AND d.next_attempt_at<=clock_timestamp()
+          AND NOT EXISTS (SELECT 1 FROM builder.report_deliveries earlier
+            WHERE earlier.owner=d.owner AND earlier.status IN ('pending','broadcast')
+            AND (earlier.created_at<d.created_at OR (earlier.created_at=d.created_at AND earlier.id<d.id)))
+          RETURNING d.*`, [deliveryId])).rows[0]
+        if (!row) {
+          const current = (await client.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]
+          return current?.status === 'pending' ? { waiting: true as const } : null
+        }
         const sub = await readSubscription(client, String(row.owner), String(row.subscription_id))
         const live = await readSubscription(client, sub.owner, sub.id, true)
         const draft = live.state === 'enabled' ? await readOwnedDraft(client, live.owner, live.draftId, true) : null
@@ -226,6 +255,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         return { row, sub }
       })
       if (!claimed) return { status: 'already-processing' as const }
+      if ('waiting' in claimed) return { status: 'waiting' as const }
       if ('stale' in claimed) return { status: 'stale' as const }
       try {
         if (!dependencies.deliver) throw new ServiceError('delivery-unavailable', 503)
@@ -244,7 +274,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       return (await pool.query(`SELECT d.id FROM builder.report_deliveries d
         WHERE d.status='pending' AND d.next_attempt_at<=clock_timestamp()
         AND NOT EXISTS (SELECT 1 FROM builder.report_deliveries earlier
-          WHERE earlier.subscription_id=d.subscription_id AND earlier.status IN ('pending','broadcast')
+          WHERE earlier.owner=d.owner AND earlier.status IN ('pending','broadcast')
           AND (earlier.created_at<d.created_at OR (earlier.created_at=d.created_at AND earlier.id<d.id)))
         ORDER BY d.created_at,d.id LIMIT $1`, [limit])).rows.map(row => String(row.id))
     },
@@ -273,7 +303,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         const result = await client.query(`UPDATE builder.event_inbox SET canonical=false,reorged_at=clock_timestamp() WHERE source=$1 AND event_id=$2 AND canonical=true`, [source, eventId])
         if (!result.rowCount) return { changed: false as const }
         await client.query(`UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='event-reorged' WHERE source=$1 AND event_id=$2 AND state IN ('pending','running')`, [source, eventId])
-        await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.reorged',$1,revision FROM builder.event_subscriptions WHERE state='enabled' ON CONFLICT DO NOTHING", [source + ':' + eventId])
+        await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.reorged',$1,revision FROM builder.event_subscriptions WHERE state='enabled' AND (source='*' OR source=$2) ON CONFLICT DO NOTHING", [source + ':' + eventId, source])
         return { changed: true as const }
       })
     },

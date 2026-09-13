@@ -89,7 +89,7 @@ Required production checks:
 
 1. Set Railway `DATABASE_URL=${{Postgres.DATABASE_URL}}`, deploy, and confirm
    `/health` plus the Builder authenticated session route.
-2. Confirm the migration table contains 001–013 and that the Builder service
+2. Confirm the migration table contains 001–015 and that the Builder service
    uses a database role with only the application schema permissions.
 3. Run one real multi-turn request with the configured OpenAI key and inspect
    only public draft/tool events.
@@ -102,6 +102,14 @@ Required production checks:
 
 No CRE upload, activation or public-chain transaction is performed by this
 wiring change.
+
+Migration 015 preserves delivery history, replaces historical report-hash
+uniqueness with evaluation-job uniqueness, and widens report nonces to exact
+uint64-compatible decimal columns. Take a database backup before applying it.
+When rolling the application back to a version before 015, keep event delivery
+disabled: that version's insert targets the removed hash constraint and cannot
+resume delivery against the new schema. Retain the schema/history and deploy a
+compatible event worker before reenabling the gateway.
 
 ## Rollout evidence
 

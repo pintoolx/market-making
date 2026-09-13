@@ -16,7 +16,7 @@ before(async () => {
 })
 after(async () => { await pool?.end(); if (admin) { try { await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`) } finally { await admin.end() } } })
 
-async function fixture() {
+async function fixture(reportNonce = '1') {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
   const created = await store.create(owner, randomUUID(), { title: 'Event strategy', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
@@ -32,7 +32,7 @@ async function fixture() {
     verifyReport: async input => ({ chainId: profile.chainId, maker: input.owner.slice(7) as `0x${string}`, guard: profile.guard, router: profile.router, strategyHash: input.artifact.payload.strategyHash,
       reportSchema: 2 as const, reportDigest: input.reportDigest, reportTransactionHash: input.reportTransactionHash, reportNonce: input.reportNonce, accepted: true as const }),
   }), reportDigest = digestJson({ report: 'fixture', strategyHash: compiled.payload.strategyHash }), reportTransactionHash = ('0x' + '4'.repeat(64)) as `0x${string}`
-  const bindingIntent = await bindings.prepare(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId, reportDigest, reportTransactionHash, reportNonce: '1' })
+  const bindingIntent = await bindings.prepare(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId, reportDigest, reportTransactionHash, reportNonce })
   const binding = await bindings.confirm(owner, randomUUID(), { intentId: bindingIntent.intent.id, digest: bindingIntent.digest, signature: await account.signMessage({ message: bindingIntent.intent.message }) })
   return { account, owner, draft, artifact, consent: confirmed.consent, binding: binding.binding }
 }
@@ -40,7 +40,7 @@ async function fixture() {
 test('event inbox is durable, deduplicated and change-only across evaluation and delivery', async () => {
   const f = await fixture(), reports = [digestJson({ allowedDirections: 1, cap: 'a' }), digestJson({ allowedDirections: 1, cap: 'b' })] as [`0x${string}`, `0x${string}`], evaluations: string[] = []
   const events = createEventDelivery(pool, profile, {
-    evaluate: async input => { evaluations.push(input.event.eventId); return { status: 'changed', reportHash: reports[evaluations.length > 2 ? 1 : 0], report: { allowedDirections: evaluations.length > 2 ? 1 : 3, cap: evaluations.length } } },
+    evaluate: async input => { evaluations.push(input.event.eventId); const regime = evaluations.length === 3 ? 1 : 0; return { status: 'changed', reportHash: reports[regime], report: { allowedDirections: 1, cap: regime === 0 ? 'a' : 'b' } } },
     deliver: async input => ({ transactionHash: ('0x' + '1'.repeat(64)) as `0x${string}`, receipt: { reportHash: input.reportHash, nonce: input.nonce } }),
   })
   const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
@@ -49,7 +49,7 @@ test('event inbox is durable, deduplicated and change-only across evaluation and
   const first = await events.ingest(event), duplicate = await events.ingest(event)
   assert.equal(first.duplicate, false); assert.equal(first.jobs.length, 1); assert.equal(duplicate.duplicate, true); assert.equal(duplicate.jobs.length, 0)
   const job = await events.claimEvaluation(); assert.ok(job)
-  const evaluated = await events.evaluate(job!.id, job!.token); assert.equal(evaluated.result.status, 'changed'); assert.ok(evaluated.deliveryId)
+  const evaluated = await events.evaluate(job!.id, job!.token); assert.equal(evaluated.result.status, 'changed'); assert.ok(evaluated.deliveryId); assert.equal(evaluated.nonce, '2')
   assert.equal((await events.deliver(evaluated.deliveryId!)).status, 'accepted')
   const event2 = { ...event, eventId: 'trade-2', payload: { price: '2500' } }
   await events.ingest(event2); const job2 = await events.claimEvaluation(); assert.ok(job2); const unchanged = await events.evaluate(job2!.id, job2!.token)
@@ -58,10 +58,115 @@ test('event inbox is durable, deduplicated and change-only across evaluation and
   await events.ingest(event3); const job3 = await events.claimEvaluation(); assert.ok(job3); const changed = await events.evaluate(job3!.id, job3!.token)
   assert.equal(changed.result.status, 'changed'); assert.ok(changed.deliveryId)
   assert.equal((await events.deliver(changed.deliveryId!)).status, 'accepted')
-  const current = await events.current(f.owner, f.draft.id, 2); assert.equal(current.subscription?.lastReportHash, reports[1]); assert.equal(current.subscription?.lastReportNonce, '2')
-  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1 AND status='accepted'", [enabled.subscription.id])).rows[0].count, 2)
-  assert.deepEqual(evaluations, ['trade-1', 'trade-2', 'trade-3'])
+  await events.ingest({ ...event, eventId: 'trade-4' })
+  const job4 = await events.claimEvaluation(); assert.ok(job4)
+  const returned = await events.evaluate(job4.id, job4.token); assert.equal(returned.result.status, 'changed'); assert.ok(returned.deliveryId)
+  assert.notEqual(returned.deliveryId, evaluated.deliveryId)
+  assert.equal((await events.deliver(returned.deliveryId)).status, 'accepted')
+  const current = await events.current(f.owner, f.draft.id, 2); assert.equal(current.subscription?.lastReportHash, reports[0]); assert.equal(current.subscription?.lastReportNonce, '4')
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1 AND status='accepted'", [enabled.subscription.id])).rows[0].count, 3)
+  assert.deepEqual(evaluations, ['trade-1', 'trade-2', 'trade-3', 'trade-4'])
   await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+})
+
+test('failed terms can be evaluated again and report nonces preserve the full uint64 range', async () => {
+  const baseline = 9223372036854775808n, f = await fixture(baseline.toString()), reportHash = digestJson({ terms: 'retry' })
+  const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash, report: { terms: 'retry' } }) })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.nonce' })
+  const evaluateEvent = async (eventId: string) => {
+    await events.ingest({ source: 'market.nonce', eventId, kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    const job = await events.claimEvaluation(); assert.ok(job); assert.equal(job.eventId, eventId)
+    return events.evaluate(job.id, job.token)
+  }
+  const first = await evaluateEvent('nonce-first'); assert.ok(first.deliveryId); assert.equal(first.nonce, (baseline + 1n).toString())
+  await pool.query("UPDATE builder.report_deliveries SET status='failed',error_code='confirmed-rejection' WHERE id=$1", [first.deliveryId])
+  const retried = await evaluateEvent('nonce-retry'); assert.ok(retried.deliveryId); assert.notEqual(retried.deliveryId, first.deliveryId)
+  assert.equal(retried.nonce, (baseline + 2n).toString())
+  assert.equal((await evaluateEvent('nonce-unchanged')).result.status, 'unchanged')
+  assert.equal((await events.get(f.owner, enabled.subscription.id)).lastReportNonce, retried.nonce)
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+
+  // Resuming an identical artifact keeps the allocated sequence above the old
+  // binding, even if that earlier delivery was cancelled before broadcasting.
+  const resumed = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.nonce' })
+  const afterResume = await evaluateEvent('nonce-resume'); assert.equal(afterResume.nonce, (baseline + 3n).toString())
+  await events.stop(f.owner, randomUUID(), { subscriptionId: resumed.subscription.id })
+
+  const exhausted = await fixture('18446744073709551615')
+  const capped = await events.enable(exhausted.owner, randomUUID(), { draftId: exhausted.draft.id, expectedRevision: 2, artifactId: exhausted.artifact.artifactId, consentId: exhausted.consent.id, source: 'market.nonce' })
+  const maximum = await evaluateEvent('nonce-exhausted')
+  assert.equal(maximum.result.status, 'failed'); assert.equal(maximum.result.reason, 'report-nonce-exhausted'); assert.equal(maximum.deliveryId, undefined)
+  assert.equal((await pool.query('SELECT state FROM builder.evaluation_jobs WHERE subscription_id=$1', [capped.subscription.id])).rows[0].state, 'failed')
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1', [capped.subscription.id])).rows[0].count, 0)
+  await events.stop(exhausted.owner, randomUUID(), { subscriptionId: capped.subscription.id })
+})
+
+test('subscriptions can filter events by source while wildcard subscriptions retain all sources', async () => {
+  const f = await fixture(), w = await fixture(), observed: string[] = []
+  const events = createEventDelivery(pool, profile, { evaluate: async input => {
+    observed.push(input.subscription.source + ':' + input.event.source)
+    return { status: 'unchanged' }
+  } })
+  const filtered = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.filtered' })
+  const wildcard = await events.enable(w.owner, randomUUID(), { draftId: w.draft.id, expectedRevision: 2, artifactId: w.artifact.artifactId, consentId: w.consent.id })
+  assert.equal(filtered.subscription.source, 'market.filtered'); assert.equal(wildcard.subscription.source, '*')
+  await events.ingest({ source: 'market.other', eventId: 'source-other', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [filtered.subscription.id])).rows[0].count, 0)
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [wildcard.subscription.id])).rows[0].count, 1)
+  await events.ingest({ source: 'market.filtered', eventId: 'source-match', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [filtered.subscription.id])).rows[0].count, 1)
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.evaluation_jobs WHERE subscription_id=$1', [wildcard.subscription.id])).rows[0].count, 2)
+  assert.deepEqual((await pool.query("SELECT resource_id FROM builder.outbox WHERE owner=$1 AND kind='event.received'", [f.owner])).rows, [{ resource_id: 'market.filtered:source-match' }])
+  assert.deepEqual((await pool.query("SELECT resource_id FROM builder.outbox WHERE owner=$1 AND kind='event.received' ORDER BY resource_id", [w.owner])).rows,
+    [{ resource_id: 'market.filtered:source-match' }, { resource_id: 'market.other:source-other' }])
+  for (let i = 0; i < 3; i++) {
+    const job = await events.claimEvaluation(); assert.ok(job)
+    assert.equal((await events.evaluate(job.id, job.token)).result.status, 'unchanged')
+  }
+  assert.deepEqual(observed.sort(), ['*:market.filtered', '*:market.other', 'market.filtered:market.filtered'])
+  await events.markReorg('market.other', 'source-other')
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.outbox WHERE owner=$1 AND kind='event.reorged'", [f.owner])).rows[0].count, 0)
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.outbox WHERE owner=$1 AND kind='event.reorged'", [w.owner])).rows[0].count, 1)
+  await events.ingest({ source: 'market.filtered', eventId: 'before-source-switch', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+  const switched = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.other' })
+  assert.equal(switched.subscription.generation, filtered.subscription.generation + 1)
+  assert.equal((await events.get(f.owner, filtered.subscription.id)).state, 'stopped')
+  assert.equal((await pool.query('SELECT state FROM builder.evaluation_jobs WHERE subscription_id=$1 AND event_id=$2', [filtered.subscription.id, 'before-source-switch'])).rows[0].state, 'cancelled')
+  await events.stop(f.owner, randomUUID(), { subscriptionId: switched.subscription.id })
+  await events.stop(w.owner, randomUUID(), { subscriptionId: wildcard.subscription.id })
+})
+
+test('a new subscription waits for the same Maker broadcast while other Makers keep delivering', async () => {
+  const f = await fixture(), other = await fixture(), sent: string[] = []
+  const events = createEventDelivery(pool, profile, {
+    evaluate: async input => ({ status: 'changed', reportHash: digestJson({ switchEvent: input.event.eventId }), report: { event: input.event.eventId } }),
+    deliver: async input => { sent.push(String(input.report.event)); return { transactionHash: ('0x' + 'a'.repeat(64)) as `0x${string}` } },
+    reconcile: async () => ({ transactionHash: ('0x' + 'b'.repeat(64)) as `0x${string}` }),
+  })
+  const input = { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id }
+  const initial = await events.enable(f.owner, randomUUID(), { ...input, source: 'market.switch.old' })
+  const evaluateEvent = async (source: string, eventId: string) => {
+    await events.ingest({ source, eventId, kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    const job = await events.claimEvaluation(); assert.ok(job); assert.equal(job.eventId, eventId)
+    const result = await events.evaluate(job.id, job.token); assert.ok(result.deliveryId)
+    return result.deliveryId
+  }
+  const oldDelivery = await evaluateEvent('market.switch.old', 'switch-old')
+  await pool.query("UPDATE builder.report_deliveries SET status='broadcast' WHERE id=$1", [oldDelivery])
+  const selected = await events.enable(f.owner, randomUUID(), { ...input, source: 'market.switch.new' })
+  assert.equal((await events.get(f.owner, initial.subscription.id)).state, 'stopped')
+  const newDelivery = await evaluateEvent('market.switch.new', 'switch-new')
+  const independent = await events.enable(other.owner, randomUUID(), { draftId: other.draft.id, expectedRevision: 2, artifactId: other.artifact.artifactId, consentId: other.consent.id, source: 'market.switch.independent' })
+  const independentDelivery = await evaluateEvent('market.switch.independent', 'switch-independent')
+  assert.deepEqual(await events.pendingDeliveries(), [independentDelivery])
+  assert.equal((await events.deliver(newDelivery)).status, 'waiting')
+  assert.equal((await events.deliver(independentDelivery)).status, 'accepted')
+  assert.deepEqual(sent, ['switch-independent'])
+  assert.equal((await events.reconcile(oldDelivery)).status, 'accepted')
+  assert.equal((await events.deliver(newDelivery)).status, 'accepted')
+  assert.deepEqual(sent, ['switch-independent', 'switch-new'])
+  await events.stop(f.owner, randomUUID(), { subscriptionId: selected.subscription.id })
+  await events.stop(other.owner, randomUUID(), { subscriptionId: independent.subscription.id })
 })
 
 test('stopping, reorg and consent revocation prevent late event work from re-enabling a Maker', async () => {
@@ -184,7 +289,17 @@ test('event claims serialize active work for one subscription', async () => {
 })
 
 test('pending report delivery waits for an earlier unresolved nonce', async () => {
-  const f = await fixture(), events = createEventDelivery(pool, profile, { evaluate: async input => ({ status: 'changed', reportHash: digestJson({ ordered: input.event.eventId }), report: { ordered: input.event.eventId } }) }), enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  const sent: string[] = []
+  let unblockFirst!: () => void, startedFirst!: () => void
+  const firstStarted = new Promise<void>(resolve => { startedFirst = resolve }), firstReceipt = new Promise<void>(resolve => { unblockFirst = resolve })
+  const f = await fixture(), events = createEventDelivery(pool, profile, {
+    evaluate: async input => ({ status: 'changed', reportHash: digestJson({ ordered: input.event.eventId }), report: { ordered: input.event.eventId } }),
+    deliver: async input => {
+      sent.push(String(input.report.ordered))
+      if (input.report.ordered === 'order-1') { startedFirst(); await firstReceipt }
+      return { transactionHash: ('0x' + 'a'.repeat(64)) as `0x${string}` }
+    },
+  }), enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
   await events.ingest({ source: 'market.order', eventId: 'order-1', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
   let job: Awaited<ReturnType<typeof events.claimEvaluation>> = null
   for (let attempt = 0; attempt < 30 && !job; attempt++) {
@@ -205,7 +320,19 @@ test('pending report delivery waits for an earlier unresolved nonce', async () =
   assert.ok(job); const secondEvaluated = await events.evaluate(job!.id, job!.token); assert.ok(secondEvaluated.deliveryId)
   const listed = await events.pendingDeliveries(100)
   assert.ok(listed.includes(firstEvaluated.deliveryId!)); assert.equal(listed.includes(secondEvaluated.deliveryId!), false)
-  await pool.query("UPDATE builder.report_deliveries SET status='failed',error_code='test-cleanup' WHERE id=ANY($1::text[])", [[firstEvaluated.deliveryId, secondEvaluated.deliveryId]])
+  assert.equal((await events.deliver(secondEvaluated.deliveryId!)).status, 'waiting')
+  assert.deepEqual(sent, [])
+  const firstSending = events.deliver(firstEvaluated.deliveryId!)
+  try {
+    await firstStarted
+    assert.equal((await events.deliver(secondEvaluated.deliveryId!)).status, 'waiting')
+    assert.equal((await events.deliver(firstEvaluated.deliveryId!)).status, 'already-processing')
+    assert.deepEqual(sent, ['order-1'])
+    assert.deepEqual((await pool.query('SELECT status,attempts FROM builder.report_deliveries WHERE id=$1', [secondEvaluated.deliveryId])).rows[0], { status: 'pending', attempts: 0 })
+  } finally { unblockFirst(); await firstSending }
+  assert.equal((await events.deliver(secondEvaluated.deliveryId!)).status, 'accepted')
+  assert.deepEqual(sent, ['order-1', 'order-2'])
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
 })
 
 test('the resident worker applies source reorg identities before claiming evaluation work', async () => {
@@ -311,8 +438,10 @@ test('event subscription HTTP routes bind the authenticated Maker and reject res
     const challenge = await (await fetch(base + '/auth/challenge', { method: 'POST', headers: headers(), body: JSON.stringify({ address: f.account.address }) })).json() as { id: string; message: string }
     const token = (await (await fetch(base + '/auth/login', { method: 'POST', headers: headers(), body: JSON.stringify({ challengeId: challenge.id, signature: await f.account.signMessage({ message: challenge.message }) }) })).json() as { token: string }).token
     assert.equal((await call(`/drafts/${f.draft.id}/event-subscription?revision=2`, undefined, token)).status, 200)
-    const enabled = await call(`/drafts/${f.draft.id}/event-subscription`, { expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id }, token)
-    assert.equal(enabled.status, 200); const subscription = (await enabled.json() as { subscription: { id: string; state: string } }).subscription; assert.equal(subscription.state, 'enabled')
+    const input = { expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id }
+    assert.equal((await call(`/drafts/${f.draft.id}/event-subscription`, { ...input, source: 'market.*' }, token)).status, 400)
+    const enabled = await call(`/drafts/${f.draft.id}/event-subscription`, { ...input, source: 'market.filtered' }, token)
+    assert.equal(enabled.status, 200); const subscription = (await enabled.json() as { subscription: { id: string; state: string; source: string } }).subscription; assert.equal(subscription.state, 'enabled'); assert.equal(subscription.source, 'market.filtered')
     assert.equal((await call(`/event-subscriptions/${subscription.id}/stop`, { subscriptionId: 'forged' }, token)).status, 400)
     assert.equal((await call(`/event-subscriptions/${subscription.id}/stop`, {}, token)).status, 200)
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
