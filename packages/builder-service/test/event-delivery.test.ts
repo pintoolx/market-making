@@ -18,7 +18,7 @@ after(async () => { await pool?.end(); if (admin) { try { await admin.query(`DRO
 
 async function fixture() {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
-  const created = await store.create(owner, randomUUID(), { title: '事件策略', kind: 'maker' })
+  const created = await store.create(owner, randomUUID(), { title: 'Event strategy', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
       deadline: Math.floor(Date.now() / 1000) + 86400,

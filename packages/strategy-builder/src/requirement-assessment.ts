@@ -6,27 +6,27 @@ import { scaledDecimal } from './validation.ts'
 export type Enforcement = 'onchain_enforced' | 'preflight_only' | 'informational' | 'unsupported'
 type Assessment = { criterion: RequirementCriterion; enforcement: Enforcement; matchesDraft: boolean | null;
   interpretation: string; actual: string | null; limitation: string; evidence: 'draft-comparison' | 'mechanism-description' | 'unavailable' }
-const parameterNames = { baseToken: '基礎幣種', quoteToken: '報價幣種', curve: '曲線種類', feeBps: '固定 LP 費率（bps）', deadline: '程式 deadline（Unix 秒）',
-  minPrice: '固定 CLMM 配置下界', maxPrice: '固定 CLMM 配置上界', relativeWidthBps: '套用時 CLMM 相對半寬（bps）', referencePrice: 'Pegged 參考參數', amplification: 'Pegged 放大係數',
-  allocationBase: '初始基礎幣虛擬配置', allocationQuote: '初始報價幣虛擬配置', maxAmountBasePerSwap: '每筆基礎幣數量上限',
-  maxAmountQuotePerSwap: '每筆報價幣數量上限', maxPostBalanceBase: '成交後基礎幣庫存上限', maxPostBalanceQuote: '成交後報價幣庫存上限' }
-const relations = { equal: '等於', 'at-most': '不高於', 'at-least': '不低於' }
+const parameterNames = { baseToken: 'Base token', quoteToken: 'Quote token', curve: 'Curve type', feeBps: 'Fixed LP fee (bps)', deadline: 'Program deadline (Unix seconds)',
+  minPrice: 'Fixed CLMM lower bound', maxPrice: 'Fixed CLMM upper bound', relativeWidthBps: 'CLMM relative half-width at application (bps)', referencePrice: 'Pegged reference price', amplification: 'Pegged amplification',
+  allocationBase: 'Initial virtual base allocation', allocationQuote: 'Initial virtual quote allocation', maxAmountBasePerSwap: 'Per-swap base amount cap',
+  maxAmountQuotePerSwap: 'Per-swap quote amount cap', maxPostBalanceBase: 'Post-trade base inventory cap', maxPostBalanceQuote: 'Post-trade quote inventory cap' }
+const relations = { equal: 'equals', 'at-most': 'at most', 'at-least': 'at least' }
 const unavailable = {
-  'daily-cumulative-budget': '目前 Guard 檢查逐筆數量，沒有每日累計計數器；不能用單筆上限替代每日預算。',
-  'guaranteed-maximum-loss': '沒有鏈上保證最大損失的機制；事件監控或嘗試停止不保證在指定損失內完成。',
-  'automatic-rebalance': '目前 Builder 不會自動換幣、重設區間或重新配置。',
-  'exact-out': '目前 guarded profile 拒絕 exact-out。',
-  'external-price-every-swap': 'Guard 不會每筆讀取外部行情；它只檢查最近保存的 report 與不可變 envelope。',
-  'guaranteed-market-price': '參考參數、資產比例或 CLMM 配置不保證按某個外部價格成交。',
-  other: '尚無可核對的實作對應；需要繼續釐清或明確接受未實現的部分。',
+  'daily-cumulative-budget': 'Guard checks each swap amount and has no daily cumulative counter; a per-swap cap cannot replace a daily budget with a per-swap cap.',
+  'guaranteed-maximum-loss': 'There is no onchain mechanism that guarantees a maximum loss; monitoring or attempting to stop does not guarantee completion within a requested loss limit.',
+  'automatic-rebalance': 'Builder does not automatically swap, reset a range or reallocate funds.',
+  'exact-out': 'The guarded profile rejects exact-out swaps.',
+  'external-price-every-swap': 'Guard does not read external prices on every swap; it checks the latest stored report and immutable envelope.',
+  'guaranteed-market-price': 'Reference parameters, asset ratios and a CLMM configuration do not guarantee execution at an external market price.',
+  other: 'There is no checked implementation mapping yet; clarify the request or explicitly accept the unimplemented part.',
 }
 const mechanisms = {
-  'guard.directions': { enforcement: 'onchain_enforced' as const, interpretation: 'Guard 在每筆交換檢查授權中的 Maker 買賣方向。', limitation: '實際允許方向由已接受的 report 決定；目前草稿不能證明特定方向已授權。' },
-  'guard.active-strategy': { enforcement: 'onchain_enforced' as const, interpretation: 'Guard 每個 Maker 只允許目前 active hash 成交。', limitation: '需要實際 report 與 readback；對 B 送出 paused report 不一定會停用 A。' },
-  'guard.standing': { enforcement: 'onchain_enforced' as const, interpretation: 'Standing report 直到條件變更或撤銷，不定期續 TTL。', limitation: '需明確 Maker 同意及 schema 2 report；服務離線不會讓既有授權自動到期。' },
-  'guard.revoke': { enforcement: 'onchain_enforced' as const, interpretation: 'Maker 可以用自己的錢包撤銷 Guard 授權。', limitation: '必須由 Maker 簽署並確認交易；解除撤銷後仍需新的 enabled report。' },
-  'policy.market-rules': { enforcement: 'informational' as const, interpretation: '工作流程依序評估私密價格／波動規則，再更新 Guard 授權。', limitation: '私密門檻不進對話。加密不代表政策已驗證；行情到 report 生效有延遲，需可信 binding、有效 consent 及 delivery。' },
-  'aqua.lifecycle': { enforcement: 'preflight_only' as const, interpretation: 'Aqua ship 登錄初始虛擬配置，dock 停止該 hash。', limitation: 'Ship 不會入金；多個策略共用錢包資金。Dock 不會撤銷 ERC20 allowance。需錢包交易與鏈上 readback。' },
+  'guard.directions': { enforcement: 'onchain_enforced' as const, interpretation: 'Guard checks the Maker buy/sell directions on every swap.', limitation: 'The accepted report decides the actual directions; the draft cannot prove that a direction is authorized.' },
+  'guard.active-strategy': { enforcement: 'onchain_enforced' as const, interpretation: 'Guard allows only the Maker\'s current active strategy hash to trade.', limitation: 'A report and readback are required; a paused report for B does not necessarily disable A.' },
+  'guard.standing': { enforcement: 'onchain_enforced' as const, interpretation: 'A standing report remains valid until conditions change or it is revoked; it is not renewed on a timer.', limitation: 'It requires explicit Maker consent and a schema 2 report; service downtime does not automatically expire existing authorization.' },
+  'guard.revoke': { enforcement: 'onchain_enforced' as const, interpretation: 'The Maker can revoke Guard authorization with its own wallet.', limitation: 'The Maker must sign and confirm the transaction; clearing a revocation still needs a new enabled report.' },
+  'policy.market-rules': { enforcement: 'informational' as const, interpretation: 'The workflow evaluates private price/volatility rules and then updates Guard authorization.', limitation: 'Private thresholds never enter the conversation. Encryption does not prove policy verification; market observation to report activation has latency and needs a trusted binding, consent and delivery.' },
+  'aqua.lifecycle': { enforcement: 'preflight_only' as const, interpretation: 'Aqua ship registers the initial virtual balances and dock stops that hash.', limitation: 'Ship does not deposit funds; strategies share wallet funds. Dock does not revoke ERC20 allowance. Wallet transactions and onchain readback are required.' },
 }
 
 /** Compares explicit proposed meanings with public draft values. Classification
@@ -48,28 +48,28 @@ function compareCriterion(c: RequirementCriterion, draft: StrategyDraft): Assess
   else if (field === 'minPrice' || field === 'maxPrice') {
     actual = spec.model?.kind === 'concentrated' ? spec.model[field] ?? null : null
     unit = ` ${spec.quoteToken?.symbol ?? 'quote'}/${spec.baseToken?.symbol ?? 'base'}`
-    limitation = '這是固定曲線配置，並非每筆外部市場價格檢查；相對模板需在 Maker 套用時固定 snapshot，原子量仍有捨入。'
+    limitation = 'This is a fixed curve configuration, not an external market-price check on every swap; a relative template freezes a snapshot when the Maker applies it, with atomic-unit rounding.'
   } else if (field === 'relativeWidthBps') {
     actual = spec.model?.kind === 'concentrated' ? spec.model.relativeWidthBps?.toString() ?? null : null
     decimals = 0; enforcement = 'preflight_only'
-    limitation = 'Maker 套用時依可信 snapshot 換成固定上下界，不會自動跟隨市場；套用後需以固定範圍重新確認。'
+    limitation = 'A trusted snapshot becomes fixed bounds when the Maker applies the template; it does not follow the market automatically and the fixed range must be reviewed again.'
   } else if (field === 'referencePrice' || field === 'amplification') {
     actual = spec.model?.kind === 'pegged' ? spec.model[field] ?? null : null
-    limitation = 'Pegged 初始成交比例也受兩邊資產配置影響；參考參數不保證按該價格成交。'
+    limitation = 'The initial Pegged execution ratio also depends on both asset allocations; a reference price does not guarantee execution at that price.'
   } else {
     const base = ['allocationBase', 'maxAmountBasePerSwap', 'maxPostBalanceBase'].includes(field), token = base ? spec.baseToken : spec.quoteToken
     const allocation = field === 'allocationBase' || field === 'allocationQuote'
     const atomic = allocation ? draft.allocations?.[base ? 'baseAtomic' : 'quoteAtomic'] : spec.guardEnvelope?.[field]
     decimals = token?.decimals ?? 18; unit = ` ${token?.symbol ?? (base ? 'base' : 'quote')}`
     actual = atomic && token ? formatUnits(BigInt(atomic), token.decimals) : null
-    if (allocation) { enforcement = 'preflight_only'; limitation = '初始虛擬配置不代表獨立保留的錢包資金；成交後會變更，簽名前需要即時餘額與 allowance 檢查。' }
-    else limitation = '不可變 envelope 與當前 report 取較嚴格的上限；輸入與輸出都受限。這不是每日累計額度、庫存底線或即時資產價值保證。'
+    if (allocation) { enforcement = 'preflight_only'; limitation = 'Initial virtual allocation is not independently reserved wallet funding; it changes after trades, and fresh balance and allowance checks are required before signing.' }
+    else limitation = 'The immutable envelope and current report use the stricter cap; both input and output are bounded. This is not a daily cumulative quota, inventory floor or real-time asset-value guarantee.'
   }
   const interpretation = `${parameterNames[field]}${relations[c.relation]} ${c.expected}${unit}`
   if (decimals === null) {
     const valid = c.relation === 'equal' && (field === 'curve' ? ['xyc', 'concentrated', 'pegged'].includes(c.expected) : /^[A-Za-z][A-Za-z0-9]{0,31}$/.test(c.expected))
     return { criterion: c, enforcement: valid ? enforcement : 'unsupported', matchesDraft: valid ? actual === null ? null : actual === c.expected : false,
-      interpretation, actual, limitation: valid ? limitation : '幣種與曲線只能用已解析的識別值作等值比較。', evidence: valid ? 'draft-comparison' : 'unavailable' }
+      interpretation, actual, limitation: valid ? limitation : 'Tokens and curves can only be compared for equality using resolved identifiers.', evidence: valid ? 'draft-comparison' : 'unavailable' }
   }
   let matched: boolean | null = null
   try {
@@ -80,12 +80,12 @@ function compareCriterion(c: RequirementCriterion, draft: StrategyDraft): Assess
     }
   } catch {
     return { criterion: c, enforcement: 'unsupported', matchesDraft: false, interpretation, actual,
-      limitation: '條件的數值格式或精度不符合此參數；請繼續釐清，不可把它視為已驗證。', evidence: 'unavailable' }
+      limitation: 'The condition format or precision does not match this parameter; clarify it before treating it as verified.', evidence: 'unavailable' }
   }
   if (field === 'feeBps' && spec.feeBps !== undefined && spec.feeBps !== 0) return { criterion: c, enforcement: 'unsupported', matchesDraft: matched,
-    interpretation, actual, limitation: '非零 LP 費率尚未通過這個 Guard profile 的組合驗證；草稿數值相符不代表可執行。', evidence: 'unavailable' }
+    interpretation, actual, limitation: 'Non-zero LP fees have not passed combined validation for this Guard profile; a matching draft value is not executable evidence.', evidence: 'unavailable' }
   return { criterion: c, enforcement, matchesDraft: matched, interpretation, actual,
-    limitation: actual === null ? '此草稿尚無可比較的對應值。' : limitation, evidence: 'draft-comparison' }
+    limitation: actual === null ? 'This draft has no corresponding value to compare.' : limitation, evidence: 'draft-comparison' }
 }
 
 export function assessRequirementCriteria(input: StrategyDraft) {

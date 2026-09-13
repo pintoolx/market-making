@@ -19,12 +19,12 @@ after(async () => {
 
 async function requirementDraft() {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase()
-  const store = createStore(pool, profile.id), created = await store.create(owner, randomUUID(), { title: '需求確認模板', kind: 'template' })
+  const store = createStore(pool, profile.id), created = await store.create(owner, randomUUID(), { title: 'Requirement review template', kind: 'template' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
       deadline: Math.floor(Date.now() / 1000) + 86400,
       guardEnvelope: { maxAmountBasePerSwap: '5000000000000000', maxAmountQuotePerSwap: '12500000', maxPostBalanceBase: '20000000000000000', maxPostBalanceQuote: '50000000' } },
-    upsertRequirements: [{ id: 'per-swap', text: '每筆基礎幣輸入不超過 0.005', priority: 'must', sourceMessageId: 'message-1', capabilityIds: ['guard.directions'],
+    upsertRequirements: [{ id: 'per-swap', text: 'Each base input is at most 0.005', priority: 'must', sourceMessageId: 'message-1', capabilityIds: ['guard.directions'],
       criteria: [{ type: 'parameter', field: 'maxAmountBasePerSwap', relation: 'at-most', expected: '0.005' }] }],
   } })
   return { account, owner, store, draft }
@@ -52,7 +52,7 @@ test('requirement review is a separate immutable receipt bound to the exact draf
 test('an unmet interpreted criterion cannot be confirmed as true; explicit limitation creates a new revision and invalidates the old review', async () => {
   const p = await requirementDraft(), reviews = createRequirementReviews(pool, profile)
   await p.store.patch(p.owner, randomUUID(), { draftId: p.draft.id, expectedRevision: 2, patch: { upsertRequirements: [{
-    id: 'per-swap', text: '每筆基礎幣輸入不超過 0.004', priority: 'must', sourceMessageId: 'message-2', capabilityIds: ['guard.directions'],
+    id: 'per-swap', text: 'Each base input is at most 0.004', priority: 'must', sourceMessageId: 'message-2', capabilityIds: ['guard.directions'],
     criteria: [{ type: 'parameter', field: 'maxAmountBasePerSwap', relation: 'at-most', expected: '0.004' }],
   }] } })
   const prepared = await reviews.prepare(p.owner, randomUUID(), { draftId: p.draft.id, expectedRevision: 3 })
@@ -68,7 +68,7 @@ test('an unmet interpreted criterion cannot be confirmed as true; explicit limit
 
 test('registration and cancellation plans are immutable unsigned calldata bound to the current compiled hash', async () => {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
-  const created = await store.create(owner, randomUUID(), { title: 'Maker 計畫', kind: 'maker' })
+  const created = await store.create(owner, randomUUID(), { title: 'Maker plan', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
       deadline: Math.floor(Date.now() / 1000) + 86400,
@@ -83,7 +83,7 @@ test('registration and cancellation plans are immutable unsigned calldata bound 
   assert.deepEqual((await plans.get(owner, registration.plan.id)).plan, registration.plan)
   const cancellation = await plans.prepareCancellation(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId })
   assert.deepEqual(cancellation.plan.transactions.map(t => t.kind), ['aqua-dock'])
-  await store.patch(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, patch: { spec: { title: '已修改的 Maker' } } })
+  await store.patch(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, patch: { spec: { title: 'Edited Maker' } } })
   await assert.rejects(plans.prepareRegistration(owner, randomUUID(), { draftId: draft.id, expectedRevision: 3, artifactId: artifact.artifactId }), /artifact-stale/)
   await assert.rejects(plans.get('wallet:0x1111111111111111111111111111111111111111', registration.plan.id), /not-found/)
   const row = (await pool.query('SELECT payload,payload_digest FROM builder.transaction_plans WHERE id=$1', [registration.plan.id])).rows[0]
@@ -92,7 +92,7 @@ test('registration and cancellation plans are immutable unsigned calldata bound 
 
 test('standing delivery requires an explicit Maker signature and is revocable without exposing a signing tool', async () => {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
-  const created = await store.create(owner, randomUUID(), { title: '事件續期 Maker', kind: 'maker' })
+  const created = await store.create(owner, randomUUID(), { title: 'Event delivery Maker', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
     spec: { baseToken: profile.tokens[0], quoteToken: profile.tokens[1], model: { kind: 'xyc' }, feeBps: 0,
       deadline: Math.floor(Date.now() / 1000) + 86400,

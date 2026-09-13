@@ -12,7 +12,7 @@ export default function RequirementReviewDialog({ api, draft, onClose, onComplet
   api: BuilderClient; draft: Draft; onClose(): void; onComplete(receipt: RequirementReceipt): void;
 }) {
   const [review, setReview] = useState<RequirementReview | null>(null), [digest, setDigest] = useState<`0x${string}` | null>(null);
-  const [decisions, setDecisions] = useState<Record<string, Decision>>({}), [busy, setBusy] = useState('準備需求審閱'), [error, setError] = useState('');
+  const [decisions, setDecisions] = useState<Record<string, Decision>>({}), [busy, setBusy] = useState('Preparing requirement review'), [error, setError] = useState('');
   useEffect(() => {
     let live = true;
     void api.prepareRequirementReview(draft, crypto.randomUUID()).then(result => {
@@ -20,48 +20,48 @@ export default function RequirementReviewDialog({ api, draft, onClose, onComplet
       setReview(result.review); setDigest(result.digest); setBusy('');
     }).catch(e => {
       if (!live) return;
-      setError(e instanceof BuilderError ? e.message : '無法準備需求審閱。'); setBusy('');
+      setError(e instanceof BuilderError ? e.message : 'Unable to prepare the requirement review.'); setBusy('');
     });
     return () => { live = false; };
   }, [api, draft]);
-  const failure = (e: unknown) => setError(e instanceof BuilderError ? e.message : '需求確認未完成，請重試。');
+  const failure = (e: unknown) => setError(e instanceof BuilderError ? e.message : 'Requirement review did not complete. Try again.');
   async function confirm() {
     if (!review || !digest || busy || Object.keys(decisions).length !== review.requirements.length) return;
-    setBusy('保存需求確認'); setError('');
+    setBusy('Saving requirement decisions'); setError('');
     try {
       const result = await api.confirmRequirementReview(review.id, digest,
         review.requirements.map(row => ({ requirementId: row.id, decision: decisions[row.id]! })), crypto.randomUUID());
       onComplete(result.receipt);
     } catch (e) { failure(e); setBusy(''); }
   }
-  return <BuilderDialog title="逐項確認策略條件" onClose={onClose}>
+  return <BuilderDialog title="Review strategy requirements" onClose={onClose}>
     {error && <p className={styles.error} role="alert">{error}</p>}
     {busy && !review ? <p role="status">{busy}</p> : review ? <>
-      <p className={styles.helper}>這是對公開策略解讀的確認，並不代表已取得 CRE report、錢包資金或鏈上授權。審閱有效至 {new Date(review.expiresAt).toLocaleString('zh-TW')}。</p>
+      <p className={styles.helper}>This confirms an interpretation of the public strategy. It does not prove a CRE report, wallet funding or onchain authorization. The review expires {new Date(review.expiresAt).toLocaleString('en-US')}.</p>
       <div className={styles.requirementReview}>
         {review.requirements.map(row => {
           const canConfirm = row.criteria.every(c => c.enforcement !== 'unsupported' && c.matchesDraft !== false);
           const hasLimitation = row.criteria.some(c => c.enforcement === 'unsupported' || c.matchesDraft === false);
           return <article key={row.id} className={styles.requirementReviewRow}>
-            <header><strong>{row.priority === 'must' ? '必要' : '偏好'} · {row.text}</strong><small>來源：{row.sourceMessageId}</small></header>
+            <header><strong>{row.priority === 'must' ? 'Required' : 'Preferred'} · {row.text}</strong><small>Source: {row.sourceMessageId}</small></header>
             {row.criteria.map((criterion, index) => <div className={styles.requirementCriterion} key={index}>
               <p>{criterion.interpretation}</p>
-              <small>目前值：{criterion.actual ?? '沒有可比較值'} · 證據：{criterion.evidence}</small>
+              <small>Current value: {criterion.actual ?? 'No comparable value'} · Evidence: {criterion.evidence}</small>
               <p className={styles.helper}>{criterion.limitation}</p>
             </div>)}
-            <label>你的決定<select value={decisions[row.id] ?? ''} onChange={event => setDecisions(current => ({ ...current, [row.id]: event.target.value as Decision }))}>
-              <option value="" disabled>請選擇</option>
-              {canConfirm && <option value="confirm">符合這個解讀</option>}
-              {hasLimitation && <option value="accept-limitation">接受這項限制，繼續保存</option>}
-              {!hasLimitation && <option value="accept-limitation">接受已說明的產品限制</option>}
+            <label>Your decision<select value={decisions[row.id] ?? ''} onChange={event => setDecisions(current => ({ ...current, [row.id]: event.target.value as Decision }))}>
+              <option value="" disabled>Choose one</option>
+              {canConfirm && <option value="confirm">Confirm this interpretation</option>}
+              {hasLimitation && <option value="accept-limitation">Accept this limitation and continue</option>}
+              {!hasLimitation && <option value="accept-limitation">Accept the stated product limitation</option>}
             </select></label>
           </article>;
         })}
       </div>
-      <div className={styles.dialogFooter}><p className={styles.helper}>修改任何策略參數後，這份確認會失效，必須重新審閱。</p>
-        <div className={styles.actions}><button disabled={!!busy} onClick={onClose}>稍後確認</button>
-          <button className={styles.primary} disabled={!!busy || Object.keys(decisions).length !== review.requirements.length} onClick={() => void confirm()}>{busy || '確認所有條件'}</button></div>
+      <div className={styles.dialogFooter}><p className={styles.helper}>Changing any strategy parameter invalidates this review and requires a new one.</p>
+        <div className={styles.actions}><button disabled={!!busy} onClick={onClose}>Review later</button>
+          <button className={styles.primary} disabled={!!busy || Object.keys(decisions).length !== review.requirements.length} onClick={() => void confirm()}>{busy || 'Confirm all requirements'}</button></div>
       </div>
-    </> : <p role="status">{error || '正在準備公開條件…'}</p>}
+    </> : <p role="status">{error || 'Preparing public criteria…'}</p>}
   </BuilderDialog>;
 }
