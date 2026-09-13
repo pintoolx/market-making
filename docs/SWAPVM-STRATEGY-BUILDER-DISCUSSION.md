@@ -6,7 +6,7 @@ This document consolidates the initial integration decisions. Current implementa
 
 Use the existing TypeScript architecture, static Next frontend, Ethereum Sepolia WETH/USDC, verified AquaSwapVMRouter and Aqua interfaces. The Builder creates compositions of existing verified instructions; it does not generate arbitrary Solidity or calldata. A fixed PinTool Guard Extruction is permitted and required. Arbitrary hooks, targets, opcodes, custom routers/AquaApps, auto-recenter, DCA, cross-protocol actions and backend custody are excluded.
 
-The original three product choices are settled: Provider publishes a template, Maker instantiates it; fixed Guard integration is mandatory; zero fees precede separately verified fixed LP input fees. Automatic event evaluation is permitted with consent, but it does not sign Maker asset transactions.
+The original three product choices are settled: Provider publishes a template, Maker instantiates it; fixed Guard integration is mandatory; zero-fee lifecycles preceded the now-verified fixed LP input fees in Guard V2. Automatic event evaluation is permitted with consent, but it does not sign Maker asset transactions.
 
 ## Deployment evidence
 
@@ -20,7 +20,7 @@ Capability records separate `sourceImplemented`, `sdkEncodable`, `runtimeVerifie
 
 ## Recipes and amounts
 
-XYC, fixed-range concentrated and verified Pegged need compatible Guard recipes, markers, independent decoders and real-router lifecycle tests. Earlier V1 guarded tests do not prove V2 active-hash semantics. Nonzero fees require gross input, net pricing input, Aqua credit/debit and Guard cap agreement; unguarded fee tests do not prove this composition.
+XYC, fixed-range concentrated and verified Pegged need compatible Guard recipes, markers, independent decoders and real-router lifecycle tests. Earlier V1 guarded tests do not prove V2 active-hash semantics. Guard V2 fixed input fees now have gross input, net pricing input, Aqua credit/debit and Guard cap agreement across all recipes; protocol and dynamic fees remain outside scope.
 
 Use exact arithmetic for atomic amounts, square-root prices, reciprocals, token ordering and internal fee scales. Avoid double conversion when SDK helpers already scale values. Verify 6/18 decimals, reversed base/quote, min/max inversion, rounding and tiny/large inputs. A concentrated curve is not inherently a 50/50 inventory requirement. WETH and native ETH remain distinct.
 

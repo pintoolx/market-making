@@ -17,7 +17,7 @@ Provider design is a multi-turn conversation about public parameters, not a one-
 
 Use OpenAI with Vercel AI SDK, Railway PostgreSQL, the existing static Next frontend and authenticated service APIs. Runtime event evaluation is deterministic and does not call the design LLM. Keep the CRE Bun/WASM workspace separate from Node/browser compiler modules.
 
-A fixed, verified Guard Extruction is required. Arbitrary external targets, hooks, opcodes, routers and AquaApps remain excluded. XYC, fixed-range CLMM and verified Pegged are the initial curves. Complete zero-fee lifecycles before enabling guarded fixed input fees; fee support still requires full accounting and composition evidence.
+A fixed, verified Guard Extruction is required. Arbitrary external targets, hooks, opcodes, routers and AquaApps remain excluded. XYC, fixed-range CLMM and verified Pegged are the initial curves. Guard V2 fixed input fees are enabled after gross/net and actual-inventory composition evidence; Guard V1 remains zero fee.
 
 Event-driven automation requires explicit Maker consent, a persistent worker, trusted fresh inputs, change-only report delivery and receipt/readback verification. A manual evaluation button or browser polling alone does not satisfy that requirement. Automatic evaluation does not authorize asset signing, swaps, recentering or rebalancing.
 

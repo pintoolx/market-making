@@ -28,6 +28,11 @@ const sqrtUp = (n: bigint) => { const r = sqrt(n); return r * r === n ? r : r + 
 export function previewSwapMath(decoded: Decoded, balances: readonly [bigint, bigint], tokenIn: 0 | 1, amount: bigint) {
   uint(balances[0]); uint(balances[1]); uint(amount)
   if (amount === 0n) throw new Error('zero-input')
+  const feeScale = BigInt(decoded.feeBps) * 100_000n, pricingAmount = feeScale === 0n ? amount : (() => {
+    const fee = ceil(mul(amount, feeScale), 1_000_000_000n)
+    if (fee >= amount) throw new Error('fee-exceeds-input')
+    return amount - fee
+  })()
   let x = balances[tokenIn], y = balances[1 - tokenIn]!
   const inLt = BigInt(tokenIn === 0 ? decoded.baseToken : decoded.quoteToken) < BigInt(tokenIn === 0 ? decoded.quoteToken : decoded.baseToken)
   if (decoded.kind === 'concentrated') {
@@ -43,7 +48,7 @@ export function previewSwapMath(decoded: Decoded, balances: readonly [bigint, bi
   let amountOut: bigint
   if (decoded.kind !== 'pegged') {
     if (x === 0n || y === 0n) throw new Error('curve-empty-reserve')
-    amountOut = div(mul(amount, y), add(x, amount))
+    amountOut = div(mul(pricingAmount, y), add(x, pricingAmount))
   } else {
     const [xLt, yGt, a, rateLt, rateGt] = decoded.curveArgs.map(BigInt) as [bigint, bigint, bigint, bigint, bigint]
     const [xRef, yRef, rateIn, rateOut] = inLt ? [xLt, yGt, rateLt, rateGt] : [yGt, xLt, rateGt, rateLt]
@@ -51,7 +56,7 @@ export function previewSwapMath(decoded: Decoded, balances: readonly [bigint, bi
     x = mul(x, rateIn); y = mul(y, rateOut)
     const u = div(mul(x, E27), xRef), v = div(mul(y, E27), yRef)
     const invariant = add(add(sqrt(mul(u, E27)), sqrt(mul(v, E27))), div(mul(a, add(u, v)), E27))
-    const nextU = div(mul(add(x, mul(amount, rateIn)), E27), xRef)
+    const nextU = div(mul(add(x, mul(pricingAmount, rateIn)), E27), xRef)
     const used = add(sqrt(mul(nextU, E27)), div(mul(a, nextU), E27))
     if (used > invariant) throw new Error('curve-price-boundary')
     const right = invariant - used
@@ -66,7 +71,7 @@ export function previewSwapMath(decoded: Decoded, balances: readonly [bigint, bi
     const nextY = ceil(mul(nextV, yRef), E27)
     amountOut = div(uint(y - nextY), rateOut)
   }
-  return { amountIn: amount, amountOut, pricingBalanceIn: x, pricingBalanceOut: y }
+  return { amountIn: amount, pricingAmountIn: pricingAmount, feeAmountIn: amount - pricingAmount, amountOut, pricingBalanceIn: x, pricingBalanceOut: y }
 }
 
 /** A fixed public envelope and hypothetical active, bidirectional report are
@@ -102,11 +107,11 @@ export function previewBuilderScenarios(input: StrategyDraft, profile: Deploymen
         if (next.some((n, i) => n > postCaps[i]!)) reasons.push('guard-post-inventory-cap')
         if (!reasons.length) balances = next
         const baseAmount = index === 0 ? amount : math.amountOut, quoteAmount = index === 0 ? math.amountOut : amount
-        return { ...trade, amountOutAtomic: String(math.amountOut), admittedUnderAssumptions: reasons.length === 0, reasons, before, after: balances.map(String),
+        return { ...trade, amountOutAtomic: String(math.amountOut), pricingAmountInAtomic: String(math.pricingAmountIn), feeAmountInAtomic: String(math.feeAmountIn), admittedUnderAssumptions: reasons.length === 0, reasons, before, after: balances.map(String),
           executionPriceQuotePerBase: baseAmount === 0n ? null : { numerator: String(quoteAmount * 10n ** BigInt(draft.spec.baseToken!.decimals)),
             denominator: String(baseAmount * 10n ** BigInt(draft.spec.quoteToken!.decimals)) } }
       } catch (error) {
-        return { ...trade, amountOutAtomic: null, admittedUnderAssumptions: false,
+        return { ...trade, amountOutAtomic: null, pricingAmountInAtomic: null, feeAmountInAtomic: null, admittedUnderAssumptions: false,
           reasons: [error instanceof Error && error.message.startsWith('curve-') ? error.message : 'preview-unavailable'], before, after: before, executionPriceQuotePerBase: null }
       }
     })
@@ -119,6 +124,7 @@ export function previewBuilderScenarios(input: StrategyDraft, profile: Deploymen
     assumptions: ['Each scenario starts from the stated allocation; trades within it are sequential.',
       'Guard report is assumed active, unrevoked, bidirectional and equal to the public envelope.',
       'Rejected trades leave balances unchanged. Wallet funds, allowance, gas and live report are not checked.',
+      'A fixed LP input fee is deducted from the taker input for curve pricing, then the gross input is credited to Aqua; rounding is upward and the fee remains with the Maker.',
       'Prices are quote per base, derived from integer trade amounts; no market forecast or return guarantee.'],
     observations: decoded.kind === 'pegged' ? ['Pegged initial marginal price depends on the allocation ratio. With references derived from these allocations, the referencePrice normalization alone does not set the initial execution price.'] : [],
     scenarios, registrationReady: false as const }

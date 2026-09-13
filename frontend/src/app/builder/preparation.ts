@@ -30,7 +30,7 @@ export function verifyCompilation(value: Compilation, draft: Draft, expectedId =
   if (value.artifactId !== expectedId || value.mode !== 'compiled-order' || value.registrationReady !== false || !value.current || draft.kind !== 'maker' ||
     p.draftId !== draft.id || p.revision !== draft.revision || p.contentDigest !== contentDigest(draft) || p.manifestHash !== digestJson(profile) ||
     p.specHash !== digestJson({ spec: draft.spec, maker: draft.maker, allocations: draft.allocations, salt: draft.salt }) ||
-    decoded.maker !== draft.maker || decoded.guard !== profile.guard || decoded.kind !== draft.spec.model?.kind || decoded.deadline !== draft.spec.deadline ||
+    decoded.maker !== draft.maker || decoded.guard !== profile.guard || decoded.kind !== draft.spec.model?.kind || decoded.feeBps !== draft.spec.feeBps || decoded.deadline !== draft.spec.deadline ||
     decoded.salt !== draft.salt || decoded.baseToken !== draft.spec.baseToken?.address || decoded.quoteToken !== draft.spec.quoteToken?.address ||
     canonical(decoded.guardEnvelope) !== canonical(draft.spec.guardEnvelope) || canonical(decoded) !== canonical(p.decoded) ||
     canonical(p.tokens) !== canonical([decoded.baseToken, decoded.quoteToken]) ||

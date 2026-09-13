@@ -116,7 +116,7 @@ export function createDesignTools(context: { repository: DesignRepository; profi
     }
   }
   return {
-    getCapabilities: tool({ description: 'Discover SwapVM, Guard, CRE and Aqua mechanisms, limitations and separate evidence layers. Use short mechanism keywords or null for the full inventory, not a paragraph. A zero fee does not require the nonzero fee.lp-input capability.',
+    getCapabilities: tool({ description: 'Discover SwapVM, Guard, CRE and Aqua mechanisms, limitations and separate evidence layers. Use short mechanism keywords or null for the full inventory, not a paragraph. Fixed LP input fees are available only in the verified Guard V2 recipe; protocol and dynamic fees remain blocked.',
       strict: true, inputSchema: z.object({ query: z.string().nullable() }).strict(), execute: ({ query }) => safe(async () => {
         await read()
         return getCapabilities(query ? { text: query } : {}).map(c => ({ id: c.id, label: c.label, layer: c.layer, description: c.description,

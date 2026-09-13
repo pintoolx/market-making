@@ -23,6 +23,23 @@ test('integer previews match the previously recorded bidirectional, sequential o
   }
 })
 
+test('fixed LP input fee previews net curve pricing while retaining gross input and fee accounting', () => {
+  const draft = builderSimulationFixture('xyc', maker, now)
+  draft.spec.feeBps = 30
+  const amount = 100_000_000_000_001n
+  const decoded = compileBuilderStrategy(draft, profile, now).decoded
+  const math = previewSwapMath(decoded, [10_000_000_000_000_000n, 25_000_000n], 0, amount)
+  assert.equal(math.amountIn, amount)
+  assert.equal(math.feeAmountIn, 300_000_000_001n)
+  assert.equal(math.pricingAmountIn, amount - math.feeAmountIn)
+  const result = previewBuilderScenarios(draft, profile, { hypotheticalAllocations: null,
+    scenarios: [{ name: 'fee', trades: [{ tokenIn: 'base', amountInAtomic: String(amount) }] }] }, now)
+  const trade = result.scenarios[0]!.trades[0]!
+  assert.equal(trade.pricingAmountInAtomic, String(math.pricingAmountIn))
+  assert.equal(trade.feeAmountInAtomic, String(math.feeAmountIn))
+  assert.match(result.assumptions.join(' '), /gross input is credited to Aqua/)
+})
+
 test('preview sequences enforce both amount caps, actual post-inventory and zero output, preserving state on refusal', () => {
   const draft = builderSimulationFixture('xyc', maker, now)
   draft.spec.guardEnvelope!.maxAmountQuotePerSwap = '1'

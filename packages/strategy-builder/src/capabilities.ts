@@ -47,7 +47,7 @@ const definitions: Capability[] = [
     parameters: kind === 'xyc' ? [] : kind === 'concentrated'
       ? [{ name: 'minPrice', unit: 'quote/base', constraint: 'positive; below maxPrice' }, { name: 'maxPrice', unit: 'quote/base', constraint: 'positive; fixed at review' }]
       : [{ name: 'referencePrice', unit: 'quote/base', constraint: 'positive; rates normalized exactly' }, { name: 'amplification', unit: 'human decimal', constraint: '0–5000; encoded at 1e27' }],
-    prerequisites: ['two supported ERC20 tokens', 'positive allocations', 'Guard V2', 'zero LP fee initially'],
+    prerequisites: ['two supported ERC20 tokens', 'positive allocations', 'Guard V2'],
     sideEffects: ['maker inventory changes on swap'], recipes: [`guarded-${kind}-v2`],
     sourceImplemented: source(`instructions/${kind === 'xyc' ? 'XYCSwap' : kind === 'concentrated' ? 'XYCConcentrate' : 'PeggedSwap'}.sol`),
     sdkEncodable: sdk, compositionTested: recipeTests, productEnabled: coreEnabled,
@@ -61,7 +61,8 @@ const definitions: Capability[] = [
   define({ id: 'fee.lp-input', label: 'Fixed LP input fee', layer: 'swapvm', description: 'Charges a fixed LP fee on swap input, distinct from protocol fees.',
     keywords: ['fee', 'trading fee', 'fee'], opcodes: [21], parameters: [{ name: 'feeBps', unit: 'bps', constraint: '0–9999; ABI scale 1e9' }],
     sourceImplemented: source('instructions/Fee.sol'), sdkEncodable: sdk,
-    productEnabled: evidence('blocked', 'Nonzero fees require Guard gross/net and actual inventory accounting verification; zero fees are supported') }),
+    compositionTested: evidence('verified', 'Guard V2 caps gross input and actual Aqua inventory after the fee instruction; all three curves, both directions and boundary rounding are covered', 'contracts/aqua-executor/test/builder-compile.test.ts'),
+    productEnabled: evidence('verified', 'Fixed LP input fees are available for Guard V2 recipes; protocol and dynamic fees remain disabled') }),
   define({ id: 'modifier.decay', label: 'Decay', layer: 'swapvm', description: 'Decays virtual inventory offsets based on the last swap time; does not automatically rebalance.',
     keywords: ['decay', 'decay', 'mev'], opcodes: [19], parameters: [{ name: 'periodSeconds', unit: 'seconds', constraint: 'uint16; no backward jumps' }],
     sourceImplemented: source('instructions/Decay.sol'), sdkEncodable: sdk,

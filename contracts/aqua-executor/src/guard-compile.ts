@@ -31,7 +31,10 @@ export function compileGuardedV2(p: AquaStrategyParams, guard: Hex, caps: GuardC
 function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 | 2): GuardedCompiled {
   if (p.program.kind === 'concentrated' && version !== 2) throw new Error('concentrated liquidity requires Guard v2 real inventory accounting')
   const base = compile(p)
-  if (p.program.feeBps !== 0) throw new Error('guarded recipes require zero fee: gross-input accounting is not implemented')
+  // Guard V2 checks the gross input and actual Aqua balance after SwapVM's
+  // flat input fee has restored the taker-defined amount. V1 remains frozen at
+  // zero fee because its virtual-balance accounting was never composed with fees.
+  if (version === 1 && p.program.feeBps !== 0) throw new Error('Guard v1 recipes require zero fee')
   for (const address of [p.maker, ...p.tokens, guard]) {
     if (getAddress(address) === zeroAddress) throw new Error('guarded v1 requires nonzero addresses')
   }
@@ -43,7 +46,11 @@ function guarded(p: AquaStrategyParams, guard: Hex, caps: GuardCaps, version: 1 
   if (base.amounts[0]! > caps.maxPostBalance0 || base.amounts[1]! > caps.maxPostBalance1) throw new Error('initial inventory exceeds guard envelope')
   const envelope = encodePacked(['uint8', 'address', 'address', 'uint128', 'uint128', 'uint128', 'uint128'],
     [version, p.tokens[0]!, p.tokens[1]!, ...limits])
-  const prefix = appendCurve(new S.AquaProgramBuilder().deadline({ deadline: BigInt(p.program.deadline) }), p)
+  const builder = new S.AquaProgramBuilder().deadline({ deadline: BigInt(p.program.deadline) })
+  // Preserve the established zero-fee bytecode; a zero-valued fee instruction
+  // would change every existing strategy hash without changing its semantics.
+  if (p.program.feeBps !== 0) builder.flatFeeAmountInXD({ fee: BigInt(p.program.feeBps) * 100_000n })
+  const prefix = appendCurve(builder, p)
     .salt({ salt: BigInt(p.program.salt) }).build()
   // SDK 0.4.4's Aqua builder has no Extruction method. Append the pinned router's
   // opcode 32, with 125 argument bytes (target + envelope); golden and real-router tests bind it.

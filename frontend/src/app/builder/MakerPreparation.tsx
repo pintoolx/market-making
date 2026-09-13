@@ -174,7 +174,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
       </section>
       <section aria-label="Strategy compilation"><h3>2. Compile and decode</h3><p>Compilation binds the current allocations, draft revision and deployment profile. Recheck after editing or restoring a strategy.</p>
         <button disabled={!!busy || stale} onClick={() => void act('Compiling and verifying program', compile)}>{compileKey.current ? 'Retry compilation confirmation' : 'Compile current draft'}</button>
-        {artifact && <div className={styles.compilationResult}><strong>Current v{draft.revision} compilation saved</strong><p>{artifact.payload.decoded.kind} · Zero fee · Guard checks every swap</p>
+        {artifact && <div className={styles.compilationResult}><strong>Current v{draft.revision} compilation saved</strong><p>{artifact.payload.decoded.kind} · {artifact.payload.decoded.feeBps === 0 ? 'Zero fee' : `Fixed LP input fee · ${artifact.payload.decoded.feeBps} bps`} · Guard checks every swap</p>
           <dl><dt>Program hash</dt><dd>{artifact.payload.programHash}</dd><dt>Order / Aqua strategy hash</dt><dd>{artifact.payload.strategyHash}</dd><dt>Guard</dt><dd>{artifact.payload.decoded.guard}</dd></dl>
           <details><summary>View instructions and program</summary><ol>{artifact.payload.decoded.instructions.map(i => <li key={i.pc}>{i.name} · opcode 0x{i.opcode.toString(16).padStart(2, '0')}</li>)}</ol><pre>{artifact.payload.program}</pre></details>
           <p>The server checks curve parameters; this view also verifies the revision, hashes, Guard and public limits. Compilation alone does not establish that all requirements are met or that trading is authorized.</p></div>}

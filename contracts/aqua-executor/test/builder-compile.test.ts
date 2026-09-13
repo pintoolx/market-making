@@ -6,6 +6,7 @@ import { compileBuilderStrategy } from '../src/builder-compile.ts'
 import { readJson } from '../src/config.ts'
 import { compileExecution } from '../src/execution-compile.ts'
 import { compile } from '../src/compile.ts'
+import { previewSwapMath } from '../src/builder-preview.ts'
 import { parseStrategy } from '../src/execution-request.ts'
 import { buildTx, quote, rawBalances, send, takerSwap } from '../src/executor.ts'
 import { lpFixture } from './helpers/lp.ts'
@@ -57,6 +58,31 @@ for (const kind of ['xyc', 'concentrated', 'pegged'] as const) test(`Builder ${k
   await assert.rejects(quote(f.ctx, f.d, s, s.tokens[1]!, s.tokens[0]!, 10_000_000n))
 })
 
+for (const kind of ['xyc', 'concentrated', 'pegged'] as const) test(`Builder ${kind}: fixed LP input fee uses net pricing and gross Aqua accounting in both directions`, async () => {
+  const input = draft(kind)
+  input.spec.feeBps = 30
+  const a = compileBuilderStrategy(input, profile, nowSec)
+  assert.equal(a.decoded.kind, kind)
+  assert.equal(a.decoded.feeBps, 30)
+  assert.match(a.program, /1504/)
+  const s = compileExecution(parseStrategy(a.params)) as GuardedCompiled
+  await f.activate(s, caps)
+  await f.submit(s, { schemaVersion: 2, validUntil: 0 }, caps)
+  for (const [i, amount] of [[1, 10_000_001n], [0, 10n ** 15n + 1n]] as const) {
+    const before = (await rawBalances(f.ctx, f.d, s)).map(b => b.balance) as [bigint, bigint]
+    const expected = previewSwapMath(a.decoded, before, i, amount)
+    const q = await quote(f.ctx, f.d, s, s.tokens[i]!, s.tokens[1 - i]!, amount)
+    assert.equal(q.amountIn, amount)
+    assert.equal(q.amountOut, expected.amountOut)
+    assert.ok(expected.pricingAmountIn < amount)
+    await takerSwap(f.ctx, f.d, s, s.tokens[i]!, amount, 100, f.rec)
+    const after = (await rawBalances(f.ctx, f.d, s)).map(b => b.balance) as [bigint, bigint]
+    assert.equal(after[i]! - before[i]!, amount, 'gross input is credited to Aqua')
+    assert.equal(before[1 - i]! - after[1 - i]!, q.amountOut)
+  }
+  await send(f.ctx, f.ctx.maker, buildTx.dock(f.d, s), 'builder-dock-fee', f.rec)
+})
+
 test('decoder rejects unknown/reserved opcodes, branches, duplicate gates, malformed lengths and altered traits', () => {
   const a = compileBuilderStrategy(draft('xyc'), profile, nowSec)
   for (const bytes of ['0x0d', '0x0d05', '0x1600', '0xfe00'] as Hex[]) assert.throws(() => decodeInstructions(bytes))
@@ -70,8 +96,7 @@ test('decoder rejects unknown/reserved opcodes, branches, duplicate gates, malfo
 
 test('validation keeps missing input, incompatible deployments, metadata spoofing and private-policy fields out of compile', () => {
   const a = draft('concentrated')
-  for (const bad of [{ ...a, spec: { ...a.spec, feeBps: 30 } },
-    { ...a, spec: { ...a.spec, baseToken: { ...a.spec.baseToken!, decimals: 6 } } },
+  for (const bad of [{ ...a, spec: { ...a.spec, baseToken: { ...a.spec.baseToken!, decimals: 6 } } },
     { ...a, spec: { ...a.spec, model: { kind: 'concentrated', relativeWidthBps: 500 } } },
     { ...a, spec: { ...a.spec, privatePolicy: { rules: [] } } },
     { ...a, spec: { ...a.spec, guardEnvelope: { maxAmountBasePerSwap: '1' } } },
@@ -80,6 +105,9 @@ test('validation keeps missing input, incompatible deployments, metadata spoofin
     assert.equal(validateStrategy(bad, profile, nowSec).ready, false)
     assert.throws(() => compileBuilderStrategy(bad, profile, nowSec))
   }
+  const fee = { ...a, spec: { ...a.spec, feeBps: 30 } }
+  assert.equal(validateStrategy(fee, profile, nowSec).ready, true)
+  assert.equal(compileBuilderStrategy(fee, profile, nowSec).decoded.feeBps, 30)
   assert.throws(() => compileBuilderStrategy(a, { ...profile, swapVmCommit: 'main' }, nowSec), /Source/)
   const template = { ...a, kind: 'template', maker: undefined, allocations: undefined }
   assert.equal(validateStrategy(template, profile, nowSec).ready, true)

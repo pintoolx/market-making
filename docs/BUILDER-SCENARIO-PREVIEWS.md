@@ -1,6 +1,6 @@
 # Builder numerical scenario previews
 
-Verified 2026-09-13. This adds the ninth application tool, `previewScenarios`, and an immutable PostgreSQL preview history. It is a mathematical model of the decoded zero-fee recipe under explicit assumptions. Live wallet inventory, actual report authorization, a router quote and settlement remain separate results.
+Verified 2026-09-13. This adds the ninth application tool, `previewScenarios`, and an immutable PostgreSQL preview history. It is a mathematical model of the decoded recipe, including the fixed LP input fee, under explicit assumptions. Live wallet inventory, actual report authorization, a router quote and settlement remain separate results.
 
 ## Calculation and boundaries
 
@@ -39,4 +39,4 @@ POSTs use the existing authenticated session and idempotency key. Clients cannot
 
 Reproduce the fork check with `ANVIL=/path/to/anvil node contracts/aqua-executor/scripts/eval-builder-preview.ts`. Run the real model check with a privately configured `OPENAI_API_KEY`, local `BUILDER_TEST_DATABASE_URL`, and `node packages/builder-service/scripts/eval-preview-agent.ts`. The latter creates and removes only its own disposable database. Neither script performs public-chain transactions.
 
-This is not complete coverage of all inputs or the full goal. Inventory snapshots, visual preview controls, relative price acquisition, full requirement acceptance, Provider publication, wallet plans, trusted dynamic binding, event delivery and rollout are still required. Zero-fee preview checks do not enable LP fees.
+This is not complete coverage of all inputs or the full goal. Inventory snapshots, visual preview controls, relative price acquisition, full requirement acceptance, Provider publication, wallet plans, trusted dynamic binding, event delivery and rollout are still required. Protocol/dynamic fee modifiers remain disabled.
