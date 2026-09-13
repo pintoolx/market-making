@@ -82,6 +82,7 @@ test('stopping, reorg and consent revocation prevent late event work from re-ena
   await gated.ingest({ source: 'chain.sepolia.test2', eventId: 'log-revoke', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString() })
   const gatedJob = await gated.claimEvaluation(); assert.ok(gatedJob)
   const gatedEvaluation = await gated.evaluate(gatedJob!.id, gatedJob!.token); assert.ok(gatedEvaluation.deliveryId)
+  await pool.query("UPDATE builder.event_subscriptions SET state='paused' WHERE id=$1", [gatedSubscription.subscription.id])
   const automation = createAutomation(pool, profile)
   const revoked = await automation.revoke(g.owner, randomUUID(), { consentId: g.consent.id, signature: await g.account.signMessage({ message: revokeMessage(g.consent) }) })
   assert.equal(revoked.consent.active, false)
