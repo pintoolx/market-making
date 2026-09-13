@@ -5,8 +5,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { generateKeyPair, SignJWT } from 'jose';
 import { MockLanguageModelV4 } from 'ai/test';
 import { sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
-import { database, migrate, createStore, createTurns, builderHandler, runDesignTurn } from '../../src/index.ts';
+import { database, migrate, createStore, createTurns, createSimulations, builderHandler, runDesignTurn, runSimulation } from '../../src/index.ts';
 import { createPrivyVerifier } from '../../src/privy.ts';
+import { fixtureInventory, fixtureSimulation, fixtureSimulationControl } from './preparation-fixture.mjs';
 
 const origin = 'http://127.0.0.1:3311', appId = 'pintool-browser-test', name = 'pintool_builder_test_' + randomUUID().replaceAll('-', '');
 const url = new URL(process.env.BUILDER_TEST_DATABASE_URL ?? '');
@@ -20,12 +21,18 @@ const keys = await generateKeyPair('ES256');
 const { publicKey: workflowPublicKey, checkFixturePolicy } = await import(new URL('../../../../.cache/builder/private-check.mjs', import.meta.url));
 const token = await new SignJWT({ sid: 'browser-session' }).setProtectedHeader({ alg: 'ES256', typ: 'JWT' }).setIssuer('privy.io')
   .setAudience(appId).setSubject('did:privy:browser').setIssuedAt().setExpirationTime('1h').sign(keys.privateKey);
-const handler = builderHandler(pool, { origin, chainId: 11155111, profileId: profile.id, privyAppId: appId, designEnabled: true },
-  { verifyPrivy: createPrivyVerifier(appId, keys.publicKey), templates: { workflowPublicKey } });
+const handler = builderHandler(pool, { origin, chainId: 11155111, profileId: profile.id, privyAppId: appId, designEnabled: true, simulationEnabled: true },
+  { verifyPrivy: createPrivyVerifier(appId, keys.publicKey), templates: { workflowPublicKey }, inventoryAdapter: fixtureInventory });
 const store = createStore(pool, profile.id), turns = createTurns(pool), shutdown = new AbortController();
 const server = createServer(async (req, res) => {
   try {
     if (req.url === '/fixture/token') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ token })); return; }
+    if (req.url?.startsWith('/fixture/simulation-control?')) {
+      const params = new URL(req.url, origin).searchParams;
+      fixtureSimulationControl.delayMs = params.get('slow') === 'true' ? 8000 : 1000;
+      fixtureSimulationControl.skip = params.get('skip') === 'true';
+      res.end('Synthetic worker configured'); return;
+    }
     if (req.url === '/fixture/policy-check') {
       const rows = (await pool.query(`SELECT p.envelope,v.payload FROM builder_private.provider_policies p
         JOIN builder.template_versions v ON v.template_id=p.template_id AND v.version=p.version ORDER BY v.created_at DESC LIMIT 1`)).rows;
@@ -44,7 +51,12 @@ const server = createServer(async (req, res) => {
     res.end('<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pintool local UI test</title><link rel="stylesheet" href="/entry.css"><div id="root"></div><script type="module" src="/entry.js"></script></html>');
   } catch { res.statusCode = 500; res.end('Test request failed'); }
 });
-server.listen(3311, '127.0.0.1');
+try {
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(3311, '127.0.0.1', resolve); });
+} catch {
+  await pool.end(); await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`); await admin.end();
+  throw new Error('Owned browser fixture could not listen on port 3311');
+}
 console.log('Builder browser fixture ready on localhost:3311');
 
 const usage = { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } };
@@ -57,7 +69,8 @@ function fixtureModel(draft, content) {
     { field: 'maxPostBalanceBase', value: '2' }, { field: 'maxPostBalanceQuote', value: '5000' },
     { field: 'deadline', value: String(Math.floor(Date.now() / 1000) + 604800) },
   ];
-  const selectedEdits = partial ? edits.filter(e => ['baseToken', 'quoteToken', 'maxAmountBasePerSwap'].includes(e.field)) : edits;
+  const selectedEdits = content.includes('極小配置') ? [{ field: 'allocationBase', value: '0.000000000000000001' }, { field: 'allocationQuote', value: '0.000001' }]
+    : partial ? edits.filter(e => ['baseToken', 'quoteToken', 'maxAmountBasePerSwap'].includes(e.field)) : edits;
   const title = content.match(/模板驗收-[a-z0-9]+/)?.[0];
   if (title) selectedEdits.push({ field: 'title', value: title });
   let step = 0;
@@ -87,10 +100,18 @@ const worker = (async () => {
     await runDesignTurn(pool, profile, fixtureModel(draft, messages.at(-1).content), turn, shutdown.signal);
   }
 })();
+const simulationWorker = (async () => {
+  const simulations = createSimulations(pool, profile);
+  while (!shutdown.signal.aborted) {
+    const claim = await simulations.claim();
+    if (!claim) { await delay(100); continue; }
+    await runSimulation(pool, profile, fixtureSimulation, claim, shutdown.signal);
+  }
+})();
 let stopping = false;
 async function stop() {
   if (stopping) return; stopping = true; shutdown.abort();
-  server.closeAllConnections(); server.close(); await worker;
+  server.closeAllConnections(); server.close(); await Promise.all([worker, simulationWorker]);
   await pool.end(); await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`); await admin.end();
 }
 process.once('SIGTERM', () => void stop()); process.once('SIGINT', () => void stop());
