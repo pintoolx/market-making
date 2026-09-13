@@ -1,5 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { sepoliaStandingProfile } from '../../packages/strategy-builder/src/index.ts';
+import { createRpcBindingVerifier } from './builder-binding-verifier.mjs';
 
 /**
  * The Builder is mounted into the existing mandate service instead of running
@@ -33,6 +34,7 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
   }) : undefined;
   const inventoryEnabled = env.BUILDER_INVENTORY_ENABLED === 'true';
   const templatesKey = env.BUILDER_WORKFLOW_PUBLIC_KEY?.trim();
+  const bindingDependencies = dependencies.binding ?? { verifyReport: createRpcBindingVerifier(config.rpcUrl) };
   const handler = builderHandler(pool, {
     origin: config.allowedOrigin,
     chainId: config.chainId,
@@ -50,6 +52,7 @@ export async function createBuilderRuntime(config, env = process.env, dependenci
       templates: { workflowPublicKey: templatesKey, price: krakenTemplatePrice },
     } : {}),
     ...(eventIngress ? { eventIngress } : {}),
+    ...(bindingDependencies ? { binding: bindingDependencies } : {}),
   });
   const evaluatorUrl = env.BUILDER_EVENT_EVALUATOR_URL?.trim();
   const deliveryUrl = env.BUILDER_EVENT_DELIVERY_URL?.trim();
