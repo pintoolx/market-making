@@ -156,6 +156,23 @@
 .notice { padding: 12px 15px; background: #f5eedc; border-left: 3px solid #a28a38; font-size: 12px; line-height: 1.9; }
 .address { font-family: monospace; overflow-wrap: anywhere; }
 .withdraw { margin-top: 28px; padding-top: 8px; border-top: 1px solid var(--line); }
+.preparation { padding: 8px 24px 24px; }
+.preparation > section { margin-top: 30px; padding-top: 12px; border-top: 1px solid var(--line); }
+.inventoryResult, .compilationResult { margin-top: 22px; }
+.tableScroll { max-width: 100%; overflow-x: auto; }
+.preparation table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.preparation caption { text-align: left; padding-bottom: 12px; font-weight: 600; }
+.preparation th, .preparation td { text-align: right; vertical-align: top; padding: 10px 6px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.preparation th:first-child { text-align: left; }
+.preparation td small { display: block; margin-top: 6px; color: #74341f; }
+.compilationResult dl { margin: 20px 0; font-size: 12px; }
+.compilationResult dt { color: var(--muted); margin-top: 14px; }
+.compilationResult dd { margin: 8px 0; overflow-wrap: anywhere; font-family: monospace; }
+.preparation ol { list-style: decimal; padding-left: 22px; font-size: 12px; line-height: 2; }
+.simulationCard, .caseDetails { margin: 20px 0; border: 1px solid var(--line); border-radius: 10px; padding: 0 16px 16px; background: #edf2fa; }
+.caseDetails li { overflow-wrap: anywhere; }
+.caseDetails li span { color: var(--blue); font-weight: 600; }
+@media (max-width: 620px) { .preparation { padding: 8px 16px 18px; } .preparation h3 { font-size: 18px; } }
 @media (max-width: 620px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); } .dialogHeading { padding: 14px 16px; gap: 12px; } .dialogHeading h2 { font-size: 16px; } .publicReview, .privatePanel, .dialogFooter, .catalog, .catalogDetail, .publicationComplete { padding: 18px 16px; } .formGrid { grid-template-columns: minmax(0, 1fr); gap: 0; } .dialog h3 { font-size: 20px; } }
 @media (max-width: 980px) { .columns { grid-template-columns: minmax(0, 1fr); } .welcome { gap: 28px; } .messages { max-height: 55dvh; } .strategyTitle p { justify-content: space-between; } }
 @media (max-width: 620px) { .workspace { padding-top: 26px; } .heading { align-items: start; flex-direction: column; gap: 16px; } .heading h1 { font-size: 28px; } .welcome { grid-template-columns: 1fr; padding: 26px 22px; } .welcome h2 br { display: none; } .example { padding-top: 22px; } .toolbar { align-items: center; } .toolbar label { width: 100%; } .toolbar select { width: 100%; } .toolbar .saved { font-size: 11px; } .messages { padding-inline: 18px; } .composer { padding: 16px; } .composerBottom > span { max-width: 24ch; } .sectionHead { padding: 16px 18px; } .userMessage { margin-left: 10px; } .error { flex-direction: column; align-items: start; } }

@@ -100,6 +100,8 @@ Readiness stays false even when all [fork cases](../../docs/BUILDER-LIFECYCLE-SI
 
 ## Browser workspace
 
+Maker conversations also expose [inventory, compilation and background simulation controls](../../docs/BUILDER-MAKER-PREPARATION.md). To run all browser acceptance suites against a fresh disposable local database, use `bash packages/builder-service/test/browser/run-all.sh` from the repository root; it builds the fixtures and owns server cleanup. The browser CI job runs this wrapper. It requests no asset signature and keeps mock/fork/live evidence distinct.
+
 `/builder` uses the existing Privy wallet provider and displays owned conversations, streamed Markdown replies, current parameters, missing settings, immutable revision diffs and restore actions. The Builder bearer token stays in browser memory; Privy refreshes its access token for each request. Reloading requires wallet proof again and reopens saved work. Failed authentication returns to wallet verification. Lost acceptance responses can recover the active turn through the conversation list. Stopping generation preserves committed edits and cancels the worker's remaining authority.
 
 The Provider navigation link is gated by `NEXT_PUBLIC_BUILDER_ENABLED=true`; leave it unset until the API/worker is mounted and verified. The page supports public design, the separate encrypted Provider policy editor, signed version publication/withdrawal, catalog review and Maker conversations pinned to a version. Maker wallet execution/authorization remain subsequent stages; drafts are not represented as deployed. [Workflow and privacy boundaries](../../docs/BUILDER-TEMPLATE-WORKSPACE.md).
