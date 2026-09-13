@@ -1,6 +1,6 @@
 'use client';
 
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useConnectWallet, usePrivy, useWallets } from '@privy-io/react-auth';
 import { createWalletClient, custom, toHex, type WalletClient } from 'viem';
 import { sepolia } from 'viem/chains';
 import { PRIVY_APP_ID } from './PrivyProvider';
@@ -11,6 +11,7 @@ export type Account = {
   ready: boolean;
   authenticated: boolean;
   login: () => void;
+  connectWallet?: () => void;
   userId?: string;
   email?: string;
   address?: string;
@@ -18,6 +19,7 @@ export type Account = {
   addresses: string[];
   /** Wallet was created by Privy for an email login, so it starts empty. */
   embedded: boolean;
+  walletConnected: boolean;
   /** e.g. "Email" or "Wallet". */
   method: string;
   signMessage?: (message: string) => Promise<`0x${string}`>;
@@ -29,6 +31,7 @@ export type Account = {
 function usePrivyAccount(): Account {
   const { ready, authenticated, login, user, getAccessToken } = usePrivy();
   const { wallets } = useWallets();
+  const { connectWallet } = useConnectWallet();
   const email = user?.email?.address;
   const linkedWallets = user?.linkedAccounts.flatMap(account =>
     account.type === 'wallet' && account.chainType === 'ethereum'
@@ -36,6 +39,7 @@ function usePrivyAccount(): Account {
       : []
   ) ?? [];
   const addresses = [...new Set([user?.wallet?.address, ...linkedWallets].filter((address): address is string => Boolean(address)))];
+  const walletConnected = wallets.some(item => item.address.toLowerCase() === user?.wallet?.address?.toLowerCase());
 
   // Privy marks its embedded wallet as "privy"; any other client type means the user connected their own wallet.
   const embedded = user?.wallet?.walletClientType === 'privy';
@@ -66,11 +70,13 @@ function usePrivyAccount(): Account {
     ready,
     authenticated,
     login,
+    connectWallet,
     userId: user?.id,
     email,
     address: user?.wallet?.address,
     addresses,
     embedded,
+    walletConnected,
     method,
     signMessage,
     getAccessToken,
@@ -80,7 +86,7 @@ function usePrivyAccount(): Account {
 }
 
 function useNoAccount(): Account {
-  return { enabled: false, ready: true, authenticated: false, login: () => {}, addresses: [], embedded: false, method: 'Unknown' };
+  return { enabled: false, ready: true, authenticated: false, login: () => {}, addresses: [], embedded: false, walletConnected: false, method: 'Unknown' };
 }
 
 // PRIVY_APP_ID is fixed at build time, so the same hook runs on every render.

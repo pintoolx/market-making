@@ -90,14 +90,15 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
     <p>{mode === 'identity' ? 'Verify strategies published by this wallet.' : 'Create a verified link for makers.'}</p>
     {loading && <p role="status" className={styles.skeleton}>Checking the platform namespace…</p>}
     {statusError && <div role="status" className={styles.notice}><p>{statusError}</p></div>}
-    {!account.authenticated && <Primary onClick={account.login}>Connect publishing wallet</Primary>}
+    {!account.authenticated ? <Primary onClick={account.login}>Log in</Primary>
+      : !account.walletConnected && <Primary onClick={account.connectWallet}>Connect publishing wallet</Primary>}
     {status && account.authenticated && !status.provider && mode === 'identity' && <form onSubmit={e => { e.preventDefault(); void act(async tx => {
       await tx.claimProvider(root, providerLabel); await refresh(); setSuccess('Your provider name is ready.');
     }); }}>
       <fieldset disabled={busy}><legend>Claim your provider name</legend>
         <label>Name<FormInput required autoComplete="off" spellCheck={false} minLength={3} maxLength={32} value={providerLabel} onChange={e => setProviderLabel(e.target.value)} placeholder="alice" /></label>
         <p className={aqua.hint}>{providerLabel || 'alice'}.{root} · One name per wallet · Uses Sepolia ETH</p>
-        <Primary type="submit">Claim name</Primary>
+        <Primary type="submit" disabled={!account.walletConnected}>Claim name</Primary>
       </fieldset>
     </form>}
     {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Claim a provider name in Profile →</Link></p>}
@@ -110,7 +111,7 @@ export default function EnsWorkspace({ account, release, mode = 'strategy' }: { 
         <label>Name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
         <p className={styles.name}>{name}</p>
         <p>{latest?.state === 'published' ? `${latest.name} · Revision ${latest.version}` : 'Publish this strategy before assigning a name.'}</p>
-        <div className={aqua.actionRow}><Primary disabled={!latest || latest.state !== 'published'} onClick={approve}>Approve strategy</Primary><Secondary disabled={!latest || latest.state !== 'published'} onClick={publish}>Publish ENS link</Secondary></div>
+        <div className={aqua.actionRow}><Primary disabled={!account.walletConnected || !latest || latest.state !== 'published'} onClick={approve}>Approve strategy</Primary><Secondary disabled={!account.walletConnected || !latest || latest.state !== 'published'} onClick={publish}>Publish ENS link</Secondary></div>
         {currentVersion && <p role="status">ENS points to revision {currentVersion}.</p>}
         <p className={aqua.hint}>Approve the strategy first, then publish its ENS link.</p>
       </fieldset>

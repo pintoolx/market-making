@@ -128,7 +128,9 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
       {error && <p role="alert" className={aqua.fieldError}>{error}</p>}
       {saved && <p role="status">{latest?.state === 'withdrawn' ? 'Closed to new makers. Existing liquidity remains active.' : 'Strategy published. Makers can now add liquidity.'}</p>}
       <div className={aqua.actionRow}>
-        {!account.authenticated ? <Primary type="button" onClick={account.login}>Connect publishing wallet</Primary> : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? 'Retry saving' : latest ? 'Sign and publish update' : 'Sign and publish strategy'}</Primary>}
+        {!account.authenticated ? <Primary type="button" onClick={account.login}>Log in</Primary>
+          : !account.walletConnected ? <Primary type="button" onClick={account.connectWallet}>Connect publishing wallet</Primary>
+            : <Primary type="submit" disabled={busy || !loaded || !publicKey}>{busy ? phase === 'signing' ? 'Waiting for wallet…' : 'Saving…' : canRetrySave ? 'Retry saving' : latest ? 'Sign and publish update' : 'Sign and publish strategy'}</Primary>}
         {latest?.state === 'published' && <Secondary type="button" disabled={busy || !loaded} onClick={() => void publish('withdrawn')}>Close to new makers</Secondary>}
       </div>
       {!publicKey && <p className={aqua.muted}>Secure publication is temporarily unavailable.</p>}
