@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import type { EventDeliveryDependencies, EvaluationResult, DeliveryReceipt } from './event-delivery.ts'
+import { DeliveryNotSentError, type EventDeliveryDependencies, type EvaluationResult, type DeliveryReceipt, type DeliveryReconciliation } from './event-delivery.ts'
 import { ServiceError } from './errors.ts'
 
 const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/)
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
 const owner = z.string().regex(/^wallet:0x[0-9a-fA-F]{40}$/)
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/)
-const nonce = z.string().regex(/^[1-9][0-9]{0,19}$/)
+const nonce = z.string().regex(/^[1-9][0-9]{0,19}$/).refine(value => /^[1-9][0-9]{0,19}$/.test(value) && BigInt(value) <= 18446744073709551615n)
 const date = z.string().datetime({ offset: true })
 const jsonObject = z.record(z.string(), z.unknown())
 const evaluationResponse = z.union([
@@ -14,7 +14,11 @@ const evaluationResponse = z.union([
   z.object({ status: z.enum(['unchanged', 'paused', 'failed']), reportHash: hash.optional(), report: jsonObject.optional(), reason: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(), observedAt: date.optional() }).strict(),
 ])
 const receiptResponse = z.object({ transactionHash: hash, receipt: jsonObject.optional() }).strict()
-const reconcileResponse = z.union([receiptResponse, z.null()])
+const reconcileResponse = z.union([
+  receiptResponse, z.null(),
+  z.object({ status: z.literal('not-broadcast') }).strict(),
+  z.object({ status: z.literal('reverted'), transactionHash: hash, receipt: jsonObject.optional() }).strict(),
+])
 
 export type EventGatewayOptions = {
   evaluatorUrl: string
@@ -53,8 +57,9 @@ export function createHttpEventGateway(options: EventGatewayOptions): EventDeliv
   const timeoutMs = timeout(options.timeoutMs), fetchImpl = options.fetchImpl ?? fetch
 
   async function post(url: URL, payload: Record<string, unknown>) {
-    const body = JSON.stringify(payload)
-    if (Buffer.byteLength(body) > 64_000) throw stableError('event-gateway-request-too-large')
+    let body: string
+    try { body = JSON.stringify(payload) } catch { throw new DeliveryNotSentError('event-gateway-invalid-request', 400) }
+    if (Buffer.byteLength(body) > 64_000) throw new DeliveryNotSentError('event-gateway-request-too-large', 400)
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
       let response: Response
@@ -86,19 +91,26 @@ export function createHttpEventGateway(options: EventGatewayOptions): EventDeliv
       return evaluationResponse.parse(value) as EvaluationResult
     },
     async deliver(input) {
-      const value = await post(deliveryUrl, {
-        schemaVersion: 1, operation: 'deliver', owner: owner.parse(input.subscription.owner), subscriptionId: id.parse(input.subscription.id),
-        draftId: id.parse(input.subscription.draftId), revision: input.subscription.revision, artifactId: id.parse(input.subscription.artifactId),
-        generation: input.subscription.generation, reportHash: hash.parse(input.reportHash), nonce: nonce.parse(input.nonce), report: jsonObject.parse(input.report),
-      })
-      return receiptResponse.parse(value) as DeliveryReceipt
+      let payload: Record<string, unknown>
+      try {
+        payload = {
+          schemaVersion: 1, operation: 'deliver', deliveryId: id.parse(input.deliveryId), owner: owner.parse(input.subscription.owner), subscriptionId: id.parse(input.subscription.id),
+          draftId: id.parse(input.subscription.draftId), revision: input.subscription.revision, artifactId: id.parse(input.subscription.artifactId),
+          generation: input.subscription.generation, reportHash: hash.parse(input.reportHash), nonce: nonce.parse(input.nonce), report: jsonObject.parse(input.report),
+        }
+      } catch { throw new DeliveryNotSentError('event-gateway-invalid-request', 400) }
+      const value = await post(deliveryUrl, payload), parsed = receiptResponse.safeParse(value)
+      if (!parsed.success) throw stableError('event-gateway-invalid-response')
+      return parsed.data as DeliveryReceipt
     },
     async reconcile(input) {
       const value = await post(deliveryUrl, {
         schemaVersion: 1, operation: 'reconcile', deliveryId: id.parse(input.deliveryId), owner: owner.parse(input.subscription.owner),
         subscriptionId: id.parse(input.subscription.id), reportHash: hash.parse(input.reportHash), nonce: nonce.parse(input.nonce),
       })
-      return reconcileResponse.parse(value) as DeliveryReceipt | null
+      const parsed = reconcileResponse.safeParse(value)
+      if (!parsed.success) throw stableError('event-gateway-invalid-response')
+      return parsed.data as DeliveryReconciliation
     },
   }
 }
