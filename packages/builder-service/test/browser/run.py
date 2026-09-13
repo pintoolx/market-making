@@ -37,8 +37,8 @@ with sync_playwright() as p:
         expect(summary.get_by_role('row', name='USDC 125 5000', exact=True)).to_be_visible()
 
     send('建立 WETH / USDC 固定區間 2200 到 2800，零費率，單筆 0.05 WETH / 125 USDC，庫存 2 WETH / 5000 USDC。')
-    expect(page.get_by_role('button', name='停止生成')).to_be_visible()
-    expect(page.locator('article[aria-busy="true"]')).to_be_visible(timeout=15000)
+    # A short response may complete between UI polling cycles. The deliberately
+    # slow turn below verifies the intermediate streaming state before cancellation.
     finished(2)
     expect(summary.get_by_text('公開設定完整', exact=True)).to_be_visible()
     caps_unchanged()
