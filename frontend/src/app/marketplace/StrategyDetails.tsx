@@ -12,16 +12,21 @@ export default function StrategyDetails({ listing, action }: { listing: Listing;
           <span className={aqua.eyebrow}>Provided by</span>
           <ProviderIdentity listing={listing} />
         </div>
+        {listing.ensName && <div className={aqua.cardRule}>
+          <span className={aqua.eyebrow}>{listing.ensStatus === 'historical' ? 'Historical strategy name' : 'Verified strategy name'}</span>
+          <p className={`${aqua.byline} ${aqua.strategyName}`}>{listing.ensName}</p>
+        </div>}
         {action}
       </section>
     </div>
     <aside className={aqua.explanation}>
       <span className={aqua.eyebrow}>Public configuration</span>
       <h2>How this strategy uses liquidity</h2>
-      <div className={aqua.intentRows}>
-        <div><span>Pair</span><strong>WETH / USDC</strong></div>
-        <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
-        <div><span>Funds remain in</span><strong>Your wallet</strong></div>
+        <div className={aqua.intentRows}>
+          <div><span>Pair</span><strong>WETH / USDC</strong></div>
+          <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
+          {listing.version && <div><span>Version</span><strong>{listing.version}</strong></div>}
+          <div><span>Funds remain in</span><strong>Your wallet</strong></div>
         <div><span>Confidential policy</span><strong>{listing.template.privateInputs}</strong></div>
         {listing.executionProfileIds && <div><span>Available modes</span><strong>Tight · Defensive · Paused</strong></div>}
       </div>
