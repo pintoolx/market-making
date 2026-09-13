@@ -182,7 +182,13 @@ test('HTTP template endpoints require wallet authentication, configuration and s
     assert.equal(JSON.stringify(saved).includes(p.cipher.ciphertext),false)
     assert.equal((await call(`/templates/${saved.template.templateId}/versions/1`)).status,200)
     assert.equal((await call('/templates/instantiate',{...instanceInput(saved),maker:p.account.address})).status,400)
-    assert.equal((await call('/templates/instantiate',instanceInput(saved))).status,200)
+    const applied=await call('/templates/instantiate',instanceInput(saved));assert.equal(applied.status,200)
+    const instance=await applied.json() as {draft:{id:string}}
+    const context=await call(`/drafts/${instance.draft.id}/template-context?revision=1`)
+    assert.equal(context.status,200)
+    assert.deepEqual((await context.json() as {context:{permissions:unknown}}).context.permissions,defaultTemplatePermissions)
+    assert.equal((await call(`/drafts/${instance.draft.id}/template-context?revision=2`)).status,409)
+    assert.equal((await call(`/drafts/${instance.draft.id}/template-context?revision=1&owner=${p.owner}`)).status,400)
     assert.equal((await call('/templates')).status,200)
   } finally {server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()))}
 })

@@ -35,6 +35,9 @@ importers:
 
   frontend:
     dependencies:
+      '@pintool/strategy-builder':
+        specifier: workspace:*
+        version: link:../packages/strategy-builder
       react-markdown:
         specifier: 10.1.0
         version: 10.1.0(@types/react@19.0.8)(react@19.1.0)

@@ -105,5 +105,57 @@
 .revision li > span { display: block; color: var(--ink); font-weight: 600; }
 .revision p { font-size: 11px; color: var(--muted); }
 .emptySummary { padding: 44px 24px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.publishAction, .makerInstance { margin: 0 22px 24px; }
+.publishAction p, .makerInstance p, .makerInstance small { font-size: 12px; color: var(--muted); line-height: 1.8; }
+.makerInstance { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #eaf0f9; }
+.makerInstance h3 { font-size: 14px; margin: 0 0 10px; }
+.makerInstance ul { list-style: disc; padding-left: 20px; line-height: 1.9; font-size: 12px; }
+.dialog { margin: auto; width: min(860px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; color: var(--ink); border: 1px solid var(--ink); border-radius: 16px; background: #f5f7fb; box-shadow: 0 12px 60px #0e0f2838; overflow-y: auto; overscroll-behavior: contain; }
+.dialog::backdrop { background: #10162996; }
+.dialogHeading { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 24px; background: #edf1f8; border-bottom: 1px solid var(--line); }
+.dialogHeading h2 { margin: 0; font-size: 19px; }
+.dialog p { line-height: 1.85; font-size: 13px; color: var(--muted); }
+.dialog > .error { margin: 20px 24px; color: #74341f; }
+.dialog h3 { font-size: 22px; margin: 10px 0; overflow-wrap: anywhere; }
+.dialog h4 { margin: 22px 0 14px; font-size: 14px; }
+.dialog fieldset { min-width: 0; border: 0; margin: 0; padding: 0; }
+.dialog fieldset:disabled { opacity: .75; }
+.dialog label { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; font-size: 12px; color: var(--ink); }
+.dialog input:not([type="checkbox"]), .dialog select { width: 100%; min-width: 0; min-height: 44px; padding: 10px; color: var(--ink); background: #fff; border: 1px solid #aab7cc; border-radius: 7px; font: inherit; font-size: 14px; }
+.dialog input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.dialog input[type="checkbox"] { width: 16px; height: 16px; flex: 0 0 16px; margin: 2px 0 0; accent-color: var(--blue); }
+.dialog .checkbox, .checks label { flex-direction: row; align-items: start; gap: 10px; line-height: 1.7; }
+.checks { margin: 16px 0; }
+.publicReview, .privatePanel, .dialogFooter, .catalog, .catalogDetail, .publicationComplete { padding: 24px; }
+.privatePanel { background: #eaf0f8; border-top: 1px solid var(--line); }
+.privateHeading { margin-bottom: 22px; }
+.privateHeading p { max-width: 62ch; }
+.dialog .rule { border: 1px solid #aabbd4; border-radius: 10px; background: #f5f8fd; padding: 16px; margin: 0 0 22px; }
+.rule legend { padding: 0 10px; font-size: 14px; font-weight: 700; color: var(--blue); }
+.ruleActions, .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: end; }
+.formGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 20px; }
+.rule small, .helper { display: block; font-size: 11px; line-height: 1.9; color: var(--muted); }
+.dialogFooter { border-top: 1px solid var(--line); background: #f0f4fa; }
+.dialogFooter > .primary { margin-top: 14px; }
+.dialog details { font-size: 12px; line-height: 1.8; margin: 16px 0; }
+.dialog summary { cursor: pointer; color: var(--blue); font-weight: 600; }
+.dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow-y: auto; background: #e4eaf4; padding: 14px; font-size: 11px; }
+.dialog ul { list-style: disc; padding-left: 20px; font-size: 12px; line-height: 1.9; }
+.dialog button.templateCard { display: flex; flex-direction: column; align-items: start; gap: 12px; width: 100%; text-align: left; padding: 20px; margin: 16px 0; background: #f7f9fd; }
+.templateCard strong { font-size: 19px; overflow-wrap: anywhere; }
+.templateCard span, .templateCard small { font-size: 12px; color: var(--muted); }
+.catalogDetail h3 > span { font-size: 12px; margin-left: 12px; color: var(--muted); white-space: nowrap; }
+.versionDetails dl { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1.3fr); gap: 10px 20px; font-size: 12px; line-height: 1.8; margin: 20px 0; }
+.versionDetails dt { color: var(--muted); }
+.versionDetails dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.versionDetails table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; margin: 18px 0; }
+.versionDetails caption { font-size: 12px; font-weight: 700; text-align: left; margin-bottom: 12px; }
+.versionDetails th, .versionDetails td { text-align: right; border-bottom: 1px solid var(--line); padding: 10px 3px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.versionDetails th:first-child { text-align: left; width: 22%; }
+.versionDetails thead th { font-weight: 500; color: var(--muted); }
+.notice { padding: 12px 15px; background: #f5eedc; border-left: 3px solid #a28a38; font-size: 12px; line-height: 1.9; }
+.address { font-family: monospace; overflow-wrap: anywhere; }
+.withdraw { margin-top: 28px; padding-top: 8px; border-top: 1px solid var(--line); }
+@media (max-width: 620px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); } .dialogHeading { padding: 14px 16px; gap: 12px; } .dialogHeading h2 { font-size: 16px; } .publicReview, .privatePanel, .dialogFooter, .catalog, .catalogDetail, .publicationComplete { padding: 18px 16px; } .formGrid { grid-template-columns: minmax(0, 1fr); gap: 0; } .dialog h3 { font-size: 20px; } }
 @media (max-width: 980px) { .columns { grid-template-columns: minmax(0, 1fr); } .welcome { gap: 28px; } .messages { max-height: 55dvh; } .strategyTitle p { justify-content: space-between; } }
 @media (max-width: 620px) { .workspace { padding-top: 26px; } .heading { align-items: start; flex-direction: column; gap: 16px; } .heading h1 { font-size: 28px; } .welcome { grid-template-columns: 1fr; padding: 26px 22px; } .welcome h2 br { display: none; } .example { padding-top: 22px; } .toolbar { align-items: center; } .toolbar label { width: 100%; } .toolbar select { width: 100%; } .toolbar .saved { font-size: 11px; } .messages { padding-inline: 18px; } .composer { padding: 16px; } .composerBottom > span { max-width: 24ch; } .sectionHead { padding: 16px 18px; } .userMessage { margin-left: 10px; } .error { flex-direction: column; align-items: start; } }

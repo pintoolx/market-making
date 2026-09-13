@@ -141,9 +141,14 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         if (!previews) throw new ServiceError('profile-unavailable', 503)
         return send(await previews.get(actor.owner, preview[1]!))
       }
-      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations|previews|inventory))?$/)
+      const draft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})(\/(history|patch|restore|validation|compile|artifacts|simulations|previews|inventory|template-context))?$/)
       if (draft) {
         if (!post && !draft[2]) return send({ draft: await store.get(actor.owner, draft[1]!) })
+        if (!post && draft[3] === 'template-context') {
+          if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1) throw new ServiceError('invalid-request')
+          const revision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
+          return send({ context: await store.templateContext(actor.owner, draft[1]!, revision) })
+        }
         if (!post && draft[3] === 'inventory') {
           if (!inventory) throw new ServiceError('inventory-unavailable', 503)
           if ([...url.searchParams.keys()].some(key => key !== 'revision') || url.searchParams.getAll('revision').length !== 1) throw new ServiceError('invalid-request')
