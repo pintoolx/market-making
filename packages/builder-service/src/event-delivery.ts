@@ -187,16 +187,33 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
           await client.query("UPDATE builder.evaluation_jobs SET state='cancelled',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL,error_code='subscription-stopped' WHERE id=$1 AND lease_token=$2", [jobId, token])
           return { result: { status: 'paused' as const, reason: 'subscription-stopped', observedAt: now } }
         }
-        if (result.status === 'changed' && result.reportHash === sub.lastReportHash) result = { status: 'unchanged', observedAt: result.observedAt }
+        if (result.status === 'changed' && result.reportHash === sub.lastReportHash) {
+          const latest = (await client.query(`SELECT status FROM builder.report_deliveries
+            WHERE subscription_id=$1 AND generation=$2 AND nonce=$3`, [sub.id, sub.generation, sub.lastReportNonce])).rows[0]
+          if (latest && latest.status !== 'failed') result = { status: 'unchanged', observedAt: result.observedAt }
+        }
         if (result.status === 'changed') {
           const artifactRow = (await client.query('SELECT payload FROM builder.compiled_artifacts WHERE id=$1 AND owner=$2', [sub.artifactId, sub.owner])).rows[0]
           const strategyHash = artifactRow?.payload?.strategyHash
           if (typeof strategyHash !== 'string' || !/^0x[0-9a-f]{64}$/i.test(strategyHash)) throw new ServiceError('event-subscription-integrity', 500)
-          const sequence = (await client.query(`INSERT INTO builder.maker_report_sequences(owner,strategy_hash,next_nonce) VALUES($1,$2,1)
-            ON CONFLICT(owner,strategy_hash) DO UPDATE SET next_nonce=builder.maker_report_sequences.next_nonce+1,updated_at=clock_timestamp() RETURNING next_nonce`, [sub.owner, strategyHash])).rows[0]
+          const binding = await readAuthorizationBinding(client, sub.owner, sub.draftId, sub.revision, sub.artifactId)
+          if (!binding) throw conflict('authorization-binding-required')
+          // Continue above both the verified onchain baseline and all locally
+          // allocated nonces. Keep uint64 values as exact decimal strings.
+          const sequence = (await client.query(`INSERT INTO builder.maker_report_sequences(owner,strategy_hash,next_nonce)
+            SELECT $1,$2,$3::numeric+1 WHERE $3::numeric<18446744073709551615
+            ON CONFLICT(owner,strategy_hash) DO UPDATE
+              SET next_nonce=GREATEST(builder.maker_report_sequences.next_nonce,$3::numeric)+1,updated_at=clock_timestamp()
+              WHERE builder.maker_report_sequences.next_nonce<18446744073709551615
+            RETURNING next_nonce`, [sub.owner, strategyHash, binding.reportNonce])).rows[0]
+          if (!sequence) {
+            result = { status: 'failed', reason: 'report-nonce-exhausted', observedAt: now }
+            await client.query("UPDATE builder.evaluation_jobs SET state='failed',result=$3,error_code='report-nonce-exhausted',completed_at=clock_timestamp(),lease_token=NULL,lease_until=NULL WHERE id=$1 AND lease_token=$2", [jobId, token, JSON.stringify(result)])
+            return { result }
+          }
           const nonce = String(sequence.next_nonce), deliveryId = randomUUID()
           await client.query(`INSERT INTO builder.report_deliveries(id,subscription_id,owner,generation,evaluation_job_id,report_hash,nonce,payload)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (subscription_id,generation,report_hash) DO NOTHING`, [deliveryId, sub.id, sub.owner, sub.generation, jobId, result.reportHash, nonce, JSON.stringify(result.report)])
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [deliveryId, sub.id, sub.owner, sub.generation, jobId, result.reportHash, nonce, JSON.stringify(result.report)])
           await client.query(`UPDATE builder.event_subscriptions SET last_event_at=clock_timestamp(),last_input_observed_at=$2,last_evaluated_at=clock_timestamp(),last_changed_at=clock_timestamp(),last_report_hash=$3,last_report_nonce=$4,updated_at=clock_timestamp() WHERE id=$1 AND owner=$5`, [sub.id, result.observedAt ?? loaded.event.observedAt, result.reportHash, nonce, sub.owner])
           await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES($1,'report-delivery.pending',$2,$3) ON CONFLICT DO NOTHING", [sub.owner, deliveryId, sub.revision])
           result = { ...result, observedAt: result.observedAt ?? now }

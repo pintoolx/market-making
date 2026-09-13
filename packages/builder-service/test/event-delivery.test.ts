@@ -16,7 +16,7 @@ before(async () => {
 })
 after(async () => { await pool?.end(); if (admin) { try { await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`) } finally { await admin.end() } } })
 
-async function fixture() {
+async function fixture(reportNonce = '1') {
   const account = privateKeyToAccount(generatePrivateKey()), owner = 'wallet:' + account.address.toLowerCase(), store = createStore(pool, profile.id)
   const created = await store.create(owner, randomUUID(), { title: 'Event strategy', kind: 'maker' })
   const { draft } = await store.patch(owner, randomUUID(), { draftId: created.draft.id, expectedRevision: 1, patch: {
@@ -32,7 +32,7 @@ async function fixture() {
     verifyReport: async input => ({ chainId: profile.chainId, maker: input.owner.slice(7) as `0x${string}`, guard: profile.guard, router: profile.router, strategyHash: input.artifact.payload.strategyHash,
       reportSchema: 2 as const, reportDigest: input.reportDigest, reportTransactionHash: input.reportTransactionHash, reportNonce: input.reportNonce, accepted: true as const }),
   }), reportDigest = digestJson({ report: 'fixture', strategyHash: compiled.payload.strategyHash }), reportTransactionHash = ('0x' + '4'.repeat(64)) as `0x${string}`
-  const bindingIntent = await bindings.prepare(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId, reportDigest, reportTransactionHash, reportNonce: '1' })
+  const bindingIntent = await bindings.prepare(owner, randomUUID(), { draftId: draft.id, expectedRevision: 2, artifactId: artifact.artifactId, reportDigest, reportTransactionHash, reportNonce })
   const binding = await bindings.confirm(owner, randomUUID(), { intentId: bindingIntent.intent.id, digest: bindingIntent.digest, signature: await account.signMessage({ message: bindingIntent.intent.message }) })
   return { account, owner, draft, artifact, consent: confirmed.consent, binding: binding.binding }
 }
@@ -40,7 +40,7 @@ async function fixture() {
 test('event inbox is durable, deduplicated and change-only across evaluation and delivery', async () => {
   const f = await fixture(), reports = [digestJson({ allowedDirections: 1, cap: 'a' }), digestJson({ allowedDirections: 1, cap: 'b' })] as [`0x${string}`, `0x${string}`], evaluations: string[] = []
   const events = createEventDelivery(pool, profile, {
-    evaluate: async input => { evaluations.push(input.event.eventId); return { status: 'changed', reportHash: reports[evaluations.length > 2 ? 1 : 0], report: { allowedDirections: evaluations.length > 2 ? 1 : 3, cap: evaluations.length } } },
+    evaluate: async input => { evaluations.push(input.event.eventId); const regime = evaluations.length === 3 ? 1 : 0; return { status: 'changed', reportHash: reports[regime], report: { allowedDirections: 1, cap: regime === 0 ? 'a' : 'b' } } },
     deliver: async input => ({ transactionHash: ('0x' + '1'.repeat(64)) as `0x${string}`, receipt: { reportHash: input.reportHash, nonce: input.nonce } }),
   })
   const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
@@ -49,7 +49,7 @@ test('event inbox is durable, deduplicated and change-only across evaluation and
   const first = await events.ingest(event), duplicate = await events.ingest(event)
   assert.equal(first.duplicate, false); assert.equal(first.jobs.length, 1); assert.equal(duplicate.duplicate, true); assert.equal(duplicate.jobs.length, 0)
   const job = await events.claimEvaluation(); assert.ok(job)
-  const evaluated = await events.evaluate(job!.id, job!.token); assert.equal(evaluated.result.status, 'changed'); assert.ok(evaluated.deliveryId)
+  const evaluated = await events.evaluate(job!.id, job!.token); assert.equal(evaluated.result.status, 'changed'); assert.ok(evaluated.deliveryId); assert.equal(evaluated.nonce, '2')
   assert.equal((await events.deliver(evaluated.deliveryId!)).status, 'accepted')
   const event2 = { ...event, eventId: 'trade-2', payload: { price: '2500' } }
   await events.ingest(event2); const job2 = await events.claimEvaluation(); assert.ok(job2); const unchanged = await events.evaluate(job2!.id, job2!.token)
@@ -58,10 +58,47 @@ test('event inbox is durable, deduplicated and change-only across evaluation and
   await events.ingest(event3); const job3 = await events.claimEvaluation(); assert.ok(job3); const changed = await events.evaluate(job3!.id, job3!.token)
   assert.equal(changed.result.status, 'changed'); assert.ok(changed.deliveryId)
   assert.equal((await events.deliver(changed.deliveryId!)).status, 'accepted')
-  const current = await events.current(f.owner, f.draft.id, 2); assert.equal(current.subscription?.lastReportHash, reports[1]); assert.equal(current.subscription?.lastReportNonce, '2')
-  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1 AND status='accepted'", [enabled.subscription.id])).rows[0].count, 2)
-  assert.deepEqual(evaluations, ['trade-1', 'trade-2', 'trade-3'])
+  await events.ingest({ ...event, eventId: 'trade-4' })
+  const job4 = await events.claimEvaluation(); assert.ok(job4)
+  const returned = await events.evaluate(job4.id, job4.token); assert.equal(returned.result.status, 'changed'); assert.ok(returned.deliveryId)
+  assert.notEqual(returned.deliveryId, evaluated.deliveryId)
+  assert.equal((await events.deliver(returned.deliveryId)).status, 'accepted')
+  const current = await events.current(f.owner, f.draft.id, 2); assert.equal(current.subscription?.lastReportHash, reports[0]); assert.equal(current.subscription?.lastReportNonce, '4')
+  assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1 AND status='accepted'", [enabled.subscription.id])).rows[0].count, 3)
+  assert.deepEqual(evaluations, ['trade-1', 'trade-2', 'trade-3', 'trade-4'])
   await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+})
+
+test('failed terms can be evaluated again and report nonces preserve the full uint64 range', async () => {
+  const baseline = 9223372036854775808n, f = await fixture(baseline.toString()), reportHash = digestJson({ terms: 'retry' })
+  const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash, report: { terms: 'retry' } }) })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.nonce' })
+  const evaluateEvent = async (eventId: string) => {
+    await events.ingest({ source: 'market.nonce', eventId, kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    const job = await events.claimEvaluation(); assert.ok(job); assert.equal(job.eventId, eventId)
+    return events.evaluate(job.id, job.token)
+  }
+  const first = await evaluateEvent('nonce-first'); assert.ok(first.deliveryId); assert.equal(first.nonce, (baseline + 1n).toString())
+  await pool.query("UPDATE builder.report_deliveries SET status='failed',error_code='confirmed-rejection' WHERE id=$1", [first.deliveryId])
+  const retried = await evaluateEvent('nonce-retry'); assert.ok(retried.deliveryId); assert.notEqual(retried.deliveryId, first.deliveryId)
+  assert.equal(retried.nonce, (baseline + 2n).toString())
+  assert.equal((await evaluateEvent('nonce-unchanged')).result.status, 'unchanged')
+  assert.equal((await events.get(f.owner, enabled.subscription.id)).lastReportNonce, retried.nonce)
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+
+  // Resuming an identical artifact keeps the allocated sequence above the old
+  // binding, even if that earlier delivery was cancelled before broadcasting.
+  const resumed = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id, source: 'market.nonce' })
+  const afterResume = await evaluateEvent('nonce-resume'); assert.equal(afterResume.nonce, (baseline + 3n).toString())
+  await events.stop(f.owner, randomUUID(), { subscriptionId: resumed.subscription.id })
+
+  const exhausted = await fixture('18446744073709551615')
+  const capped = await events.enable(exhausted.owner, randomUUID(), { draftId: exhausted.draft.id, expectedRevision: 2, artifactId: exhausted.artifact.artifactId, consentId: exhausted.consent.id, source: 'market.nonce' })
+  const maximum = await evaluateEvent('nonce-exhausted')
+  assert.equal(maximum.result.status, 'failed'); assert.equal(maximum.result.reason, 'report-nonce-exhausted'); assert.equal(maximum.deliveryId, undefined)
+  assert.equal((await pool.query('SELECT state FROM builder.evaluation_jobs WHERE subscription_id=$1', [capped.subscription.id])).rows[0].state, 'failed')
+  assert.equal((await pool.query('SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1', [capped.subscription.id])).rows[0].count, 0)
+  await events.stop(exhausted.owner, randomUUID(), { subscriptionId: capped.subscription.id })
 })
 
 test('subscriptions can filter events by source while wildcard subscriptions retain all sources', async () => {
