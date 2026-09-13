@@ -20,7 +20,8 @@ const publicEventSchema = z.object({
 }).strict()
 const enableSchema = z.object({ draftId: idSchema, expectedRevision: revisionSchema, artifactId: idSchema, consentId: idSchema }).strict()
 const stopSchema = z.object({ subscriptionId: idSchema }).strict()
-type PublicEvent = z.infer<typeof publicEventSchema>
+export type PublicEvent = z.infer<typeof publicEventSchema>
+export const parsePublicEvent = (input: unknown) => publicEventSchema.parse(input)
 type SubscriptionRow = { id: string; owner: string; draftId: string; revision: number; artifactId: string; consentId: string; generation: number; state: 'enabled' | 'paused' | 'stopped'; lastEventAt: string | null; lastInputObservedAt: string | null; lastEvaluatedAt: string | null; lastChangedAt: string | null; lastReportHash: `0x${string}` | null; lastReportNonce: string | null; stoppedAt: string | null }
 type Snapshot = { subscription: SubscriptionRow; event: PublicEvent; draft: Awaited<ReturnType<typeof readOwnedDraft>>; artifact: Awaited<ReturnType<typeof readCompiledArtifact>>; consent: AutomationConsent; binding: AuthorizationBinding }
 export type EvaluationResult = { status: 'unchanged' | 'changed' | 'paused' | 'failed'; reportHash?: `0x${string}`; report?: Record<string, unknown>; reason?: string; observedAt?: string }

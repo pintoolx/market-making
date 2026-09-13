@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { database, migrate, createStore, createArtifacts, createAutomation, createEventDelivery, runEventWorker, revokeMessage, builderHandler, createAuthorizationBindings, bindingMessage } from '../src/index.ts'
+import { database, migrate, createStore, createArtifacts, createAutomation, createEventDelivery, runEventWorker, revokeMessage, builderHandler, createAuthorizationBindings, bindingMessage, createOutboxDispatcher, createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate } from '../src/index.ts'
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
@@ -81,12 +81,53 @@ test('stopping, reorg and consent revocation prevent late event work from re-ena
 })
 
 test('the resident worker recovers queued events after the browser is gone', async () => {
-  const f = await fixture(), events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ worker: true }), report: { worker: true } }), deliver: async () => ({ transactionHash: ('0x' + '2'.repeat(64)) as `0x${string}` }) })
+  const f = await fixture(), outbox: string[] = [], events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ worker: true }), report: { worker: true } }), deliver: async () => ({ transactionHash: ('0x' + '2'.repeat(64)) as `0x${string}` }) })
   const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
   await events.ingest({ source: 'market.worker', eventId: 'worker-1', kind: 'market.updated', payload: { price: '2500' }, observedAt: new Date().toISOString() })
-  const controller = new AbortController(), running = runEventWorker(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ worker: true }), report: { worker: true } }), deliver: async () => ({ transactionHash: ('0x' + '2'.repeat(64)) as `0x${string}` }) }, { pollMs: 50, signal: controller.signal })
+  const controller = new AbortController(), running = runEventWorker(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ worker: true }), report: { worker: true } }), deliver: async () => ({ transactionHash: ('0x' + '2'.repeat(64)) as `0x${string}` }) }, { pollMs: 50, signal: controller.signal, outbox: async entry => { outbox.push(entry.kind) } })
   await new Promise(resolve => setTimeout(resolve, 250)); controller.abort(); await running
   assert.equal((await pool.query("SELECT count(*)::int AS count FROM builder.report_deliveries WHERE subscription_id=$1 AND status='accepted'", [enabled.subscription.id])).rows[0].count, 1)
+  assert.ok(outbox.includes('report-delivery.pending'))
+})
+
+test('event adapters authenticate ingress and retain reorg-safe source identity', async () => {
+  const ingress = createSignedEventIngress('adapter-secret', { clock: () => 1000 }), body = { z: 1, eventId: 'market-1', price: '2500', observedAt: new Date(1000000).toISOString() }, market = { eventId: 'market-1', price: '2500', observedAt: body.observedAt }
+  const signature = ingress.sign(body, 1000)
+  assert.deepEqual(ingress.verify({ headers: { 'x-pintool-event-timestamp': '1000', 'x-pintool-event-signature': signature }, body }), body)
+  assert.throws(() => ingress.verify({ headers: { 'x-pintool-event-timestamp': '1000', 'x-pintool-event-signature': ingress.sign({ ...body, z: 2 }, 1000) }, body }), /invalid/)
+  assert.deepEqual(normalizeMarketUpdate('market.kraken', market).payload, { price: '2500' })
+  const log = normalizeEvmLog('chain.sepolia.guard', { chainId: profile.chainId, blockNumber: '42', blockHash: ('0x' + 'a'.repeat(64)), transactionHash: ('0x' + 'b'.repeat(64)), logIndex: 3,
+    address: profile.guard, topics: [('0x' + 'c'.repeat(64))], data: '0x', observedAt: new Date(1000000).toISOString() })
+  assert.equal(log.eventId, '0x' + 'b'.repeat(64) + ':3'); assert.equal(log.blockNumber, '42'); assert.equal(log.logIndex, 3)
+  assert.throws(() => normalizeEvmLog('chain.sepolia.guard', { chainId: profile.chainId, blockNumber: '42', transactionHash: ('0x' + 'b'.repeat(64)), logIndex: 3,
+    address: profile.guard, topics: [], data: '0x', observedAt: new Date(1000000).toISOString() }), /expected.*string/)
+})
+
+test('signed event ingress route accepts only gateway-authenticated public events', async () => {
+  const f = await fixture(), origin = 'http://localhost:3401', ingress = createSignedEventIngress('http-secret', { clock: () => 1000 }), handler = builderHandler(pool, { origin, chainId: profile.chainId, profileId: profile.id }, { eventIngress: ingress })
+  const server = createServer((request, response) => { void handler(request, response).then(ok => { if (!ok) { response.statusCode = 404; response.end() } }) })
+  server.listen(0, '127.0.0.1'); await once(server, 'listening')
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/v1/builder`, body = { source: 'market.gateway', eventId: 'gateway-1', kind: 'market.updated', payload: { price: '2500' }, observedAt: new Date(1000000).toISOString() }
+  try {
+    const common = { origin, 'content-type': 'application/json', 'x-pintool-event-timestamp': '1000', 'x-pintool-event-signature': ingress.sign(body, 1000) }
+    const accepted = await fetch(base + '/events/ingest', { method: 'POST', headers: common, body: JSON.stringify(body) }); assert.equal(accepted.status, 202); assert.equal((await accepted.json() as { duplicate: boolean }).duplicate, false)
+    const duplicate = await fetch(base + '/events/ingest', { method: 'POST', headers: common, body: JSON.stringify(body) }); assert.equal(duplicate.status, 202); assert.equal((await duplicate.json() as { duplicate: boolean }).duplicate, true)
+    const rejected = await fetch(base + '/events/ingest', { method: 'POST', headers: { ...common, 'x-pintool-event-signature': ingress.sign({ ...body, eventId: 'forged' }, 1000) }, body: JSON.stringify(body) }); assert.equal(rejected.status, 401)
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
+  assert.equal(f.owner.startsWith('wallet:'), true)
+})
+
+test('outbox dispatcher leases, retries and acknowledges rows without losing them', async () => {
+  const resource = randomUUID(), retryResource = randomUUID()
+  await pool.query("UPDATE builder.outbox SET dispatched_at=clock_timestamp(),lease_token=NULL,lease_until=NULL WHERE dispatched_at IS NULL")
+  await pool.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) VALUES('system','adapter.test',$1,1),('system','adapter.retry',$2,1)", [resource, retryResource])
+  let first = true; const seen: string[] = [], dispatcher = createOutboxDispatcher(pool, async entry => { seen.push(entry.kind); if (entry.kind === 'adapter.retry' && first) { first = false; throw new Error('temporary') } }, { leaseMs: 100 })
+  assert.equal(await dispatcher.process(1), 1)
+  assert.equal((await pool.query('SELECT dispatched_at IS NOT NULL AS dispatched, attempts FROM builder.outbox WHERE resource_id=$1', [resource])).rows[0].dispatched, true)
+  assert.equal(await dispatcher.process(5), 0)
+  await pool.query("UPDATE builder.outbox SET available_at=clock_timestamp() WHERE resource_id=$1", [retryResource])
+  assert.equal(await dispatcher.process(5), 1)
+  assert.deepEqual(seen.sort(), ['adapter.retry', 'adapter.retry', 'adapter.test'])
 })
 
 test('event subscription HTTP routes bind the authenticated Maker and reject resource injection', async () => {

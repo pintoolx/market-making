@@ -20,4 +20,6 @@ export { createTransactionPlans, type TransactionPlan } from './transaction-plan
 export { createAutomation, consentMessage, revokeMessage, type AutomationConsent, type AutomationConsentIntent } from './automation.ts'
 export { createEventDelivery, type EventDeliveryDependencies, type EvaluationResult, type DeliveryReceipt } from './event-delivery.ts'
 export { runEventWorker, type EventWorkerOptions } from './event-worker.ts'
+export { createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate, type EventIngress, type EventSource } from './event-adapters.ts'
+export { createOutboxDispatcher, type OutboxEntry, type OutboxDispatcherOptions } from './outbox.ts'
 export { createAuthorizationBindings, bindingMessage, readAuthorizationBinding, type AuthorizationBinding, type AuthorizationBindingIntent, type BindingDependencies, type BindingProof } from './bindings.ts'
