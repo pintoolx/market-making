@@ -1,40 +1,48 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Primary from '../components/shared/Primary';
-import { AQUA_TEMPLATES } from './aquaTemplates';
+import { useAccount } from '../providers/useAccount';
+import { AQUA_TEMPLATES, CATEGORY_LABELS } from './aquaTemplates';
 import { PageHead } from './ui';
 import ClmmPublisher from './ClmmPublisher';
-import { LP_CAPABILITIES } from '../../../../shared/lp-release.mjs';
+import TemplateDraftEditor from './TemplateDraftEditor';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
-import Link from 'next/link';
-
-const PUBLISHABLE_TEMPLATES = AQUA_TEMPLATES.filter(template => LP_CAPABILITIES[template.id]?.publication);
 
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
-  const [editing, setEditing] = useState(false);
+  const account = useAccount();
+  const [editing, setEditing] = useState<string | null>(null);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('edit') === 'clmm') {
-      setEditing(true);
-      window.history.replaceState(null, '', '/studio');
-    }
+    const requested = new URLSearchParams(window.location.search).get('edit');
+    if (AQUA_TEMPLATES.some(t => t.id === requested)) setEditing(requested);
   }, []);
-  if (editing) return <ClmmPublisher onBack={() => { setEditing(false); scrollTop(); }} />;
+  const open = (id: string | null) => {
+    setEditing(id);
+    window.history.replaceState(null, '', id ? `/studio?edit=${id}` : '/studio');
+    scrollTop();
+  };
+  const template = AQUA_TEMPLATES.find(t => t.id === editing);
+  if (template?.id === 'clmm') return <ClmmPublisher onBack={() => open(null)} />;
+  if (template) {
+    if (!account.ready) return <p role="status">Loading your workspace…</p>;
+    const owner = account.address?.toLowerCase() ?? account.userId ?? 'guest';
+    return <TemplateDraftEditor key={`${owner}:${template.id}`} template={template} owner={owner} onBack={() => open(null)} />;
+  }
   return <section className={aqua.flow}>
-    <PageHead eyebrow="Provider Studio" title="Choose an LP template.">
-      Publish a version of your CLMM strategy for Makers to review. CLMM is currently the available template.
+    <PageHead eyebrow="Provider Studio" title="Start with a strategy template.">
+      Choose a starting point, shape its parameters and make it your own.
     </PageHead>
-    <p><Link href="/ens">Manage your ENS strategy names and publishers →</Link></p>
-    {process.env.NEXT_PUBLIC_BUILDER_ENABLED === 'true' && <p><Link href="/builder">透過對話設計你的策略 →</Link></p>}
-    <div className={`${styles.grid} ${aqua.grid}`}>
-      {PUBLISHABLE_TEMPLATES.map(template => <article key={template.id} className={aqua.panel}>
-          <span className={aqua.eyebrow}>{template.label}</span>
-          <h2>{template.name}</h2><p>{template.summary}</p>
-          <p className={aqua.muted}>Set your price range and trading limits, then sign a version to publish it.</p>
-          <Primary onClick={() => { setEditing(true); scrollTop(); }}>Open CLMM editor</Primary>
+    {process.env.NEXT_PUBLIC_BUILDER_ENABLED === 'true' && <p><Link href="/builder">Design with the strategy assistant →</Link></p>}
+    {(['Base strategy', 'Strategy modifier', 'Capital policy'] as const).map(category => <section key={category} className={aqua.flow} aria-label={CATEGORY_LABELS[category]}>
+      <h2 className={aqua.sectionTitle}>{CATEGORY_LABELS[category]}</h2>
+      <div className={`${styles.grid} ${aqua.grid}`}>
+        {AQUA_TEMPLATES.filter(t => t.category === category).map(t => <article key={t.id} className={aqua.panel}>
+          <span className={aqua.eyebrow}>{t.label}</span><h3>{t.name}</h3><p>{t.summary}</p>
+          <Primary onClick={() => open(t.id)}>Customize template</Primary>
         </article>)}
-    </div>
-    <p className={aqua.muted}>Publishing makes a strategy available for review. Makers complete activation before it can quote trades.</p>
+      </div>
+    </section>)}
   </section>;
 }

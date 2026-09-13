@@ -11,6 +11,8 @@ import { usePublishedListings } from '../marketplace/publishedStore';
 import { useProposals } from '../marketplace/proposalStore';
 import { ListingCard } from '../marketplace/ui';
 import AccountDetails from './AccountDetails';
+import EnsWorkspace from '../ens/EnsWorkspace';
+import EnsPublisher from '../ens/EnsPublisher';
 import Avatar from '../components/shared/Avatar';
 import ConfirmButton from './ConfirmButton';
 import CopyAddress from './CopyAddress';
@@ -120,7 +122,9 @@ export default function ProfilePage() {
               </div>
               <Tabs tab={current} setTab={setTab} showAccount={signedIn} />
               {current === 'account'
-                ? <AccountDetails key={account.userId} profile={profile} onSave={save} loginMethod={account.method} email={account.email} wallet={account.address} walletNote={account.embedded ? 'Created by Privy for your email login' : undefined} />
+                ? <><AccountDetails key={account.userId} profile={profile} onSave={save} loginMethod={account.method} email={account.email} wallet={account.address} walletNote={account.embedded ? 'Created by Privy for your email login' : undefined} />
+                  <EnsWorkspace key={account.address} account={account} mode="identity" />
+                  <details><summary>Advanced · Publish for another Provider</summary><EnsPublisher key={account.address} account={account} /></details></>
                 : current === 'making' ? <Making /> : <Providing />}
             </>}
           </section>

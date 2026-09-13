@@ -2,6 +2,12 @@
 
 PinTool uses ENSv2 on Ethereum Sepolia to discover signed Provider publications and delegate updates to their public version pointer. A Maker selects a specific immutable release. Updating the ENS entry never silently changes an existing mandate's publication or Aqua program hash.
 
+## Product navigation
+
+Provider identity belongs in **Profile → Account → Provider name**. A published CLMM version exposes **Name and sharing** in its Studio editor; its signed version is passed explicitly to the naming controls. Naming no longer picks an arbitrary first release from the Provider list. **Advanced → Publisher permissions** holds delegation and revocation for that strategy. A delegated publisher can use **Profile → Account → Advanced → Publish for another Provider**.
+
+The primary navigation contains Strategy and Liquidity. The legacy `/ens` URL redirects to the Account tab, preserving bookmarks. Maker name lookup remains in the strategy marketplace. ENS registration, signature checks, record updates and permission checks are unchanged; opening these settings does not request wallet signatures.
+
 ## Platform maintenance (local development only)
 
 The production `/ens/setup` route returns 404. The initialization UI is separate from the Provider workspace and only available with `pnpm dev`, at `http://localhost:3200/ens/setup`. Configure the local frontend's public Privy app ID and allow the localhost origin in that app to connect the platform owner wallet. Registration state is saved per browser origin; the old production origin's saved plan is not available on localhost. Check the live namespace before starting a new setup.
@@ -16,10 +22,10 @@ Registrar deployment estimates the exact constructor through the application's S
 
 ## Provider flow
 
-1. A Provider opens `/ens` or the ENS panel below the CLMM editor, claims `alice.pintool.eth`, and receives a separate UserRegistry and PermissionedResolver. The registrar supports one Provider label per wallet. Names expire with the platform's current registration; the standard claim does not grant transfer rights. The platform retains parent administration.
-2. Publish a CLMM version using the existing signed, encrypted publication flow. Provider Studio shows templates with publication support in `LP_CAPABILITIES`; unsupported templates are omitted. In the ENS panel, choose a strategy label such as `eth-usdc`, then **Approve version for ENS**. This registers the strategy subname if needed and signs a separate public manifest.
+1. A Provider opens Profile → Account → Provider name, claims `alice.pintool.eth`, and receives a separate UserRegistry and PermissionedResolver. The registrar supports one Provider label per wallet. Names expire with the platform's current registration; the standard claim does not grant transfer rights. The platform retains parent administration.
+2. Publish a CLMM version using the existing signed, encrypted publication flow. Provider Studio shows all six templates; publication capability gates publishing rather than template visibility. Open Name and sharing on the published CLMM version, choose a strategy name such as `eth-usdc`, then **Approve version for ENS**. This registers the strategy subname if needed and signs a separate public manifest.
 3. **Publish approved version** writes the record onchain and reads it back. Maker search and the `/strategy?ens=eth-usdc.alice.pintool.eth` link resolve and verify that name.
-4. Optionally authorize a separate publisher wallet for the one `fun.pintool.release` text key. That wallet can use **Publish as delegate** on `/ens`, or run the standalone publisher service. Revoke it in the Provider panel; the UI verifies that no broader grant still permits updates.
+4. Optionally authorize a separate publisher wallet for the one `fun.pintool.release` text key. That wallet can use **Publish as delegate** in the Account tab’s advanced delegated-publishing section, or run the standalone publisher service. Revoke it in that strategy’s advanced publisher permissions; the UI verifies that no broader grant still permits updates.
 
 If ENS status cannot be loaded, Providers can retry with **Refresh ENS**. The public workspace does not link to platform initialization.
 
@@ -142,7 +148,7 @@ Then run `python scripts/ens/browser-test.py --api-pid <printed-pid>`. Python Pl
 
 Verified on 2026-09-13: after integrating the current standing-authorization Maker flow, the orchestrator suite passed 43 tests (the optional fork test was skipped in that run and passed separately against Anvil); the registrar artifact matched a fresh compiler output; Next production build and type checks passed. The fork-backed browser flow passed v1→v2 publication, delegation/revocation, retained Maker selection and three viewport sizes. The production static routes were checked separately with mocked unconfigured API responses. Existing unrelated frontend lint warnings remain.
 
-The platform owner completed public Sepolia activation of `pintool.eth`. On 2026-09-13, the production `/v1/ens/status` endpoint verified registry `0x69746116D58757e6b466Bb807cB909570944B7A9` and registrar `0x77ef534d24177d4b1e32be85392e7239f2c70559`. Providers can proceed directly to `/ens`. Future namespace initialization uses the local maintenance flow above.
+The platform owner completed public Sepolia activation of `pintool.eth`. On 2026-09-13, the production `/v1/ens/status` endpoint verified registry `0x69746116D58757e6b466Bb807cB909570944B7A9` and registrar `0x77ef534d24177d4b1e32be85392e7239f2c70559`. Providers claim their name under `/profile?tab=account`, then name a specific published strategy in its Studio editor. Future namespace initialization uses the local maintenance flow above.
 
 ## Sources
 

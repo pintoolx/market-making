@@ -15,7 +15,7 @@ import { ensClient, ensError, getEnsConfig, getEnsStatus, resolveEnsStrategy, ve
 import aqua from '../marketplace/aqua.module.css';
 import styles from './ens.module.css';
 
-export default function EnsWorkspace({ account, release }: { account: Account; release?: PublicRelease | null }) {
+export default function EnsWorkspace({ account, release, mode = 'strategy' }: { account: Account; release?: PublicRelease | null; mode?: 'identity' | 'strategy' }) {
   const [root, setRoot] = useState('');
   const [status, setStatus] = useState<EnsStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,7 @@ export default function EnsWorkspace({ account, release }: { account: Account; r
   const [strategyLabel, setStrategyLabel] = useState('eth-usdc');
   const [delegateAddress, setDelegateAddress] = useState('');
   const [currentVersion, setCurrentVersion] = useState<number | null>(null);
-  const [latest, setLatest] = useState<PublicRelease | null>(release ?? null);
+  const latest = release ?? null;
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<EnsProgress | null>(null);
   const [error, setError] = useState('');
@@ -51,16 +51,6 @@ export default function EnsWorkspace({ account, release }: { account: Account; r
     void refresh();
     return () => { activeEpoch.current++; };
   }, [refresh]);
-  useEffect(() => { if (release !== undefined) setLatest(release); }, [release]);
-  useEffect(() => {
-    if (release !== undefined || !account.address) return;
-    let alive = true;
-    setLatest(null);
-    request<{ strategies: PublicRelease[] }>('/v1/provider-strategies').then(data => {
-      if (alive) setLatest(data.strategies.find(item => item.provider === account.address?.toLowerCase()) ?? null);
-    }).catch(() => { if (alive) setError('Published versions could not be loaded. Open the strategy editor to retry.'); });
-    return () => { alive = false; };
-  }, [account.address, release]);
   useEffect(() => { setApproved(null); setCurrentVersion(null); setSuccess(''); }, [name, latest?.digest]);
   const act = async (job: (tx: ReturnType<typeof ensTransactions>) => Promise<void>) => {
     if (busy) return;
@@ -95,13 +85,13 @@ export default function EnsWorkspace({ account, release }: { account: Account; r
     window.dispatchEvent(new Event('pintool:published-changed'));
   });
 
-  return <section className={`${aqua.panel} ${styles.workspace}`} aria-label="ENS strategy publishing" aria-busy={busy}>
-    <div className={styles.heading}><div><span className={aqua.eyebrow}>ENSv2 · Ethereum Sepolia</span><h2>Your strategy names</h2></div><Secondary disabled={loading || busy} onClick={() => void refresh()}>Refresh ENS</Secondary></div>
-    <p>Give your strategy a name that Makers can verify and share. Delegate version updates while keeping control of your Provider identity.</p>
+  return <section className={`${aqua.panel} ${styles.workspace}`} aria-label={mode === 'identity' ? 'Provider name' : 'Strategy name and sharing'} aria-busy={busy}>
+    <div className={styles.heading}><div><h2>{mode === 'identity' ? 'Provider name' : 'Name and sharing'}</h2></div><Secondary disabled={loading || busy} onClick={() => void refresh()}>Refresh ENS</Secondary></div>
+    <p>{mode === 'identity' ? 'Choose a verifiable name for your Provider profile.' : 'Give this published version a name Makers can find and share.'}</p>
     {loading && <p role="status" className={styles.skeleton}>Checking the platform namespace…</p>}
     {statusError && <div role="status" className={styles.notice}><p>{statusError}</p><p>ENS names are temporarily unavailable. Try Refresh ENS in a moment.</p></div>}
     {!account.authenticated && <Primary onClick={account.login}>Connect Provider wallet</Primary>}
-    {status && account.authenticated && !status.provider && <form onSubmit={e => { e.preventDefault(); void act(async tx => {
+    {status && account.authenticated && !status.provider && mode === 'identity' && <form onSubmit={e => { e.preventDefault(); void act(async tx => {
       await tx.claimProvider(root, providerLabel); await refresh(); setSuccess('Your Provider namespace is ready.');
     }); }}>
       <fieldset disabled={busy}><legend>Claim your Provider name</legend>
@@ -110,17 +100,21 @@ export default function EnsWorkspace({ account, release }: { account: Account; r
         <Primary type="submit">Claim Provider name</Primary>
       </fieldset>
     </form>}
-    {status?.provider && <>
+    {status && account.authenticated && !status.provider && mode === 'strategy' && <p><Link href="/profile?tab=account">Set your Provider name in Profile →</Link></p>}
+    {status?.provider && mode === 'identity' && <div className={styles.identity}><strong>{status.provider.name}</strong><span>{account.address}</span><Link href="/studio">Name a strategy in Provider Studio →</Link></div>}
+    {status?.provider && mode === 'strategy' && !latest && <p>Publish a strategy version to set its shareable name.</p>}
+    {status?.provider && mode === 'strategy' && latest && <>
       <div className={styles.identity}><strong>{status.provider.name}</strong><span>Provider wallet {account.address}</span></div>
       <fieldset disabled={busy}>
-        <legend>Publish a named strategy</legend>
-        <label>Strategy label<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
+        <legend>Strategy address</legend>
+        <label>Strategy name<FormInput value={strategyLabel} autoComplete="off" spellCheck={false} minLength={3} maxLength={32} onChange={e => setStrategyLabel(e.target.value)} /></label>
         <p className={styles.name}>{name}</p>
         <p>{latest?.state === 'published' ? `Saved publication: ${latest.name}, version ${latest.version}.` : 'Publish a strategy version in Provider Studio to connect it to this name.'}</p>
         <div className={aqua.actionRow}><Primary disabled={!latest || latest.state !== 'published'} onClick={approve}>Approve version for ENS</Primary><Secondary disabled={!latest || latest.state !== 'published'} onClick={publish}>Publish approved version</Secondary></div>
         {currentVersion && <p role="status">ENS currently points to version {currentVersion}.</p>}
         <p className={aqua.hint}>Approval creates the strategy name if needed and signs its public manifest. Publishing updates the name onchain. Existing Makers keep their selected version.</p>
       </fieldset>
+      <details className={styles.advanced}><summary>Advanced · Publisher permissions</summary>
       <form onSubmit={e => { e.preventDefault(); void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, true); setSuccess('Publisher can update this strategy’s version record.'); }); }}>
         <fieldset disabled={busy}><legend>Delegate version updates</legend>
           <label>Publisher wallet<FormInput required value={delegateAddress} autoComplete="off" spellCheck={false} placeholder="0x…" onChange={e => setDelegateAddress(e.target.value)} /></label>
@@ -128,6 +122,7 @@ export default function EnsWorkspace({ account, release }: { account: Account; r
           <div className={aqua.actionRow}><Primary type="submit">Authorize publisher</Primary><Secondary type="button" onClick={() => void act(async tx => { await tx.delegate(root, name, delegateAddress as Address, false); setSuccess('Publisher access revoked and checked onchain.'); })}>Revoke publisher</Secondary></div>
         </fieldset>
       </form>
+      </details>
       <p><Link href={`/strategy?ens=${encodeURIComponent(name)}`}>Open this strategy as a Maker →</Link></p>
       <p className={aqua.hint}>PinTool manages the parent namespace. Your resolver permissions control its records; parent administrators retain control of the name hierarchy.</p>
     </>}
