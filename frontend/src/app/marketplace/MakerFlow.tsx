@@ -60,6 +60,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [maxWethInventory, setMaxWethInventory] = useState('12');
   const [maxTrade, setMaxTrade] = useState('1');
   const [phase, setPhase] = useState<Phase>('choose');
+  const [editingExisting, setEditingExisting] = useState(false);
   const [mandate, setMandate] = useState<MandateState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reevaluating, setReevaluating] = useState(false);
@@ -118,13 +119,19 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     if (!linkedMandateId) {
       restoredMaker.current = '';
       setMandate(null);
+      setEditingExisting(false);
       setRefreshing(false);
       if (!linkedId) setPhase('choose');
       return;
     }
     const restoreKey = `${makerAddress?.toLowerCase()}:${linkedMandateId ?? ''}`;
-    if (!makerAddress || restoredMaker.current === restoreKey
-      || openingLinkedStrategy.current) return;
+    if (!makerAddress) {
+      restoredMaker.current = '';
+      setMandate(null);
+      setPhase('choose');
+      return;
+    }
+    if (restoredMaker.current === restoreKey || openingLinkedStrategy.current) return;
     if (linkedMandateId && !/^mandate-[a-f0-9-]{36}$/.test(linkedMandateId)) {
       setError('This mandate link is invalid.'); return;
     }
@@ -155,6 +162,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     .map(item => ({ ...item, executionReady: isExecutable(item) }));
   const go = (next: Phase) => {
     if (next === 'detail' && selected[0]) { router.push(strategyHref(selected[0].id, selected[0].ensName)); return; }
+    if (next === 'monitor') setEditingExisting(false);
     if (next === 'choose') {
       restoredMaker.current = '';
       if (linkedId || linkedMandateId) router.push('/maker');
@@ -244,6 +252,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   };
   const editLimits = () => {
     if (!mandate) return;
+    setEditingExisting(true);
     const strategy = mandate.strategies.find(item => item.status === 'active') ?? mandate.strategies[0];
     if (!strategy) { go('choose'); return; }
     const listing = listings.find(item => (item.executionProfileIds ?? [item.id]).includes(strategy.listingId));
@@ -261,10 +270,10 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const previousStep = phase === 'activate' ? { phase: 'detail' as const, label: 'Strategy details' } : phase === 'detail'
     ? { phase: 'choose' as const, label: 'Strategy marketplace' }
     : phase === 'limits'
-      ? { phase: 'detail' as const, label: 'Strategy details' }
+      ? editingExisting ? { phase: 'monitor' as const, label: 'Liquidity overview' } : { phase: 'detail' as const, label: 'Strategy details' }
       : phase === 'review'
         ? { phase: 'limits' as const, label: 'Private limits' }
-        : phase === 'monitor' ? { phase: 'choose' as const, label: 'Strategy marketplace' } : null;
+        : null;
 
   const currentStep = ['choose', 'detail', 'activate'].includes(phase) ? 0 : phase === 'limits' ? 1 : ['review', 'submitting'].includes(phase) ? 2 : 3;
   const title = phase === 'choose' ? 'Find a strategy for your liquidity.'
@@ -275,7 +284,23 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
         : phase === 'submitting' ? reevaluating ? 'Re-evaluating execution.' : 'Creating your mandate.'
           : 'Your liquidity mandate.';
 
+  // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
+  if ((phase === 'choose' && (linkedMandateId || linkedId)) || loadingLinked) {
+    const backHref = linkedMandateId ? '/profile?tab=making' : '/maker';
+    const waitingForAccount = !account.ready || executableCatalog === null;
+    return <section className={aqua.flow}>
+      <Link className={aqua.backLink} href={backHref}>← {linkedMandateId ? 'My liquidity' : 'Strategy marketplace'}</Link>
+      <PageHead eyebrow={linkedMandateId ? 'My liquidity' : 'Strategy setup'} title={linkedMandateId ? 'Your liquidity' : 'Set up your strategy'} />
+      {error ? <p role="alert" className={aqua.errorNotice}>{error}</p>
+        : waitingForAccount ? <p role="status">Loading your workspace…</p>
+          : !account.authenticated ? <Primary onClick={account.login}>Connect Maker wallet</Primary>
+            : !makerAddress ? <p>Connect the Maker wallet for this setup.</p>
+              : <p role="status">{linkedMandateId ? 'Loading your liquidity…' : 'Loading your strategy…'}</p>}
+    </section>;
+  }
+
   return <section className={aqua.flow}>
+    {phase === 'monitor' && <Link href="/profile?tab=making" className={aqua.backLink}>← My liquidity</Link>}
     {previousStep && <button type="button" className={aqua.backLink} onClick={() => go(previousStep.phase)}>← {previousStep.label}</button>}
     <PageHead eyebrow="Maker Marketplace" title={title} accent={phase === 'monitor' ? 'One balance, guarded continuously.' : undefined} headingRef={heading}>
       {phase === 'choose' && 'Explore strategies built for self-custodial liquidity on Aqua.'}
@@ -288,8 +313,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     <Steps steps={STEPS} current={currentStep} />
     {error && <div className={aqua.errorNotice} role="alert"><strong>Action required</strong><span>{error}</span></div>}
 
-    {loadingLinked && <p role="status">Loading selected strategy…</p>}
-    {phase === 'choose' && !loadingLinked && <>
+    {phase === 'choose' && <>
       <EnsStrategySearch />
       <div className={aqua.sectionTop}><h2 className={aqua.sectionTitle}>Available strategies</h2><span className={aqua.muted}>{listings.length} strategies</span></div>
       <div className={catalog.grid}>

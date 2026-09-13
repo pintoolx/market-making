@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Secondary from '../components/shared/Secondary';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
@@ -29,14 +28,10 @@ function StudioCard({ label, title, description, action, onSelect }: { label: st
 export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const account = useAccount();
   const router = useRouter();
-  const [editing, setEditing] = useState<string | null>(null);
-  useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get('edit');
-    if (AQUA_TEMPLATES.some(t => t.id === requested)) setEditing(requested);
-  }, []);
+  const params = useSearchParams();
+  const editing = params.get('edit');
   const open = (id: string | null) => {
-    setEditing(id);
-    window.history.replaceState(null, '', id ? `/studio?edit=${id}` : '/studio');
+    router.push(id ? `/studio?edit=${encodeURIComponent(id)}` : '/studio');
     scrollTop();
   };
   const template = AQUA_TEMPLATES.find(t => t.id === editing);
