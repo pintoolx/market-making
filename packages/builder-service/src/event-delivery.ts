@@ -212,8 +212,18 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
     async deliver(deliveryId: string) {
       idSchema.parse(deliveryId)
       const claimed = await transaction(pool, async client => {
-        const row = (await client.query(`UPDATE builder.report_deliveries SET status='broadcast',attempts=attempts+1,updated_at=clock_timestamp() WHERE id=$1 AND status='pending' AND next_attempt_at<=clock_timestamp() RETURNING *`, [deliveryId])).rows[0]
-        if (!row) return null
+        // Enforce ordering at the claim itself: callers can bypass the pending
+        // list, and an old subscription may still have an unresolved broadcast.
+        const row = (await client.query(`UPDATE builder.report_deliveries d SET status='broadcast',attempts=d.attempts+1,updated_at=clock_timestamp()
+          WHERE d.id=$1 AND d.status='pending' AND d.next_attempt_at<=clock_timestamp()
+          AND NOT EXISTS (SELECT 1 FROM builder.report_deliveries earlier
+            WHERE earlier.owner=d.owner AND earlier.status IN ('pending','broadcast')
+            AND (earlier.created_at<d.created_at OR (earlier.created_at=d.created_at AND earlier.id<d.id)))
+          RETURNING d.*`, [deliveryId])).rows[0]
+        if (!row) {
+          const current = (await client.query('SELECT status FROM builder.report_deliveries WHERE id=$1', [deliveryId])).rows[0]
+          return current?.status === 'pending' ? { waiting: true as const } : null
+        }
         const sub = await readSubscription(client, String(row.owner), String(row.subscription_id))
         const live = await readSubscription(client, sub.owner, sub.id, true)
         const draft = live.state === 'enabled' ? await readOwnedDraft(client, live.owner, live.draftId, true) : null
@@ -228,6 +238,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         return { row, sub }
       })
       if (!claimed) return { status: 'already-processing' as const }
+      if ('waiting' in claimed) return { status: 'waiting' as const }
       if ('stale' in claimed) return { status: 'stale' as const }
       try {
         if (!dependencies.deliver) throw new ServiceError('delivery-unavailable', 503)
@@ -246,7 +257,7 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       return (await pool.query(`SELECT d.id FROM builder.report_deliveries d
         WHERE d.status='pending' AND d.next_attempt_at<=clock_timestamp()
         AND NOT EXISTS (SELECT 1 FROM builder.report_deliveries earlier
-          WHERE earlier.subscription_id=d.subscription_id AND earlier.status IN ('pending','broadcast')
+          WHERE earlier.owner=d.owner AND earlier.status IN ('pending','broadcast')
           AND (earlier.created_at<d.created_at OR (earlier.created_at=d.created_at AND earlier.id<d.id)))
         ORDER BY d.created_at,d.id LIMIT $1`, [limit])).rows.map(row => String(row.id))
     },

@@ -53,6 +53,8 @@ Persist automation consent, event subscriptions, inbox/outbox, evaluation jobs, 
 
 Serialize work per Maker and recheck active binding generation immediately before delivery. Switching A to B must prevent stale A work from reactivating A. A paused report for B does not pause currently active A. A database cancellation cannot undo a transaction already broadcast; retain pending identities and reconcile late receipts before retrying. Coordinate a shared broadcaster's transaction nonce separately from report nonces.
 
+The database claim in `deliver()` checks for an earlier pending or broadcast report for the same Maker, including previous subscriptions. A blocked claim returns `waiting` and consumes no attempt. The pending list applies the same filter, and the resident worker sends through that list after evaluation. An unresolved broadcast from a stopped subscription therefore holds the next selection until reconciliation; another Maker's reports remain independent.
+
 Keep `lastEvaluatedAt`, `lastInputObservedAt`, `lastChangedAt` and `lastAcceptedReport` distinct. Show monitoring health separately from current onchain authorization.
 
 ## Risk and stopping behavior

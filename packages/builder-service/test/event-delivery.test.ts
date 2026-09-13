@@ -99,6 +99,39 @@ test('subscriptions can filter events by source while wildcard subscriptions ret
   await events.stop(w.owner, randomUUID(), { subscriptionId: wildcard.subscription.id })
 })
 
+test('a new subscription waits for the same Maker broadcast while other Makers keep delivering', async () => {
+  const f = await fixture(), other = await fixture(), sent: string[] = []
+  const events = createEventDelivery(pool, profile, {
+    evaluate: async input => ({ status: 'changed', reportHash: digestJson({ switchEvent: input.event.eventId }), report: { event: input.event.eventId } }),
+    deliver: async input => { sent.push(String(input.report.event)); return { transactionHash: ('0x' + 'a'.repeat(64)) as `0x${string}` } },
+    reconcile: async () => ({ transactionHash: ('0x' + 'b'.repeat(64)) as `0x${string}` }),
+  })
+  const input = { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id }
+  const initial = await events.enable(f.owner, randomUUID(), { ...input, source: 'market.switch.old' })
+  const evaluateEvent = async (source: string, eventId: string) => {
+    await events.ingest({ source, eventId, kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
+    const job = await events.claimEvaluation(); assert.ok(job); assert.equal(job.eventId, eventId)
+    const result = await events.evaluate(job.id, job.token); assert.ok(result.deliveryId)
+    return result.deliveryId
+  }
+  const oldDelivery = await evaluateEvent('market.switch.old', 'switch-old')
+  await pool.query("UPDATE builder.report_deliveries SET status='broadcast' WHERE id=$1", [oldDelivery])
+  const selected = await events.enable(f.owner, randomUUID(), { ...input, source: 'market.switch.new' })
+  assert.equal((await events.get(f.owner, initial.subscription.id)).state, 'stopped')
+  const newDelivery = await evaluateEvent('market.switch.new', 'switch-new')
+  const independent = await events.enable(other.owner, randomUUID(), { draftId: other.draft.id, expectedRevision: 2, artifactId: other.artifact.artifactId, consentId: other.consent.id, source: 'market.switch.independent' })
+  const independentDelivery = await evaluateEvent('market.switch.independent', 'switch-independent')
+  assert.deepEqual(await events.pendingDeliveries(), [independentDelivery])
+  assert.equal((await events.deliver(newDelivery)).status, 'waiting')
+  assert.equal((await events.deliver(independentDelivery)).status, 'accepted')
+  assert.deepEqual(sent, ['switch-independent'])
+  assert.equal((await events.reconcile(oldDelivery)).status, 'accepted')
+  assert.equal((await events.deliver(newDelivery)).status, 'accepted')
+  assert.deepEqual(sent, ['switch-independent', 'switch-new'])
+  await events.stop(f.owner, randomUUID(), { subscriptionId: selected.subscription.id })
+  await events.stop(other.owner, randomUUID(), { subscriptionId: independent.subscription.id })
+})
+
 test('stopping, reorg and consent revocation prevent late event work from re-enabling a Maker', async () => {
   const f = await fixture(), events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ paused: true }), report: { paused: true } }) })
   const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
@@ -219,7 +252,17 @@ test('event claims serialize active work for one subscription', async () => {
 })
 
 test('pending report delivery waits for an earlier unresolved nonce', async () => {
-  const f = await fixture(), events = createEventDelivery(pool, profile, { evaluate: async input => ({ status: 'changed', reportHash: digestJson({ ordered: input.event.eventId }), report: { ordered: input.event.eventId } }) }), enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  const sent: string[] = []
+  let unblockFirst!: () => void, startedFirst!: () => void
+  const firstStarted = new Promise<void>(resolve => { startedFirst = resolve }), firstReceipt = new Promise<void>(resolve => { unblockFirst = resolve })
+  const f = await fixture(), events = createEventDelivery(pool, profile, {
+    evaluate: async input => ({ status: 'changed', reportHash: digestJson({ ordered: input.event.eventId }), report: { ordered: input.event.eventId } }),
+    deliver: async input => {
+      sent.push(String(input.report.ordered))
+      if (input.report.ordered === 'order-1') { startedFirst(); await firstReceipt }
+      return { transactionHash: ('0x' + 'a'.repeat(64)) as `0x${string}` }
+    },
+  }), enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
   await events.ingest({ source: 'market.order', eventId: 'order-1', kind: 'market.updated', payload: {}, observedAt: new Date().toISOString() })
   let job: Awaited<ReturnType<typeof events.claimEvaluation>> = null
   for (let attempt = 0; attempt < 30 && !job; attempt++) {
@@ -240,7 +283,19 @@ test('pending report delivery waits for an earlier unresolved nonce', async () =
   assert.ok(job); const secondEvaluated = await events.evaluate(job!.id, job!.token); assert.ok(secondEvaluated.deliveryId)
   const listed = await events.pendingDeliveries(100)
   assert.ok(listed.includes(firstEvaluated.deliveryId!)); assert.equal(listed.includes(secondEvaluated.deliveryId!), false)
-  await pool.query("UPDATE builder.report_deliveries SET status='failed',error_code='test-cleanup' WHERE id=ANY($1::text[])", [[firstEvaluated.deliveryId, secondEvaluated.deliveryId]])
+  assert.equal((await events.deliver(secondEvaluated.deliveryId!)).status, 'waiting')
+  assert.deepEqual(sent, [])
+  const firstSending = events.deliver(firstEvaluated.deliveryId!)
+  try {
+    await firstStarted
+    assert.equal((await events.deliver(secondEvaluated.deliveryId!)).status, 'waiting')
+    assert.equal((await events.deliver(firstEvaluated.deliveryId!)).status, 'already-processing')
+    assert.deepEqual(sent, ['order-1'])
+    assert.deepEqual((await pool.query('SELECT status,attempts FROM builder.report_deliveries WHERE id=$1', [secondEvaluated.deliveryId])).rows[0], { status: 'pending', attempts: 0 })
+  } finally { unblockFirst(); await firstSending }
+  assert.equal((await events.deliver(secondEvaluated.deliveryId!)).status, 'accepted')
+  assert.deepEqual(sent, ['order-1', 'order-2'])
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
 })
 
 test('the resident worker applies source reorg identities before claiming evaluation work', async () => {

@@ -56,10 +56,7 @@ export async function runEventWorker(pool: Pool, profile: DeploymentProfile, dep
       const job = await service.claimEvaluation(leaseMs)
       if (job) {
         worked = true
-        const result = await service.evaluate(job.id, job.token)
-        if (result.deliveryId) {
-          try { await service.deliver(result.deliveryId) } catch (error) { options.onError?.(error) }
-        }
+        await service.evaluate(job.id, job.token)
       }
       for (const id of await service.pendingDeliveries()) {
         worked = true
