@@ -73,8 +73,9 @@
 .backLink:hover { text-decoration: underline; }
 .backLink:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 4px; }
 .pageHead { display: flex; flex-direction: column; gap: 12px; }
+.pageHead > .eyebrow { color: var(--aqua-accent); }
 .pageHead h1 { margin: 0; font-size: clamp(32px, 4vw, 44px); font-weight: 700; line-height: 1.08; letter-spacing: -.03em; overflow-wrap: anywhere; }
-.pageHead h1 span { display: block; color: var(--aqua-ink); }
+.pageHead h1 span { display: block; color: var(--aqua-accent); }
 .pageHead p { margin: 4px 0 0; max-width: 62ch; font-size: 16px; line-height: 1.6; color: var(--aqua-muted); }
 
 .steps { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
@@ -106,10 +107,11 @@
 .mineTag { background: var(--aqua-accent); border-color: var(--aqua-ink); color: #eef3fb; }
 .summary { margin: 0 0 16px; font-size: 14px; line-height: 1.6; }
 .cardRule { padding-top: 14px; border-top: 1px solid var(--aqua-line); }
+.cardRule .eyebrow { color: var(--aqua-accent); }
 .cardRule p { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
 .cardBodyEnd { padding-bottom: 20px; }
-.cardActions { grid-template-columns: 1fr; padding-top: 20px; }
-.cardActions button { min-height: 44px; }
+.card > .cardActions { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 16px; }
+.cardActions :is(button, a) { width: 100%; min-height: 44px; }
 .empty { padding: 24px 0; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .empty h3, .empty p { margin: 0; }
 

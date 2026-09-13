@@ -1,19 +1,41 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import FormInput from '../components/shared/FormInput';
+import Primary from '../components/shared/Primary';
 import Secondary from '../components/shared/Secondary';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
-import { ListingGrid, PageHead, StrategyCardShell } from './ui';
+import { ListingGrid, PageHead, Steps, StrategyCardShell } from './ui';
 import ClmmPublisher from './ClmmPublisher';
 import TemplateDraftEditor from './TemplateDraftEditor';
 import aqua from './aqua.module.css';
 import styles from './page.module.css';
 
-function StudioCard({ label, title, description, action, onSelect }: { label: string; title: string; description: string; action: string; onSelect(): void }) {
-  const tag = <span className={`${styles.tag} ${aqua.chip}`}>{label}</span>;
-  return <StrategyCardShell tags={tag} title={title} action={<Secondary fullWidth onClick={onSelect}>{action}</Secondary>}>
+const CATEGORIES = ['All', 'Base strategy', 'Strategy modifier', 'Capital policy'] as const;
+const STEPS = ['Choose a template', 'Write private logic', 'Publish'];
+
+function StudioCard({ mechanism, category, title, description, privateInputs, action, onSelect }: {
+  mechanism: string;
+  category: string;
+  title: string;
+  description: string;
+  privateInputs: string;
+  action: string;
+  onSelect(): void;
+}) {
+  const tags = <>
+    <span className={`${styles.tag} ${aqua.chip}`}>{mechanism}</span>
+    <span className={`${styles.tag} ${aqua.chip}`}>{category}</span>
+  </>;
+
+  return <StrategyCardShell tags={tags} title={title} action={<Primary onClick={onSelect}>{action}</Primary>}>
     <p className={aqua.summary}>{description}</p>
+    <div className={aqua.cardRule}>
+      <span className={aqua.eyebrow}>You define</span>
+      <p>{privateInputs}</p>
+    </div>
   </StrategyCardShell>;
 }
 
@@ -21,6 +43,8 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
   const account = useAccount();
   const router = useRouter();
   const params = useSearchParams();
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('All');
   const editing = params.get('edit');
   const open = (id: string | null) => {
     router.push(id ? `/studio?edit=${encodeURIComponent(id)}` : '/studio');
@@ -33,19 +57,62 @@ export default function ProviderFlow({ scrollTop }: { scrollTop: () => void }) {
     const owner = account.address?.toLowerCase() ?? account.userId ?? 'guest';
     return <TemplateDraftEditor key={`${owner}:${template.id}`} template={template} owner={owner} onBack={() => open(null)} />;
   }
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const visible = AQUA_TEMPLATES.filter(item =>
+    (category === 'All' || item.category === category)
+    && `${item.name} ${item.mechanism} ${item.category} ${item.summary} ${item.privateInputs}`.toLowerCase().includes(normalizedQuery),
+  );
+  const builderMatches = category === 'All'
+    && `build your own custom strategy builder compose mechanisms parameters private logic`.includes(normalizedQuery);
+  const optionCount = visible.length + (builderMatches ? 1 : 0);
+
   return <section className={aqua.flow}>
-    <PageHead eyebrow="Provider Studio" title="Start with your strategy.">
-      Customize a template or design your own with the strategy assistant.
+    <PageHead eyebrow="Provider Studio" title="Start with a template." accent="Make it your own.">
+      Each template is an Aqua mechanism. Pick the one closest to your idea, then describe the logic only you know.
     </PageHead>
+    <Steps steps={STEPS} current={0} />
+    <div className={aqua.search}>
+      <FormInput
+        fullWidth
+        value={query}
+        onChange={event => setQuery(event.target.value)}
+        placeholder="Search by strategy or mechanism"
+        aria-label="Search templates"
+      />
+      <div className={aqua.filters} aria-label="Template categories">
+        {CATEGORIES.map(item => <Secondary key={item} aria-pressed={category === item} onClick={() => setCategory(item)}>{item}</Secondary>)}
+      </div>
+    </div>
     <div className={aqua.sectionTop}>
-      <h2 className={aqua.sectionTitle}>Choose a starting point</h2>
-      <span className={aqua.muted}>{AQUA_TEMPLATES.length + 1} options</span>
+      <h2 className={aqua.sectionTitle}>Strategy templates</h2>
+      <span className={aqua.muted} role="status">{optionCount} {optionCount === 1 ? 'option' : 'options'}</span>
     </div>
     <ListingGrid>
-      {AQUA_TEMPLATES.map(t => <StudioCard key={t.id} label={t.label} title={t.name} description={t.summary} action="Customize template" onSelect={() => open(t.id)} />)}
-      <StudioCard label="Strategy Builder" title="Build your own"
-        description="Describe your goals, compare supported curves and refine your strategy with the assistant."
-        action="Open Strategy Builder" onSelect={() => router.push('/builder')} />
+      {visible.map(template => <StudioCard
+        key={template.id}
+        mechanism={template.mechanism}
+        category={template.category}
+        title={template.name}
+        description={template.summary}
+        privateInputs={template.privateInputs}
+        action="Use template"
+        onSelect={() => open(template.id)}
+      />)}
+      {builderMatches && <StudioCard
+        mechanism="Custom"
+        category="Strategy builder"
+        title="Build your own"
+        description="Compose a market-making strategy from supported Aqua mechanisms with the strategy assistant."
+        privateInputs="The mechanisms, parameters and private logic that shape your strategy."
+        action="Open Strategy Builder"
+        onSelect={() => router.push('/builder')}
+      />}
     </ListingGrid>
+    {optionCount === 0 && <div className={aqua.empty}>
+      <h3>No matching strategies</h3>
+      <p>Try a mechanism such as CLMM, or clear the search and filters.</p>
+      <Secondary onClick={() => { setQuery(''); setCategory('All'); }}>Clear filters</Secondary>
+    </div>}
   </section>;
 }
