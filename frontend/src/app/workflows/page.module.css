@@ -1,5 +1,5 @@
 /* Workflows page — aligned with Figma APP/Dashboard (596:16383) */
-/* 與首頁 WorkflowBuilder 一致：窄螢幕整頁 375px 置中，避免頂欄在路由切換時左右跳動 */
+/* Match WorkflowBuilder: center the 375px mobile page to prevent header shifts between routes. */
 .workflowsPage {
   display: flex;
   flex-direction: column;
@@ -21,7 +21,7 @@
   }
 }
 
-/* 頂欄以下整段（portfolio + 策略列表）同一個捲動區 */
+/* Portfolio and strategies share one scroll region below the header. */
 .pageScroll {
   flex: 1;
   min-height: 0;
@@ -37,7 +37,7 @@
   background: transparent;
 }
 
-/* 與 WorkflowBuilder .toolbar 對齊：同高度、同 padding、在文件流中（非 fixed） */
+/* Match WorkflowBuilder toolbar height and padding; keep it in normal document flow. */
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -87,7 +87,7 @@
   display: block;
 }
 
-/* 外層置中；內層一排 avatar + 2×2 grid（勿讓 grid width:100% 獨占換行） */
+/* Center the outer container; keep the avatar and 2x2 grid on one row. */
 .portfolioOverview {
   display: flex;
   justify-content: center;
@@ -104,7 +104,7 @@
   max-width: 100%;
 }
 
-/* 2×2 Grid：上列頂對齊、下列底對齊 */
+/* Align the upper grid row to the top and the lower row to the bottom. */
 .portfolioMiddle {
   display: grid;
   grid-template-columns: minmax(0, 490px) minmax(0, 345px);
@@ -161,7 +161,7 @@
   display: block;
 }
 
-/* 與 Total Portfolio Value 外框一致（Figma 596:16560 / 596:16576） */
+/* Match the Total Portfolio Value outline; Figma 596:16560 / 596:16576. */
 .folioCard {
   width: 100%;
   box-sizing: border-box;
@@ -298,7 +298,7 @@
   line-height: normal;
 }
 
-/* 與左欄三張小卡同列等高（grid stretch） */
+/* Stretch to the same height as the three cards in the left column. */
 .statusCard {
   composes: folioCard;
   gap: 4px;
@@ -352,7 +352,7 @@
   line-height: 18px;
 }
 
-/* Main content: dotted grid + gradient（高度隨內容，捲動交給 .pageScroll） */
+/* Dotted grid and gradient follow content height; pageScroll owns scrolling. */
 .mainContent {
   width: 100%;
   padding-top: 0;

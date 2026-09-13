@@ -1,4 +1,4 @@
-/* Deploy 風格遮罩 — 對齊 WorkflowBuilder .deployOverlay */
+/* Match the WorkflowBuilder deployment overlay. */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -91,7 +91,7 @@
   align-items: stretch;
 }
 
-/* Figma 596:18364 — 可用碼預設 */
+/* Figma 596:18364: available code default state. */
 .codeBtn {
   width: 100%;
   max-width: 312px;
@@ -131,7 +131,7 @@
   box-shadow: 0 1px 0 0 #0e0f28;
 }
 
-/* Figma 596:18392 — 複製成功 */
+/* Figma 596:18392: copy success. */
 .codeBtnCopied {
   cursor: default;
   background: #2050f2;
@@ -153,7 +153,7 @@
   display: block;
 }
 
-/* Figma 596:18408 — 已使用 */
+/* Figma 596:18408: used code. */
 .codeRowUsed {
   width: 100%;
   max-width: 312px;

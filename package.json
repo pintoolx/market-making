@@ -19,7 +19,8 @@
     "test:workflow": "cd workflow && bun test",
     "typecheck:workflow": "cd workflow && bun run typecheck",
     "test:contracts": "pnpm --filter aqua-executor test",
-    "typecheck:contracts": "pnpm --filter aqua-executor typecheck"
+    "typecheck:contracts": "pnpm --filter aqua-executor typecheck",
+    "check:english": "node scripts/check-english.mjs"
   },
   "pnpm": {
     "overrides": {

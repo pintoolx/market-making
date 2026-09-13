@@ -54,7 +54,7 @@ function ShoppingBagIcon({ className }: { className?: string }) {
 }
 
 type SignInButtonProps = {
-  /** 已登入時取代錢包截斷顯示（例如 Dashboard 設計稿的 PinTool.sol） */
+  /** Override the shortened wallet label after login, for example PinTool.sol. */
   authenticatedWalletLabel?: string;
 };
 
@@ -69,7 +69,7 @@ export default function SignInButton({ authenticatedWalletLabel }: SignInButtonP
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverTimer = useRef<number | null>(null);
 
-  // 顯示 auth error
+  // Show authentication errors.
   useEffect(() => {
     if (authError) {
       setSignInMessage(`Sign in failed: ${authError}`);
@@ -78,7 +78,7 @@ export default function SignInButton({ authenticatedWalletLabel }: SignInButtonP
     }
   }, [authError]);
 
-  // 獲取 SOL 餘額
+  // Read the SOL balance.
   useEffect(() => {
     const fetchBalance = async () => {
       if (wallet.publicKey && isAuthenticated) {
@@ -97,7 +97,7 @@ export default function SignInButton({ authenticatedWalletLabel }: SignInButtonP
 
     fetchBalance();
 
-    // 每 30 秒更新一次餘額
+    // Refresh the balance every 30 seconds.
     const interval = setInterval(fetchBalance, 30000);
 
     return () => clearInterval(interval);
@@ -121,7 +121,7 @@ export default function SignInButton({ authenticatedWalletLabel }: SignInButtonP
         setSignInMessage('');
         return;
       }
-      // AuthContext 已處理 error 狀態，這裡不需要額外處理
+      // AuthContext already handles the error state.
     }
   };
 

@@ -37,14 +37,14 @@ try {
   }
   const challenge = await call('/auth/challenge', { address: account.address })
   token = (await call('/auth/login', { challengeId: challenge.id, signature: await account.signMessage({ message: challenge.message }) })).token
-  const created = await call('/conversations', { title: 'Maker 真實庫存與可成交性', kind: 'maker' })
+  const created = await call('/conversations', { title: 'Maker live inventory and execution readiness', kind: 'maker' })
   const fixture = builderSimulationFixture('xyc', account.address.toLowerCase()), { profileId: _profileId, ...spec } = fixture.spec
   await call(`/drafts/${created.draft.id}/patch`, { expectedRevision: 1, patch: { spec, allocations: fixture.allocations } })
   const turns = createTurns(pool), model = openAIModel({ apiKey: process.env.OPENAI_API_KEY ?? '', modelId })
   const prompts = [
-    '只用實際庫存工具，讀取這份 Maker 草稿自己的 ETH、WETH、USDC 餘額與 Aqua allowance。依工具資料說明草稿配置是否有足夠餘額及 allowance，不要猜測錢包數字，不要改草稿、換幣或交易。',
-    '只討論，不要修改或重讀：假如一個錢包有 ETH 而沒有 WETH，能把 ETH 當作 WETH 配置嗎？Aqua ship 是否會把 token 存進合約？數學預覽通過是否表示現在可以成交？',
-    '只把 USDC 配置從 25 降到 20 USDC，WETH 配置與其餘所有設定不变。保存後再用庫存工具確認，減少配置是否已經讓這個 Maker 具備實際成交條件。不要送出任何交易。',
+    'Use only the inventory tool to read this Maker draft wallet: ETH, WETH, USDC and Aqua allowances. Explain whether its allocations have sufficient balances and allowances without guessing, editing, swapping or trading.',
+    'Discuss only; do not edit or read again. Can ETH count as a WETH allocation? Does Aqua ship deposit tokens into a contract? Does a passing mathematical preview mean trading is ready?',
+    'Reduce only the USDC allocation from 25 to 20. Preserve WETH and all other settings. Save and read inventory again to check whether the reduced allocation establishes trading readiness. Do not submit transactions.',
   ]
   await mkdir(directory, { recursive: true })
   for (const [index, content] of prompts.entries()) {

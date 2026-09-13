@@ -14,7 +14,7 @@ export function verifyPublicationIntent(input: PublicationIntent, draft: Draft, 
     intent.encryption.keyId !== digestJson({ algorithm: intent.encryption.algorithm, publicKey: intent.encryption.publicKey }) ||
     intent.encryption.strategyId !== `${intent.base.templateId}.v${intent.base.version}` ||
     (templateId && intent.base.templateId !== templateId) || Date.parse(intent.expiresAt) <= Date.now() || Date.parse(intent.expiresAt) > Date.now() + 301000) {
-    throw new Error('發布審閱與目前畫面不符，請重新載入。');
+    throw new Error('The publication review does not match the current view. Please reload.');
   }
   return intent;
 }
@@ -25,6 +25,6 @@ export async function verifyPublishedTemplate(input: PublishedTemplate, id: stri
   const message = publicationVersionMessage(intent, template), signature = signatureSchema.parse(input.proof.signature);
   if (template.templateId !== id || template.version !== version || templateDigest(template) !== input.digest ||
     (digest && input.digest !== digest) || message !== input.proof.message || intent.chainId !== sepoliaStandingProfile.chainId ||
-    !await verifyMessage({ address: template.provider, message, signature })) throw new Error('模板簽名或版本無法核對，請重新載入。');
+    !await verifyMessage({ address: template.provider, message, signature })) throw new Error('The template signature or version could not be verified. Please reload.');
   return { ...input, template, proof: { intent, message, signature }, currentManifest: template.manifestHash === digestJson(sepoliaStandingProfile) };
 }

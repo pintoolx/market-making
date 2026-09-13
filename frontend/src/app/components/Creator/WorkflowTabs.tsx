@@ -15,7 +15,7 @@ interface WorkflowTabsProps {
   onTabSelect: (tabId: string) => void;
   onTabAdd: () => void;
   onTabRename?: (tabId: string, newName: string) => void;
-  /** 點 X 時開啟確認流程（由父層顯示 modal，勿在此直接刪除） */
+  /** Ask the parent to confirm closing a tab; do not delete it directly here. */
   onTabCloseRequest?: (tabId: string) => void;
 }
 

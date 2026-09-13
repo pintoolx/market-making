@@ -1,6 +1,6 @@
 /* CanvasToolbar - Bottom toolbar for canvas tools */
 
-/* 寬度只含 toolbarTools：置中時不會因 ChatPanel 變寬而把整條 toolbar 往右推 */
+/* Only toolbarTools defines the centered width; ChatPanel expansion must not shift it. */
 .toolbarContainer {
   position: absolute;
   bottom: 24px;
@@ -17,7 +17,7 @@
   gap: 8px;
 }
 
-/* Chat 脫離排版流，貼在 toolbar 左側、底緣對齊（視覺並排但不撐開置中錨點） */
+/* Position chat outside normal flow, to the left and bottom-aligned, without changing the toolbar center. */
 .chatPanelAside {
   position: absolute;
   right: 100%;

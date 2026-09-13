@@ -21,22 +21,22 @@ export type TurnEvent = { sequence: string; attempt: number; kind: 'started' | '
 
 export class BuilderError extends Error {
   constructor(readonly status: number, readonly code: string) {
-    super(({ 'authentication-required': '工作區登入已失效，請重新驗證錢包。', 'privy-authentication-required': '登入已失效，請重新登入 Privy。',
-      'agent-turn-active': '這份策略仍在回覆中，請等待或先停止生成。', 'draft-changed': '策略已更新，請重新載入後再送出。',
-      'revision-or-template-conflict': '策略版本已變更，請查看最新設定後再修改。', 'agent-hourly-budget': '這個錢包本小時的對話額度已用完，請稍後再試。',
-      'design-unavailable': '策略對話服務尚未開放，已保存的草稿仍可查看。', 'not-found': '找不到這份策略，或目前錢包無法存取。',
-      'templates-unavailable': '模板發布與套用服務尚未開放。', 'template-withdrawn': 'Provider 已撤下這個版本，不能新增套用。',
-      'template-version-changed': '已有新的版本發布，請重新取得發布審閱。', 'publication-intent-expired': '發布審閱已過期，請重新審閱並簽名。',
-      'template-price-unavailable': '目前無法取得可信行情，請稍後再套用。', 'template-price-stale': '行情已過時，請重新套用以取得最新資料。',
-      'invalid-publication-signature': '發布簽名與目前錢包或審閱內容不符。', 'invalid-withdrawal-signature': '撤下簽名與版本不符。',
-      'template-expired': '此版本的策略期限已到，請選擇其他版本。', 'template-profile-stale': '此模板使用較舊的部署設定，請選擇目前可用版本。',
-      'template-encryption-key-unavailable': '此版本的政策金鑰目前無法使用，請選擇其他版本。', 'template-budget-exhausted': '本小時的模板操作額度已用完，請稍後再試。',
-      'template-instance-invalid': '配置不符合此模板的公開上限，請檢查數量。', 'publication-context-changed': '發布設定已更新，請重新取得審閱。',
-      'inventory-unavailable': '資產讀取服務尚未開放。', 'inventory-read-unavailable': '目前無法核對鏈上資產，請稍後重讀。',
-      'inventory-busy': '資產讀取繁忙，請稍後重試。', 'simulation-unavailable': '模擬服務尚未開放或暫時無法執行。',
-      'simulation-artifact-stale': '草稿或編譯版本已變更，請回到策略重新編譯。', 'simulation-hourly-budget': '本小時的模擬額度已用完，請稍後再試。',
-      'strategy-incomplete-or-invalid': '公開設定或 Maker 配置尚未完整，請先回到對話修正。', 'compile-rejected': '編譯器拒絕這組參數，請回到對話檢查曲線與數量。',
-    } as Record<string, string>)[code] ?? '暫時無法連線到策略工作區，請重試。');
+    super(({ 'authentication-required': 'Your workspace session expired. Verify your wallet again.', 'privy-authentication-required': 'Your login expired. Sign in with Privy again.',
+      'agent-turn-active': 'This strategy is still responding. Wait or stop generation first.', 'draft-changed': 'The strategy changed. Reload before submitting again.',
+      'revision-or-template-conflict': 'The strategy version changed. Review the latest parameters before editing.', 'agent-hourly-budget': 'This wallet has reached its hourly conversation limit. Try again later.',
+      'design-unavailable': 'Strategy conversations are unavailable. You can still view saved drafts.', 'not-found': 'This strategy was not found or is not accessible to this wallet.',
+      'templates-unavailable': 'Template publication and application are unavailable.', 'template-withdrawn': 'The Provider withdrew this version. New instances cannot use it.',
+      'template-version-changed': 'A newer version was published. Request a fresh publication review.', 'publication-intent-expired': 'The publication review expired. Review and sign again.',
+      'template-price-unavailable': 'Trusted market data is unavailable. Try applying the template again later.', 'template-price-stale': 'Market data is stale. Apply the template again to obtain fresh data.',
+      'invalid-publication-signature': 'The publication signature does not match the wallet or reviewed content.', 'invalid-withdrawal-signature': 'The withdrawal signature does not match this version.',
+      'template-expired': 'This strategy version expired. Choose another version.', 'template-profile-stale': 'This template uses an older deployment profile. Choose a current version.',
+      'template-encryption-key-unavailable': 'The policy key for this version is unavailable. Choose another version.', 'template-budget-exhausted': 'The hourly template operation limit has been reached. Try again later.',
+      'template-instance-invalid': 'The allocations exceed the public limits of this template. Review the amounts.', 'publication-context-changed': 'Publication settings changed. Request a new review.',
+      'inventory-unavailable': 'Inventory reads are unavailable.', 'inventory-read-unavailable': 'Onchain inventory could not be verified. Try reading it again later.',
+      'inventory-busy': 'Inventory reads are busy. Try again shortly.', 'simulation-unavailable': 'Simulation is unavailable or temporarily unable to run.',
+      'simulation-artifact-stale': 'The draft or compilation changed. Return to the strategy and compile again.', 'simulation-hourly-budget': 'The hourly simulation limit has been reached. Try again later.',
+      'strategy-incomplete-or-invalid': 'Public parameters or Maker allocations are incomplete. Complete them in the conversation first.', 'compile-rejected': 'The compiler rejected these parameters. Review the curve and amounts in the conversation.',
+    } as Record<string, string>)[code] ?? 'Unable to connect to the strategy workspace. Please retry.');
   }
 }
 

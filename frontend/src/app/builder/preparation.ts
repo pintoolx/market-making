@@ -57,5 +57,5 @@ export function verifyInventory(value: InventoryResult, draft: Draft) {
   return value;
 }
 
-export const evidenceLabel = (mode: string | null) => mode === 'live-read' ? 'Sepolia 鏈上讀取' : mode === 'fork-with-overrides' ? '隔離 fork · 合成資金／授權' : mode === 'mock' ? '測試資料 · 非鏈上驗證' : '等待評估';
-export const simulationState = (state: string) => ({ pending: '排隊中', running: '模擬中', succeeded: '已完成', failed: '未通過', cancelled: '已取消' } as Record<string, string>)[state] ?? '未知狀態';
+export const evidenceLabel = (mode: string | null) => mode === 'live-read' ? 'Live Sepolia read' : mode === 'fork-with-overrides' ? 'Isolated fork · Synthetic funds and authorization' : mode === 'mock' ? 'Test data · No onchain verification' : 'Awaiting evaluation';
+export const simulationState = (state: string) => ({ pending: 'Queued', running: 'Simulating', succeeded: 'Completed', failed: 'Failed', cancelled: 'Cancelled' } as Record<string, string>)[state] ?? 'Unknown state';

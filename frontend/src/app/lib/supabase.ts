@@ -36,9 +36,9 @@ function readJwtUserMetadataCustomClaimsAddress(accessToken: string): string | n
 }
 
 /**
- * `workflows`（等表）RLS 若使用
+ * When RLS on workflows and related tables uses
  * `owner_wallet_address = (auth.jwt()->'user_metadata'->'custom_claims'->>'address')`，
- * Web3 登入預設 JWT 常缺少該巢狀欄位。RLS 只看 JWT，故需補齊 user_metadata 並 refreshSession。
+ * Web3 JWTs may lack this nested field. Populate user_metadata and refreshSession because RLS reads the JWT.
  */
 export async function ensureJwtWalletClaimForWorkflowsRls(walletAddress: string): Promise<void> {
   if (!walletAddress.trim()) return;

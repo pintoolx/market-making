@@ -15,7 +15,7 @@
   transition: outline-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* 與 FormInput 一致：展開時藍框＋藍色粗底線 */
+/* Match FormInput with a blue outline and thick underline when expanded. */
 .selectTriggerOpen {
   outline-color: #2050f2;
   box-shadow: 0 4px 0 0 #2050f2;

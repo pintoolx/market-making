@@ -44,10 +44,10 @@ try {
   const instance = await call('/templates/instantiate', { templateId: published.template.templateId, version: 1, digest: published.digest, allocations: fixture.allocations })
   const initial: StrategyDraft = instance.draft, turns = createTurns(pool), model = openAIModel({ apiKey: process.env.OPENAI_API_KEY ?? '', modelId })
   const prompts = [
-    '我是套用 Provider 模板的 Maker。只讀目前草稿與模板權限，說明我能調整哪些參數，還有哪些是鎖定的；不要改草稿，也不要要求我提供 Provider 私密政策。',
-    '請把 CLMM 價格範圍縮到 2300～2700 USDC/WETH，單筆 USDC 公開上限改為 10 USDC，個人標題改成「我的 CLMM」，其他全部保留。請保存並驗證。',
-    '我想把價格上界加到 2900。請先檢查 Provider 權限；如果超過原始上限就不要改，說明可行替代，不要另建草稿。',
-    '請回復到最初套用模板的 revision 1，然後只把 Maker 配置改為 20 USDC，WETH 配置不變。保存並驗證；不要發布、註冊或交易。',
+    'I am a Maker using a Provider template. Read the draft and permissions, explaining editable and locked parameters. Do not edit or request the private Provider policy.',
+    'Narrow the CLMM range to 2300–2700 USDC/WETH, set the public USDC per-swap limit to 10 and change the personal title to My CLMM. Preserve everything else. Save and validate.',
+    'I want to raise the upper price to 2900. Check Provider permissions first; if it exceeds the original bound, do not edit. Explain alternatives without creating a new draft.',
+    'Restore the initial template instance at revision 1, then change only the Maker USDC allocation to 20, preserving WETH. Save and validate without publishing, registering or trading.',
   ]
   await mkdir(directory, { recursive: true })
   for (const [index, content] of prompts.entries()) {
@@ -71,7 +71,7 @@ try {
     assert.deepEqual(draft.templatePin, initial.templatePin)
     if (index === 0 || index === 2) assert.deepEqual(draft, before)
     if (index === 1) {
-      assert.deepEqual(draft.spec, { ...initial.spec, title: '我的 CLMM', model: { kind: 'concentrated', minPrice: '2300', maxPrice: '2700' },
+      assert.deepEqual(draft.spec, { ...initial.spec, title: 'My CLMM', model: { kind: 'concentrated', minPrice: '2300', maxPrice: '2700' },
         guardEnvelope: { ...initial.spec.guardEnvelope, maxAmountQuotePerSwap: '10000000' } })
       assert.deepEqual(draft.allocations, initial.allocations)
     }

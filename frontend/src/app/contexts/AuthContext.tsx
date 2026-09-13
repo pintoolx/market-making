@@ -14,7 +14,7 @@ export interface Account {
   owner_wallet_address: string;
   name: string;
   current_workflow_id: string | null;
-  /** 舊欄位；以 status 為準 */
+  /** Legacy field; prefer status. */
   is_active?: boolean;
   /** public.accounts.status：active | inactive | closed */
   status?: string;
@@ -25,43 +25,43 @@ export interface Account {
 }
 
 interface AuthState {
-  /** 是否已完成 Supabase signInWithWeb3 */
+  /** Whether Supabase signInWithWeb3 has completed. */
   isAuthenticated: boolean;
   isLoading: boolean;
-  /** Supabase JWT access_token（用作 Bearer token 給 PinTool API） */
+  /** Supabase JWT access_token, used as the PinTool API Bearer token. */
   accessToken: string | null;
   walletAddress: string | null;
-  /** 從 public.accounts 查詢到的所有 Crossmint 帳戶 */
+  /** All Crossmint accounts read from public.accounts. */
   accounts: Account[];
-  /** 從 public.canvases 查詢到的草稿 */
+  /** Drafts read from public.canvases. */
   canvases: CanvasData[];
-  /** canvases 是否已從 DB 載入完成（區分「還沒載」vs「確實為空」） */
+  /** Whether canvas loading is complete; distinguish loading from an empty result. */
   canvasesLoaded: boolean;
-  /** 是否已兌換邀請碼（首次登入必填） */
+  /** Whether the required first-login invite code has been redeemed. */
   hasRedeemedReferral: boolean;
   error: string | null;
 }
 
 interface AuthContextValue extends AuthState {
   /**
-   * Part 1: Sign In（身分驗證）
-   * 使用 supabase.auth.signInWithWeb3()
-   * Supabase 自動產生 challenge、驗證簽名、建立 auth.users
+   * Part 1: Sign In (identity verification).
+   * Uses supabase.auth.signInWithWeb3().
+   * Supabase creates the challenge, verifies the signature and creates auth.users.
    */
   signIn: () => Promise<void>;
-  /** 登出 Supabase session */
+  /** Sign out of the Supabase session. */
   signOut: () => Promise<void>;
   /**
-   * Part 2: 取得業務 challenge 簽名
-   * 用於需要額外授權的操作（init/delete/export wallet）
-   * 回傳 signature (base58 string)
+   * Part 2: Obtain a signed business-operation challenge.
+   * Used for actions needing additional authorization: init/delete/export wallet.
+   * Returns a base58 signature string.
    */
   getBusinessSignature: () => Promise<string>;
-  /** 重新從 Supabase 查詢 accounts 資料 */
+  /** Refresh accounts from Supabase. */
   refreshAccounts: () => Promise<void>;
-  /** 重新從 Supabase 查詢 canvases 草稿 */
+  /** Refresh canvas drafts from Supabase. */
   refreshCanvases: () => Promise<void>;
-  /** 標記邀請碼已兌換（寫入 localStorage） */
+  /** Mark an invite code redeemed in localStorage. */
   setReferralRedeemed: () => void;
 }
 
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const isSigningIn = useRef(false);
 
-  // 從 Supabase public.accounts 查詢所有既有帳戶
+  // Read all existing accounts from Supabase public.accounts.
   const fetchAccounts = useCallback(async (ownerAddress: string) => {
     try {
       const { data, error } = await supabase
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 從 Supabase public.canvases 查詢所有草稿
+  // Read all drafts from Supabase public.canvases.
   const fetchCanvases = useCallback(async (ownerAddress: string) => {
     try {
       const { data, error } = await supabase
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 初始化：檢查既有 Supabase session
+  // Initialize by checking the existing Supabase session.
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkSession();
   }, [wallet.publicKey, fetchAccounts, fetchCanvases]);
 
-  // 監聽 Supabase auth 狀態變化
+  // Observe Supabase authentication changes.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
@@ -190,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
         }));
       } else if (event === 'TOKEN_REFRESHED' && session) {
-        // Supabase 自動刷新 token
+        // Supabase refreshes the token automatically.
         setState(prev => ({
           ...prev,
           accessToken: session.access_token,
@@ -203,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // 當錢包斷開時自動登出
+  // Sign out automatically when the wallet disconnects.
   useEffect(() => {
     if (!wallet.connected && state.isAuthenticated) {
       handleSignOut();
@@ -213,8 +213,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Part 1: Sign In
-   * 使用 supabase.auth.signInWithWeb3()
-   * Supabase 自動處理 challenge、簽名驗證、user 建立
+   * Uses supabase.auth.signInWithWeb3().
+   * Supabase handles challenges, signature verification and user creation.
    */
   const handleSignIn = useCallback(async () => {
     if (isSigningIn.current) return;
@@ -256,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       const message = (err as Error).message;
 
-      // 用戶拒絕簽名 - 靜默處理
+      // Handle a user-declined signature without an error notification.
       if (message.includes('rejected') || message.includes('User rejected')) {
         setState(prev => ({ ...prev, isLoading: false, error: null }));
         return;
@@ -275,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [wallet, fetchAccounts, fetchCanvases]);
 
   /**
-   * 登出
+   * Sign out.
    */
   const handleSignOut = useCallback(async () => {
     try {
@@ -297,9 +297,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * Part 2: 取得業務 challenge 簽名
-   * 每次重要操作都向 PinTool API 取新 challenge + 錢包簽名
-   * 回傳 signature (base58 string)
+   * Part 2: Obtain a signed business-operation challenge.
+   * Request a fresh PinTool API challenge and wallet signature for each sensitive action.
+   * Returns a base58 signature string.
    */
   const handleGetBusinessSignature = useCallback(async (): Promise<string> => {
     if (!wallet.connected || !wallet.publicKey || !wallet.signMessage) {
@@ -308,11 +308,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const walletAddress = wallet.publicKey.toString();
 
-    // 向 PinTool API 取得業務 challenge
+    // Obtain the business-operation challenge from the PinTool API.
     const challengeRes = await getChallenge(walletAddress);
     const challengeMessage = challengeRes.data.challenge;
 
-    // 用錢包簽名
+    // Sign with the wallet.
     const messageBytes = new TextEncoder().encode(challengeMessage);
     const signatureBytes = await wallet.signMessage(messageBytes);
     return bs58.encode(signatureBytes);

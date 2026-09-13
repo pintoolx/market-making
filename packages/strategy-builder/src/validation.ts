@@ -28,9 +28,9 @@ export function validateStrategy(input: unknown, profile: DeploymentProfile, now
   if (!Number.isSafeInteger(nowSec) || nowSec < 0) throw new Error('a trusted evaluation time is required')
   if (profile.swapVmCommit !== SWAPVM_COMMIT || profile.aquaCommit !== AQUA_COMMIT || profile.swapVmSdk !== '0.4.4' ||
     profile.guardRevision !== 'standing-v2' || profile.opcodeTableHash !== digestJson(AQUA_OPCODES)) {
-    error('incompatible-deployment', 'profile', 'Source／SDK／opcode／Guard profile 尚未核對相容性')
+    error('incompatible-deployment', 'profile', 'Source, SDK, opcode and Guard profile compatibility is not verified')
   }
-  if (spec.profileId !== profile.id) error('profile-mismatch', 'spec.profileId', '草稿與部署 profile 不相符')
+  if (spec.profileId !== profile.id) error('profile-mismatch', 'spec.profileId', 'Draft and deployment profiles do not match')
   const need = (field: string, value: unknown) => { if (value === undefined) missingFields.push(field) }
   need('spec.baseToken', spec.baseToken); need('spec.quoteToken', spec.quoteToken); need('spec.model', spec.model)
   need('spec.feeBps', spec.feeBps); need('spec.deadline', spec.deadline); need('spec.guardEnvelope', spec.guardEnvelope)
@@ -41,42 +41,42 @@ export function validateStrategy(input: unknown, profile: DeploymentProfile, now
     const token = spec[name]
     if (!token) continue
     const verified = profile.tokens.find(t => t.address.toLowerCase() === token.address)
-    if (!verified || verified.decimals !== token.decimals || verified.symbol !== token.symbol) error('unverified-token', `spec.${name}`, '幣種與已核對 metadata 不符，請重新 resolve token')
+    if (!verified || verified.decimals !== token.decimals || verified.symbol !== token.symbol) error('unverified-token', `spec.${name}`, 'Token metadata does not match verified metadata; resolve the token again')
   }
-  if (spec.baseToken && spec.baseToken.address === spec.quoteToken?.address) error('duplicate-token', 'spec.quoteToken', '交易對必須是不同 token')
-  if (spec.deadline !== undefined && spec.deadline <= nowSec) error('expired', 'spec.deadline', '策略 deadline 已到期')
-  if (spec.feeBps !== undefined && spec.feeBps !== 0) error('fee-accounting-unverified', 'spec.feeBps', '非零 LP 費率與 Guard accounting 尚待組合驗證')
-  if (new Set(draft.requirements.map(r => r.id)).size !== draft.requirements.length) error('duplicate-requirement', 'requirements', '需求識別碼重複')
+  if (spec.baseToken && spec.baseToken.address === spec.quoteToken?.address) error('duplicate-token', 'spec.quoteToken', 'The pair must contain different tokens')
+  if (spec.deadline !== undefined && spec.deadline <= nowSec) error('expired', 'spec.deadline', 'The strategy deadline has expired')
+  if (spec.feeBps !== undefined && spec.feeBps !== 0) error('fee-accounting-unverified', 'spec.feeBps', 'Nonzero LP fees and Guard accounting require composition verification')
+  if (new Set(draft.requirements.map(r => r.id)).size !== draft.requirements.length) error('duplicate-requirement', 'requirements', 'Duplicate requirement IDs')
   const modifiers = new Set<string>()
   for (const [i, modifier] of spec.modifiers.entries()) {
-    if (modifiers.has(modifier.kind)) error('duplicate-modifier', `spec.modifiers.${i}`, '不能重複套用 modifier')
+    if (modifiers.has(modifier.kind)) error('duplicate-modifier', `spec.modifiers.${i}`, 'A modifier cannot be applied twice')
     modifiers.add(modifier.kind)
-    error('composition-unverified', `spec.modifiers.${i}`, `${modifier.kind} 尚未完成此 profile 的 Guard 組合驗證`)
+    error('composition-unverified', `spec.modifiers.${i}`, `${modifier.kind} has not passed Guard composition verification for this profile`)
   }
   if (spec.model?.kind === 'concentrated') {
     const m = spec.model
     if (m.relativeWidthBps !== undefined) {
-      if (m.minPrice !== undefined || m.maxPrice !== undefined) error('ambiguous-range', 'spec.model', '固定價格與相對價格模板須擇一；固定 snapshot 後移除相對設定')
+      if (m.minPrice !== undefined || m.maxPrice !== undefined) error('ambiguous-range', 'spec.model', 'Choose fixed or relative prices; remove relative settings after fixing the snapshot')
       if (draft.kind === 'maker') missingFields.push('spec.model.fixedSnapshotRange')
     } else {
       need('spec.model.minPrice', m.minPrice); need('spec.model.maxPrice', m.maxPrice)
-      if (m.minPrice && m.maxPrice && scaledDecimal(m.minPrice) >= scaledDecimal(m.maxPrice)) error('invalid-range', 'spec.model', '最低價必須小於最高價')
+      if (m.minPrice && m.maxPrice && scaledDecimal(m.minPrice) >= scaledDecimal(m.maxPrice)) error('invalid-range', 'spec.model', 'Minimum price must be below maximum price')
     }
-    if (m.snapshot && (m.snapshot.baseToken !== spec.baseToken?.address || m.snapshot.quoteToken !== spec.quoteToken?.address)) error('snapshot-pair-mismatch', 'spec.model.snapshot', '價格 snapshot 的交易對不符')
+    if (m.snapshot && (m.snapshot.baseToken !== spec.baseToken?.address || m.snapshot.quoteToken !== spec.quoteToken?.address)) error('snapshot-pair-mismatch', 'spec.model.snapshot', 'The price snapshot uses a different token pair')
   }
   if (spec.model?.kind === 'pegged') {
     need('spec.model.referencePrice', spec.model.referencePrice); need('spec.model.amplification', spec.model.amplification)
-    if (spec.model.amplification && scaledDecimal(spec.model.amplification) > 5000n * 10n ** 18n) error('amplification-range', 'spec.model.amplification', 'Amplification 最大為 5000')
+    if (spec.model.amplification && scaledDecimal(spec.model.amplification) > 5000n * 10n ** 18n) error('amplification-range', 'spec.model.amplification', 'Amplification must not exceed 5000')
   }
   if (draft.kind === 'maker') {
     need('maker', draft.maker); need('allocations', draft.allocations)
     if (draft.allocations) { need('allocations.baseAtomic', draft.allocations.baseAtomic); need('allocations.quoteAtomic', draft.allocations.quoteAtomic) }
     if (draft.allocations && spec.guardEnvelope) {
       for (const [amount, cap] of [[draft.allocations.baseAtomic, spec.guardEnvelope.maxPostBalanceBase], [draft.allocations.quoteAtomic, spec.guardEnvelope.maxPostBalanceQuote]]) {
-        if (amount !== undefined && cap !== undefined && BigInt(amount) > BigInt(cap)) error('inventory-above-envelope', 'allocations', '初始 allocation 超出不可變 Guard envelope')
+        if (amount !== undefined && cap !== undefined && BigInt(amount) > BigInt(cap)) error('inventory-above-envelope', 'allocations', 'Initial allocations exceed the immutable Guard envelope')
       }
     }
-  } else if (draft.maker || draft.allocations) error('template-instance-fields', 'allocations', 'Provider 模板不可包含 Maker 地址或資產配置')
+  } else if (draft.maker || draft.allocations) error('template-instance-fields', 'allocations', 'Provider templates cannot contain Maker addresses or asset allocations')
   const ready = !errors.length && !missingFields.length
   return { ready, errors, missingFields, validated: ready ? {
     draft, contentDigest: contentDigest(draft), manifestHash: digestJson(profile), profile: structuredClone(profile),

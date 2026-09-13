@@ -22,7 +22,7 @@ test('browser refuses a publication intent that changes the visible revision, pe
   for(const change of [i=>{i.origin='https://wrong.example'},i=>{i.base.spec.guardEnvelope.maxAmountQuotePerSwap='12500001'},
     i=>{i.base.permissions.tightenCaps=false},i=>{i.base.source.revision=1},i=>{i.encryption.publicKey='22'.repeat(32)},
     i=>{i.encryption.strategyId='another-version'},i=>{i.expiresAt='2000-01-01T00:00:00.000Z'}]) {
-    const i=structuredClone(p.intent);change(i);assert.throws(()=>verify(i),/發布審閱與目前畫面不符/)
+    const i=structuredClone(p.intent);change(i);assert.throws(()=>verify(i),/publication review does not match/)
   }
 })
 test('browser independently verifies the Provider signature and refuses substituted versions or unsigned public changes',async()=>{
@@ -33,5 +33,5 @@ test('browser independently verifies the Provider signature and refuses substitu
   await assert.rejects(verifyPublishedTemplate(saved,template.templateId,1,digestJson('different-version')))
   const changed=structuredClone(saved);changed.template.spec.title='Unsigned replacement';changed.proof.intent.base.spec.title=changed.template.spec.title
   changed.digest=templateDigest(changed.template);changed.proof.message=publicationVersionMessage(changed.proof.intent,changed.template)
-  await assert.rejects(verifyPublishedTemplate(changed,template.templateId,1),/模板簽名或版本無法核對/)
+  await assert.rejects(verifyPublishedTemplate(changed,template.templateId,1),/template signature or version could not be verified/)
 })

@@ -1,4 +1,4 @@
-/* PT Agent 寬度：視窗 1280px → 339px（min）、1920px → 400px（max），其間線性 */
+/* PT Agent width scales linearly from 339px at a 1280px viewport to 400px at 1920px. */
 .chatPanel {
   width: clamp(
     339px,

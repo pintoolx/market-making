@@ -13,7 +13,7 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
 }) {
   const [items, setItems] = useState<TemplateItem[]>([]), [selected, setSelected] = useState<PublishedTemplate | null>(null);
   const [baseAmount, setBaseAmount] = useState(''), [quoteAmount, setQuoteAmount] = useState(''), [title, setTitle] = useState('');
-  const [busy, setBusy] = useState('載入模板'), [error, setError] = useState(''), [withdrawChecked, setWithdrawChecked] = useState(false);
+  const [busy, setBusy] = useState('Loading templates'), [error, setError] = useState(''), [withdrawChecked, setWithdrawChecked] = useState(false);
   const live = useRef(true), epoch = useRef(0), applyPending = useRef<{ input: string; key: string } | null>(null);
   const withdrawPending = useRef<{ signature: `0x${string}`; key: string } | null>(null);
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
     void api.templates().then(result => { if (live.current) setItems(result.templates); }).catch(e => {
       if (!live.current) return;
       if (e instanceof BuilderError && e.status === 401) { onSessionExpired(); return; }
-      setError(e instanceof BuilderError ? e.message : '無法載入模板。');
+      setError(e instanceof BuilderError ? e.message : 'Could not load templates.');
     })
       .finally(() => { if (live.current) setBusy(''); });
     return () => { live.current = false; };
@@ -29,10 +29,10 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
   const fail = (e: unknown) => {
     if (!live.current) return;
     if (e instanceof BuilderError && e.status === 401) { onSessionExpired(); return; }
-    setError(e instanceof BuilderError ? e.message : '版本或輸入未能核對，請檢查數量後重試。');
+    setError(e instanceof BuilderError ? e.message : 'The version or inputs could not be verified. Check the amounts and retry.');
   };
   async function choose(item: TemplateItem) {
-    const ticket = ++epoch.current; setBusy('核對 Provider 簽名'); setError(''); setSelected(null);
+    const ticket = ++epoch.current; setBusy('Verifying Provider signature'); setError(''); setSelected(null);
     try {
       const saved = await verifyPublishedTemplate(await api.template(item.templateId, item.version), item.templateId, item.version, item.digest);
       if (!live.current || ticket !== epoch.current) return;
@@ -43,7 +43,7 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
   }
   async function apply() {
     if (!selected || busy) return;
-    const ticket = epoch.current; setBusy('建立 Maker 草稿'); setError('');
+    const ticket = epoch.current; setBusy('Creating Maker draft'); setError('');
     try {
       const base = selected.template.spec.baseToken!, quote = selected.template.spec.quoteToken!;
       const allocations = allocationSchema.parse({ baseAtomic: String(scaledDecimal(baseAmount, base.decimals)), quoteAtomic: String(scaledDecimal(quoteAmount, quote.decimals)) });
@@ -62,7 +62,7 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
   }
   async function withdraw() {
     if (!selected || busy || !withdrawChecked) return;
-    const ticket = epoch.current; setBusy('請在錢包確認撤下'); setError('');
+    const ticket = epoch.current; setBusy('Confirm withdrawal in your wallet'); setError('');
     try {
       if (!withdrawPending.current) {
         const signature = await signMessage(withdrawalMessage(window.location.origin, 11155111, selected.template));
@@ -78,38 +78,38 @@ export default function TemplateCatalog({ api, address, signMessage, onApply, on
     finally { if (live.current && ticket === epoch.current) setBusy(''); }
   }
   const unavailable = selected && (selected.withdrawnAt || !selected.currentManifest || !selected.template.spec.deadline || selected.template.spec.deadline * 1000 <= Date.now());
-  return <BuilderDialog title="選擇 Provider 模板" onClose={onClose}>
+  return <BuilderDialog title="Choose Provider template" onClose={onClose}>
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!selected ? <div className={styles.catalog}>
-      <p>選定不可變版本，建立自己的 Maker 草稿後，還能繼續用對話微調。</p>
-      {!items.length && <p>{busy || '目前尚無已發布的模板。先設計並發布自己的版本，也可以自己套用。'}</p>}
+      <p>Select an immutable version and create your Maker draft. Continue refining it in the conversation.</p>
+      {!items.length && <p>{busy || 'No published templates yet. Design and publish your own version; you can also use it yourself.'}</p>}
       {items.map(item => <button className={styles.templateCard} key={`${item.templateId}-${item.version}`} disabled={!!busy} onClick={() => void choose(item)}>
         <span>{item.baseToken.symbol} / {item.quoteToken.symbol} · {item.model === 'concentrated' ? 'CLMM' : item.model.toUpperCase()}</span><strong>{item.title}</strong>
-        <small>版本 {item.version} · {item.withdrawnAt ? '已撤下' : item.deadline * 1000 <= Date.now() ? '期限已到' : '可查看並套用'} · Provider {item.provider.slice(0, 8)}…{item.provider.slice(-4)}</small>
+        <small>Version {item.version} · {item.withdrawnAt ? 'Withdrawn' : item.deadline * 1000 <= Date.now() ? 'Expired' : 'Available to inspect and use'} · Provider {item.provider.slice(0, 8)}…{item.provider.slice(-4)}</small>
       </button>)}
     </div> : <div className={styles.catalogDetail}>
-      <button disabled={!!busy || !!applyPending.current || !!withdrawPending.current} onClick={() => { epoch.current++; setSelected(null); setError(''); }}>← 返回版本列表</button>
-      <h3>{selected.template.spec.title} <span>版本 {selected.template.version}</span></h3><p>Provider 簽名已核對。版本綁定後，不會自動更新成其他版本。</p>
+      <button disabled={!!busy || !!applyPending.current || !!withdrawPending.current} onClick={() => { epoch.current++; setSelected(null); setError(''); }}>← Back to versions</button>
+      <h3>{selected.template.spec.title} <span>Version {selected.template.version}</span></h3><p>Provider signature verified. Once selected, your pinned version will not update automatically.</p>
       <StrategyDetails spec={selected.template.spec} requirements={selected.template.requirements} />
-      <details><summary>Maker 可調範圍與 Provider 身分</summary><p className={styles.address}>{selected.template.provider}</p><ul>
-        <li>可更改個人標題與資產配置</li><li>{selected.template.permissions.tightenCaps ? '可收緊四項 Guard 上限' : '四項 Guard 上限固定'}</li>
-        <li>{selected.template.permissions.shortenDeadline ? '可縮短期限' : '期限固定'}</li>
-        {selected.template.spec.model?.kind === 'concentrated' && <li>{selected.template.permissions.narrowConcentratedRange ? '可縮小原始 CLMM 範圍' : 'CLMM 範圍固定'}</li>}
-        {selected.template.spec.model?.kind === 'pegged' && <><li>參考價格：{selected.template.permissions.peggedReferencePrice ? `${selected.template.permissions.peggedReferencePrice.min}–${selected.template.permissions.peggedReferencePrice.max}` : '固定'}</li><li>放大係數：{selected.template.permissions.peggedAmplification ? `${selected.template.permissions.peggedAmplification.min}–${selected.template.permissions.peggedAmplification.max}` : '固定'}</li></>}
-        <li>交易對、曲線種類、費率及其他程式設定固定</li></ul></details>
-      {unavailable ? <p className={styles.notice}>{selected.withdrawnAt ? 'Provider 已撤下這個版本。' : '此版本期限或部署設定已不適用。'}不能新增套用，版本仍保留供查看。</p> : <>
-        <h4>你的 Maker 配置</h4><fieldset disabled={!!busy || !!applyPending.current}><div className={styles.formGrid}>
-          <label>{selected.template.spec.baseToken!.symbol} 配置<input aria-label={`${selected.template.spec.baseToken!.symbol} Maker 配置`} inputMode="decimal" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} maxLength={80} /></label>
-          <label>{selected.template.spec.quoteToken!.symbol} 配置<input aria-label={`${selected.template.spec.quoteToken!.symbol} Maker 配置`} inputMode="decimal" value={quoteAmount} onChange={e => setQuoteAmount(e.target.value)} maxLength={80} /></label>
-        </div><label>個人策略名稱<input value={title} onChange={e => setTitle(e.target.value)} maxLength={120} /></label></fieldset>
-        {selected.template.spec.model?.kind === 'concentrated' && selected.template.spec.model.relativeWidthBps && <p className={styles.notice}>套用時會用 Kraken ETH/USDC 行情作為測試幣的參考，固定本次上下界；之後不會自動跟價。</p>}
-        <p className={styles.helper}>配置用 WETH 數量計算，ETH 不能直接算入 WETH。建立草稿不會轉移 token；後續需確認餘額、編譯、模擬及錢包操作。加密政策尚待可信工作流程驗證。</p>
-        <button className={styles.primary} disabled={!!busy || !baseAmount || !quoteAmount || !title.trim()} onClick={() => void apply()}>{busy || (applyPending.current ? '重試建立同一份草稿' : '套用並繼續設計')}</button>
+      <details><summary>Maker permissions and Provider identity</summary><p className={styles.address}>{selected.template.provider}</p><ul>
+        <li>Personal title and allocations may be changed</li><li>{selected.template.permissions.tightenCaps ? 'May tighten the four Guard limits' : 'The four Guard limits are fixed'}</li>
+        <li>{selected.template.permissions.shortenDeadline ? 'The deadline may be shortened' : 'The deadline is fixed'}</li>
+        {selected.template.spec.model?.kind === 'concentrated' && <li>{selected.template.permissions.narrowConcentratedRange ? 'The original CLMM range may be narrowed' : 'The CLMM range is fixed'}</li>}
+        {selected.template.spec.model?.kind === 'pegged' && <><li>Reference price: {selected.template.permissions.peggedReferencePrice ? `${selected.template.permissions.peggedReferencePrice.min}–${selected.template.permissions.peggedReferencePrice.max}` : 'Fixed'}</li><li>Amplification: {selected.template.permissions.peggedAmplification ? `${selected.template.permissions.peggedAmplification.min}–${selected.template.permissions.peggedAmplification.max}` : 'Fixed'}</li></>}
+        <li>The pair, curve type, fee and other program settings are fixed</li></ul></details>
+      {unavailable ? <p className={styles.notice}>{selected.withdrawnAt ? 'The Provider withdrew this version.' : 'This version has expired or uses an outdated deployment profile.'} New instances cannot use it, but the version remains available for inspection.</p> : <>
+        <h4>Your Maker allocation</h4><fieldset disabled={!!busy || !!applyPending.current}><div className={styles.formGrid}>
+          <label>{selected.template.spec.baseToken!.symbol} allocation<input aria-label={`${selected.template.spec.baseToken!.symbol} Maker allocation`} inputMode="decimal" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} maxLength={80} /></label>
+          <label>{selected.template.spec.quoteToken!.symbol} allocation<input aria-label={`${selected.template.spec.quoteToken!.symbol} Maker allocation`} inputMode="decimal" value={quoteAmount} onChange={e => setQuoteAmount(e.target.value)} maxLength={80} /></label>
+        </div><label>Personal strategy title<input value={title} onChange={e => setTitle(e.target.value)} maxLength={120} /></label></fieldset>
+        {selected.template.spec.model?.kind === 'concentrated' && selected.template.spec.model.relativeWidthBps && <p className={styles.notice}>Application fixes the range using Kraken ETH/USDC as the test-token reference. The range will not automatically track the market.</p>}
+        <p className={styles.helper}>Allocations use WETH; ETH cannot count as WETH. Creating a draft does not transfer tokens. Balance checks, compilation, simulation and wallet actions remain. Encrypted policies still need trusted workflow verification.</p>
+        <button className={styles.primary} disabled={!!busy || !baseAmount || !quoteAmount || !title.trim()} onClick={() => void apply()}>{busy || (applyPending.current ? 'Retry creating this draft' : 'Use template and continue designing')}</button>
       </>}
       {selected.template.provider === address.toLowerCase() && !selected.withdrawnAt && <div className={styles.withdraw}>
-        <h4>撤下這個版本</h4><p>停止新 Maker 套用，既有草稿與歷史仍保留。此操作不可復原，也不會自行撤銷既有鏈上 standing 授權。</p>
-        <label className={styles.checkbox}><input type="checkbox" checked={withdrawChecked} disabled={!!busy} onChange={e => setWithdrawChecked(e.target.checked)} />我了解這只會撤下此版本，既有成交授權需另行撤銷</label>
-        <button disabled={!!busy || !withdrawChecked || !!applyPending.current} onClick={() => void withdraw()}>{withdrawPending.current ? '重試確認撤下' : '錢包簽名並撤下版本'}</button>
+        <h4>Withdraw this version</h4><p>Stop new Maker instances while retaining existing drafts and history. Withdrawal is permanent and does not revoke existing onchain standing authorization.</p>
+        <label className={styles.checkbox}><input type="checkbox" checked={withdrawChecked} disabled={!!busy} onChange={e => setWithdrawChecked(e.target.checked)} />I understand that withdrawing this version does not revoke existing trading authorizations</label>
+        <button disabled={!!busy || !withdrawChecked || !!applyPending.current} onClick={() => void withdraw()}>{withdrawPending.current ? 'Retry withdrawal confirmation' : 'Sign and withdraw version'}</button>
       </div>}
     </div>}
     {busy && <p role="status" className={styles.helper}>{busy}</p>}

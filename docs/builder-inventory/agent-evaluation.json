@@ -6,8 +6,8 @@
   "evidence": [
     {
       "turn": 1,
-      "content": "只用實際庫存工具，讀取這份 Maker 草稿自己的 ETH、WETH、USDC 餘額與 Aqua allowance。依工具資料說明草稿配置是否有足夠餘額及 allowance，不要猜測錢包數字，不要改草稿、換幣或交易。",
-      "reply": "依實際庫存工具於 **Sepolia 區塊 11,692,082** 的讀取結果：\n\n| 資產 | 錢包餘額 | 草稿配置需求 | Aqua allowance | 結論 |\n|---|---:|---:|---:|---|\n| ETH | 0 ETH | 不屬於草稿配置 | 不適用 | 無 ETH；ETH 不能視為 WETH |\n| WETH | 0 WETH | 0.01 WETH | 0 WETH | 餘額及 allowance 均不足 |\n| USDC | 0 USDC | 25 USDC | 0 USDC | 餘額及 allowance 均不足 |\n\n**結論：**目前草稿配置沒有足夠的 WETH／USDC 餘額，也沒有足夠的 Aqua allowance；工具亦顯示 `registrationReady` 為否。這次讀取來自近期但尚未 finalized 的區塊，簽名前仍須重新 preflight。\n\n未修改草稿、未換幣、未交易。",
+      "content": "Use the inventory tool to read this Maker draft's actual ETH, WETH, USDC balances and Aqua allowances. Explain whether they cover the draft without guessing, editing, swapping or trading.",
+      "reply": "The inventory tool read Sepolia block 11,692,082: ETH, WETH and USDC wallet balances were all zero; WETH and USDC Aqua allowances were also zero. The draft requires 0.01 WETH and 25 USDC. Neither balance nor allowance is sufficient, and registrationReady is false. ETH is not WETH. This recent block is unfinalized, so preflight must run again before signing. No draft edit or transaction occurred.",
       "draft": {
         "schemaVersion": 1,
         "id": "d08576ca-6e7c-4005-8c9e-d904f6e15081",
@@ -158,8 +158,8 @@
     },
     {
       "turn": 2,
-      "content": "只討論，不要修改或重讀：假如一個錢包有 ETH 而沒有 WETH，能把 ETH 當作 WETH 配置嗎？Aqua ship 是否會把 token 存進合約？數學預覽通過是否表示現在可以成交？",
-      "reply": "不行，三者要分開看：\n\n1. **ETH 不能直接當作 WETH 配置**\n   - ETH 是原生資產，WETH 是 ERC‑20 token，兩者餘額與地址不同。\n   - 草稿配置的是 WETH，就必須有實際 WETH。\n   - 即使錢包有足夠 ETH，也需先透過 WETH 合約完成 wrap，才會形成 WETH 餘額；不能靠草稿文字或 Aqua allowance 自動替代。\n\n2. **Aqua `ship` 並不是把 token 存入 Aqua 合約**\n   - Aqua 採虛擬餘額／授權式記帳機制，`ship` 用於建立相關鏈上狀態，而不是一般意義的存款或託管。\n   - 資產仍在 Maker 錢包中，但實際結算仍要求足夠的 ERC‑20 餘額與 allowance。\n   - 虛擬配置不會憑空產生 WETH，也不能把 ETH 自動包裝成 WETH。\n\n3. **數學預覽通過不代表現在可以成交**\n   - 預覽只證明：在草稿配置及「Guard 已雙向授權、report 等於公開 caps」等假設下，指定整數交易的數學結果可計算或符合限制。\n   - 它不證明目前具備錢包資金、Aqua allowance、有效 Guard report、active hash、註冊／路由收錄或完整 settlement readiness。\n   - 它也不是即時報價、鏈上模擬或成交證明。\n\n因此，即使錢包持有 ETH 且數學預覽通過，只要沒有草稿要求的 WETH、足夠 allowance，以及其他啟用與結算條件，仍不能據此宣稱現在可成交。此次僅討論，沒有修改草稿、換幣或交易。",
+      "content": "Discussion only, without edits or new reads: can ETH substitute for a WETH allocation? Does Aqua ship deposit tokens? Does a passing mathematical preview mean the strategy can trade now?",
+      "reply": "ETH cannot substitute for WETH: wrapping through the WETH contract creates a separate ERC-20 balance. Aqua ship records virtual inventory without depositing custody; settlement still needs actual wallet balances and allowances. A mathematical preview assumes allocations and an enabled, non-revoked, bidirectional Guard report matching public caps. It proves neither live funds, allowance, registration, routing, authorization nor settlement readiness. No edit, swap or trade occurred.",
       "draft": {
         "schemaVersion": 1,
         "id": "d08576ca-6e7c-4005-8c9e-d904f6e15081",
@@ -212,8 +212,8 @@
     },
     {
       "turn": 3,
-      "content": "只把 USDC 配置從 25 降到 20 USDC，WETH 配置與其餘所有設定不变。保存後再用庫存工具確認，減少配置是否已經讓這個 Maker 具備實際成交條件。不要送出任何交易。",
-      "reply": "已保存唯一變更：\n\n- USDC 配置：**25 → 20 USDC**\n- WETH 配置維持：**0.01 WETH**\n- 其餘設定未變\n- 草稿驗證通過\n- 未送出任何交易\n\n依庫存工具在 Sepolia 最近未 finalized 區塊的實際讀取：\n\n| 資產 | 配置需求 | 錢包餘額 | Aqua allowance | 是否足夠 |\n|---|---:|---:|---:|---|\n| WETH | 0.01 WETH | 0 WETH | 0 WETH | 否 |\n| USDC | 20 USDC | 0 USDC | 0 USDC | 否 |\n| ETH | 不屬於配置 | 0 ETH | 不適用 | — |\n\n**結論：降低 USDC 配置後，這個 Maker 仍不具備實際成交條件。** WETH 與 USDC 的錢包餘額及 Aqua allowance 都不足；此外，工具顯示 active strategy hash 為空、`registrationReady` 為否。即使資金與 allowance 日後充足，也仍需分別確認有效 Guard report、註冊及其他結算條件。\n\n本次讀值來自未 finalized 的近期區塊，簽名前仍須重新 preflight。",
+      "content": "Reduce only the USDC allocation from 25 to 20 USDC, keeping WETH and every other setting. Save and reread inventory to determine whether this now permits actual trading. Do not send a transaction.",
+      "reply": "Saved 25 -> 20 USDC, retaining 0.01 WETH and all other settings; draft validation passed. The recent unfinalized read still showed zero ETH, WETH and USDC balances and zero Aqua allowances. The active strategy hash was empty and registrationReady remained false. Reducing an allocation does not supply funds or authorization. Recheck current state before signing. No transaction was sent.",
       "draft": {
         "schemaVersion": 1,
         "id": "d08576ca-6e7c-4005-8c9e-d904f6e15081",
@@ -370,5 +370,10 @@
         }
       ]
     }
-  ]
+  ],
+  "editorialNote": {
+    "representation": "English editorial summaries of recorded prompts/replies; descriptive draft strings translated. Not a verbatim transcript or a new evaluation run.",
+    "originalRecord": "https://github.com/pintoolx/market-making/blob/9801f752872909dee3da08c2e2fc2848a0bbbd4a/docs/builder-inventory/agent-evaluation.json",
+    "identityScope": "Numeric results, timestamps, IDs, signatures and hashes remain from the original record. Translated descriptive fields must not be used to recompute signed or hashed payloads; use the original record for byte-exact verification."
+  }
 }

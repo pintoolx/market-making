@@ -2,7 +2,7 @@ import { CanvasNode, Connection } from '../components/Creator/WorkflowCanvas';
 import { TOKEN_PRICES } from '../utils/constants';
 
 /**
- * 後端期望的 workflow 格式
+ * Workflow format expected by the backend.
  */
 export interface BackendWorkflowFormat {
   nodes: BackendNode[];
@@ -27,7 +27,7 @@ export interface BackendConnections {
 }
 
 /**
- * 前端 node type 到後端 node type 的映射
+ * Map frontend node types to backend node types.
  */
 const NODE_TYPE_MAPPING: Record<string, string> = {
   'pyth-price-feed': 'pythPriceFeed',
@@ -41,7 +41,7 @@ const NODE_TYPE_MAPPING: Record<string, string> = {
 };
 
 /**
- * 將前端的 config 參數轉換為後端的 parameters
+ * Convert frontend config to backend parameters.
  */
 function transformNodeParameters(
   frontendType: string,
@@ -51,7 +51,7 @@ function transformNodeParameters(
 
   switch (frontendType) {
     case 'pyth-price-feed': {
-      // 以後端 parameters 命名為主：ticker / targetPrice / condition / hermesEndpoint
+      // Prefer backend parameter names: ticker / targetPrice / condition / hermesEndpoint.
       if (typeof frontendConfig.ticker === 'string' && frontendConfig.ticker !== '') {
         parameters.ticker = frontendConfig.ticker;
         parameters.targetPrice = String(frontendConfig.targetPrice ?? frontendConfig.threshold ?? '0');
@@ -60,7 +60,7 @@ function transformNodeParameters(
         break;
       }
 
-      // 舊格式 fallback（asset / operator / threshold）
+      // Legacy fallback: asset / operator / threshold.
       const asset = (frontendConfig.asset as string) || 'SOL';
       const operator = (frontendConfig.operator as string) || 'greater_than';
       const threshold = (frontendConfig.threshold as number) || 1000;
@@ -81,13 +81,13 @@ function transformNodeParameters(
     }
 
     case 'jupiter-swap': {
-      // 前端: sourceToken, targetToken, sourceAmount, slippage (百分比), priority (純 UI)
-      // 後端: accountId, inputToken, outputToken, amount, slippageBps
+      // Frontend: sourceToken, targetToken, sourceAmount, slippage (percentage), priority (UI only).
+      // Backend: accountId, inputToken, outputToken, amount, slippageBps.
       const src = (frontendConfig.sourceToken as string) || 'SOL';
       const dst = (frontendConfig.targetToken as string) || 'USDC';
       const sourceAmount = frontendConfig.sourceAmount;
 
-      // UI label 'JitoSOL' 對應後端 TokenTicker 'JITOSOL'
+      // UI label JitoSOL maps to backend TokenTicker JITOSOL.
       const normalizeToken = (t: string) => (t === 'JitoSOL' ? 'JITOSOL' : t);
 
       if (frontendConfig.accountId !== undefined) {
@@ -107,36 +107,36 @@ function transformNodeParameters(
           ? frontendConfig.slippage
           : typeof frontendConfig.slippage === 'string' && frontendConfig.slippage !== ''
             ? Number(frontendConfig.slippage)
-            : 10; // 預設 10%
+            : 10; // Default: 10%.
       const bps = Math.round(slippagePercent * 100);
       parameters.slippageBps = String(Number.isFinite(bps) ? bps : 1000);
       break;
     }
 
     case 'kamino-deposit': {
-      // 前端 UI: asset (SOL/JitoSOL/USDC), pool (pool-a/pool-b/pool-c), amount (number)
-      // 後端需要: accountId, operation, vaultName, amount, shareAmount (只有 withdraw 時需要)
+      // Frontend: asset (SOL/JitoSOL/USDC), pool (pool-a/pool-b/pool-c), amount (number).
+      // Backend: accountId, operation, vaultName, amount; shareAmount only for withdrawals.
       
-      // 前端 pool value 對應到後端 vaultName 的 mapping
+      // Map frontend pool values to backend vault names.
       const poolToVaultName: Record<string, string> = {
         'pool-a': 'USDC_Prime',
-        'pool-b': 'Allez_USDC', // 需要確認實際的 vault name
-        'pool-c': 'Steakhouse_USDC_High_Yield', // 需要確認實際的 vault name
+        'pool-b': 'Allez_USDC', // Verify the actual vault name.
+        'pool-c': 'Steakhouse_USDC_High_Yield', // Verify the actual vault name.
       };
       
       const pool = (frontendConfig.pool as string) || 'pool-a';
       const vaultName = poolToVaultName[pool] || 'USDC_Prime'; // fallback
       
-      // 前端 amount 轉成後端格式（數字轉字串，或支援 "auto"/"all"/"half"）
+      // Convert frontend amounts to backend strings; support auto/all/half.
       const frontendAmount = frontendConfig.amount;
       const amount = frontendAmount === undefined || frontendAmount === ''
         ? 'auto'
         : String(frontendAmount);
       
-      // 預設 operation 為 deposit（前端 UI 目前只有 deposit 選項）
+      // Default to deposit because the current UI only offers deposits.
       const operation = 'deposit';
       
-      // accountId 會自動帶入（在 WorkflowBuilder 中處理）
+      // WorkflowBuilder supplies accountId automatically.
       if (frontendConfig.accountId !== undefined) {
         parameters.accountId = String(frontendConfig.accountId);
       }
@@ -144,43 +144,43 @@ function transformNodeParameters(
       parameters.operation = operation;
       parameters.vaultName = vaultName;
       parameters.amount = amount;
-      // deposit 時不需要 shareAmount，只有 withdraw 時才需要
-      // 所以不設定 shareAmount
+      // Only withdrawals need shareAmount.
+      // Do not set shareAmount for deposits.
       break;
     }
 
     case 'marinade-unstake':
-      // 前端: amount, priority
-      // 後端: 需要確認實際參數名稱
+      // Frontend: amount, priority.
+      // Verify the actual backend parameter names.
       parameters.amount = (frontendConfig.amount as string || 'all');
       parameters.priority = frontendConfig.priority as string || 'medium';
       break;
 
     case 'telegram-notify':
-      // 前端: chat_id, message
-      // 後端: 需要確認實際參數名稱
+      // Frontend: chat_id, message.
+      // Verify the actual backend parameter names.
       parameters.chatId = frontendConfig.chat_id as string || '';
       parameters.message = frontendConfig.message as string || '';
       break;
 
     case 'discord-notify':
-      // 前端: channel, message, mention
-      // 後端: 需要確認實際參數名稱
+      // Frontend: channel, message, mention.
+      // Verify the actual backend parameter names.
       parameters.channel = frontendConfig.channel as string || '';
       parameters.message = frontendConfig.message as string || '';
       parameters.mention = frontendConfig.mention as string || 'none';
       break;
 
     case 'if-else':
-      // 前端: condition, operator, value
-      // 後端: 需要確認實際參數名稱
+      // Frontend: condition, operator, value.
+      // Verify the actual backend parameter names.
       parameters.condition = frontendConfig.condition as string || 'price_check';
       parameters.operator = frontendConfig.operator as string || '>';
       parameters.value = (frontendConfig.value as number || 0).toString();
       break;
 
     default:
-      // 如果沒有特殊轉換，直接使用 config
+      // Use config unchanged when no special conversion applies.
       Object.assign(parameters, frontendConfig);
   }
 
@@ -188,18 +188,18 @@ function transformNodeParameters(
 }
 
 /**
- * 將前端的 workflow 格式轉換為後端格式
- * @param accountId - 可選的 accountId，會自動帶入到需要它的 node（jupiter-swap, kamino-deposit）
+ * Convert a frontend workflow to backend format.
+ * @param accountId - Optional ID supplied to nodes that require it, such as jupiter-swap and kamino-deposit.
  */
 export function transformToBackendFormat(
   nodes: CanvasNode[],
   connections: Connection[],
   accountId?: string | null
 ): BackendWorkflowFormat {
-  // 轉換 nodes
+  // Convert nodes.
   const backendNodes: BackendNode[] = nodes.map((node) => {
     const backendType = NODE_TYPE_MAPPING[node.type] || node.type;
-    // 如果 node 需要 accountId 且 config 中沒有，自動帶入
+    // Supply accountId when required and absent from node config.
     const nodeConfig = node.config || {};
     const configWithAccountId = (node.type === 'jupiter-swap' || node.type === 'kamino-deposit') && 
                                  accountId && 
@@ -216,7 +216,7 @@ export function transformToBackendFormat(
     };
   });
 
-  // 轉換 connections
+  // Convert connections.
   const backendConnections: BackendConnections = {};
   
   connections.forEach((conn) => {
@@ -229,12 +229,12 @@ export function transformToBackendFormat(
     }
 
     if (!backendConnections[sourceId][portName]) {
-      // 後端格式通常是以「output index」分組，例如 main[0] 代表第 1 個輸出
-      // 我們目前前端沒有 output index 的概念，統一塞到 index 0
+      // The backend groups outputs by index; main[0] is the first output.
+      // The current frontend has no output-index concept, so use index 0.
       backendConnections[sourceId][portName] = [[]];
     }
 
-    // 後端格式: { [sourceId]: { main: [[{ node, type, index }, ...]] } }
+    // Backend format: { [sourceId]: { main: [[{ node, type, index }, ...]] } }.
     backendConnections[sourceId][portName][0].push({
       node: targetId,
       type: conn.targetPort || 'main',
@@ -249,12 +249,12 @@ export function transformToBackendFormat(
 }
 
 /**
- * 將後端格式轉換為前端格式（用於載入已儲存的 workflow）
+ * Convert backend format to frontend format when loading a saved workflow.
  */
 export function transformFromBackendFormat(
   backendWorkflow: BackendWorkflowFormat
 ): { nodes: CanvasNode[]; connections: Connection[] } {
-  // 反向映射：後端 type -> 前端 type
+  // Reverse-map backend types to frontend types.
   const reverseTypeMapping: Record<string, string> = Object.fromEntries(
     Object.entries(NODE_TYPE_MAPPING).map(([frontend, backend]) => [backend, frontend])
   );
@@ -264,11 +264,11 @@ export function transformFromBackendFormat(
   const startX = snapToGrid(400);
   const startY = snapToGrid(300);
 
-  // 轉換 nodes
+  // Convert nodes.
   const frontendNodes: CanvasNode[] = backendWorkflow.nodes.map((node, index) => {
     const frontendType = reverseTypeMapping[node.type] || node.type;
 
-    // 將後端 parameters 轉換為前端 config
+    // Convert backend parameters to frontend config.
     const config = transformParametersToConfig(frontendType, node.parameters);
 
     return {
@@ -282,7 +282,7 @@ export function transformFromBackendFormat(
     };
   });
 
-  // 轉換 connections
+  // Convert connections.
   const frontendConnections: Connection[] = [];
   
   Object.entries(backendWorkflow.connections).forEach(([sourceId, ports]) => {
@@ -308,7 +308,7 @@ export function transformFromBackendFormat(
 }
 
 /**
- * 將後端 parameters 轉換為前端 config
+ * Convert backend parameters to frontend config.
  */
 function transformParametersToConfig(
   frontendType: string,
@@ -318,7 +318,7 @@ function transformParametersToConfig(
 
   switch (frontendType) {
     case 'pyth-price-feed':
-      // 後端 -> 前端（ticker / targetPrice / condition / hermesEndpoint）
+      // Backend to frontend: ticker / targetPrice / condition / hermesEndpoint.
       config.ticker = String(parameters.ticker ?? '');
       config.targetPrice = String(parameters.targetPrice ?? '0');
       config.condition = String(parameters.condition ?? 'above');
@@ -328,12 +328,12 @@ function transformParametersToConfig(
       break;
 
     case 'jupiter-swap': {
-      // 後端存的是 inputToken / outputToken (symbol)，amount, slippageBps
+      // Backend stores inputToken/outputToken symbols, amount and slippageBps.
       const inputToken = String(parameters.inputToken ?? parameters.inputMint ?? '');
       const outputToken = String(parameters.outputToken ?? parameters.outputMint ?? '');
       const jupAmount = parseFloat(String(parameters.amount ?? '0'));
 
-      // 如果後端存的是 mint address 需要反映射
+      // Reverse-map stored mint addresses where necessary.
       const reverseTokenMap: Record<string, string> = {
         'So11111111111111111111111111111111111111112': 'SOL',
         'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 'USDC',
@@ -347,7 +347,7 @@ function transformParametersToConfig(
       config.targetToken = resolvedOutput;
       config.sourceAmount = jupAmount;
 
-      // 還原 slippage（後端是 bps，前端是百分比）
+      // Convert backend slippage bps to frontend percentage.
       const slippageBps = parseInt(String(parameters.slippageBps ?? '1000'), 10);
       config.slippage = Number.isFinite(slippageBps) ? slippageBps / 100 : 10;
 
@@ -356,7 +356,7 @@ function transformParametersToConfig(
       config.rate_USDC = 200;
       config.priority = 'High';
 
-      // 計算 targetAmount（canvas zoom-in 顯示用）
+      // Calculate targetAmount for the expanded canvas view.
       const srcPrice = TOKEN_PRICES[resolvedInput] ?? 0;
       const dstPrice = TOKEN_PRICES[resolvedOutput] ?? 0;
       config.targetAmount = dstPrice > 0 ? (jupAmount * srcPrice) / dstPrice : 0;
@@ -364,8 +364,8 @@ function transformParametersToConfig(
     }
 
     case 'kamino-deposit': {
-      // 後端: operation, vaultName, amount
-      // 前端: asset, pool, amount
+      // Backend: operation, vaultName, amount.
+      // Frontend: asset, pool, amount.
       const vaultToPool: Record<string, string> = {
         'USDC_Prime': 'pool-a',
         'Allez_USDC': 'pool-b',
@@ -418,7 +418,7 @@ function transformParametersToConfig(
 }
 
 /**
- * 根據 node type 取得對應的 icon
+ * Get the icon for a node type.
  */
 function getIconForType(type: string): string {
   const iconMap: Record<string, string> = {

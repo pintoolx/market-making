@@ -9,7 +9,7 @@ import BuilderDialog from './BuilderDialog';
 import styles from './builder.module.css';
 
 const active = (run: SimulationItem) => ['pending', 'running'].includes(run.state);
-const stateLabel = { shipped: '已登錄', docked: '已 dock', 'unregistered-for-pair': '尚未登錄此交易對', 'inconsistent-pair': '交易對狀態不一致' };
+const stateLabel = { shipped: 'Registered', docked: 'Docked', 'unregistered-for-pair': 'Not registered for this pair', 'inconsistent-pair': 'Inconsistent pair state' };
 const units = (value: string, decimals: number) => formatUnits(BigInt(value), decimals);
 
 /** Read-only preparation and isolated background jobs. This component has no wallet signer. */
@@ -25,7 +25,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
     if (!live.current) return;
     if (e instanceof BuilderError && e.status === 401) { onSessionExpired(); return; }
     if (e instanceof BuilderError && e.status === 409) setStale(true);
-    setError(e instanceof BuilderError ? e.message : '結果與這份草稿無法核對，請重新載入後再檢查。');
+    setError(e instanceof BuilderError ? e.message : 'These results could not be verified against this draft. Reload before checking again.');
   }, [onSessionExpired]);
   const load = useCallback(async () => {
     const ticket = ++refreshEpoch.current;
@@ -39,7 +39,7 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
     setDetail(value => value && simulations.simulations.some(r => r.id === value.id && r.state === value.state && r.current === value.current) ? value : null);
   }, [api, draft]);
   useEffect(() => {
-    live.current = true; setBusy('載入準備紀錄');
+    live.current = true; setBusy('Loading preparation history');
     void load().catch(fail).finally(() => { if (live.current) setBusy(''); });
     return () => { live.current = false; };
   }, [load, fail]);
@@ -90,64 +90,64 @@ export default function MakerPreparation({ api, draft, onClose, onSessionExpired
         saved.report.coverageComplete !== saved.report.cases.every(c => c.passed === true)))) throw new Error('preparation-result-mismatch');
     setDetail(saved);
   }
-  return <BuilderDialog title="Maker 資產與成交模擬" onClose={onClose}>
+  return <BuilderDialog title="Maker inventory and swap simulation" onClose={onClose}>
     <div className={styles.preparation}>
-      <p>{draft.spec.title} · 草稿 v{draft.revision} · Ethereum Sepolia</p>
-      <p>先讀取資產、核對編譯，再用隔離環境檢查成交。這裡不會請求資產簽名或送出鏈上交易。</p>
+      <p>{draft.spec.title} · Draft v{draft.revision} · Ethereum Sepolia</p>
+      <p>Read inventory, verify compilation and check settlement in an isolated environment. These checks do not request asset signatures or submit onchain transactions.</p>
       {error && <p role="alert" className={styles.error}>{error}</p>}
-      {stale && <p className={styles.notice}>草稿已更新。以下保留舊版紀錄；請關閉視窗，回到最新策略後再準備。</p>}
+      {stale && <p className={styles.notice}>The draft has changed. These are historical records. Close this dialog and open preparation from the latest strategy.</p>}
       {busy && <p role="status">{busy}</p>}
-      <button disabled={!!busy} onClick={() => void act('更新準備紀錄', load)}>更新準備紀錄</button>
-      <section aria-label="Maker 資產檢查"><h3>1. 錢包與 Aqua 庫存</h3>
-        <button disabled={!!busy || stale} onClick={() => void act('核對鏈上資產', readInventory)}>讀取目前資產</button>
+      <button disabled={!!busy} onClick={() => void act('Refresh preparation history', load)}>Refresh preparation history</button>
+      <section aria-label="Maker inventory checks"><h3>1. Wallet and Aqua inventory</h3>
+        <button disabled={!!busy || stale} onClick={() => void act('Verifying onchain inventory', readInventory)}>Read current inventory</button>
         {inventory && <div className={styles.inventoryResult}>
-          <strong>{evidenceLabel(inventory.inventory.mode)}</strong><p>區塊 {inventory.inventory.blockNumber} · {new Date(inventory.inventory.observedAt).toLocaleString('zh-TW')} · 尚未 finalized</p>
-          <p>原生 ETH：{units(inventory.inventory.native.walletBalanceAtomic, 18)}（gas 使用，不計入 WETH 配置）</p>
-          <div className={styles.tableScroll}><table><caption>讀取當時的資產與 allowance</caption><thead><tr><th>幣種</th><th>Maker 配置</th><th>錢包餘額</th><th>Aqua allowance</th></tr></thead><tbody>
+          <strong>{evidenceLabel(inventory.inventory.mode)}</strong><p>Block {inventory.inventory.blockNumber} · {new Date(inventory.inventory.observedAt).toLocaleString('en-US')} · Not finalized</p>
+          <p>Native ETH: {units(inventory.inventory.native.walletBalanceAtomic, 18)} (for gas; excluded from WETH allocations)</p>
+          <div className={styles.tableScroll}><table><caption>Inventory and allowances at observation time</caption><thead><tr><th>Token</th><th>Maker allocation</th><th>Wallet balance</th><th>Aqua allowance</th></tr></thead><tbody>
             {inventory.inventory.tokens.map(t => {
               const amount = t.address === draft.spec.baseToken?.address ? draft.allocations?.baseAtomic : draft.allocations?.quoteAtomic;
-              return <tr key={t.address}><th scope="row">{t.symbol}</th><td>{amount ? units(amount, t.decimals) : '未設定'}</td>
-                <td>{units(t.walletBalanceAtomic, t.decimals)}{amount && BigInt(t.walletBalanceAtomic) < BigInt(amount) && <small>餘額不足</small>}</td>
-                <td>{units(t.allowanceToAquaAtomic, t.decimals)}{amount && BigInt(t.allowanceToAquaAtomic) < BigInt(amount) && <small>allowance 不足</small>}</td></tr>;
+              return <tr key={t.address}><th scope="row">{t.symbol}</th><td>{amount ? units(amount, t.decimals) : 'Not set'}</td>
+                <td>{units(t.walletBalanceAtomic, t.decimals)}{amount && BigInt(t.walletBalanceAtomic) < BigInt(amount) && <small>Insufficient balance</small>}</td>
+                <td>{units(t.allowanceToAquaAtomic, t.decimals)}{amount && BigInt(t.allowanceToAquaAtomic) < BigInt(amount) && <small>Insufficient allowance</small>}</td></tr>;
             })}</tbody></table></div>
-          <details><summary>已知策略的虛擬庫存（{inventory.inventory.strategies.length}）</summary>
-            {inventory.inventory.strategies.map(s => <div key={s.strategyHash}><p className={styles.address}>{s.strategyHash}</p><p>{stateLabel[s.state]}{s.selectedByGuard ? ' · Guard 目前選定' : ''}</p>
-              <ul>{s.balances.map(b => { const t = inventory.inventory.tokens.find(t => t.address === b.token)!; return <li key={b.token}>{t.symbol}：虛擬庫存 {units(b.virtualBalanceAtomic, t.decimals)}；庫存／餘額／allowance 共同上限 {units(b.inventoryAndAllowanceCapacityAtomic, t.decimals)}</li>; })}</ul></div>)}
-            {!inventory.inventory.strategies.length && <p>目前沒有可列出的已知 hash；這不代表錢包没有其他資金承諾。</p>}
-            {inventory.knownArtifactsTruncated && <p>已知編譯紀錄超過讀取上限，只顯示其中 40 個 hash 與必要的 Guard 選定 hash。</p>}
+          <details><summary>Known strategy virtual inventory ({inventory.inventory.strategies.length})</summary>
+            {inventory.inventory.strategies.map(s => <div key={s.strategyHash}><p className={styles.address}>{s.strategyHash}</p><p>{stateLabel[s.state]}{s.selectedByGuard ? ' · Selected by Guard' : ''}</p>
+              <ul>{s.balances.map(b => { const t = inventory.inventory.tokens.find(t => t.address === b.token)!; return <li key={b.token}>{t.symbol}: virtual inventory {units(b.virtualBalanceAtomic, t.decimals)}; inventory/balance/allowance capacity {units(b.inventoryAndAllowanceCapacityAtomic, t.decimals)}</li>; })}</ul></div>)}
+            {!inventory.inventory.strategies.length && <p>No known strategy hashes are available. The wallet may still have other capital commitments.</p>}
+            {inventory.knownArtifactsTruncated && <p>The compiled history exceeds the read limit. Showing up to 40 known hashes plus the hash selected by Guard.</p>}
           </details>
-          <p className={styles.notice}>多個策略共用同一份錢包資金，不能加總可用上限。Ship 記錄虛擬庫存，不是入金；Dock 也不會撤銷 allowance。此讀取不證明資金尚未被其他用途占用，或已有可成交的 Guard 授權。簽名前仍須重新檢查。</p>
+          <p className={styles.notice}>Strategies share the same wallet funds; their capacities cannot be added together. Ship records virtual inventory without depositing funds. Dock does not revoke allowances. These reads do not prove uncommitted funds or trading authorization. Recheck before signing.</p>
         </div>}
       </section>
-      <section aria-label="策略編譯"><h3>2. 編譯與反解</h3><p>編譯綁定目前配置、草稿版本及部署設定。修改或恢復策略後，需用新版本重新檢查。</p>
-        <button disabled={!!busy || stale} onClick={() => void act('編譯並核對程式', compile)}>{compileKey.current ? '重試確認編譯' : '編譯目前草稿'}</button>
-        {artifact && <div className={styles.compilationResult}><strong>目前 v{draft.revision} 編譯已保存</strong><p>{artifact.payload.decoded.kind} · 零費率 · Guard 逐筆檢查</p>
-          <dl><dt>Program hash</dt><dd>{artifact.payload.programHash}</dd><dt>Order／Aqua strategy hash</dt><dd>{artifact.payload.strategyHash}</dd><dt>Guard</dt><dd>{artifact.payload.decoded.guard}</dd></dl>
-          <details><summary>查看實際指令與程式</summary><ol>{artifact.payload.decoded.instructions.map(i => <li key={i.pc}>{i.name} · opcode 0x{i.opcode.toString(16).padStart(2, '0')}</li>)}</ol><pre>{artifact.payload.program}</pre></details>
-          <p>服務端已比較曲線參數，畫面另核對版本、hash、Guard 與公開上限。編譯成功不等於符合全部自然語言需求，也不表示已取得授權。</p></div>}
-        {!!artifacts.length && <details><summary>編譯版本紀錄（{artifacts.length}）</summary><ul>{artifacts.map(a => <li key={a.artifactId}>v{a.revision} · {a.artifactId === artifact?.artifactId && !stale ? '目前版本' : '歷史紀錄，不可作為目前註冊依據'}</li>)}</ul></details>}
+      <section aria-label="Strategy compilation"><h3>2. Compile and decode</h3><p>Compilation binds the current allocations, draft revision and deployment profile. Recheck after editing or restoring a strategy.</p>
+        <button disabled={!!busy || stale} onClick={() => void act('Compiling and verifying program', compile)}>{compileKey.current ? 'Retry compilation confirmation' : 'Compile current draft'}</button>
+        {artifact && <div className={styles.compilationResult}><strong>Current v{draft.revision} compilation saved</strong><p>{artifact.payload.decoded.kind} · Zero fee · Guard checks every swap</p>
+          <dl><dt>Program hash</dt><dd>{artifact.payload.programHash}</dd><dt>Order / Aqua strategy hash</dt><dd>{artifact.payload.strategyHash}</dd><dt>Guard</dt><dd>{artifact.payload.decoded.guard}</dd></dl>
+          <details><summary>View instructions and program</summary><ol>{artifact.payload.decoded.instructions.map(i => <li key={i.pc}>{i.name} · opcode 0x{i.opcode.toString(16).padStart(2, '0')}</li>)}</ol><pre>{artifact.payload.program}</pre></details>
+          <p>The server checks curve parameters; this view also verifies the revision, hashes, Guard and public limits. Compilation alone does not establish that all requirements are met or that trading is authorized.</p></div>}
+        {!!artifacts.length && <details><summary>Compilation history ({artifacts.length})</summary><ul>{artifacts.map(a => <li key={a.artifactId}>v{a.revision} · {a.artifactId === artifact?.artifactId && !stale ? 'Current version' : 'Historical record; not valid for current registration'}</li>)}</ul></details>}
       </section>
-      <section aria-label="成交模擬"><h3>3. 背景成交模擬</h3>
-        <p>隔離 fork 使用合成資金與授權測試雙向成交、上限、撤銷和取消；不會驗證你的私密政策已經通過 TEE，也不表示真實餘額足夠。</p>
-        <button className={styles.primary} disabled={!!busy || stale || !artifact || (pending && !simulationKey.current)} onClick={() => void act('安排背景模擬', simulate)}>{simulationKey.current ? '重試確認模擬' : '模擬目前編譯'}</button>
-        {!runs.length && <p>尚無模擬紀錄。先編譯目前 Maker 草稿。</p>}
+      <section aria-label="Swap simulation"><h3>3. Background swap simulation</h3>
+        <p>An isolated fork uses synthetic funds and authorization to test both directions, limits, revocation and docking. It does not verify TEE policy execution or sufficient live balances.</p>
+        <button className={styles.primary} disabled={!!busy || stale || !artifact || (pending && !simulationKey.current)} onClick={() => void act('Scheduling background simulation', simulate)}>{simulationKey.current ? 'Retry simulation confirmation' : 'Simulate current compilation'}</button>
+        {!runs.length && <p>No simulation history yet. Compile the current Maker draft first.</p>}
         {runs.map(run => <article key={run.id} className={styles.simulationCard}>
-          <h4>v{run.revision} · {simulationState(run.state)}{!run.current || stale ? ' · 舊版' : ''}</h4>
-          <p>{evidenceLabel(run.mode)}{run.mode ? ` · ${run.caseCount - run.skippedCaseCount} 個已執行案例／共 ${run.caseCount} 個` : ''}</p>
-          {run.mode && <p>{run.passed && run.coverageComplete ? '此結果的案例皆通過；仍需需求、政策與錢包檢查。' : run.passed ? '仍有未執行案例，不能當作完整通過。' : '有案例未通過，可回到對話調整參數後重試。'}</p>}
-          {!!run.issues.length && <ul>{run.issues.map(i => <li key={i.name}>{i.name}：{i.guidance}</li>)}</ul>}
-          {run.errorCode && <p>狀態原因：{run.errorCode}</p>}
-          <div className={styles.actions}><button disabled={!!busy} onClick={() => void act('讀取案例', () => show(run))}>查看 v{run.revision} 案例</button>
-            {active(run) && <button disabled={!!busy} onClick={() => void act('取消背景模擬', async () => {
+          <h4>v{run.revision} · {simulationState(run.state)}{!run.current || stale ? ' · Earlier revision' : ''}</h4>
+          <p>{evidenceLabel(run.mode)}{run.mode ? ` · ${run.caseCount - run.skippedCaseCount} cases run out of ${run.caseCount}` : ''}</p>
+          {run.mode && <p>{run.passed && run.coverageComplete ? 'All cases in this result passed. Requirements, policy and wallet checks remain.' : run.passed ? 'Some cases did not run. This is not a complete pass.' : 'Some cases failed. Refine the parameters in chat and retry.'}</p>}
+          {!!run.issues.length && <ul>{run.issues.map(i => <li key={i.name}>{i.name}: {i.guidance}</li>)}</ul>}
+          {run.errorCode && <p>Status reason: {run.errorCode}</p>}
+          <div className={styles.actions}><button disabled={!!busy} onClick={() => void act('Loading cases', () => show(run))}>View v{run.revision} cases</button>
+            {active(run) && <button disabled={!!busy} onClick={() => void act('Cancelling background simulation', async () => {
               if (!cancelKeys.current.has(run.id)) cancelKeys.current.set(run.id, crypto.randomUUID());
               await api.cancelSimulation(run.id, cancelKeys.current.get(run.id)!); if (live.current) await load();
-            })}>取消 v{run.revision} 模擬</button>}</div>
+            })}>Cancel v{run.revision} simulation</button>}</div>
         </article>)}
-        {detail && <div className={styles.caseDetails}><h4>案例詳情 · v{detail.revision}</h4><p>{simulationState(detail.state)} · {detail.current && !stale ? '目前版本' : '歷史版本'} · {evidenceLabel(detail.report?.mode ?? null)}</p>
-          {detail.report ? <ul>{detail.report.cases.map(c => <li key={c.name}><span>{c.passed === null ? '未執行' : c.passed ? '通過' : '未通過'}</span> {c.name}{c.error ? ` · ${c.error}` : ''}</li>)}</ul> : <p>此工作尚無完整結果。</p>}
-          <button onClick={() => setDetail(null)}>收起案例</button></div>}
+        {detail && <div className={styles.caseDetails}><h4>Case details · v{detail.revision}</h4><p>{simulationState(detail.state)} · {detail.current && !stale ? 'Current version' : 'Historical version'} · {evidenceLabel(detail.report?.mode ?? null)}</p>
+          {detail.report ? <ul>{detail.report.cases.map(c => <li key={c.name}><span>{c.passed === null ? 'Not run' : c.passed ? 'Passed' : 'Failed'}</span> {c.name}{c.error ? ` · ${c.error}` : ''}</li>)}</ul> : <p>This job does not have complete results yet.</p>}
+          <button onClick={() => setDetail(null)}>Hide cases</button></div>}
       </section>
-      <p className={styles.notice}>下一步仍須逐項確認需求、設定 Maker 私密限制及事件管理同意，再審閱 approve／ship。這些步驟尚未接通，準備結果不會自行啟用 LP。</p>
+      <p className={styles.notice}>Next, verify each requirement, configure private Maker limits and approve event management before reviewing approve/ship transactions. These steps are not connected yet; preparation results do not enable trading.</p>
     </div>
   </BuilderDialog>;
 }

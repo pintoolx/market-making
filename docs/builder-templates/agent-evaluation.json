@@ -67,8 +67,8 @@
   "evidence": [
     {
       "turn": 1,
-      "content": "我是套用 Provider 模板的 Maker。只讀目前草稿與模板權限，說明我能調整哪些參數，還有哪些是鎖定的；不要改草稿，也不要要求我提供 Provider 私密政策。",
-      "reply": "已只讀目前草稿與模板權限，**未修改草稿**。\n\n### 你可以調整\n\n- **策略標題**\n- **個人資產配置**\n  - 目前：`0.01 WETH`、`25 USDC`\n- **收窄集中流動性價格區間**\n  - 原始範圍：`2200–2800 USDC/WETH`\n  - 可提高下限或降低上限，但不能擴大超過原始範圍\n- **縮短 deadline**\n  - 目前上限：Unix `1789343994`\n  - 可設得更早，不能延後超過模板原值\n- **收緊四項 Guard 公開上限**\n  - 單筆 base 上限：目前 `0.005 WETH`\n  - 單筆 quote 上限：目前 `12.5 USDC`\n  - 交易後 base 餘額上限：目前 `0.02 WETH`\n  - 交易後 quote 餘額上限：目前 `50 USDC`\n\n上述限額即使先收緊，之後仍可放寬回**原始模板界線**，但不能超過原始授權。\n\n### 鎖定、不可調整\n\n- 部署 profile：`sepolia-standing-v2`\n- 交易對及方向：base 為 **WETH**、quote 為 **USDC**\n- 曲線種類：**concentrated**\n- 費率：`0 bps`\n- modifiers\n- 不可把價格區間擴至 `2200–2800` 之外\n- 不可延長 deadline 或放寬 Guard caps 超過模板原值\n- 不可自行升級至 Provider 的其他模板版本\n\n這份模板目前**未撤下**，但狀態顯示 **registrationReady = false**；套用草稿不等於已註冊、Guard 已授權或策略已可成交。若要改交易對、曲線、費率或突破原始界線，需要選擇另一份模板或建立新策略。",
+      "content": "I am a Maker applying a Provider template. Read the draft and permissions, explain editable and locked fields, and do not edit or request the Provider's private policy.",
+      "reply": "Read-only inspection: editable fields are title and allocations (currently 0.01 WETH / 25 USDC); the 2200-2800 USDC/WETH concentrated range may be narrowed; deadline 1789343994 may be shortened; caps may be tightened from 0.005 WETH / 12.5 USDC per swap and 0.02 WETH / 50 USDC after settlement. Previously tightened fields may return to the original published bounds, but not exceed them. Locked fields are sepolia-standing-v2, WETH/USDC token identity/direction, concentrated curve kind, zero fee and modifiers. No automatic Provider-version upgrade is allowed. The template is not withdrawn, but registrationReady is false. A different pair, curve, fee or wider bounds requires another template or a separate strategy.",
       "draft": {
         "schemaVersion": 1,
         "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
@@ -185,8 +185,8 @@
     },
     {
       "turn": 2,
-      "content": "請把 CLMM 價格範圍縮到 2300～2700 USDC/WETH，單筆 USDC 公開上限改為 10 USDC，個人標題改成「我的 CLMM」，其他全部保留。請保存並驗證。",
-      "reply": "已保存並通過草稿驗證（revision 2）。\n\n變更如下：\n\n- 標題：**我的 CLMM**\n- CLMM 價格範圍：**2300～2700 USDC/WETH**\n- 單筆 USDC 公開上限：**10 USDC**\n- 其他參數與配置均保留不變\n\n驗證結果：\n\n- 無錯誤\n- 無缺漏欄位\n- 已可進入編譯階段\n- 硬性需求仍需在編譯產物階段複核\n\n目前只完成草稿保存與驗證，尚未編譯、模擬、註冊或進行任何鏈上授權。",
+      "content": "Narrow the CLMM range to 2300-2700 USDC/WETH, set the per-swap USDC cap to 10 USDC, and rename it My CLMM. Preserve everything else. Save and validate.",
+      "reply": "Saved and validated revision 2: title My CLMM, range 2300-2700 USDC/WETH, and 10 USDC per-swap cap. Other settings and allocations remain. No errors or missing fields; compilation is available, but hard requirements still need artifact verification. No compilation, simulation, registration or onchain authorization occurred.",
       "draft": {
         "schemaVersion": 1,
         "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
@@ -204,7 +204,7 @@
           "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
         },
         "spec": {
-          "title": "我的 CLMM",
+          "title": "My CLMM",
           "profileId": "sepolia-standing-v2",
           "baseToken": {
             "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
@@ -234,7 +234,7 @@
         "requirements": [
           {
             "id": "req-b301fd31-d39f-4795-a330-daedc7a458e9-0",
-            "text": "CLMM 價格範圍必須為 2300～2700 USDC/WETH，單筆 USDC 公開上限必須為 10 USDC；其餘策略參數保留。",
+            "text": "CLMM range must be 2300-2700 USDC/WETH and the public USDC per-swap cap must be 10 USDC; preserve other parameters.",
             "priority": "must",
             "sourceMessageId": "b301fd31-d39f-4795-a330-daedc7a458e9",
             "capabilityIds": [],
@@ -320,8 +320,8 @@
     },
     {
       "turn": 3,
-      "content": "我想把價格上界加到 2900。請先檢查 Provider 權限；如果超過原始上限就不要改，說明可行替代，不要另建草稿。",
-      "reply": "已檢查 Provider 模板權限。原始價格上限為 **2800 USDC/WETH**，Maker 只獲准在原始 **2200～2800** 範圍內收窄，不能提高至 2900。\n\n因此我**沒有修改草稿，也沒有另建草稿**。目前仍為 **2300～2700 USDC/WETH**。\n\n可行替代：\n\n- 將上界提高至最高允許的 **2800**\n- 維持目前 **2700**\n- 若必須使用 **2900**，需改選授權涵蓋該上界的另一模板，或另行建立非此模板約束的新策略",
+      "content": "Raise the upper price to 2900 only if Provider permissions permit it. Inspect first; if it exceeds the original bound, leave the draft unchanged, explain alternatives and do not create another draft.",
+      "reply": "The published upper bound is 2800 USDC/WETH; the Maker may only narrow the original 2200-2800 range. Raising it to 2900 is forbidden. No edit or new draft occurred; the current range remains 2300-2700. Alternatives: raise to at most 2800, keep 2700, or separately choose a template/new strategy that permits 2900.",
       "draft": {
         "schemaVersion": 1,
         "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
@@ -339,7 +339,7 @@
           "digest": "0x2d8165812ff8ac69197e1056a625d67f7b1b70a69442624edef8ab126af3842f"
         },
         "spec": {
-          "title": "我的 CLMM",
+          "title": "My CLMM",
           "profileId": "sepolia-standing-v2",
           "baseToken": {
             "address": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
@@ -369,7 +369,7 @@
         "requirements": [
           {
             "id": "req-b301fd31-d39f-4795-a330-daedc7a458e9-0",
-            "text": "CLMM 價格範圍必須為 2300～2700 USDC/WETH，單筆 USDC 公開上限必須為 10 USDC；其餘策略參數保留。",
+            "text": "CLMM range must be 2300-2700 USDC/WETH and the public USDC per-swap cap must be 10 USDC; preserve other parameters.",
             "priority": "must",
             "sourceMessageId": "b301fd31-d39f-4795-a330-daedc7a458e9",
             "capabilityIds": [],
@@ -447,8 +447,8 @@
     },
     {
       "turn": 4,
-      "content": "請回復到最初套用模板的 revision 1，然後只把 Maker 配置改為 20 USDC，WETH 配置不變。保存並驗證；不要發布、註冊或交易。",
-      "reply": "已完成保存並驗證，目前為 **revision 4**。\n\n- 已回復到最初套用模板的 **revision 1** 設定\n- WETH 配置維持：**0.01 WETH**\n- USDC 配置改為：**20 USDC**\n- 其他策略參數均維持 revision 1\n\n驗證結果：\n\n- 無錯誤\n- 無缺漏欄位\n- 可進入編譯階段\n- 硬性需求仍標示為需在編譯產物階段複核\n\n依照要求，**未發布、未註冊、未交易**，也未執行編譯或鏈上操作。",
+      "content": "Restore the originally applied revision 1, then change only the Maker USDC allocation to 20 USDC. Keep WETH unchanged. Save and validate without publishing, registering or trading.",
+      "reply": "Saved revision 4 after restoring revision 1 and changing only USDC to 20. WETH remains 0.01 and all other strategy settings match revision 1. Validation found no errors or missing fields; compilation is available, with hard requirements pending artifact verification. No publication, registration, compilation or transaction occurred.",
       "draft": {
         "schemaVersion": 1,
         "id": "b9e2615c-7d75-4b30-9e57-5e4c3c0195ea",
@@ -496,7 +496,7 @@
         "requirements": [
           {
             "id": "req-30274632-1592-4a2b-a083-93b4f561f19e-0",
-            "text": "Maker 配置必須為 0.01 WETH 與 20 USDC；其餘內容維持最初套用模板的 revision 1。",
+            "text": "Maker allocations must be 0.01 WETH and 20 USDC; retain the other settings from the initially applied revision 1.",
             "priority": "must",
             "sourceMessageId": "30274632-1592-4a2b-a083-93b4f561f19e",
             "capabilityIds": [],
@@ -584,5 +584,10 @@
         }
       ]
     }
-  ]
+  ],
+  "editorialNote": {
+    "representation": "English editorial summaries of recorded prompts/replies; descriptive draft strings translated. Not a verbatim transcript or a new evaluation run.",
+    "originalRecord": "https://github.com/pintoolx/market-making/blob/9801f752872909dee3da08c2e2fc2848a0bbbd4a/docs/builder-templates/agent-evaluation.json",
+    "identityScope": "Numeric results, timestamps, IDs, signatures and hashes remain from the original record. Translated descriptive fields must not be used to recompute signed or hashed payloads; use the original record for byte-exact verification."
+  }
 }
