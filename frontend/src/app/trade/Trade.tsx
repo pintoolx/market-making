@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useConnectWallet, useWallets } from '@privy-io/react-auth';
+import { useWallets } from '@privy-io/react-auth';
 import { createPublicClient, createWalletClient, custom, decodeEventLog, erc20Abi, formatUnits, http, parseUnits, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
 import { isInactiveStrategyError, tradeAbi, verifiedTradeOrder, walletErrorMessage, walletTakerTraits } from '../../../../shared/wallet-trade.mjs';
@@ -41,11 +41,10 @@ export default function Trade() {
 function TradeForm() {
   const { wallets, ready } = useWallets();
   const [address, setAddress] = useState('');
-  const { connectWallet } = useConnectWallet({ onSuccess: ({ wallet }) => { setAddress(wallet.address); setQuote(null); } });
   const [choices, setChoices] = useState<Choice[]>([]);
   const [selected, setSelected] = useState('');
-  const [amount, setAmount] = useState('');
-  const [direction, setDirection] = useState<'USDC' | 'WETH'>('USDC');
+  const [amount, setAmount] = useState('0.00004');
+  const [direction, setDirection] = useState<'USDC' | 'WETH'>('WETH');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [failedHash, setFailedHash] = useState<Hex | null>(null);
@@ -59,6 +58,12 @@ function TradeForm() {
   const [returnMandate, setReturnMandate] = useState<string | null>(null);
   const choice = choices.find(c => c.id === selected);
   const wallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
+  useEffect(() => {
+    if (!ready) return;
+    if (wallets.some(item => item.address.toLowerCase() === address.toLowerCase())) return;
+    setAddress(wallets[0]?.address ?? '');
+    setQuote(null);
+  }, [ready, wallets, address]);
   useEffect(() => {
     let alive = true;
     const sourceMandate = new URLSearchParams(window.location.search).get('mandate');
@@ -165,10 +170,9 @@ function TradeForm() {
         <form className={aqua.tradeForm} onSubmit={e => { e.preventDefault(); void review(); }}>
           <fieldset disabled={!!busy || !!pending || guardCheckPending || !loaded || !ready}>
             <legend>Trade details</legend>
-            <label>Strategy<select value={selected} onChange={e => { setSelected(e.target.value); setQuote(null); setError(''); }}><option value="">Choose a strategy</option>{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <label>Strategy<select value={selected} onChange={e => { setSelected(e.target.value); setQuote(null); setSettled(null); setFailedHash(null); setInactiveStrategy(''); setError(''); }}><option value="">Choose a strategy</option>{choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label>Trading wallet<select value={address} onChange={e => { setAddress(e.target.value); setQuote(null); }}><option value="">Choose a wallet</option>{wallets.map(w => <option key={w.address} value={w.address}>{short(w.address)}</option>)}</select></label>
-            <Secondary type="button" onClick={() => connectWallet()}>Connect trading wallet</Secondary>
-            <label>Pay token<select value={direction} onChange={e => { setDirection(e.target.value as 'USDC' | 'WETH'); setQuote(null); }}><option>USDC</option><option>WETH</option></select></label><label>You pay<FormInput aria-label="Amount to pay" placeholder="0.00" inputMode="decimal" required value={amount} onChange={e => { setAmount(e.target.value); setQuote(null); }} /></label>
+            <label>Pay token<select value={direction} onChange={e => { const next = e.target.value as 'USDC' | 'WETH'; setDirection(next); setAmount(next === 'USDC' ? '0.1' : '0.00004'); setQuote(null); }}><option>USDC</option><option>WETH</option></select></label><label>You pay<FormInput aria-label="Amount to pay" placeholder="0.00" inputMode="decimal" required value={amount} onChange={e => { setAmount(e.target.value); setQuote(null); }} /></label>
           </fieldset>
           {!pending && <Primary type="submit" disabled={!!busy || guardCheckPending || !choice || !wallet || !amount}>{busy || 'Review quote'}</Primary>}
         </form>

@@ -20,7 +20,7 @@ type Props = { onPendingChange: (locked: boolean) => void; available: boolean; c
 export default function GuardCheck({ onPendingChange, available, choice, wallet, amount, direction }: Props) {
   const choiceId = choice?.id;
   const walletAddress = wallet?.address;
-  const [minimum, setMinimum] = useState('');
+  const [minimum, setMinimum] = useState('0.00001');
   const [pending, setPending] = useState<PendingCheck | null>(null);
   const [completed, setCompleted] = useState<Hex | null>(null);
   const [busy, setBusy] = useState(false);

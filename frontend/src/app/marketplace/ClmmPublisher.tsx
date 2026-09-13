@@ -20,13 +20,13 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
   const [name, setName] = useState('Adaptive range');
   const [summary, setSummary] = useState('Quotes WETH / USDC within a defined range while market volatility remains within the strategy\'s private limit.');
   const [below, setBelow] = useState('5');
-  const [above, setAbove] = useState('5');
+  const [above, setAbove] = useState('7');
   const [fill0, setFill0] = useState('0.0004');
   const [fill1, setFill1] = useState('1');
   const [inventory0, setInventory0] = useState('1');
   const [inventory1, setInventory1] = useState('1000');
   const [ttl, setTtl] = useState('300');
-  const [threshold, setThreshold] = useState('');
+  const [threshold, setThreshold] = useState('1');
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<'signing' | 'saving' | null>(null);
   const [error, setError] = useState('');
@@ -39,7 +39,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     let alive = true;
-    setLoaded(false); setLatest(null); setThreshold(''); setSaved(false); pending.current = null;
+    setLoaded(false); setLatest(null); setThreshold('1'); setSaved(false); pending.current = null;
     if (!provider) return;
     request<{ strategies: PublicRelease[] }>('/v1/provider-strategies').then(result => {
       if (!alive) return;

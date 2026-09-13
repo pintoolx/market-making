@@ -25,8 +25,8 @@ const client = createPublicClient({ chain: sepolia, transport: http(process.env.
 const shortHash = (value: string) => `${value.slice(0, 8)}…${value.slice(-6)}`;
 
 export default function MakerActivation({ listing, maker, account, onReady }: { listing: Listing; maker: string; account: Account; onReady: () => Promise<void> }) {
-  const [weth, setWeth] = useState('');
-  const [usdc, setUsdc] = useState('');
+  const [weth, setWeth] = useState('0.001');
+  const [usdc, setUsdc] = useState('2');
   const [plan, setPlan] = useState<Activation | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState('');
