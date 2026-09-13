@@ -20,8 +20,8 @@ export default function StrategyDetails({ listing, action }: { listing: Listing;
       </section>
     </div>
     <aside className={aqua.explanation}>
-      <span className={aqua.eyebrow}>Public configuration</span>
-      <h2>How this strategy uses liquidity</h2>
+      <span className={aqua.eyebrow}>Strategy details</span>
+      <h2>Review before adding liquidity</h2>
         <div className={aqua.intentRows}>
           <div><span>Pair</span><strong>WETH / USDC</strong></div>
           <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>

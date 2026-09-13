@@ -146,13 +146,11 @@
 .infoAccount { padding-top: 20px; border-top: 1px solid var(--aqua-line); }
 .walletRow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .copyAddress { display: inline-flex; align-items: center; gap: 3px; min-width: 0; color: inherit; }
-.copyAddress a { min-width: 0; display: inline-flex; align-items: center; gap: 4px; padding: 2px 3px; border-radius: 5px; color: inherit; text-decoration: none; }
 .copyAddress code { font: 500 13px/1.4 var(--font-family-jetbrains-mono, monospace); overflow-wrap: anywhere; text-align: left; }
-.copyAddress a > span { flex: none; color: var(--aqua-muted); font-size: 11px; }
 .copyAddress button { width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--aqua-muted); cursor: pointer; }
 .copyAddress svg { width: 14px; height: 14px; }
-.copyAddress :is(a, button):hover { color: var(--aqua-accent); background: rgb(32 80 242 / .08); }
-.copyAddress :is(a, button):focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 2px; }
+.copyAddress button:hover { color: var(--aqua-accent); background: rgb(32 80 242 / .08); }
+.copyAddress button:focus-visible { outline: 2px solid var(--aqua-accent); outline-offset: 2px; }
 /* Slim identity row at the top of /profile */
 .identity { display: flex; align-items: center; gap: 16px; }
 .identityText { min-width: 0; display: flex; flex-direction: column; gap: 4px; }

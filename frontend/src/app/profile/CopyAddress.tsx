@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import aqua from '../marketplace/aqua.module.css';
 
-// The address opens its Sepolia account page; the adjacent control copies the full value.
+// Addresses stay readable in context; the adjacent control copies the full value.
 export default function CopyAddress({ address, short = false }: { address: string; short?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -12,10 +12,7 @@ export default function CopyAddress({ address, short = false }: { address: strin
 
   return (
     <span className={aqua.copyAddress}>
-      <a href={`https://sepolia.etherscan.io/address/${address}`} target="_blank" rel="noreferrer" title={`View ${address} on Etherscan`}>
-        <code>{short ? `${address.slice(0, 6)}…${address.slice(-4)}` : address}</code>
-        <span aria-hidden="true">↗</span>
-      </a>
+      <code title={short ? address : undefined}>{short ? `${address.slice(0, 6)}…${address.slice(-4)}` : address}</code>
       <button type="button" onClick={copy} title={copied ? 'Copied' : 'Copy address'} aria-label={copied ? 'Address copied' : `Copy address ${address}`}>
         <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
           {copied
