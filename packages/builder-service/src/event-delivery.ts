@@ -117,7 +117,9 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
       const event = publicEventSchema.parse(input)
       return transaction(pool, async client => {
         const inserted = await client.query(`INSERT INTO builder.event_inbox(source,event_id,kind,payload,observed_at,chain_id,block_number,block_hash,transaction_hash,log_index)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (source,event_id) DO NOTHING`, [event.source, event.eventId, event.kind, JSON.stringify(event.payload), event.observedAt,
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (source,event_id) DO UPDATE SET kind=EXCLUDED.kind,payload=EXCLUDED.payload,observed_at=EXCLUDED.observed_at,
+            chain_id=EXCLUDED.chain_id,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash,transaction_hash=EXCLUDED.transaction_hash,log_index=EXCLUDED.log_index,canonical=true,reorged_at=NULL
+            WHERE builder.event_inbox.canonical=false`, [event.source, event.eventId, event.kind, JSON.stringify(event.payload), event.observedAt,
           event.chainId ?? null, event.blockNumber ?? null, event.blockHash ?? null, event.transactionHash ?? null, event.logIndex ?? null])
         if (!inserted.rowCount) return { event, duplicate: true as const, jobs: [] as string[] }
         const subscriptions = (await client.query(`SELECT s.* FROM builder.event_subscriptions s JOIN builder.automation_consents c ON c.id=s.consent_id AND c.owner=s.owner
@@ -126,7 +128,8 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         for (const row of subscriptions) {
           const sub = subscription(row), id = randomUUID(), payload = { source: event.source, eventId: event.eventId, kind: event.kind, payload: event.payload, observedAt: event.observedAt }, inputDigest = digestJson({ subscriptionId: sub.id, generation: sub.generation, event: payload })
           const result = await client.query(`INSERT INTO builder.evaluation_jobs(id,subscription_id,owner,generation,source,event_id,input_digest,payload)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (subscription_id,generation,source,event_id) DO NOTHING`, [id, sub.id, sub.owner, sub.generation, event.source, event.eventId, inputDigest, JSON.stringify(payload)])
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (subscription_id,generation,source,event_id) DO UPDATE SET state='pending',attempts=0,lease_token=NULL,lease_until=NULL,available_at=clock_timestamp(),result=NULL,error_code=NULL,completed_at=NULL,input_digest=EXCLUDED.input_digest,payload=EXCLUDED.payload
+            WHERE builder.evaluation_jobs.state='cancelled' RETURNING id`, [id, sub.id, sub.owner, sub.generation, event.source, event.eventId, inputDigest, JSON.stringify(payload)])
           if (result.rowCount) jobs.push(id)
         }
         await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.received',$1,revision FROM builder.event_subscriptions WHERE state='enabled' ON CONFLICT DO NOTHING", [event.source + ':' + event.eventId])
@@ -231,6 +234,12 @@ export function createEventDelivery(pool: Pool, profile: DeploymentProfile, depe
         await client.query("INSERT INTO builder.outbox(owner,kind,resource_id,revision) SELECT owner,'event.reorged',$1,revision FROM builder.event_subscriptions WHERE state='enabled' ON CONFLICT DO NOTHING", [source + ':' + eventId])
         return { changed: true as const }
       })
+    },
+    async cursor(source: string) {
+      sourceSchema.parse(source)
+      const row = (await pool.query('SELECT source,chain_id,cursor,block_hash,observed_at,health,error_code FROM builder.event_cursors WHERE source=$1', [source])).rows[0]
+      if (!row) return null
+      return { source, chainId: row.chain_id === null ? undefined : Number(row.chain_id), cursor: z.record(z.string(), z.unknown()).parse(row.cursor), blockHash: row.block_hash as `0x${string}` | null, observedAt: asIso(row.observed_at as Date | null), health: row.health as 'healthy' | 'stale' | 'recovered' | 'error', errorCode: row.error_code === null ? undefined : String(row.error_code) }
     },
     async health(source: string, input: unknown) {
       sourceSchema.parse(source)

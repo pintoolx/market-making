@@ -128,6 +128,15 @@ BUILDER_EVENT_EVALUATOR_URL=https://tee.example/v1/evaluate
 BUILDER_EVENT_DELIVERY_URL=https://tee.example/v1/deliver
 BUILDER_EVENT_GATEWAY_TOKEN=<gateway-service-token>
 BUILDER_EVENT_GATEWAY_TIMEOUT_MS=120000
+# Optional EVM log source. Set address and starting block together.
+BUILDER_EVENT_EVM_ADDRESS=<watched-contract-address>
+BUILDER_EVENT_EVM_FROM_BLOCK=<first-confirmed-block>
+BUILDER_EVENT_EVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+BUILDER_EVENT_EVM_CONFIRMATIONS=2
+BUILDER_EVENT_EVM_MAX_BLOCK_RANGE=2000
+BUILDER_EVENT_EVM_MAX_REORG_DEPTH=128
+BUILDER_EVENT_EVM_SOURCE=chain.sepolia.guard
+BUILDER_EVENT_EVM_TOPIC0=<optional-event-topic>
 CRE_AUTH_CONFIG_B64=<base64-encoded CRE CLI credential file>
 OPENAI_API_KEY=<Railway secret; never log or include in tool context>
 CRE_ETH_PRIVATE_KEY=<funded Sepolia report signer>

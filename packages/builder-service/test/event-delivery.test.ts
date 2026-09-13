@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { database, migrate, createStore, createArtifacts, createAutomation, createEventDelivery, runEventWorker, revokeMessage, builderHandler, createAuthorizationBindings, bindingMessage, createOutboxDispatcher, createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate } from '../src/index.ts'
+import { database, migrate, createStore, createArtifacts, createAutomation, createEventDelivery, runEventWorker, revokeMessage, builderHandler, createAuthorizationBindings, bindingMessage, createOutboxDispatcher, createEvmLogSource, createSignedEventIngress, normalizeEvmLog, normalizeMarketUpdate } from '../src/index.ts'
 import { digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
@@ -90,6 +90,36 @@ test('the resident worker recovers queued events after the browser is gone', asy
   assert.ok(outbox.includes('report-delivery.pending'))
 })
 
+test('the resident worker applies source reorg identities before claiming evaluation work', async () => {
+  const f = await fixture(), sourceName = 'chain.sepolia.reorg', oldEvent = { source: sourceName, eventId: 'old-log', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString() }
+  const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ should: 'not-run' }), report: { should: 'not-run' } }) })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  await events.ingest(oldEvent)
+  const controller = new AbortController(), source = { source: sourceName, poll: async () => { controller.abort(); return { events: [], cursor: { nextBlock: '10' }, reorgedEventIds: [oldEvent.eventId] } } }
+  await runEventWorker(pool, profile, {}, { sources: [source], pollMs: 50, signal: controller.signal })
+  assert.equal((await pool.query('SELECT canonical FROM builder.event_inbox WHERE source=$1 AND event_id=$2', [sourceName, oldEvent.eventId])).rows[0].canonical, false)
+  assert.equal((await pool.query('SELECT state FROM builder.evaluation_jobs WHERE subscription_id=$1 AND event_id=$2', [enabled.subscription.id, oldEvent.eventId])).rows[0].state, 'cancelled')
+})
+
+test('a re-included transaction with the same log identity can be evaluated after cancellation', async () => {
+  const f = await fixture(), sourceName = 'chain.sepolia.reincluded', oldEvent = { source: sourceName, eventId: 'same-log', kind: 'guard.changed', payload: { block: 'old' }, observedAt: new Date().toISOString(), chainId: profile.chainId, blockNumber: '10', blockHash: '0x' + '1'.repeat(64), transactionHash: '0x' + '2'.repeat(64), logIndex: 0 }
+  const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ reincluded: true }), report: { reincluded: true } }) })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  const first = await events.ingest(oldEvent); assert.ok(first.jobs.length >= 1); assert.equal((await events.markReorg(sourceName, oldEvent.eventId)).changed, true)
+  const replacement = { ...oldEvent, payload: { block: 'new' }, blockHash: '0x' + '3'.repeat(64) }
+  const second = await events.ingest(replacement); assert.equal(second.duplicate, false); assert.ok(second.jobs.length >= 1)
+  let job: Awaited<ReturnType<typeof events.claimEvaluation>> = null
+  for (let attempt = 0; attempt < 20 && !job; attempt++) {
+    const candidate = await events.claimEvaluation()
+    if (!candidate) break
+    if (candidate.subscriptionId === enabled.subscription.id) job = candidate
+    else await events.evaluate(candidate.id, candidate.token)
+  }
+  assert.equal(job?.subscriptionId, enabled.subscription.id); const result = await events.evaluate(job!.id, job!.token); assert.equal(result.result.status, 'changed')
+  assert.equal((await pool.query('SELECT canonical,payload FROM builder.event_inbox WHERE source=$1 AND event_id=$2', [sourceName, oldEvent.eventId])).rows[0].canonical, true)
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+})
+
 test('event adapters authenticate ingress and retain reorg-safe source identity', async () => {
   const ingress = createSignedEventIngress('adapter-secret', { clock: () => 1000 }), body = { z: 1, eventId: 'market-1', price: '2500', observedAt: new Date(1000000).toISOString() }, market = { eventId: 'market-1', price: '2500', observedAt: body.observedAt }
   const signature = ingress.sign(body, 1000)
@@ -101,6 +131,24 @@ test('event adapters authenticate ingress and retain reorg-safe source identity'
   assert.equal(log.eventId, '0x' + 'b'.repeat(64) + ':3'); assert.equal(log.blockNumber, '42'); assert.equal(log.logIndex, 3)
   assert.throws(() => normalizeEvmLog('chain.sepolia.guard', { chainId: profile.chainId, blockNumber: '42', transactionHash: ('0x' + 'b'.repeat(64)), logIndex: 3,
     address: profile.guard, topics: [], data: '0x', observedAt: new Date(1000000).toISOString() }), /expected.*string/)
+})
+
+test('EVM log source backfills confirmed ranges and emits identities for reorged blocks', async () => {
+  const h = (digit: string) => ('0x' + digit.repeat(64)) as `0x${string}`
+  const blocks = new Map<bigint, `0x${string}`>([[1n, h('1')], [2n, h('2')], [3n, h('3')]])
+  type FakeLog = { address: `0x${string}`; topics: `0x${string}`[]; data: `0x${string}`; blockNumber: bigint; blockHash: `0x${string}`; transactionHash: `0x${string}`; logIndex: number }
+  let logs: FakeLog[] = [{ address: profile.guard as `0x${string}`, topics: [h('a')], data: '0x' as `0x${string}`, blockNumber: 2n, blockHash: h('2'), transactionHash: h('b'), logIndex: 0 }]
+  const reader = {
+    getBlockNumber: async () => 3n,
+    getBlock: async ({ blockNumber }: { blockNumber: bigint }) => ({ hash: blocks.get(blockNumber) }),
+    getLogs: async ({ fromBlock, toBlock }: { fromBlock: bigint; toBlock: bigint }) => logs.filter(log => log.blockNumber >= fromBlock && log.blockNumber <= toBlock),
+  }
+  const source = createEvmLogSource({ source: 'chain.sepolia.guard', rpcUrl: 'https://rpc.example.test', chainId: profile.chainId, address: profile.guard as `0x${string}`, fromBlock: 1n, confirmations: 0, maxBlockRange: 2n, reader: reader as never, clock: () => new Date(1000000) })
+  const first = await source.poll(new AbortController().signal)
+  assert.equal(first.events.length, 1); assert.equal((first.events[0] as { eventId: string }).eventId, h('b') + ':0'); assert.equal(first.cursor?.nextBlock, '4')
+  blocks.set(2n, h('4')); logs = [{ ...logs[0]!, blockHash: h('4'), transactionHash: h('c') }]
+  const second = await source.poll(new AbortController().signal, first.cursor)
+  assert.deepEqual(second.reorgedEventIds, [h('b') + ':0']); assert.equal(second.events.length, 1); assert.equal((second.events[0] as { eventId: string }).eventId, h('c') + ':0')
 })
 
 test('signed event ingress route accepts only gateway-authenticated public events', async () => {
