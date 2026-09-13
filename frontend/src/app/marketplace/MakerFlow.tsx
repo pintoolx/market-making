@@ -8,9 +8,9 @@ import Secondary from '../components/shared/Secondary';
 import FormInput from '../components/shared/FormInput';
 import { useAccount } from '../providers/useAccount';
 import { AQUA_TEMPLATES } from './aquaTemplates';
-import { createMandate, getExecutableStrategies, getMandate, reevaluateExecutionProfile, type MandateState } from './mandateClient';
+import { createMandate, getExecutableStrategies, getMandate, type MandateState } from './mandateClient';
 import { CONFIDENTIAL_WORKFLOW_PUBLIC_KEY, sealForConfidentialWorkflow } from './confidentialEnvelope';
-import { ADAPTIVE_PROFILE_IDS, presentMandate } from './mandatePresentation';
+import { presentMandate } from './mandatePresentation';
 
 import { saveMandateReference } from './mandateReferenceStore';
 import { usePublishedListings, type Listing } from './publishedStore';
@@ -62,7 +62,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
   const [editingExisting, setEditingExisting] = useState(false);
   const [mandate, setMandate] = useState<MandateState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [reevaluating, setReevaluating] = useState(false);
   const [error, setError] = useState('');
   const [executableCatalog, setExecutableCatalog] = useState<{ maker: string; ids: Set<string> } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -240,26 +239,6 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
     }
   };
 
-  const reevaluate = async (profileId?: string) => {
-    if (!mandate) return;
-    const active = mandate.strategies.find(item => item.status === 'active');
-    const lastEvaluated = mandate.strategies.at(-1)?.listingId;
-    const current = active?.listingId ?? lastEvaluated;
-    const target = profileId ?? current ?? ADAPTIVE_PROFILE_IDS[0];
-    setReevaluating(true);
-    go('submitting');
-    try {
-      const state = await reevaluateExecutionProfile(mandate.mandateId, target);
-      setMandate(state);
-      saveMandateReference(state.maker, state.mandateId);
-      go('monitor');
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The strategy could not be re-evaluated.');
-      setPhase('monitor');
-    } finally {
-      setReevaluating(false);
-    }
-  };
   const editLimits = () => {
     if (!mandate) return;
     setEditingExisting(true);
@@ -291,7 +270,7 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       : phase === 'activate' ? 'Add liquidity from your wallet.'
       : phase === 'limits' ? 'Set your liquidity limits.'
       : phase === 'review' ? 'Review your setup.'
-        : phase === 'submitting' ? reevaluating ? 'Checking current conditions.' : 'Securing your setup.'
+        : phase === 'submitting' ? 'Securing your setup.'
           : 'Your liquidity.';
 
   // A direct setup link renders its own loading or connection state, never a flash of the marketplace.
@@ -362,8 +341,8 @@ export default function MakerFlow({ scrollTop }: { scrollTop: () => void }) {
       <PrivacyRoute />
     </div>}
 
-    {phase === 'submitting' && <RuntimePanel reevaluating={reevaluating} />}
-    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} reevaluating={reevaluating} onRefresh={refresh} onReevaluate={reevaluate} onEdit={editLimits} />}
+    {phase === 'submitting' && <RuntimePanel />}
+    {phase === 'monitor' && mandate && <MandateMonitor mandate={mandate} refreshing={refreshing} onRefresh={refresh} onEdit={editLimits} />}
     {phase === 'monitor' && mandate?.ensSelections?.map(selection => <p key={`${selection.name}:${selection.pointer.version}`} className={aqua.hint}>{selection.name} · pinned version {selection.pointer.version} · verified at Sepolia block {selection.verifiedBlock}</p>)}
   </section>;
 }
@@ -380,11 +359,11 @@ function PrivacyRoute() {
   return <aside className={aqua.privacyRoute}><span className={aqua.eyebrow}>What becomes public</span><h2>Only the resulting authorization is published.</h2><div><span>Strategy rules</span><strong>Confidential</strong></div><div><span>Your liquidity limits</span><strong>Confidential</strong></div><div><span>Execution authorization</span><strong>Public and enforceable</strong></div></aside>;
 }
 
-function RuntimePanel({ reevaluating }: { reevaluating: boolean }) {
-  return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>Chainlink Confidential Workflow</span><h2>{reevaluating ? 'Checking current conditions' : 'Evaluating strategy and liquidity limits'}</h2><p>PinTool is applying both sets of private rules and confirming the resulting authorization onchain.</p></div><ol className={aqua.runtimeSteps}><li data-done>Strategy rules received</li><li data-done>Liquidity limits received</li><li data-active>Private rules being evaluated</li><li>Authorization confirmed</li></ol></div>;
+function RuntimePanel() {
+  return <div className={aqua.runtimePanel} role="status" aria-live="polite"><div className={aqua.runtimePulse} aria-hidden="true" /><div><span className={aqua.eyebrow}>Chainlink Confidential Workflow</span><h2>Evaluating strategy and liquidity limits</h2><p>PinTool is applying both sets of private rules and confirming the resulting authorization onchain.</p></div><ol className={aqua.runtimeSteps}><li data-done>Strategy rules received</li><li data-done>Liquidity limits received</li><li data-active>Private rules being evaluated</li><li>Authorization confirmed</li></ol></div>;
 }
 
-function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReevaluate, onEdit }: { mandate: MandateState; refreshing: boolean; reevaluating: boolean; onRefresh: () => void; onReevaluate: (profileId?: string) => void; onEdit: () => void }) {
+function MandateMonitor({ mandate, refreshing, onRefresh, onEdit }: { mandate: MandateState; refreshing: boolean; onRefresh: () => void; onEdit: () => void }) {
   // Keep the server render deterministic. Browser-local timestamps are filled
   // after hydration, avoiding locale and clock differences in the initial HTML.
   const [now, setNow] = useState(0);
@@ -402,8 +381,8 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
   return <div className={aqua.monitorLayout}>
     <section className={aqua.panel}>
       <div className={aqua.statusHeader}><span className={aqua.statusMark}>{active ? '✓' : '·'}</span><div><span className={aqua.eyebrow}>Current authorization</span><h2>{name}</h2></div></div>
-      <div className={aqua.intentRows}><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div><div><span>Market</span><strong>WETH / USDC</strong></div><div><span>Network</span><strong>{mandate.evidence.networkName}</strong></div><div><span>Limits</span><strong>{mandate.evidence.expiresAt === null ? 'Active until changed' : 'Update required'}</strong></div></div>
-      <div className={aqua.actionRow}><Primary disabled={reevaluating} onClick={() => onReevaluate()}>{reevaluating ? 'Checking…' : 'Check conditions now'}</Primary><Secondary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh'}</Secondary><Secondary disabled={reevaluating} onClick={onEdit}>Change limits</Secondary></div>
+      <div className={aqua.intentRows}><div><span>Current mode</span><strong>{now === 0 ? 'Checking…' : active ? profileName(active.listingId) : verified ? 'Paused' : 'Refresh to check'}</strong></div><div><span>Market</span><strong>WETH / USDC</strong></div><div><span>Monitoring</span><strong>Automatic</strong></div><div><span>Limits</span><strong>{mandate.evidence.expiresAt === null ? 'Active until changed' : 'Update required'}</strong></div></div>
+      <div className={aqua.actionRow}><Primary disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Refreshing…' : 'Refresh status'}</Primary><Secondary onClick={onEdit}>Change limits</Secondary></div>
     </section>
 
     <section className={aqua.strategyRoster} aria-labelledby="strategy-roster-title">
@@ -417,10 +396,7 @@ function MandateMonitor({ mandate, refreshing, reevaluating, onRefresh, onReeval
           {'readiness' in strategy && <small>Authorization: {!fresh(strategy) ? 'check required' : strategy.readiness?.authorized ? 'active' : 'inactive'} · Aqua: {fresh(strategy) && strategy.readiness?.shipped ? 'ready' : 'check required'} · Funds: {fresh(strategy) && strategy.readiness?.funded ? 'ready' : 'check required'}</small>}
           {strategy.strategyHash && <CopyStrategyHash value={strategy.strategyHash} />}
         </div>
-        <div className={aqua.rosterActions}>
-          <Secondary disabled={reevaluating} onClick={() => onReevaluate(strategy.listingId)}>Check this mode</Secondary>
-          <Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trade page ↗</Link>
-        </div>
+        <div className={aqua.rosterActions}><Link href={`/trade?strategy=${encodeURIComponent(strategy.listingId)}&mandate=${encodeURIComponent(mandate.mandateId)}`}>Open trade page ↗</Link></div>
       </article>)}
     </section>
 
