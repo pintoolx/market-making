@@ -25,7 +25,7 @@ export default function StrategyDetails({ listing, action }: { listing: Listing;
         <div className={aqua.intentRows}>
           <div><span>Pair</span><strong>WETH / USDC</strong></div>
           <div><span>Mechanism</span><strong>{listing.template.mechanism}</strong></div>
-          {listing.version && <div><span>Version</span><strong>{listing.version}</strong></div>}
+          {listing.version && <div><span>Revision</span><strong>{listing.version}</strong></div>}
           <div><span>Funds remain in</span><strong>Your wallet</strong></div>
         <div><span>Confidential policy</span><strong>{listing.template.privateInputs}</strong></div>
         {listing.executionProfileIds && <div><span>Available modes</span><strong>Tight · Defensive · Paused</strong></div>}

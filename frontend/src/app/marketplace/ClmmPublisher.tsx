@@ -105,7 +105,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
     <button className={aqua.backLink} onClick={onBack}>← All templates</button>
     <h1>{latest ? 'Edit adaptive range strategy' : 'Create an adaptive range strategy'}</h1>
     <p className={aqua.muted}>WETH / USDC · Ethereum Sepolia · 1inch Aqua</p>
-    {latest && <p>{latest.state === 'published' ? 'You are editing a published strategy.' : 'This strategy is closed to new makers.'}</p>}
+    {latest?.state === 'withdrawn' && <p>This strategy is closed to new makers.</p>}
     <form className={aqua.panel} onSubmit={event => { event.preventDefault(); void publish('published'); }}>
       <fieldset disabled={busy}>
         <legend>Public strategy details</legend>
@@ -121,7 +121,7 @@ export default function ClmmPublisher({ onBack }: { onBack: () => void }) {
       </fieldset>
       <fieldset disabled={busy} className={aqua.privateField}>
         <legend>Confidential execution rule</legend>
-        <p>Allow swaps only while 30-minute market volatility remains at or below your limit. PinTool evaluates this rule without publishing the limit.</p>
+        <p>Allow swaps only when 30-minute market volatility is at or below this limit.</p>
         <label>Maximum volatility (%)<FormInput inputMode="decimal" value={threshold} onChange={e => setThreshold(e.target.value)} /></label>
         <p className={aqua.hint}>Encrypted before submission and never published.</p>
       </fieldset>
