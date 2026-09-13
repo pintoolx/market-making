@@ -119,6 +119,32 @@ test('the resident worker reconciles reports left broadcast across a restart', a
   assert.equal(rows[0].status, 'accepted')
 })
 
+test('stopping a subscription cancels unsent work and blocks stale delivery', async () => {
+  const f = await fixture(), events = createEventDelivery(pool, profile, {
+    evaluate: async () => ({ status: 'changed', reportHash: digestJson({ stale: true }), report: { stale: true } }),
+  })
+  const enabled = await events.enable(f.owner, randomUUID(), { draftId: f.draft.id, expectedRevision: 2, artifactId: f.artifact.artifactId, consentId: f.consent.id })
+  const source = 'market.stale', eventId = 'stale-1'
+  await events.ingest({ source, eventId, kind: 'market.updated', payload: { price: '2500' }, observedAt: new Date().toISOString() })
+  let job: Awaited<ReturnType<typeof events.claimEvaluation>> = null
+  for (let attempt = 0; attempt < 20 && !job; attempt++) {
+    const candidate = await events.claimEvaluation()
+    if (!candidate) break
+    if (candidate.subscriptionId === enabled.subscription.id) { job = candidate; break }
+    await pool.query("UPDATE builder.evaluation_jobs SET state='pending',attempts=GREATEST(attempts-1,0),lease_token=NULL,lease_until=NULL,available_at=clock_timestamp() WHERE id=$1 AND lease_token=$2", [candidate.id, candidate.token])
+  }
+  assert.ok(job)
+  const evaluated = await events.evaluate(job!.id, job!.token); assert.ok(evaluated.deliveryId)
+  await events.stop(f.owner, randomUUID(), { subscriptionId: enabled.subscription.id })
+  assert.equal((await pool.query('SELECT status,error_code FROM builder.report_deliveries WHERE id=$1', [evaluated.deliveryId])).rows[0].status, 'failed')
+  await pool.query("UPDATE builder.report_deliveries SET status='pending',error_code=NULL,next_attempt_at=clock_timestamp() WHERE id=$1", [evaluated.deliveryId])
+  let sends = 0
+  const guarded = createEventDelivery(pool, profile, { deliver: async () => { sends++; return { transactionHash: ('0x' + '4'.repeat(64)) as `0x${string}` } } })
+  assert.equal((await guarded.deliver(evaluated.deliveryId!)).status, 'stale')
+  assert.equal(sends, 0)
+  assert.deepEqual((await pool.query('SELECT status,error_code FROM builder.report_deliveries WHERE id=$1', [evaluated.deliveryId])).rows[0], { status: 'failed', error_code: 'subscription-stale' })
+})
+
 test('the resident worker applies source reorg identities before claiming evaluation work', async () => {
   const f = await fixture(), sourceName = 'chain.sepolia.reorg', oldEvent = { source: sourceName, eventId: 'old-log', kind: 'guard.changed', payload: {}, observedAt: new Date().toISOString() }
   const events = createEventDelivery(pool, profile, { evaluate: async () => ({ status: 'changed', reportHash: digestJson({ should: 'not-run' }), report: { should: 'not-run' } }) })
