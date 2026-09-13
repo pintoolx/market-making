@@ -87,9 +87,9 @@ CRE forwards workflow identity in `metadata`, separately from the application AB
 
 The Guard implements the pinned `extruction(bool,uint256,SwapQuery,SwapRegisters,bytes,bytes)` interface. It must accept calls only from the configured AquaSwapVMRouter. Quote and swap use the same read-only validation and return the unchanged `nextPC`, `choppedLength = 0`, and unchanged registers. No quota is consumed by a quote.
 
-The program has one terminal Guard call on every supported path. The initial template has no jumps, custom balance changes, token hooks, protocol fees, other external calls or fee-on-transfer / rebasing assets. The compiler and golden-byte tests must prove those constraints for the complete Maker-approved program; the Guard cannot prove them from an arbitrary caller-supplied label. Direct calls to the Guard do not establish that a real swap occurred.
+The program has one terminal Guard call on every supported path. The supported templates have no jumps, custom balance changes, token hooks, protocol fees, other external calls or fee-on-transfer / rebasing assets. They may include the pinned fixed LP input-fee instruction. The compiler and golden-byte tests must prove those constraints for the complete Maker-approved program; the Guard cannot prove them from an arbitrary caller-supplied label. Direct calls to the Guard do not establish that a real swap occurred.
 
-At invocation, require a present, fresh report for `query.maker` and `query.orderHash`, the matching token pair, exact-input mode and an allowed direction. Let `a0` / `a1` be the actual amount of token0 / token1 exchanged. Apply both token amount caps, including the token paid out by the Maker. With zero fees and standard ERC20s:
+At invocation, require a present, fresh report for `query.maker` and `query.orderHash`, the matching token pair, exact-input mode and an allowed direction. Let `a0` / `a1` be the actual gross amount of token0 / token1 exchanged, including any fixed LP input fee. Apply both token amount caps, including the token paid out by the Maker. The fixed fee is deducted only for curve pricing; the restored gross input is the amount credited to Aqua and used for inventory accounting. With standard ERC20s:
 
 | Taker direction | Post-swap token0 balance | Post-swap token1 balance |
 |---|---|---|
@@ -102,7 +102,7 @@ Per-swap caps are **not** remaining cumulative budgets. Splitting an order into 
 
 ### Fee and encoding constraints
 
-The existing imported demo uses a 30 bps input-fee instruction. That instruction temporarily reduces `amountIn` while executing its remaining program and restores the gross input afterward. A Guard simply appended after the curve would therefore observe a net input and could undercount the Maker's incoming inventory. The first Guard template uses **zero fee** until gross-amount accounting and rounding have separate tests. Do not append the new Guard to the existing fee-bearing bytecode and assume these formulas remain correct.
+The pinned input-fee instruction temporarily reduces `amountIn` while executing its remaining program and restores the gross input afterward. The Guard V2 composition now verifies that the restored gross amount is used for Maker inventory and envelope caps, while the net amount is used for curve pricing. The fee is rounded up with the pinned `ceil(amountIn * feeScale / 1e9)` rule. Guard V1 remains frozen at zero fee; protocol and dynamic fee instructions are not supported.
 
 For the public envelope, packed custom arguments are: version `uint8`, token0 `address`, token1 `address`, then the four `uint128` amount / post-balance caps in the same order as the report. This is 105 bytes, plus the 20-byte Guard target = 125 bytes, within the VM's one-byte instruction-argument length. Reports use the 512-byte ABI tuple; **do not put that whole tuple in an Extruction instruction**. Maker approval binds this public envelope, not a plaintext copy of the original private policy.
 
@@ -114,7 +114,7 @@ These observations were checked against the pinned SwapVM commit `32c687c2b73101
 
 - Solidity decoding and workflow encoding match the shared fixture, and malformed or trailing data is rejected.
 - An authorized fresh report changes Guard state. Wrong caller / identity / chain / Guard / router, bad token pair, nonce reuse with changed payload, older nonce, missing report and expiry all fail without changing valid state.
-- Maker approval binds the complete zero-fee guarded program and envelope. Tests reject unsupported fee-bearing templates; no execution path skips the Guard.
+- Maker approval binds the complete guarded program and envelope, including the fixed fee instruction when configured. Guard V1 remains zero fee; Guard V2 fee-bearing recipes are tested for gross/net accounting and no execution path skips the Guard.
 - Real swaps in both directions transfer tokens. Exact cap equality succeeds; a one-unit amount or resulting inventory excess reverts. Report loosening cannot exceed the envelope.
 - A synthetic depeg-style report disables one direction: the forbidden swap reverts with balances unchanged while the permitted direction still succeeds. Pausing / expiry rejects both directions. Synthetic inputs are labelled in evidence.
 - Quotes do not mutate state. A report update between quote and swap is handled as a possible revert. Repeated report delivery and simulated failures do not revive an older report.

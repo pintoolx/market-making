@@ -4,7 +4,7 @@ Execution side of the Strategy Provider × Maker market-making flow, built on **
 
 This package now lives in the [PinTool Market Making workspace](../../README.md). Install dependencies with `pnpm install --frozen-lockfile` at the repository root. Run the package commands below from `contracts/aqua-executor/`; `npm run` also works with the workspace-installed dependencies. The root `pnpm-lock.yaml` controls current installs.
 
-**LP programs:** XYC, PeggedSwap and concentrated liquidity; each has a zero-fee guarded variant. [LP setup, explicit Guard JSON recipes and automatic expiry rollover](docs/LP-STRATEGIES.md) describe the new interfaces and local validation.
+**LP programs:** XYC, PeggedSwap and concentrated liquidity; each has a Guard V2 variant with optional fixed LP input fees. [LP setup, explicit Guard JSON recipes and automatic expiry rollover](docs/LP-STRATEGIES.md) describe the new interfaces and local validation.
 
 A strategy's parameters can arrive through the [TEE JSON request entry](docs/execution-recovery.md) or the existing fixed-parameter demos. They are compiled into a SwapVM program and run through the Aqua lifecycle. Every transaction is written to a JSONL record.
 

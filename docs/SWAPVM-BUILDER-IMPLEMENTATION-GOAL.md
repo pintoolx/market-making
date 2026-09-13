@@ -34,7 +34,7 @@ Use TypeScript, the existing static Next/Cloudflare frontend, authenticated Node
 
 The target is Ethereum Sepolia with verified WETH/USDC, Aqua, router and standing Guard. A fixed, verified Guard Extruction is required. Excluded: arbitrary external targets, custom AquaApps/routers/opcodes/hooks, protocol or dynamic fees, unverified special-token behavior, exact-out under the current Guard profile, resolver development or guaranteed aggregator inclusion, auto-rebalance/recenter/DCA, cross-protocol asset operations and backend custody.
 
-XYC, fixed-range CLMM and verified Pegged are required starting curves. Complete zero-fee lifecycles before guarded fixed LP input fees. Fixed input fees remain a required later deliverable: they must not be silently dropped or enabled with unverified accounting. Decay, native access/direction modifiers and optional deadline omission require source, encoding and composition verification before exposure.
+XYC, fixed-range CLMM and verified Pegged are required starting curves. The zero-fee lifecycle was completed before enabling guarded fixed LP input fees. Guard V2 now supports the pinned fixed input-fee instruction with gross/net and actual-inventory composition evidence; Guard V1 remains zero fee. Decay, native access/direction modifiers and optional deadline omission require source, encoding and composition verification before exposure.
 
 ## Iterative design requirements
 
@@ -126,9 +126,9 @@ Show wallet balance, allowance, virtual balances and known commitments separatel
 
 ## Fees and deployment boundaries
 
-Before enabling fixed LP input fees, specify gross input, net pricing input, actual Aqua credits/debits, Maker revenue and both per-swap/post-inventory caps. Verify each enabled curve/fee recipe in both directions, at boundaries and across sequential trades. Unguarded fee tests are insufficient.
+Fixed LP input fees are enabled only in Guard V2. The implementation specifies gross input, net pricing input, actual Aqua credits/debits, Maker revenue and both per-swap/post-inventory caps, and verifies each enabled curve/fee recipe in both directions, at boundaries and across sequential trades. Unguarded fee tests remain insufficient.
 
-If the current Guard cannot enforce the accounting, complete a candidate contract, ABI/profile/compiler/decoder changes and local/fork tests first. A new public deployment and old-hash migration need a concrete reviewable payload/address/cost plan. Until verified, fees stay disabled and that deliverable stays incomplete.
+If a future Guard cannot enforce a new fee or modifier's accounting, complete a candidate contract, ABI/profile/compiler/decoder changes and local/fork tests first. A new public deployment and old-hash migration need a concrete reviewable payload/address/cost plan. Protocol and dynamic fees remain disabled.
 
 Verify actual deadline semantics before offering no-deadline recipes. Standing `validUntil = 0` does not give the deadline opcode that meaning. Enable Decay/access modifiers only with pinned-source and composition evidence; otherwise retain an explicit blocked reason.
 

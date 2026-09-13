@@ -16,7 +16,7 @@ interface IReportReceiver is IERC165 {
     function onReport(bytes calldata metadata, bytes calldata report) external;
 }
 
-/// @notice Concentrated LP Guard: versioned report transport and version-2 envelope; real Aqua inventory, zero fee only.
+/// @notice LP Guard: versioned report transport and version-2 envelope; real Aqua inventory and fixed input-fee support.
 /// @dev Immutable transport configuration. Simulation must use a separate testnet deployment.
 contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
     struct GuardReportV1 {
@@ -191,7 +191,8 @@ contract AquaGuardV2 is IReportReceiver, IExtruction, IStaticExtruction {
         if (amount0 > _min(r.maxAmount0PerSwap, uint128(bytes16(args[41:57]))) ||
             amount1 > _min(r.maxAmount1PerSwap, uint128(bytes16(args[57:73])))) revert AmountLimitExceeded();
         // Concentrate mutates VM balance registers to include virtual pricing reserves.
-        // This terminal, zero-fee template accounts only for actual Aqua inventory.
+        // SwapVM restores the gross amountIn after a fixed input fee; use it for
+        // actual Aqua credit and the post-swap inventory envelope.
         (uint248 realIn, uint8 countIn) = aqua.rawBalances(query.maker, router, query.orderHash, query.tokenIn);
         (uint248 realOut, uint8 countOut) = aqua.rawBalances(query.maker, router, query.orderHash, query.tokenOut);
         if (countIn != 2 || countOut != 2 || swap.amountOut > realOut) revert UnsupportedSwap();

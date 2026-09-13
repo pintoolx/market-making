@@ -82,10 +82,10 @@ test('capabilities enumerate the deployed table including reserved gaps and keep
   }
   const fee = getCapabilities({ ids: ['fee.lp-input'] })[0]!
   assert.equal(fee.sourceImplemented.state, 'verified')
-  assert.equal(fee.productEnabled.state, 'blocked')
+  assert.equal(fee.productEnabled.state, 'verified')
   assert.equal(fee.routingCompatible.state, 'unverified')
-  fee.productEnabled.state = 'verified'
-  assert.equal(getCapabilities({ ids: [fee.id] })[0]!.productEnabled.state, 'blocked')
+  fee.productEnabled.state = 'blocked'
+  assert.equal(getCapabilities({ ids: [fee.id] })[0]!.productEnabled.state, 'verified')
   assert.ok(getCapabilities({ text: 'volatility' }).some(c => c.id === 'policy.market-rules'))
 })
 

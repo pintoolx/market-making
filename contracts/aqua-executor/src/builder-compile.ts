@@ -34,7 +34,7 @@ export function compileBuilderStrategy(input: unknown, profile: DeploymentProfil
   const decoded = decodeGuardedOrder(compiled.strategy)
   const expectedCurve = program.kind === 'xyc' ? [] : program.kind === 'concentrated' ? [program.sqrtPriceMin, program.sqrtPriceMax]
     : (({ x0, y0, linearWidth, rateLt, rateGt }) => [x0, y0, linearWidth, rateLt, rateGt].map(String))(peggedArgs(params))
-  if (decoded.guard !== profile.guard.toLowerCase() || decoded.maker !== draft.maker || decoded.kind !== model.kind ||
+  if (decoded.guard !== profile.guard.toLowerCase() || decoded.maker !== draft.maker || decoded.kind !== model.kind || decoded.feeBps !== spec.feeBps ||
     decoded.baseToken !== base.address || decoded.quoteToken !== quote.address || decoded.deadline !== spec.deadline || decoded.salt !== draft.salt ||
     canonical(decoded.guardEnvelope) !== canonical(caps) || canonical(decoded.curveArgs) !== canonical(expectedCurve)) throw new Error('compiled program does not match reviewed strategy')
   const guardedParams: AquaStrategyParams = { ...params, guard: { address: profile.guard, version: 2, caps: {

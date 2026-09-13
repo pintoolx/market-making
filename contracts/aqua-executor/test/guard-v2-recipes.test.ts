@@ -30,7 +30,9 @@ for (const kind of ['xyc', 'pegged'] as const) test(`${kind} V2 recipe: JSON, st
     caps: Object.fromEntries(Object.entries(caps).map(([key, value]) => [key, String(value)])) } }
   assert.equal(compileExecution(parseStrategy(explicit)).strategy, s.strategy)
   assert.throws(() => parseStrategy({ ...explicit, guard: { ...explicit.guard, caps: { ...explicit.guard.caps, maxPostBalance0: '1' } } }), /inventory/)
-  assert.throws(() => compileGuardedV2({ ...p, program: { ...p.program, feeBps: 1 } }, guard, caps), /zero fee/)
+  const fee = compileGuardedV2({ ...p, program: { ...p.program, feeBps: 1 } }, guard, caps)
+  assert.equal(fee.params.program.feeBps, 1)
+  assert.equal(fee.envelope.slice(0, 4), '0x02')
 
   await f.activate(s)
   await assert.rejects(quote(ctx, d, s, s.tokens[0]!, s.tokens[1]!, 10_000_000n))
