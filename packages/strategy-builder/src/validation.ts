@@ -45,6 +45,7 @@ export function validateStrategy(input: unknown, profile: DeploymentProfile, now
   }
   if (spec.baseToken && spec.baseToken.address === spec.quoteToken?.address) error('duplicate-token', 'spec.quoteToken', 'The pair must contain different tokens')
   if (spec.deadline !== undefined && spec.deadline <= nowSec) error('expired', 'spec.deadline', 'The strategy deadline has expired')
+  if (spec.feeBps !== undefined && spec.feeBps !== 0) error('fee-guard-incompatible', 'spec.feeBps', 'This Guard recipe supports zero LP fee only. A nonzero input fee leaves net input in the Guard call and cannot enforce gross amount and inventory caps.')
   if (new Set(draft.requirements.map(r => r.id)).size !== draft.requirements.length) error('duplicate-requirement', 'requirements', 'Duplicate requirement IDs')
   const modifiers = new Set<string>()
   for (const [i, modifier] of spec.modifiers.entries()) {

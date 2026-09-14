@@ -31,8 +31,7 @@ test('publication binds a complete Provider revision, permissions, profile and c
     assert.throws(() => templateVersionSchema.parse({ ...p.template, ...extra }))
   }
   assert.throws(() => makeTemplateVersion(p.draft, profile, p.identity), /provider-template-required/)
-  const feeVersion = makeTemplateVersion({ ...p.provider, spec: { ...p.provider.spec, feeBps: 10 } }, profile, p.identity)
-  assert.equal(feeVersion.spec.feeBps, 10)
+  assert.throws(() => makeTemplateVersion({ ...p.provider, spec: { ...p.provider.spec, feeBps: 10 } }, profile, p.identity), /template-incomplete/)
   assert.throws(() => makeTemplateVersion(p.provider, profile, { ...p.identity, permissions: { ...defaultTemplatePermissions, peggedAmplification: { min: '1', max: '2' } } }), /curve-mismatch/)
   assert.notEqual(templateDigest(p.template), templateDigest({ ...p.template, permissions: { ...p.template.permissions, tightenCaps: false } }))
 })

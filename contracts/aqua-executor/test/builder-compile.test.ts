@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict'
 import { before, after, test } from 'node:test'
 import { decodeGuardedOrder, decodeInstructions, draftSchema, orderAbi, sepoliaStandingProfile, validateStrategy, type DeploymentProfile } from '@pintool/strategy-builder'
-import { encodeAbiParameters, zeroHash, zeroAddress, type Abi } from 'viem'
+import { encodeAbiParameters, keccak256, zeroHash, zeroAddress, type Abi } from 'viem'
 import { compileBuilderStrategy } from '../src/builder-compile.ts'
 import { readJson } from '../src/config.ts'
 import { compileExecution } from '../src/execution-compile.ts'
 import { compile } from '../src/compile.ts'
-import { previewSwapMath } from '../src/builder-preview.ts'
 import { parseStrategy } from '../src/execution-request.ts'
 import { buildTx, quote, rawBalances, send, takerSwap } from '../src/executor.ts'
 import { lpFixture } from './helpers/lp.ts'
@@ -58,29 +57,32 @@ for (const kind of ['xyc', 'concentrated', 'pegged'] as const) test(`Builder ${k
   await assert.rejects(quote(f.ctx, f.d, s, s.tokens[1]!, s.tokens[0]!, 10_000_000n))
 })
 
-for (const kind of ['xyc', 'concentrated', 'pegged'] as const) test(`Builder ${kind}: fixed LP input fee uses net pricing and gross Aqua accounting in both directions`, async () => {
-  const input = draft(kind)
-  input.spec.feeBps = 30
-  const a = compileBuilderStrategy(input, profile, nowSec)
-  assert.equal(a.decoded.kind, kind)
-  assert.equal(a.decoded.feeBps, 30)
-  assert.match(a.program, /1504/)
-  const s = compileExecution(parseStrategy(a.params)) as GuardedCompiled
+for (const kind of ['xyc', 'concentrated', 'pegged'] as const) test(`Builder ${kind}: legacy input fees bypass gross caps and must not compile`, async () => {
+  const input = draft(kind), a = compileBuilderStrategy(input, profile, nowSec)
+  assert.equal(validateStrategy({ ...input, spec: { ...input.spec, feeBps: 30 } }, profile, nowSec).ready, false)
+  assert.throws(() => compileBuilderStrategy({ ...input, spec: { ...input.spec, feeBps: 30 } }, profile, nowSec), /zero LP fee/)
+  // Recreate the old public bytecode solely to reproduce the defect. Production
+  // compilers reject it. Keep the independent decoder for historical dock/revoke.
+  const original = compileExecution(parseStrategy(a.params)) as GuardedCompiled
+  const program = (a.program.slice(0, 16) + '1504' + (3000000).toString(16).padStart(8, '0') + a.program.slice(16)) as Hex
+  const order = { ...original.order, data: program }, strategy = encodeAbiParameters(orderAbi, [order])
+  const s = { ...original, order, strategy, strategyHash: keccak256(strategy) }
+  assert.equal(decodeGuardedOrder(strategy).feeBps, 30)
   await f.activate(s, caps)
-  await f.submit(s, { schemaVersion: 2, validUntil: 0 }, caps)
-  for (const [i, amount] of [[1, 10_000_001n], [0, 10n ** 15n + 1n]] as const) {
-    const before = (await rawBalances(f.ctx, f.d, s)).map(b => b.balance) as [bigint, bigint]
-    const expected = previewSwapMath(a.decoded, before, i, amount)
-    const q = await quote(f.ctx, f.d, s, s.tokens[i]!, s.tokens[1 - i]!, amount)
-    assert.equal(q.amountIn, amount)
-    assert.equal(q.amountOut, expected.amountOut)
-    assert.ok(expected.pricingAmountIn < amount)
-    await takerSwap(f.ctx, f.d, s, s.tokens[i]!, amount, 100, f.rec)
-    const after = (await rawBalances(f.ctx, f.d, s)).map(b => b.balance) as [bigint, bigint]
-    assert.equal(after[i]! - before[i]!, amount, 'gross input is credited to Aqua')
-    assert.equal(before[1 - i]! - after[1 - i]!, q.amountOut)
+  for (const direction of [0, 1] as const) {
+    const amount = direction === 0 ? 1000000000000001n : 2500001n
+    const before = (await rawBalances(f.ctx, f.d, s)).map(b => b.balance)
+    const maxPost = before[direction]! + amount - 1n
+    const limits = { ...caps, [direction === 0 ? 'maxAmount0PerSwap' : 'maxAmount1PerSwap']: amount - 1n,
+      [direction === 0 ? 'maxPostBalance0' : 'maxPostBalance1']: maxPost }
+    await f.submit(s, { schemaVersion: 2, validUntil: 0, nonce: BigInt(direction + 1) }, limits)
+    const q = await quote(f.ctx, f.d, s, s.tokens[direction]!, s.tokens[1 - direction]!, amount)
+    assert.equal(q.amountIn, amount, 'legacy recipe incorrectly admits gross cap + 1')
+    await takerSwap(f.ctx, f.d, s, s.tokens[direction]!, amount, 100, f.rec)
+    const after = await rawBalances(f.ctx, f.d, s)
+    assert.equal(after[direction]!.balance, maxPost + 1n, 'legacy recipe also exceeds post-inventory cap')
   }
-  await send(f.ctx, f.ctx.maker, buildTx.dock(f.d, s), 'builder-dock-fee', f.rec)
+  await send(f.ctx, f.ctx.maker, buildTx.dock(f.d, s), 'legacy-fee-regression-dock', f.rec)
 })
 
 test('decoder rejects unknown/reserved opcodes, branches, duplicate gates, malformed lengths and altered traits', () => {
@@ -106,8 +108,8 @@ test('validation keeps missing input, incompatible deployments, metadata spoofin
     assert.throws(() => compileBuilderStrategy(bad, profile, nowSec))
   }
   const fee = { ...a, spec: { ...a.spec, feeBps: 30 } }
-  assert.equal(validateStrategy(fee, profile, nowSec).ready, true)
-  assert.equal(compileBuilderStrategy(fee, profile, nowSec).decoded.feeBps, 30)
+  assert.equal(validateStrategy(fee, profile, nowSec).ready, false)
+  assert.throws(() => compileBuilderStrategy(fee, profile, nowSec), /zero LP fee/)
   assert.throws(() => compileBuilderStrategy(a, { ...profile, swapVmCommit: 'main' }, nowSec), /Source/)
   const template = { ...a, kind: 'template', maker: undefined, allocations: undefined }
   assert.equal(validateStrategy(template, profile, nowSec).ready, true)

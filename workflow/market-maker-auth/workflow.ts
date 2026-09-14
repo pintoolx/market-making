@@ -5,11 +5,15 @@ import { GUARD_CONFIG } from '../src/config/guard'
 import { confidentialEnvelopeSchema, openConfidentialEnvelope, type ConfidentialEnvelope } from '../src/confidential-envelope'
 import { computeAuthorization } from '../src/intersect'
 import { publishAuthorization } from '../src/publish'
+import { guardReportV1ToJson } from '../src/encode'
+import { ReportNonceStaleError, submitPublicReportFromTee } from '../guard-report/delivery'
+import { builderEnvelopeSchema, builderRequestSchema, clampBuilderReport, prepareBuilderDelivery, standingTermsHash } from './builder-protocol'
 import { acquireMarket } from '../src/market-data'
 import { acquireScenarioMarket, scenarioIdSchema } from '../src/market-scenarios'
 import { transportSchema } from '../guard-report/config'
 import {
 	makerLimitsSchema,
+	builderMakerLimitsSchema,
 	marketSnapshotSchema,
 	providerStrategySchema,
 	type ReportIdentity,
@@ -49,7 +53,16 @@ export const configSchema = z.object({
 	scenarioId: scenarioIdSchema.optional(),
 	marketSnapshot: marketSnapshotSchema.optional(),
 	transport: transportSchema.optional(),
+	/** Opt-in CLI bridge. Production workflow enrollment remains a separate integration. */
+	builderSimulation: z.boolean().default(false),
+	/** Trusted CLI configuration derived from explicit Maker outage consent. */
+	builderPause: z.boolean().default(false),
+	builderEnvelope: builderEnvelopeSchema.optional(),
 }).superRefine((config, ctx) => {
+	if (config.builderPause && !config.builderSimulation) ctx.addIssue({ code: 'custom', message: 'Outage pause requires the trusted Builder simulator' })
+	if (config.builderSimulation && (!config.builderEnvelope || config.transport?.profile === 'cre-production')) {
+		ctx.addIssue({ code: 'custom', message: 'Builder simulation requires a compiled public envelope and cannot use production transport' })
+	}
 	if (config.marketSource === 'fixture' && (config.publishMode !== 'dry-run' || !config.marketSnapshot)) {
 		ctx.addIssue({ code: 'custom', message: 'Fixture market data requires dry-run and a marketSnapshot' })
 	}
@@ -85,6 +98,7 @@ export const httpRequestSchema = z
 		makerLimitsEnvelope: confidentialEnvelopeSchema.optional(),
 		provider: hexAddress.optional(),
 		providerStrategyEnvelope: confidentialEnvelopeSchema.optional(),
+		builder: builderRequestSchema.optional(),
 	})
 	.strict()
 	.superRefine((value, context) => {
@@ -105,6 +119,7 @@ type ExecutionInput = Pick<Config, 'maker' | 'strategyHash' | 'marketSnapshot'> 
 	makerSecretId?: string
 	envelopePrivateKeySecretId?: string
 	makerLimitsEnvelope?: ConfidentialEnvelope
+	builder?: z.infer<typeof builderRequestSchema>
 }
 
 const providerSecretFor = (config: Config, strategyHash: string): string => {
@@ -131,12 +146,57 @@ const parseSecretJson = <S extends z.ZodTypeAny>(schema: S, raw: string, label: 
 	return parsed.data
 }
 
+
+function finishBuilderAuthorization(runtime: TeeRuntime<Config>, input: ExecutionInput, report: ReturnType<typeof clampBuilderReport>, nowSec: number) {
+	if (!input.builder) throw new Error('Builder request required')
+	const config = runtime.config
+	const termsHash = standingTermsHash(report)
+	const base = { kind: 'builder-cre-result', schemaVersion: 1, requestId: input.requestId, evidenceMode: 'cre-local-simulation', termsHash }
+	let outcome: Record<string, unknown>
+	if (input.builder.phase === 'evaluate') {
+		outcome = { ...base, phase: 'evaluate', status: 'evaluated', report, observedAt: runtime.now().toISOString() }
+	} else {
+		const prepared = prepareBuilderDelivery(report, input.builder, nowSec)
+		if (prepared.status === 'stale') outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId, ...prepared }
+		else {
+			try {
+				const delivered = submitPublicReportFromTee(runtime, prepared.report, config.transport, { exactNonce: true })
+				outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId,
+					status: delivered.changed ? 'accepted' : 'already-effective', nonce: delivered.nonce,
+					reportDigest: delivered.reportDigest, transactionHash: delivered.transactionHash }
+			} catch (error) {
+				if (!(error instanceof ReportNonceStaleError)) throw error
+				outcome = { ...base, phase: 'deliver', deliveryId: input.builder.deliveryId, status: 'stale', reason: 'nonce-stale' }
+			}
+		}
+	}
+	// This entry is restricted to the local simulator; only public results leave it.
+	const encoded = JSON.stringify(outcome)
+	runtime.log(encoded)
+	return encoded
+}
+
 // ─── Confidential execution ─────────────────────────────────
 // Everything here runs inside the enclave until publishAuthorization()
 // explicitly crosses back with `usingTheDons()` (only in don-report mode).
 const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput): string => {
 	const config = configSchema.parse(runtime.config)
+	if (input.builder && !config.builderSimulation) throw new Error('Builder simulation protocol is disabled')
+	if (config.builderSimulation && !input.builder) throw new Error('Builder simulation requires a two-phase request')
+	if (input.builder && (input.makerLimitsEnvelope || input.maker.toLowerCase() !== config.maker.toLowerCase() || input.strategyHash.toLowerCase() !== config.strategyHash.toLowerCase()))
+		throw new Error('Builder request differs from its provisioned Maker instance')
+	if (input.builder?.phase === 'deliver' && (config.publishMode !== 'don-report' || config.transport?.profile !== 'cre-simulation')) throw new Error('Builder delivery requires CRE simulation transport')
 	if (!input.makerLimitsEnvelope && input.maker.toLowerCase() !== config.maker.toLowerCase()) throw new Error('Maker does not match the provisioned confidential policy')
+	if (config.builderPause && input.builder) {
+		const now = Math.floor(runtime.now().getTime() / 1000)
+		// A consented pause only reduces authority. It must work when market HTTP
+		// acquisition is unavailable; no private data or fabricated prices are needed.
+		const report = clampBuilderReport({ schemaVersion: '2', chainId: String(GUARD_CONFIG.chainId), guard: config.guard, router: config.router,
+			maker: input.maker, strategyHash: input.strategyHash, token0: GUARD_CONFIG.token0, token1: GUARD_CONFIG.token1,
+			nonce: String(now), validAfter: String(now), validUntil: '0', allowedDirections: '0',
+			maxAmount0PerSwap: '0', maxAmount1PerSwap: '0', maxPostBalance0: '0', maxPostBalance1: '0' }, config.builderEnvelope!, { balance0: '0', balance1: '0' })
+		return finishBuilderAuthorization(runtime, input, report, now)
+	}
 	// Acquire and validate PUBLIC data before fetching private inputs. Only maker
 	// and public data-source config are used in DON capability calls.
 	if (config.marketSource === 'kraken' && input.marketSnapshot !== undefined) throw new Error('Live acquisition rejects caller-supplied marketSnapshot')
@@ -151,25 +211,26 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 	// ── 1. Both confidential inputs, one Vault DON round-trip ──
 	// Secrets are released only into the attested enclave; one getSecrets()
 	// call counts once against PerWorkflow.Secrets.CallLimit (5).
-	const makerSecretId = input.makerLimitsEnvelope ? input.envelopePrivateKeySecretId : input.makerSecretId
-	if (!makerSecretId) throw new Error('Maker confidential input is not configured')
+	const makerSecretId = input.builder ? undefined : input.makerLimitsEnvelope ? input.envelopePrivateKeySecretId : input.makerSecretId
+	const keySecretId = input.providerStrategyEnvelope ? input.envelopePrivateKeySecretId : undefined
+	if (!input.builder && !makerSecretId) throw new Error('Maker confidential input is not configured')
+	if (input.providerStrategyEnvelope && !keySecretId) throw new Error('Provider encryption key is not configured')
 	if (!input.providerSecretId && (!input.provider || !input.providerStrategyEnvelope)) throw new Error('Provider confidential input is not configured')
-	const secretRequests = input.providerStrategyEnvelope
-		? [{ id: makerSecretId }]
-		: [{ id: input.providerSecretId! }, { id: makerSecretId }]
+	const secretRequests = [...new Set([input.providerStrategyEnvelope ? keySecretId : input.providerSecretId, makerSecretId].filter((id): id is string => Boolean(id)))].map(id => ({ id }))
 	const secrets = runtime
 		.getSecrets(secretRequests)
 		.result()
 
 	const rawStrategy = input.providerStrategyEnvelope
-		? openConfidentialEnvelope(input.providerStrategyEnvelope, secrets[makerSecretId].value, input.provider!, 'provider')
+		? openConfidentialEnvelope(input.providerStrategyEnvelope, secrets[keySecretId!].value, input.provider!, 'provider')
 		: secrets[input.providerSecretId!].value
 	const strategy = parseSecretJson(providerStrategySchema, rawStrategy, 'PROVIDER_STRATEGY')
 	if (input.expectedStrategyId && strategy.strategyId !== input.expectedStrategyId) throw new Error('Provider policy version mismatch')
-	const rawLimits = input.makerLimitsEnvelope
-		? openConfidentialEnvelope(input.makerLimitsEnvelope, secrets[makerSecretId].value, input.maker)
-		: secrets[makerSecretId].value
-	const limits = parseSecretJson(makerLimitsSchema, rawLimits, 'MAKER_LIMITS')
+	const limits = input.builder
+		? builderMakerLimitsSchema.parse({ schemaVersion: 4, authorization: 'until-changed', ...config.builderEnvelope })
+		: parseSecretJson(makerLimitsSchema, input.makerLimitsEnvelope
+			? openConfidentialEnvelope(input.makerLimitsEnvelope, secrets[makerSecretId!].value, input.maker)
+			: secrets[makerSecretId!].value, 'MAKER_LIMITS')
 
 	// ── 3. Intersect (pure, deterministic) ──
 	// DON consensus time, not Date.now() — see docs "Time in workflows".
@@ -197,6 +258,7 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 
 	// NOTE: `authorization.trace` (matched rule id, which side bound each cap)
 	// is intentionally never logged or returned — it would leak the private inputs.
+	if (input.builder) return finishBuilderAuthorization(runtime, input, clampBuilderReport(guardReportV1ToJson(authorization.report), config.builderEnvelope!, market), nowSec)
 
 	// ── 4. Deliver (seam) ──
 	const published = publishAuthorization(runtime, authorization)
@@ -212,6 +274,7 @@ const executeAuthorization = (runtime: TeeRuntime<Config>, input: ExecutionInput
 
 // Cron remains useful for continuous re-evaluation of the configured strategy.
 export const onCronTrigger = (runtime: TeeRuntime<Config>): string => {
+	if (runtime.config.builderSimulation) throw new Error('Builder evaluation requires an explicit HTTP event')
 	if (runtime.config.marketSource === 'scenario') throw new Error('Market scenarios are manual HTTP executions only')
 	return executeAuthorization(runtime, runtime.config)
 }
@@ -243,8 +306,9 @@ export const onHttpTrigger = (runtime: TeeRuntime<Config>, payload: HTTPPayload)
 		maker: parsed.data.maker,
 		strategyHash: parsed.data.strategyHash,
 		marketSnapshot: parsed.data.marketSnapshot,
+		builder: parsed.data.builder,
 	})
-	return `requestId=${parsed.data.requestId} ${result}`
+	return parsed.data.builder ? result : `requestId=${parsed.data.requestId} ${result}`
 }
 
 // ─── Workflow Init ──────────────────────────────────────────

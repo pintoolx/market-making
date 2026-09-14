@@ -4,6 +4,7 @@ import { draftSchema, digestJson, sepoliaStandingProfile as profile } from '@pin
 import { compileBuilderStrategy } from '../../contracts/aqua-executor/src/builder-compile.ts';
 import { verifyCompilation, verifyInventory, evidenceLabel, isReportEvidenceHash, isReportNonce, verifyTransactionPlan } from '../src/app/builder/preparation.ts';
 import { fixtureInventory } from '../../packages/builder-service/test/browser/preparation-fixture.mjs';
+import { makePlan } from '../../packages/builder-service/src/transaction-plans.ts';
 import { contentDigest } from '@pintool/strategy-builder';
 
 const maker = '0x2222222222222222222222222222222222222222';
@@ -43,12 +44,11 @@ test('inventory display is bound to the Maker, revision, verified pair and alloc
 test('wallet plans are displayed only when their immutable artifact bindings and calldata shape match', () => {
   const d = draft(), payload = compileBuilderStrategy(d, profile, Math.floor(Date.now() / 1000));
   const artifact = { artifactId: 'fixture-artifact', mode: 'compiled-order', current: true, registrationReady: false, createdAt: d.createdAt, payload };
-  const tx = (kind, to) => ({ kind, to, data: '0x1234', value: '0x0', description: kind });
-  const plan = { schemaVersion: 1, kind: 'registration', id: 'plan', chainId: profile.chainId, owner: d.owner, maker: d.maker, draftId: d.id, revision: d.revision,
-    artifactId: artifact.artifactId, contentDigest: contentDigest(d), manifestHash: digestJson(profile), strategyHash: payload.strategyHash, programHash: payload.programHash, orderHash: payload.orderHash,
-    tokens: payload.tokens, amounts: payload.amounts, transactions: [tx('erc20-approve', payload.tokens[0]), tx('erc20-approve', payload.tokens[1]), tx('aqua-ship', profile.aqua)], preconditions: ['fresh read'], registrationReady: false };
+  const plan = makePlan('registration', 'plan', profile, d, artifact.artifactId, payload);
   const result = { plan, digest: digestJson(plan) };
   assert.deepEqual(verifyTransactionPlan(result, d, artifact, 'registration'), result);
+  const tampered = structuredClone(plan); tampered.transactions[0].data = '0x1234';
+  assert.throws(() => verifyTransactionPlan({ plan: tampered, digest: digestJson(tampered) }, d, artifact, 'registration'), /calldata/);
   assert.throws(() => verifyTransactionPlan({ ...result, digest: '0x' + '11'.repeat(32) }, d, artifact, 'registration'));
   assert.throws(() => verifyTransactionPlan({ plan: { ...plan, transactions: plan.transactions.slice(0, 1) }, digest: digestJson({ ...plan, transactions: plan.transactions.slice(0, 1) }) }, d, artifact, 'registration'));
   assert.equal(isReportEvidenceHash('0x' + 'ab'.repeat(32)), true);

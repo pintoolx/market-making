@@ -21,12 +21,22 @@ const keys = await generateKeyPair('ES256');
 const { publicKey: workflowPublicKey, checkFixturePolicy } = await import(new URL('../../../../.cache/builder/private-check.mjs', import.meta.url));
 const token = await new SignJWT({ sid: 'browser-session' }).setProtectedHeader({ alg: 'ES256', typ: 'JWT' }).setIssuer('privy.io')
   .setAudience(appId).setSubject('did:privy:browser').setIssuedAt().setExpirationTime('1h').sign(keys.privateKey);
+let walletFixture;
+try {
+  walletFixture = process.env.BUILDER_BROWSER_WALLET_FORK === '1' ? await (await import('./wallet-fixture.mjs')).createWalletFixture(pool) : undefined;
+} catch (error) {
+  await pool.end(); await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`); await admin.end();
+  throw error;
+}
 const handler = builderHandler(pool, { origin, chainId: 11155111, profileId: profile.id, privyAppId: appId, designEnabled: true, simulationEnabled: true },
-  { verifyPrivy: createPrivyVerifier(appId, keys.publicKey), templates: { workflowPublicKey }, inventoryAdapter: fixtureInventory });
+  { verifyPrivy: createPrivyVerifier(appId, keys.publicKey), templates: { workflowPublicKey }, inventoryAdapter: fixtureInventory,
+    ...(walletFixture ? { walletChain: walletFixture.walletChain } : {}) });
 const store = createStore(pool, profile.id), turns = createTurns(pool), shutdown = new AbortController();
 const server = createServer(async (req, res) => {
   try {
     if (req.url === '/fixture/token') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ token })); return; }
+    if (walletFixture && req.url === '/fixture/wallet') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ rpcUrl: walletFixture.rpcUrl })); return; }
+    if (walletFixture && req.url?.startsWith('/fixture/wallet-action/')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(await walletFixture.action(req.url.split('/').at(-1)))); return; }
     if (req.url?.startsWith('/fixture/simulation-control?')) {
       const params = new URL(req.url, origin).searchParams;
       fixtureSimulationControl.delayMs = params.get('slow') === 'true' ? 8000 : 1000;
@@ -54,6 +64,7 @@ const server = createServer(async (req, res) => {
 try {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(3311, '127.0.0.1', resolve); });
 } catch {
+  await walletFixture?.stop();
   await pool.end(); await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`); await admin.end();
   throw new Error('Owned browser fixture could not listen on port 3311');
 }
@@ -112,6 +123,7 @@ let stopping = false;
 async function stop() {
   if (stopping) return; stopping = true; shutdown.abort();
   server.closeAllConnections(); server.close(); await Promise.all([worker, simulationWorker]);
+  await walletFixture?.stop();
   await pool.end(); await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`); await admin.end();
 }
 process.once('SIGTERM', () => void stop()); process.once('SIGINT', () => void stop());

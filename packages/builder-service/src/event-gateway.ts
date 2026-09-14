@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { sepoliaStandingProfile } from '@pintool/strategy-builder'
 import { DeliveryNotSentError, type EventDeliveryDependencies, type EvaluationResult, type DeliveryReceipt, type DeliveryReconciliation } from './event-delivery.ts'
 import { ServiceError } from './errors.ts'
 
@@ -7,10 +8,11 @@ const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/)
 const owner = z.string().regex(/^wallet:0x[0-9a-fA-F]{40}$/)
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/)
 const nonce = z.string().regex(/^[1-9][0-9]{0,19}$/).refine(value => /^[1-9][0-9]{0,19}$/.test(value) && BigInt(value) <= 18446744073709551615n)
+const nonceFloor = z.union([z.literal('0'), nonce])
 const date = z.string().datetime({ offset: true })
 const jsonObject = z.record(z.string(), z.unknown())
 const evaluationResponse = z.union([
-  z.object({ status: z.literal('changed'), reportHash: hash, report: jsonObject, observedAt: date.optional() }).strict(),
+  z.object({ status: z.literal('changed'), reportHash: hash, report: jsonObject, nonceFloor: nonceFloor.optional(), chainStateChanged: z.boolean().optional(), observedAt: date.optional() }).strict(),
   z.object({ status: z.enum(['unchanged', 'paused', 'failed']), reportHash: hash.optional(), report: jsonObject.optional(), reason: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(), observedAt: date.optional() }).strict(),
 ])
 const receiptResponse = z.object({ transactionHash: hash, receipt: jsonObject.optional() }).strict()
@@ -81,12 +83,14 @@ export function createHttpEventGateway(options: EventGatewayOptions): EventDeliv
 
   return {
     async evaluate(input) {
+      const identity = input.binding ?? { ...input.artifact.payload, guard: input.artifact.payload.decoded.guard, router: sepoliaStandingProfile.router }
+      // The HTTP gateway must authenticate this reference independently.
       const value = await post(evaluatorUrl, {
         schemaVersion: 1, operation: 'evaluate',
         owner: owner.parse(input.subscription.owner), draftId: input.subscription.draftId, revision: input.subscription.revision,
         artifactId: input.subscription.artifactId, consentId: input.subscription.consentId, generation: input.subscription.generation,
-        strategyHash: hash.parse(input.binding.strategyHash), manifestHash: hash.parse(input.binding.manifestHash), contentDigest: hash.parse(input.binding.contentDigest),
-        guard: address.parse(input.binding.guard), router: address.parse(input.binding.router), event: input.event,
+        strategyHash: hash.parse(identity.strategyHash), manifestHash: hash.parse(identity.manifestHash), contentDigest: hash.parse(identity.contentDigest),
+        guard: address.parse(identity.guard), router: address.parse(identity.router), event: input.event,
       })
       return evaluationResponse.parse(value) as EvaluationResult
     },

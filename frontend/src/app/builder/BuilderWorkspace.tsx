@@ -12,7 +12,7 @@ import RequirementReviewDialog from './RequirementReviewDialog';
 import type { Account } from '../providers/useAccount';
 import styles from './builder.module.css';
 
-type Identity = Pick<Account, 'ready' | 'enabled' | 'authenticated' | 'address' | 'userId' | 'login' | 'signMessage' | 'getAccessToken'>;
+type Identity = Pick<Account, 'ready' | 'enabled' | 'authenticated' | 'address' | 'userId' | 'login' | 'signMessage' | 'getAccessToken' | 'evmWallet'>;
 const curveNames = { xyc: 'Constant product', concentrated: 'Fixed-range CLMM', pegged: 'Pegged curve' };
 const fields: Record<string, string> = { 'spec.baseToken': 'Base token', 'spec.quoteToken': 'Quote token', 'spec.model': 'Market-making curve',
   'spec.model.minPrice': 'Minimum price', 'spec.model.maxPrice': 'Maximum price', 'spec.model.referencePrice': 'Reference price',
@@ -280,7 +280,7 @@ export default function BuilderWorkspace({ identity }: { identity: Identity }) {
       </div>
       {publisherOpen && draft?.kind === 'template' && api.current && identity.signMessage && <TemplatePublisher key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPublisherOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
       {requirementReviewOpen && draft && api.current && <RequirementReviewDialog key={`${draft.id}-${draft.revision}`} api={api.current} draft={draft} onClose={() => setRequirementReviewOpen(false)} onComplete={() => { setRequirementReviewOpen(false); void retry(); }} />}
-      {preparationOpen && draft?.kind === 'maker' && api.current && identity.signMessage && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
+      {preparationOpen && draft?.kind === 'maker' && api.current && identity.signMessage && <MakerPreparation key={`${identity.address}-${draft.id}-${draft.revision}`} api={api.current} draft={draft} signMessage={identity.signMessage} wallet={identity.evmWallet ? () => identity.evmWallet!(draft.maker) : undefined} onClose={() => { setPreparationOpen(false); void retry(); }} onSessionExpired={sessionExpired} />}
       {catalogOpen && api.current && identity.address && identity.signMessage && <TemplateCatalog key={identity.address} api={api.current} address={identity.address} signMessage={identity.signMessage} onClose={() => { setCatalogOpen(false); void retry(); }} onSessionExpired={sessionExpired} onApply={async result => {
         await choose({ conversationId: result.conversationId, draftId: result.draft.id, title: result.draft.spec.title, revision: String(result.draft.revision), activeTurnId: null });
       }} />}

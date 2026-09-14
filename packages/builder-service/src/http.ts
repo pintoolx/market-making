@@ -15,6 +15,9 @@ import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
 import { createTemplates, type TemplateOptions } from './templates.ts'
 import { createRequirementReviews } from './requirement-reviews.ts'
 import { createTransactionPlans } from './transaction-plans.ts'
+import { createWalletExecution } from './wallet-execution.ts'
+import type { WalletChain } from './wallet-chain.ts'
+import { outagePolicySchema } from './outage-policy.ts'
 import { createAutomation } from './automation.ts'
 import { createEventDelivery } from './event-delivery.ts'
 import type { EventIngress } from './event-adapters.ts'
@@ -36,8 +39,8 @@ const readJson = (request: IncomingMessage) => new Promise<unknown>((resolve, re
 })
 
 /** Mount under /v1/builder in the existing Node service. No request can submit system/tool history or an owner. */
-export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string },
-  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'>; binding?: BindingDependencies; eventIngress?: EventIngress } = {}) {
+export function builderHandler(pool: Pool, config: { origin: string; chainId: number; profileId: string; designEnabled?: boolean; simulationEnabled?: boolean; privyAppId?: string; outagePolicyEnabled?: boolean },
+  dependencies: { verifyPrivy?: ReturnType<typeof createPrivyVerifier>; inventoryAdapter?: InventoryAdapter; templates?: Omit<TemplateOptions, 'origin'>; binding?: BindingDependencies; eventIngress?: EventIngress; walletChain?: WalletChain } = {}) {
   const auth = createAuth(pool, config), store = createStore(pool, config.profileId), turns = createTurns(pool)
   const verifyPrivy = config.privyAppId ? dependencies.verifyPrivy ?? createPrivyVerifier(config.privyAppId) : undefined
   const artifacts = config.profileId === sepoliaStandingProfile.id ? createArtifacts(pool, sepoliaStandingProfile) : undefined
@@ -47,6 +50,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
   const templates = artifacts && dependencies.templates ? createTemplates(pool, sepoliaStandingProfile, { ...dependencies.templates, origin: config.origin }) : undefined
   const requirementReviews = artifacts ? createRequirementReviews(pool, sepoliaStandingProfile) : undefined
   const transactionPlans = artifacts ? createTransactionPlans(pool, sepoliaStandingProfile) : undefined
+  const walletExecution = artifacts && dependencies.walletChain ? createWalletExecution(pool, sepoliaStandingProfile, dependencies.walletChain) : undefined
   const automation = artifacts ? createAutomation(pool, sepoliaStandingProfile) : undefined
   const events = artifacts ? createEventDelivery(pool, sepoliaStandingProfile) : undefined
   const bindings = artifacts ? createAuthorizationBindings(pool, sepoliaStandingProfile, dependencies.binding ?? {}) : undefined
@@ -109,7 +113,7 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         if ([...url.searchParams.keys()].some(key => key !== 'limit')) throw new ServiceError('invalid-request')
         const limitValue = url.searchParams.get('limit')
         const limit = limitValue === null ? 100 : z.coerce.number().int().positive().max(500).parse(limitValue)
-        return send({ health: await events.readHealth(limit) })
+        return send({ health: await events.readHealth(limit), outagePauseEnabled: config.outagePolicyEnabled === true })
       }
       const requestId = request.headers['idempotency-key']
       if (post && (typeof requestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/.test(requestId))) throw new ServiceError('idempotency-key-required')
@@ -132,12 +136,31 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
         const body = z.object({ expectedRevision: z.number().int().positive() }).strict().parse(await readJson(request))
         return send(await requirementReviews.prepare(actor.owner, requestId as string, { draftId: reviewDraft[1], ...body }))
       }
-      const planRoute = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/(registration-plan|cancellation-plan)$/)
+      const walletDraft = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/wallet-transactions$/)
+      if (walletDraft && !post) {
+        if (!transactionPlans) throw new ServiceError('profile-unavailable', 503)
+        return send({ enabled: !!walletExecution, plans: await transactionPlans.list(actor.owner, walletDraft[1]!), executions: walletExecution ? await walletExecution.list(actor.owner, walletDraft[1]!) : [] })
+      }
+      if (route === '/wallet-transactions/prepare' && post) {
+        if (!walletExecution) throw new ServiceError('wallet-execution-unavailable', 503)
+        return send(await walletExecution.prepare(actor.owner, requestId as string, await readJson(request)))
+      }
+      const walletAction = route.match(/^\/wallet-transactions\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/(reconcile|rejected)$/)
+      if (walletAction && post) {
+        if (!walletExecution) throw new ServiceError('wallet-execution-unavailable', 503)
+        const body = z.object({ transactionHash: z.string().regex(/^0x[0-9a-fA-F]{64}$/).optional() }).strict().parse(await readJson(request))
+        return send(walletAction[2] === 'reconcile'
+          ? await walletExecution.reconcile(actor.owner, { executionId: walletAction[1], ...body })
+          : await walletExecution.rejected(actor.owner, requestId as string, walletAction[1]!))
+      }
+      const planRoute = route.match(/^\/drafts\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/(registration-plan|cancellation-plan|guard-revoke-plan|guard-unrevoke-plan|allowance-revoke-plan)$/)
       if (planRoute && post) {
         if (!transactionPlans) throw new ServiceError('profile-unavailable', 503)
         const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
         const input = { draftId: planRoute[1], ...body }
-        return send(planRoute[2] === 'registration-plan' ? await transactionPlans.prepareRegistration(actor.owner, requestId as string, input) : await transactionPlans.prepareCancellation(actor.owner, requestId as string, input))
+        return send(planRoute[2] === 'registration-plan' ? await transactionPlans.prepareRegistration(actor.owner, requestId as string, input)
+          : planRoute[2] === 'cancellation-plan' ? await transactionPlans.prepareCancellation(actor.owner, requestId as string, input)
+          : await transactionPlans.prepareControl(actor.owner, requestId as string, planRoute[2]!.slice(0, -5) as 'guard-revoke' | 'guard-unrevoke' | 'allowance-revoke', input))
       }
       const automationConfirm = route.match(/^\/automation-consents\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/(confirm|revoke)$/)
       if (automationConfirm && post) {
@@ -160,8 +183,14 @@ export function builderHandler(pool: Pool, config: { origin: string; chainId: nu
           const expectedRevision = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(url.searchParams.get('revision'))
           return send(await automation.current(actor.owner, automationDraft[1]!, expectedRevision))
         }
-        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/) }).strict().parse(await readJson(request))
+        const body = z.object({ expectedRevision: z.number().int().positive(), artifactId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/), outagePolicy: outagePolicySchema.optional() }).strict().parse(await readJson(request))
+        if (body.outagePolicy && !config.outagePolicyEnabled) throw new ServiceError('outage-pause-unavailable', 503)
         return send(await automation.prepare(actor.owner, requestId as string, { draftId: automationDraft[1], ...body }))
+      }
+      const eventDeliveries = route.match(/^\/event-subscriptions\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/deliveries$/)
+      if (eventDeliveries && !post) {
+        if (!events) throw new ServiceError('builder-profile-unavailable', 503)
+        return send({ deliveries: await events.deliveries(actor.owner, eventDeliveries[1]!) })
       }
       const eventSubscriptionAction = route.match(/^\/event-subscriptions\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,95})\/stop$/)
       if (eventSubscriptionAction && post) {

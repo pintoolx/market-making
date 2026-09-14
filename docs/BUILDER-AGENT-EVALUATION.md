@@ -87,3 +87,28 @@ The API supports app-pinned Privy verification plus EOA wallet proof; production
 ## Pinned Provider permissions
 
 `eval-template-agent.ts` passed four real OpenAI turns after a synthetic Provider wallet published a signed immutable version and a different Maker applied it through authenticated HTTP. The agent reads the public original-baseline permissions, narrows CLMM and a cap while editing its personal title, refuses an out-of-bounds price request without mutation, then restores revision 1 and changes only the USDC allocation. A first evaluation exposed an incorrect claim that the personal title was locked; explicit `makerEditable`/`lockedSpecFields` context fixed this, and the complete final evaluation passed again. [Evidence](builder-templates/agent-evaluation.json) includes a real Kraken market-proxy observation, immutable version pin and every turn. It uses synthetic ciphertext; private policy decryption, DON/TEE delivery and public-chain writes are not claimed. [Protocol and remaining product work](BUILDER-PROVIDER-TEMPLATES.md).
+
+## Current capability/lifecycle evaluation (2026-09-14)
+
+`eval-capability-lifecycle.ts` passed three real OpenAI turns against disposable
+PostgreSQL. The Agent inspected the catalog and current service/consent evidence,
+explained that full SwapVM coverage and 30 bps Guard fees are unavailable, refused
+to bypass validation or silently choose zero fees, and then changed only CLMM's
+upper price from 2800 to 2750 after explicit zero-fee acceptance. All other caps,
+allocations, tokens, lower bound and deadline were preserved; read-only turns
+left the entire draft unchanged. [Public evidence](builder-cre-verification/capability-lifecycle-agent.json)
+records prompts, replies, revisions and tool events. No wallet/report capability
+was enabled in this fixture and no public-chain transaction was sent.
+
+The first actual API run exposed an OpenAI strict-schema rejection before tool
+execution: nested `oneOf` and optional properties in `createOrPatchDraft`.
+Model-facing criteria now use disjoint tagged `anyOf` alternatives and required
+nullable fields. Application-facing parsing retains backwards-compatible optional
+criteria. A regression serializes all twelve actual AI SDK tool schemas and
+checks that every object disallows extra properties, requires its properties
+and contains no `oneOf`. The complete real three-turn run passed after this fix.
+
+The model now receives public lifecycle outcomes with their revision/receipt
+block and separate runtime flags. It cannot treat catalog implementation status,
+prepared plans, old receipts or absent consent as current trading readiness.
+Nonzero fees remain blocked for the [reproduced Guard limitation](BUILDER-FEE-GUARD-LIMITATION.md).

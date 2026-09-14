@@ -35,9 +35,7 @@ test('range conversion handles inverted addresses and 18/6 decimals using intege
   assert.equal(s.order.data.slice(148, 152), '1100')
   assert.equal(s.envelope.slice(0, 4), '0x02')
   assert.throws(() => compileGuarded(p, f.guard, caps), /Guard v2/)
-  const fee = compileGuardedV2({ ...p, program: { ...p.program, feeBps: 1 } }, guard, caps)
-  assert.equal(fee.params.program.feeBps, 1)
-  assert.equal(fee.envelope.slice(0, 4), '0x02')
+  assert.throws(() => compileGuardedV2({ ...p, program: { ...p.program, feeBps: 1 } }, guard, caps), /zero fee/)
   const invalid = { ...p, program: { ...p.program, sqrtPriceMax: p.program.sqrtPriceMin } }
   assert.throws(() => compile(invalid), /bounds/)
 })

@@ -1,0 +1,28 @@
+{
+  "kind": "builder-cre-result",
+  "schemaVersion": 1,
+  "requestId": "builder-public-cli-v1",
+  "evidenceMode": "cre-local-simulation",
+  "termsHash": "0xacfed65cd47677e2ffcda25de17dfbb862a8823187f8a246c4a06cf64dd37c9c",
+  "phase": "evaluate",
+  "status": "evaluated",
+  "report": {
+    "schemaVersion": "2",
+    "chainId": "11155111",
+    "guard": "0x64f6e18e85dae5ec2ee44fe7f9fc66cf2a1f056f",
+    "router": "0x47a875f39ba4b0d0beaa928bb071d4b4da0b4092",
+    "maker": "0x24f93609de41a839f411d18f3ee242c5089caad7",
+    "strategyHash": "0x404b5695e6733ad52c2402a43991c4a3d50181adb1ed94d8c1f404d319899a85",
+    "token0": "0xfff9976782d46cc05630d1f6ebab18b2324d6b14",
+    "token1": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "nonce": "1789309643",
+    "validAfter": "1789309643",
+    "validUntil": "0",
+    "allowedDirections": "3",
+    "maxAmount0PerSwap": "400000000000000",
+    "maxAmount1PerSwap": "1000000",
+    "maxPostBalance0": "10000000000000000",
+    "maxPostBalance1": "25000000"
+  },
+  "observedAt": "2026-09-13T14:27:23.280Z"
+}

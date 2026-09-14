@@ -17,12 +17,16 @@ cleanup() {
 }
 trap cleanup EXIT
 builder_fixture_ready=false
-for ((builder_fixture_attempt=0; builder_fixture_attempt<100; builder_fixture_attempt++)); do
+for ((builder_fixture_attempt=0; builder_fixture_attempt<3000; builder_fixture_attempt++)); do
   if ! kill -0 "$builder_fixture_pid" 2>/dev/null; then cat .cache/builder/browser-server.log; exit 1; fi
   if curl --silent --fail http://127.0.0.1:3311/fixture/token --output /dev/null; then builder_fixture_ready=true; break; fi
   sleep 0.1
 done
 if [[ "$builder_fixture_ready" != true ]]; then cat .cache/builder/browser-server.log; exit 1; fi
-python3 packages/builder-service/test/browser/run.py
-python3 packages/builder-service/test/browser/templates.py
-python3 packages/builder-service/test/browser/preparation.py
+if [[ "${BUILDER_BROWSER_WALLET_FORK:-0}" == '1' ]]; then
+  python3 packages/builder-service/test/browser/wallet.py
+else
+  python3 packages/builder-service/test/browser/run.py
+  python3 packages/builder-service/test/browser/templates.py
+  python3 packages/builder-service/test/browser/preparation.py
+fi

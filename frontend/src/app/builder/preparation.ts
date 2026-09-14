@@ -1,4 +1,5 @@
 import { canonical, contentDigest, decodeGuardedOrder, digestJson, sepoliaStandingProfile as profile } from '@pintool/strategy-builder';
+import { encodeFunctionData, erc20Abi, parseAbi } from 'viem';
 import type { Draft, Token, TransactionPlan } from './client';
 
 // Public browser projections. No executor, worker, signer or provider transport is imported.
@@ -64,12 +65,30 @@ export const isReportNonce = (value: string) => /^[1-9][0-9]{0,19}$/.test(value)
 /** Check a server-created unsigned plan before displaying calldata to a wallet. */
 export function verifyTransactionPlan(value: { plan: TransactionPlan; digest: `0x${string}` }, draft: Draft, artifact: Compilation, expectedKind: TransactionPlan['kind']) {
   const p = value.plan, payload = artifact.payload;
+  const decoded = decodeGuardedOrder(payload.strategy);
+  if (canonical(decoded) !== canonical(payload.decoded) || decoded.maker !== draft.maker || decoded.guard !== profile.guard ||
+    decoded.strategyHash !== payload.strategyHash || decoded.programHash !== payload.programHash || decoded.orderHash !== payload.orderHash ||
+    canonical(payload.tokens) !== canonical([decoded.baseToken, decoded.quoteToken]) ||
+    !payload.tokens.every(t => profile.tokens.some(known => known.address === t)) ||
+    (['registration', 'guard-unrevoke'].includes(expectedKind) && decoded.feeBps !== 0)) throw new Error('preparation-result-mismatch');
+  if (expectedKind === 'registration') verifyCompilation(artifact, draft);
   if (value.digest !== digestJson(p) || p.schemaVersion !== 1 || p.kind !== expectedKind || p.registrationReady !== false || p.chainId !== profile.chainId ||
-    p.owner !== draft.owner || p.maker.toLowerCase() !== draft.maker?.toLowerCase() || p.draftId !== draft.id || p.revision !== draft.revision || p.artifactId !== artifact.artifactId ||
-    p.contentDigest !== contentDigest(draft) || p.manifestHash !== digestJson(profile) || p.strategyHash !== payload.strategyHash || p.programHash !== payload.programHash || p.orderHash !== payload.orderHash ||
+    p.owner !== draft.owner || p.maker.toLowerCase() !== draft.maker?.toLowerCase() || p.draftId !== draft.id || p.revision !== payload.revision || p.artifactId !== artifact.artifactId ||
+    (expectedKind === 'registration' && (p.revision !== draft.revision || p.contentDigest !== contentDigest(draft))) ||
+    p.contentDigest !== payload.contentDigest || p.manifestHash !== digestJson(profile) || p.strategyHash !== payload.strategyHash || p.programHash !== payload.programHash || p.orderHash !== payload.orderHash ||
     canonical(p.tokens) !== canonical(payload.tokens) || canonical(p.amounts) !== canonical(payload.amounts) || !p.preconditions.length ||
-    p.transactions.length !== (expectedKind === 'registration' ? 3 : 1) || p.transactions.some(t => t.value !== '0x0' || !/^0x[0-9a-fA-F]{40}$/.test(t.to) || !/^0x[0-9a-fA-F]*$/.test(t.data) || !t.description))
+    p.transactions.length !== (expectedKind === 'registration' ? 3 : expectedKind === 'allowance-revoke' ? 2 : 1) || p.transactions.some(t => t.value !== '0x0' || !/^0x[0-9a-fA-F]{40}$/.test(t.to) || !/^0x[0-9a-fA-F]*$/.test(t.data) || !t.description))
     throw new Error('preparation-result-mismatch');
+  const abi = parseAbi(['function ship(address app,bytes strategy,address[] tokens,uint256[] amounts) returns (bytes32)',
+    'function dock(address app,bytes32 strategyHash,address[] tokens)', 'function setStrategyRevoked(bytes32 strategyHash,bool revoked)']);
+  const approvals = (revoke: boolean) => p.tokens.map((token, i) => ({ kind: 'erc20-approve', to: token,
+    data: encodeFunctionData({ abi: erc20Abi, functionName: 'approve', args: [profile.aqua, revoke ? 0n : BigInt(p.amounts[i])] }) }));
+  const expected = p.kind === 'registration' ? [...approvals(false), { kind: 'aqua-ship', to: profile.aqua,
+    data: encodeFunctionData({ abi, functionName: 'ship', args: [profile.router, payload.strategy, p.tokens, p.amounts.map(BigInt)] }) }]
+    : p.kind === 'allowance-revoke' ? approvals(true)
+    : p.kind === 'cancellation' ? [{ kind: 'aqua-dock', to: profile.aqua, data: encodeFunctionData({ abi, functionName: 'dock', args: [profile.router, p.strategyHash, p.tokens] }) }]
+    : [{ kind: p.kind, to: profile.guard, data: encodeFunctionData({ abi, functionName: 'setStrategyRevoked', args: [p.strategyHash, p.kind === 'guard-revoke'] }) }];
+  if (canonical(p.transactions.map(({ kind, to, data }) => ({ kind, to, data }))) !== canonical(expected)) throw new Error('wallet-calldata-mismatch');
   return value;
 }
 

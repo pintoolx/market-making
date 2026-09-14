@@ -9,9 +9,15 @@ import { encodePublicReport, requireCurrent, sameStandingAuthorization } from '.
 import { CHAIN_NAME, CHAIN_ID, receiverAbi, transportSchema } from './config'
 export { CHAIN_NAME, CHAIN_ID, SIMULATION_FORWARDER, receiverAbi, transportSchema } from './config'
 export const chainSelector = getNetwork({ chainFamily: 'evm', chainSelectorName: CHAIN_NAME, isTestnet: true })!.chainSelector.selector
+export type PublicDeliveryResult = {
+  changed: boolean; profile: 'cre-simulation' | 'cre-production'; chainId: string;
+  strategyHash: Hex; nonce: string; reportDigest: Hex; transactionHash?: Hex;
+}
+/** Proven pre-write conflict. Other exceptions may follow a successful write. */
+export class ReportNonceStaleError extends Error {}
 
 /** B route: DON report -> EVM writeReport -> configured forwarder -> Guard.onReport. */
-export function submitPublicReport(runtime: Runtime<unknown>, publicInput: unknown, transportInput: unknown) {
+export function submitPublicReport(runtime: Runtime<unknown>, publicInput: unknown, transportInput: unknown, options: { exactNonce?: boolean } = {}): PublicDeliveryResult {
   let encoded = encodePublicReport(publicInput)
   const transport = transportSchema.safeParse(transportInput)
   if (!transport.success) throw new Error('invalid Guard transport configuration')
@@ -53,6 +59,7 @@ export function submitPublicReport(runtime: Runtime<unknown>, publicInput: unkno
       }
       // Serialize against actual Guard state, including same-second reevaluations.
       if (BigInt(report.nonce) <= BigInt(saved.report.nonce)) {
+        if (options.exactNonce) throw new ReportNonceStaleError('Builder report nonce is stale; reevaluate before delivery')
         encoded = encodePublicReport({ ...report, nonce: String(BigInt(saved.report.nonce) + 1n) })
         ;({ report, payload, digest } = encoded)
       }
@@ -77,7 +84,7 @@ export function submitPublicReport(runtime: Runtime<unknown>, publicInput: unkno
 }
 
 /** Integration hook for a real confidential evaluator. Only validated PUBLIC output leaves the TEE. */
-export function submitPublicReportFromTee(runtime: TeeRuntime<unknown>, publicInput: unknown, transportInput: unknown) {
+export function submitPublicReportFromTee(runtime: TeeRuntime<unknown>, publicInput: unknown, transportInput: unknown, options: { exactNonce?: boolean } = {}) {
   const { report } = encodePublicReport(publicInput)
-  return submitPublicReport(runtime.usingTheDons(), report, transportInput)
+  return submitPublicReport(runtime.usingTheDons(), report, transportInput, options)
 }

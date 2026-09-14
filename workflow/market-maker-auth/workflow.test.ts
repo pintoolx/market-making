@@ -405,3 +405,44 @@ describe('scenario isolation', () => {
     expect(crossedToDons()).toBe(0)
   })
 })
+
+describe('Builder two-phase simulation', () => {
+  const envelope = { maxAmount0PerSwap: '100000000000000000', maxAmount1PerSwap: '1000000000',
+    maxPostBalance0: '2000000000000000000', maxPostBalance1: '9000000000' }
+  test('consented pause requires no market or secret capability and only returns zero authority', () => {
+    const t = makeFakeTeeRuntime()
+    t.runtime.config = configSchema.parse({ ...makeConfig(), marketSource: 'kraken', marketSnapshot: undefined,
+      builderSimulation: true, builderPause: true, builderEnvelope: envelope })
+    const value = JSON.parse(onHttpTrigger(t.runtime, httpPayload({ requestId: 'outage-evaluation', maker: t.runtime.config.maker,
+      strategyHash: t.runtime.config.strategyHash, builder: { phase: 'evaluate' } })))
+    expect(value.report.allowedDirections).toBe('0')
+    for (const key of Object.keys(envelope)) expect(value.report[key]).toBe('0')
+    expect(t.secretCalls).toEqual([]); expect(t.crossedToDons()).toBe(0)
+    expect(() => configSchema.parse({ ...makeConfig(), builderPause: true })).toThrow('trusted Builder')
+  })
+  test('evaluation uses public atomic Maker caps and only a Provider secret; no write or private output', () => {
+    const t = makeFakeTeeRuntime({ PROVIDER_STRATEGY: JSON.stringify(PROVIDER) })
+    t.runtime.config = configSchema.parse({ ...makeConfig(), builderSimulation: true, builderEnvelope: envelope })
+    const value = JSON.parse(onHttpTrigger(t.runtime, httpPayload({ requestId: 'builder-evaluate', maker: t.runtime.config.maker,
+      strategyHash: t.runtime.config.strategyHash, marketSnapshot: t.runtime.config.marketSnapshot, builder: { phase: 'evaluate' } })))
+    expect(value).toMatchObject({ phase: 'evaluate', status: 'evaluated', evidenceMode: 'cre-local-simulation',
+      report: { schemaVersion: '2', validUntil: '0', allowedDirections: '3', ...envelope } })
+    expect(t.secretCalls).toEqual([['PROVIDER_STRATEGY']])
+    expect(t.crossedToDons()).toBe(0)
+    expect(t.logs.join('\n')).not.toContain('calm-two-sided')
+    expect(t.logs.join('\n')).not.toContain('volatilityBpsMax')
+  })
+  test('explicit HTTP phase and fixed Maker/hash required before secret access', () => {
+    const t = makeFakeTeeRuntime()
+    const input = { requestId: 'builder-test', maker: t.runtime.config.maker, strategyHash: t.runtime.config.strategyHash, builder: { phase: 'evaluate' } }
+    expect(() => onHttpTrigger(t.runtime, httpPayload(input))).toThrow('disabled')
+    t.runtime.config = configSchema.parse({ ...makeConfig(), builderSimulation: true, builderEnvelope: envelope })
+    expect(() => onCronTrigger(t.runtime)).toThrow('HTTP event')
+    expect(() => onHttpTrigger(t.runtime, httpPayload({ ...input, maker: SEALED_MAKER_ADDRESS }))).toThrow('provisioned Maker')
+    expect(() => onHttpTrigger(t.runtime, httpPayload({ ...input, strategyHash: `0x${'6'.repeat(64)}` }))).toThrow('provisioned Maker')
+    expect(() => onHttpTrigger(t.runtime, httpPayload({ ...input, makerLimitsEnvelope: SEALED_MAKER }))).toThrow('provisioned Maker')
+    expect(() => onHttpTrigger(t.runtime, httpPayload({ ...input, builder: { phase: 'deliver', deliveryId: '12345678-1234-4234-8234-123456789012',
+      nonce: '1', validAfter: '1800000000', termsHash: `0x${'1'.repeat(64)}` } }))).toThrow('simulation transport')
+    expect(t.secretCalls).toEqual([])
+  })
+})

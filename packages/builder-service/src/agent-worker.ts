@@ -9,9 +9,10 @@ import { createSimulations } from './simulations.ts'
 import { createPreviews } from './previews.ts'
 import { createInventoryReader, type InventoryAdapter } from './inventory.ts'
 import { createTransactionPlans } from './transaction-plans.ts'
+import { readLifecycleStatus } from './lifecycle-status.ts'
 
 /** One durable turn; called by a long-lived worker, never owned by an HTTP connection. */
-export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal, preparation: { simulationEnabled?: boolean; inventoryAdapter?: InventoryAdapter } = {}) {
+export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, model: LanguageModel, turn: ClaimedTurn, signal?: AbortSignal, preparation: { simulationEnabled?: boolean; inventoryAdapter?: InventoryAdapter; walletEnabled?: boolean; eventUpdatesEnabled?: boolean; outagePauseEnabled?: boolean } = {}) {
   const turns = createTurns(pool), store = createStore(pool, profile.id, turn), artifacts = createArtifacts(pool, profile, turn), abort = new AbortController()
   const simulations = createSimulations(pool, profile, turn), plans = createTransactionPlans(pool, profile)
   const previews = createPreviews(pool, profile, turn)
@@ -41,6 +42,11 @@ export async function runDesignTurn(pool: Pool, profile: DeploymentProfile, mode
         restore: (requestId, expectedRevision, revision) => store.restore(turn.owner, requestId, { draftId: turn.draftId, expectedRevision, revision }),
         history: () => store.history(turn.owner, turn.draftId),
         templateContext: expectedRevision => store.templateContext(turn.owner, turn.draftId, expectedRevision),
+        lifecycleStatus: async () => ({ ...await readLifecycleStatus(pool, turn.owner, turn.draftId), service: {
+          walletEnabled: preparation.walletEnabled === true, eventUpdatesEnabled: preparation.eventUpdatesEnabled === true,
+          outagePauseEnabled: preparation.outagePauseEnabled === true, simulationEnabled: preparation.simulationEnabled === true,
+          inventoryEnabled: !!preparation.inventoryAdapter,
+        } }),
         compile: (requestId, expectedRevision) => artifacts.compile(turn.owner, requestId, { draftId: turn.draftId, expectedRevision }),
         compilations: () => artifacts.list(turn.owner, turn.draftId),
         ...(preparation.simulationEnabled ? { simulate: (requestId: string, expectedRevision: number, artifactId: string) =>

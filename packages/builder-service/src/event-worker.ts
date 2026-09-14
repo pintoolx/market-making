@@ -6,8 +6,9 @@ import { createOutboxDispatcher, type OutboxEntry } from './outbox.ts'
 
 const wait = (ms: number, signal: AbortSignal) => new Promise<void>(resolve => {
   if (signal.aborted) return resolve()
-  const timer = setTimeout(resolve, ms)
-  signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+  const finish = () => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
+  const timer = setTimeout(finish, ms)
+  signal.addEventListener('abort', finish, { once: true })
 })
 
 export type EventWorkerOptions = { pollMs?: number; leaseMs?: number; signal?: AbortSignal; onError?: (error: unknown) => void; sources?: EventSource[]; outbox?: (entry: OutboxEntry) => Promise<void> }
@@ -36,6 +37,7 @@ export async function runEventWorker(pool: Pool, profile: DeploymentProfile, dep
             initializedSources.add(source.source)
           }
           const batch = await source.poll(signal, sourceCursors.get(source.source))
+          if (batch.skipped) continue
           for (const eventId of batch.reorgedEventIds ?? []) await service.markReorg(source.source, eventId)
           for (const event of batch.events) { if (signal.aborted) break; await service.ingest(event) }
           const health = sourceHealth.get(source.source) === 'error' ? 'recovered' : 'healthy'
@@ -53,6 +55,8 @@ export async function runEventWorker(pool: Pool, profile: DeploymentProfile, dep
       }
     }
     try {
+      const healthJobs = await service.scheduleHealthEvaluations()
+      worked = worked || healthJobs > 0
       const job = await service.claimEvaluation(leaseMs)
       if (job) {
         worked = true

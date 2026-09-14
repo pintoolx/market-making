@@ -192,3 +192,43 @@ test('HTTP template endpoints require wallet authentication, configuration and s
     assert.equal((await call('/templates')).status,200)
   } finally {server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()))}
 })
+
+test('trusted workflow input provisions exact signed Provider version and compiled Maker caps without catalog edits', async () => {
+  const { createTrustedWorkflowInput } = await import('../src/workflow-input.ts')
+  const { createAutomation, revokeMessage } = await import('../src/automation.ts')
+  const p = await prepared(), saved = await p.t.publish(p.owner, randomUUID(), p.input), maker = person()
+  const { draft } = await p.t.instantiate(maker.owner, randomUUID(), instanceInput(saved))
+  const artifacts = createArtifacts(pool, profile), artifact = await artifacts.compile(maker.owner, randomUUID(), { draftId: draft.id, expectedRevision: draft.revision })
+  const automation = createAutomation(pool, profile), intent = await automation.prepare(maker.owner, randomUUID(), { draftId: draft.id, expectedRevision: draft.revision, artifactId: artifact.artifactId })
+  const { consent } = await automation.confirm(maker.owner, randomUUID(), { intentId: intent.intent.id, digest: intent.digest, signature: await maker.account.signMessage({ message: intent.intent.message }) })
+  const ref = { owner: maker.owner, draftId: draft.id, revision: draft.revision, artifactId: artifact.artifactId, consentId: consent.id }
+  const load = createTrustedWorkflowInput(pool, profile, { origin, workflowPublicKey })
+  const loaded = await load(ref), compiled = await artifacts.get(maker.owner, artifact.artifactId)
+  assert.equal(loaded.config.strategyHash, compiled.payload.strategyHash)
+  assert.equal(loaded.config.maker, maker.owner.slice(7))
+  assert.deepEqual(loaded.config.builderEnvelope, compiled.payload.params.guard?.caps)
+  assert.equal(loaded.config.providerBindings[0]!.strategyId, `${saved.template.templateId}.v1`)
+  assert.deepEqual(loaded.payload.providerStrategyEnvelope, p.cipher)
+  assert.equal(JSON.stringify(loaded.config).includes(p.cipher.ciphertext), false)
+  assert.deepEqual(await load(ref), loaded)
+  await assert.rejects(load({ ...ref, owner: p.owner }), /not-found/)
+  await assert.rejects(load({ ...ref, consentId: randomUUID() }), /consent-required/)
+  await assert.rejects(createTrustedWorkflowInput(pool, profile, { origin, workflowPublicKey: '22'.repeat(32) })(ref), /policy-integrity/)
+  await assert.rejects(createTrustedWorkflowInput(pool, profile, { origin: 'https://wrong.example', workflowPublicKey })(ref), /policy-integrity/)
+  const { createEventDelivery } = await import('../src/event-delivery.ts')
+  const events = createEventDelivery(pool, profile, { evaluate: async snapshot => {
+    assert.equal(snapshot.binding, null)
+    return { status: 'changed', reportHash: digestJson({ initial: true }), report: { public: true }, nonceFloor: '0' }
+  } })
+  const enabled = await events.enable(maker.owner, randomUUID(), { draftId: draft.id, expectedRevision: draft.revision, artifactId: artifact.artifactId, consentId: consent.id })
+  const initial = await events.claimEvaluation(); assert.ok(initial)
+  assert.equal(initial.subscriptionId, enabled.subscription.id)
+  const evaluated = await events.evaluate(initial.id, initial.token)
+  assert.equal(evaluated.nonce, '1')
+  assert.equal((await events.deliveries(maker.owner, enabled.subscription.id))[0].status, 'pending')
+  await assert.rejects(events.deliveries(p.owner, enabled.subscription.id), /not-found/)
+  await automation.revoke(maker.owner, randomUUID(), { consentId: consent.id, signature: await maker.account.signMessage({ message: revokeMessage(consent) }) })
+  await assert.rejects(load(ref), /consent-required/)
+  const publicRows = (await pool.query('SELECT * FROM builder.requests WHERE owner=$1', [maker.owner])).rows
+  assert.equal(JSON.stringify(publicRows).includes(p.cipher.ciphertext), false)
+})
